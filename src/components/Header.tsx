@@ -48,6 +48,9 @@ export const Header = () => {
               </nav>
 
               <div className="hidden md:flex items-center space-x-4">
+                <Button variant="outline" className="glass-card border-glass-border" asChild>
+                  <Link to="/sync">Sincronizar Atividades</Link>
+                </Button>
                 <Button onClick={handleSignOut} variant="outline" className="glass-card border-glass-border">
                   Sair
                 </Button>
@@ -93,6 +96,13 @@ export const Header = () => {
                       {item.name}
                     </Link>
                   ))}
+                  <Link
+                    to="/sync"
+                    className="block px-3 py-2 text-foreground/80 hover:text-primary transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sincronizar Atividades
+                  </Link>
                   <div className="pt-4">
                     <Button onClick={handleSignOut} variant="outline" className="w-full glass-card border-glass-border">
                       Sair

@@ -12,6 +12,7 @@ import { Insights } from "./pages/Insights";
 import { Profile } from "./pages/Profile";
 import { Auth } from "./pages/Auth";
 import { ResetPassword } from "./pages/ResetPassword";
+import { GarminSync } from "./pages/GarminSync";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -87,6 +88,11 @@ const App = () => (
             <Route path="/insights" element={
               <ProtectedRoute>
                 <Insights />
+              </ProtectedRoute>
+            } />
+            <Route path="/sync" element={
+              <ProtectedRoute>
+                <GarminSync />
               </ProtectedRoute>
             } />
             <Route path="/profile" element={
