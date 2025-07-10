@@ -49,7 +49,9 @@ serve(async (req) => {
     // Handle GET request to return client ID (public info)
     if (req.method === 'GET') {
       console.log('Handling GET request - returning client ID');
-      return new Response(JSON.stringify({ client_id: garminClientId }), {
+      // Remove any leading '+' from client ID
+      const cleanClientId = garminClientId?.replace(/^\+/, '') || '';
+      return new Response(JSON.stringify({ client_id: cleanClientId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
