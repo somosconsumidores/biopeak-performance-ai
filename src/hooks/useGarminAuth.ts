@@ -44,12 +44,20 @@ export function useGarminAuth() {
   const startOAuthFlow = async () => {
     try {
       setIsConnecting(true);
+      console.log('Starting OAuth flow...');
       
       // Get client ID from edge function
+      console.log('Calling garmin-oauth edge function...');
       const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth');
-      if (clientError) throw clientError;
+      console.log('Edge function response:', { clientData, clientError });
       
-      const clientId = clientData.client_id;
+      if (clientError) {
+        console.error('Edge function error:', clientError);
+        throw clientError;
+      }
+      
+      const clientId = clientData?.client_id;
+      console.log('Client ID:', clientId);
       if (!clientId) throw new Error('Client ID not configured');
       
       // Generate PKCE parameters
