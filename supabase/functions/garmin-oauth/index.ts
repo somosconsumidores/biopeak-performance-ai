@@ -34,10 +34,15 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Garmin OAuth function called');
     const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
     const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
+    
+    console.log('Client ID exists:', !!garminClientId);
+    console.log('Client Secret exists:', !!garminClientSecret);
 
     if (!garminClientId || !garminClientSecret) {
+      console.error('Missing Garmin credentials - Client ID:', !!garminClientId, 'Client Secret:', !!garminClientSecret);
       throw new Error('Garmin OAuth credentials not configured');
     }
 
