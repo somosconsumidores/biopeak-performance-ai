@@ -42,9 +42,12 @@ export function buildGarminAuthURL(
   codeChallenge: string, 
   state: string
 ): string {
+  // Remove any leading '+' from client ID
+  const cleanClientId = clientId.replace(/^\+/, '');
+  
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: clientId,
+    client_id: cleanClientId,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     redirect_uri: redirectUri,
