@@ -59,40 +59,46 @@ export function useGarminAuth() {
   const startOAuthFlow = async () => {
     try {
       setIsConnecting(true);
-      console.log('Starting OAuth flow...');
+      console.log('🚀 Starting OAuth flow...');
       
       // Get client ID from edge function
-      console.log('Calling garmin-oauth edge function...');
+      console.log('📞 Calling garmin-oauth edge function...');
       const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth', {
         method: 'GET'
       });
-      console.log('Edge function response:', { clientData, clientError });
+      console.log('📨 Edge function response:', { clientData, clientError });
       
       if (clientError) {
-        console.error('Edge function error:', clientError);
+        console.error('❌ Edge function error:', clientError);
         throw new Error(`Erro na edge function: ${clientError.message || JSON.stringify(clientError)}`);
       }
       
       const clientId = clientData?.client_id;
-      console.log('Client ID:', clientId);
+      console.log('🔑 Client ID received:', clientId);
       if (!clientId) throw new Error('Client ID not configured in edge function');
       
       // Generate PKCE parameters
+      console.log('🔐 Generating PKCE parameters...');
       const { codeVerifier, codeChallenge } = await generatePKCE();
       const state = generateState();
+      console.log('✅ PKCE generated - Challenge:', codeChallenge.substring(0, 10) + '...', 'State:', state.substring(0, 10) + '...');
       
       // Store PKCE data for later use
+      console.log('💾 Storing PKCE data...');
       storePKCEData({ codeVerifier, state });
       
       // Build authorization URL
+      console.log('🔗 Building authorization URL...');
       const authUrl = buildGarminAuthURL(
         clientId,
         REDIRECT_URI,
         codeChallenge,
         state
       );
+      console.log('🌐 Authorization URL built:', authUrl);
       
       // Redirect to Garmin authorization
+      console.log('🔄 Redirecting to Garmin...');
       window.location.href = authUrl;
     } catch (error) {
       console.error('OAuth flow error:', error);
