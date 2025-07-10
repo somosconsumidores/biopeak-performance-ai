@@ -34,14 +34,21 @@ serve(async (req) => {
   }
 
   try {
-    const { action, ...requestData } = await req.json();
-
     const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
     const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
 
     if (!garminClientId || !garminClientSecret) {
       throw new Error('Garmin OAuth credentials not configured');
     }
+
+    // Handle GET request to return client ID (public info)
+    if (req.method === 'GET') {
+      return new Response(JSON.stringify({ client_id: garminClientId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { action, ...requestData } = await req.json();
 
     let tokenRequestData: TokenRequest;
 

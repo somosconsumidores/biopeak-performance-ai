@@ -15,8 +15,6 @@ import {
   type GarminTokens
 } from '@/lib/garmin-oauth';
 
-// Get from Supabase secrets
-const GARMIN_CLIENT_ID = 'GARMIN_CLIENT_ID'; // Will be replaced by actual value from secrets
 const REDIRECT_URI = `${window.location.origin}/sync`;
 
 export function useGarminAuth() {
@@ -47,6 +45,13 @@ export function useGarminAuth() {
     try {
       setIsConnecting(true);
       
+      // Get client ID from edge function
+      const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth');
+      if (clientError) throw clientError;
+      
+      const clientId = clientData.client_id;
+      if (!clientId) throw new Error('Client ID not configured');
+      
       // Generate PKCE parameters
       const { codeVerifier, codeChallenge } = await generatePKCE();
       const state = generateState();
@@ -56,7 +61,7 @@ export function useGarminAuth() {
       
       // Build authorization URL
       const authUrl = buildGarminAuthURL(
-        GARMIN_CLIENT_ID,
+        clientId,
         REDIRECT_URI,
         codeChallenge,
         state

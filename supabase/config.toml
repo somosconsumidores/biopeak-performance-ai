@@ -1,1 +1,4 @@
 project_id = "grcwlmltlcltmwbhdpky"
+
+[functions.garmin-oauth]
+verify_jwt = false
