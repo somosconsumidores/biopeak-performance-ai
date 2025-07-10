@@ -10,10 +10,14 @@ export function GarminCallback() {
   useEffect(() => {
     console.log('🔄 GarminCallback component mounted');
     console.log('🔍 Current URL:', window.location.href);
+    console.log('🔍 Pathname:', window.location.pathname);
+    console.log('🔍 Search params:', window.location.search);
     
     // Parse the OAuth callback parameters
     const urlParams = parseCallbackParams(window.location.href);
-    console.log('🔍 Callback params:', urlParams);
+    console.log('🔍 Parsed callback params:', urlParams);
+    console.log('🔍 Code length:', urlParams.code?.length || 0);
+    console.log('🔍 State length:', urlParams.state?.length || 0);
     
     if (urlParams.error) {
       console.error('❌ OAuth error received:', urlParams.error);
@@ -23,9 +27,19 @@ export function GarminCallback() {
     
     if (urlParams.code && urlParams.state) {
       console.log('✅ Valid OAuth callback detected, calling handleOAuthCallback');
-      handleOAuthCallback(urlParams.code, urlParams.state);
+      console.log('📞 About to call handleOAuthCallback with code:', urlParams.code.substring(0, 8) + '...');
+      console.log('📞 About to call handleOAuthCallback with state:', urlParams.state.substring(0, 8) + '...');
+      
+      try {
+        handleOAuthCallback(urlParams.code, urlParams.state);
+        console.log('✅ handleOAuthCallback called successfully');
+      } catch (error) {
+        console.error('❌ Error calling handleOAuthCallback:', error);
+      }
     } else {
       console.log('❌ Invalid callback - no code or state');
+      console.log('❌ Code present:', !!urlParams.code);
+      console.log('❌ State present:', !!urlParams.state);
       navigate('/auth');
     }
   }, [navigate, handleOAuthCallback]);
