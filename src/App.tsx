@@ -71,7 +71,11 @@ const App = () => (
               </PublicRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/garmin-callback" element={<GarminCallback />} />
+            <Route path="/garmin-callback" element={
+              <ProtectedRoute>
+                <GarminCallback />
+              </ProtectedRoute>
+            } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
