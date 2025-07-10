@@ -41,7 +41,7 @@ export const useGarminAuth = () => {
           .from('garmin_tokens')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           console.error('[useGarminAuth] Error checking database tokens:', error);
