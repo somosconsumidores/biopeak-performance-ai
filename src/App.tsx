@@ -13,6 +13,7 @@ import { Profile } from "./pages/Profile";
 import { Auth } from "./pages/Auth";
 import { ResetPassword } from "./pages/ResetPassword";
 import { GarminSync } from "./pages/GarminSync";
+import { GarminCallback } from "./pages/GarminCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
               </PublicRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/garmin-callback" element={<GarminCallback />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />

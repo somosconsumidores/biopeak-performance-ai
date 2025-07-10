@@ -15,7 +15,7 @@ import {
   type GarminTokens
 } from '@/lib/garmin-oauth';
 
-const REDIRECT_URI = `${window.location.origin}/sync`;
+const REDIRECT_URI = `${window.location.origin}/garmin-callback`;
 
 export function useGarminAuth() {
   const [isConnected, setIsConnected] = useState(false);
@@ -25,19 +25,31 @@ export function useGarminAuth() {
 
   // Check for existing tokens on mount
   useEffect(() => {
+    console.log('🔍 useGarminAuth useEffect triggered');
+    console.log('🔍 Current URL:', window.location.href);
+    
     const storedTokens = getStoredTokens();
+    console.log('🔍 Stored tokens:', storedTokens ? 'exist' : 'not found');
+    
     if (storedTokens && !isTokenExpired(storedTokens)) {
+      console.log('✅ Valid tokens found, setting connected state');
       setTokens(storedTokens);
       setIsConnected(true);
     } else if (storedTokens && isTokenExpired(storedTokens)) {
+      console.log('⏰ Tokens expired, trying to refresh');
       // Try to refresh the token
       refreshToken(storedTokens.refresh_token);
     }
 
     // Check if we're returning from OAuth callback
     const urlParams = parseCallbackParams(window.location.href);
+    console.log('🔍 URL params:', urlParams);
+    
     if (urlParams.code && urlParams.state) {
+      console.log('🔄 OAuth callback detected, handling...');
       handleOAuthCallback(urlParams.code, urlParams.state);
+    } else {
+      console.log('ℹ️ No OAuth callback params found');
     }
   }, []);
 
@@ -92,11 +104,18 @@ export function useGarminAuth() {
 
   const handleOAuthCallback = async (code: string, state: string) => {
     try {
+      console.log('🔄 handleOAuthCallback called with:', { code: code.substring(0, 10) + '...', state: state.substring(0, 10) + '...' });
+      
       const pkceData = getPKCEData();
+      console.log('🔍 PKCE data:', pkceData ? 'found' : 'not found');
       
       if (!pkceData || pkceData.state !== state) {
+        console.error('❌ State validation failed:', { stored: pkceData?.state, received: state });
         throw new Error('Invalid state parameter');
       }
+      
+      console.log('✅ State validation passed');
+      console.log('🔄 Calling edge function to exchange code for tokens...');
       
       // Exchange code for tokens via edge function
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
@@ -108,13 +127,27 @@ export function useGarminAuth() {
         }),
       });
 
-      if (error) throw error;
+      console.log('🔍 Edge function response:', { data: data ? 'received' : 'null', error });
 
+      if (error) {
+        console.error('❌ Edge function error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        console.error('❌ No data received from edge function');
+        throw new Error('No data received from token exchange');
+      }
+
+      console.log('✅ Tokens received, storing...');
+      
       // Store tokens and update state
       storeTokens(data);
       setTokens(data);
       setIsConnected(true);
       setIsConnecting(false);
+      
+      console.log('✅ Connection state updated to connected');
       
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -124,7 +157,7 @@ export function useGarminAuth() {
         description: 'Sua conta Garmin foi conectada ao BioPeak.',
       });
     } catch (error) {
-      console.error('OAuth callback error:', error);
+      console.error('❌ OAuth callback error:', error);
       clearStoredTokens();
       setIsConnecting(false);
       
