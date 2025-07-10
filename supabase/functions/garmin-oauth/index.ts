@@ -49,8 +49,10 @@ serve(async (req) => {
     // Handle GET request to return client ID (public info)
     if (req.method === 'GET') {
       console.log('Handling GET request - returning client ID');
+      console.log('Original client ID from env:', garminClientId);
       // Remove any leading '+' from client ID
       const cleanClientId = garminClientId?.replace(/^\+/, '') || '';
+      console.log('Cleaned client ID:', cleanClientId);
       return new Response(JSON.stringify({ client_id: cleanClientId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
