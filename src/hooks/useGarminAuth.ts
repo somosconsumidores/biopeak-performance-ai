@@ -53,12 +53,12 @@ export function useGarminAuth() {
       
       if (clientError) {
         console.error('Edge function error:', clientError);
-        throw clientError;
+        throw new Error(`Erro na edge function: ${clientError.message || JSON.stringify(clientError)}`);
       }
       
       const clientId = clientData?.client_id;
       console.log('Client ID:', clientId);
-      if (!clientId) throw new Error('Client ID not configured');
+      if (!clientId) throw new Error('Client ID not configured in edge function');
       
       // Generate PKCE parameters
       const { codeVerifier, codeChallenge } = await generatePKCE();
