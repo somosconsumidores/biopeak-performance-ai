@@ -34,7 +34,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Garmin OAuth function called');
+    console.log('Garmin OAuth function called with method:', req.method);
     const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
     const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
     
@@ -48,7 +48,16 @@ serve(async (req) => {
 
     // Handle GET request to return client ID (public info)
     if (req.method === 'GET') {
+      console.log('Handling GET request - returning client ID');
       return new Response(JSON.stringify({ client_id: garminClientId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Only POST requests should have JSON body
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -56,7 +65,9 @@ serve(async (req) => {
     // Parse JSON body for POST requests with error handling
     let requestBody: any;
     try {
-      requestBody = await req.json();
+      const bodyText = await req.text();
+      console.log('Request body text:', bodyText);
+      requestBody = bodyText ? JSON.parse(bodyText) : {};
     } catch (e) {
       console.error('Invalid JSON body:', e);
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
@@ -65,6 +76,7 @@ serve(async (req) => {
       });
     }
 
+    console.log('Parsed request body:', requestBody);
     const { action, ...requestData } = requestBody;
 
     let tokenRequestData: TokenRequest;

@@ -48,7 +48,9 @@ export function useGarminAuth() {
       
       // Get client ID from edge function
       console.log('Calling garmin-oauth edge function...');
-      const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth');
+      const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth', {
+        method: 'GET'
+      });
       console.log('Edge function response:', { clientData, clientError });
       
       if (clientError) {
@@ -98,12 +100,12 @@ export function useGarminAuth() {
       
       // Exchange code for tokens via edge function
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-        body: {
+        body: JSON.stringify({
           action: 'exchange_code',
           code,
           codeVerifier: pkceData.codeVerifier,
           redirectUri: REDIRECT_URI,
-        },
+        }),
       });
 
       if (error) throw error;
@@ -137,10 +139,10 @@ export function useGarminAuth() {
   const refreshToken = async (refreshTokenValue: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-        body: {
+        body: JSON.stringify({
           action: 'refresh_token',
           refreshToken: refreshTokenValue,
-        },
+        }),
       });
 
       if (error) throw error;
