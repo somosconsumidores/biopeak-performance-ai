@@ -129,7 +129,6 @@ export function useGarminAuth() {
       // Exchange code for tokens via edge function
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
         body: JSON.stringify({
-          action: 'exchange_code',
           code,
           codeVerifier: pkceData.codeVerifier,
           redirectUri: REDIRECT_URI,
