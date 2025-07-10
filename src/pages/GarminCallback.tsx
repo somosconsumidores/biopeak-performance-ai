@@ -5,7 +5,7 @@ import { parseCallbackParams } from '@/lib/garmin-oauth';
 
 export function GarminCallback() {
   const navigate = useNavigate();
-  const { isConnected } = useGarminAuth();
+  const { isConnected, handleOAuthCallback } = useGarminAuth();
 
   useEffect(() => {
     console.log('🔄 GarminCallback component mounted');
@@ -22,17 +22,13 @@ export function GarminCallback() {
     }
     
     if (urlParams.code && urlParams.state) {
-      console.log('✅ Valid OAuth callback detected');
-      // The useGarminAuth hook will handle the callback automatically
-      // Just wait for it to complete and then redirect
-      setTimeout(() => {
-        navigate('/sync');
-      }, 3000); // Give it time to process
+      console.log('✅ Valid OAuth callback detected, calling handleOAuthCallback');
+      handleOAuthCallback(urlParams.code, urlParams.state);
     } else {
       console.log('❌ Invalid callback - no code or state');
       navigate('/auth');
     }
-  }, [navigate]);
+  }, [navigate, handleOAuthCallback]);
 
   // If already connected, redirect to sync page
   useEffect(() => {

@@ -41,15 +41,18 @@ export function useGarminAuth() {
       refreshToken(storedTokens.refresh_token);
     }
 
-    // Check if we're returning from OAuth callback
-    const urlParams = parseCallbackParams(window.location.href);
-    console.log('🔍 URL params:', urlParams);
-    
-    if (urlParams.code && urlParams.state) {
-      console.log('🔄 OAuth callback detected, handling...');
-      handleOAuthCallback(urlParams.code, urlParams.state);
-    } else {
-      console.log('ℹ️ No OAuth callback params found');
+    // Only process OAuth callback if we're on the callback page
+    if (window.location.pathname === '/garmin-callback') {
+      // Check if we're returning from OAuth callback
+      const urlParams = parseCallbackParams(window.location.href);
+      console.log('🔍 URL params:', urlParams);
+      
+      if (urlParams.code && urlParams.state) {
+        console.log('🔄 OAuth callback detected, handling...');
+        handleOAuthCallback(urlParams.code, urlParams.state);
+      } else {
+        console.log('ℹ️ No OAuth callback params found');
+      }
     }
   }, []);
 
@@ -219,5 +222,6 @@ export function useGarminAuth() {
     startOAuthFlow,
     disconnect,
     getValidAccessToken,
+    handleOAuthCallback, // Export this function for the callback page
   };
 }
