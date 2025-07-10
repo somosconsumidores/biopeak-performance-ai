@@ -53,7 +53,19 @@ serve(async (req) => {
       });
     }
 
-    const { action, ...requestData } = await req.json();
+    // Parse JSON body for POST requests with error handling
+    let requestBody: any;
+    try {
+      requestBody = await req.json();
+    } catch (e) {
+      console.error('Invalid JSON body:', e);
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { action, ...requestData } = requestBody;
 
     let tokenRequestData: TokenRequest;
 
