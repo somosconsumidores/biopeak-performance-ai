@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { 
   Watch, 
   Smartphone, 
@@ -24,52 +23,25 @@ import {
 interface SyncStats {
   lastSync: string;
   activitiesCount: number;
-  syncStatus: 'connected' | 'disconnected' | 'syncing';
+  syncStatus: 'connected' | 'disconnected';
 }
 
 export function GarminSync() {
-  const [syncStats, setSyncStats] = useState<SyncStats>({
+  const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
+
+  const syncStats = {
     lastSync: '2024-01-10 14:30',
     activitiesCount: 127,
-    syncStatus: 'connected'
-  });
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const { toast } = useToast();
+    syncStatus: isConnected ? ('connected' as const) : ('disconnected' as const)
+  };
 
-  const handleConnectGarmin = async () => {
-    setIsConnecting(true);
-    
-    // Simular conexão com Garmin
-    setTimeout(() => {
-      setSyncStats(prev => ({ ...prev, syncStatus: 'connected' }));
-      setIsConnecting(false);
-      toast({
-        title: 'Conectado com sucesso!',
-        description: 'Sua conta Garmin foi conectada ao BioPeak.',
-      });
-    }, 2000);
+  const handleConnectGarmin = () => {
+    startOAuthFlow();
   };
 
   const handleSyncActivities = async () => {
-    setIsSyncing(true);
-    setSyncStats(prev => ({ ...prev, syncStatus: 'syncing' }));
-    
-    // Simular sincronização
-    setTimeout(() => {
-      const now = new Date().toLocaleString('pt-BR');
-      setSyncStats(prev => ({
-        ...prev,
-        lastSync: now,
-        activitiesCount: prev.activitiesCount + Math.floor(Math.random() * 5),
-        syncStatus: 'connected'
-      }));
-      setIsSyncing(false);
-      toast({
-        title: 'Sincronização concluída!',
-        description: 'Suas atividades foram atualizadas com sucesso.',
-      });
-    }, 3000);
+    // TODO: Implement actual sync with Garmin API
+    console.log('Sync activities functionality to be implemented');
   };
 
   const getStatusColor = (status: string) => {
@@ -137,10 +109,7 @@ export function GarminSync() {
                       Monitore o status da sua conexão com Garmin Connect
                     </CardDescription>
                   </div>
-                  <Badge className={getStatusColor(syncStats.syncStatus)}>
-                    {syncStats.syncStatus === 'syncing' && (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    )}
+                   <Badge className={getStatusColor(syncStats.syncStatus)}>
                     {syncStats.syncStatus === 'connected' && (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
@@ -182,23 +151,13 @@ export function GarminSync() {
                             </>
                           )}
                         </Button>
-                      ) : (
+                       ) : (
                         <Button 
                           onClick={handleSyncActivities}
-                          disabled={isSyncing}
                           className="flex-1"
                         >
-                          {isSyncing ? (
-                            <>
-                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              Sincronizando...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-2" />
-                              Sincronizar Agora
-                            </>
-                          )}
+                          <Download className="h-4 w-4 mr-2" />
+                          Sincronizar Agora
                         </Button>
                       )}
                     </div>
