@@ -23,128 +23,87 @@ interface TokenResponse {
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    console.log('Garmin OAuth function called with method:', req.method);
-    const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
-    const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
-    
-    console.log('Client ID exists:', !!garminClientId);
-    console.log('Client Secret exists:', !!garminClientSecret);
+  const garminClientIdRaw = Deno.env.get("GARMIN_CLIENT_ID");
+  const garminClientSecret = Deno.env.get("GARMIN_CLIENT_SECRET");
 
-    if (!garminClientId || !garminClientSecret) {
-      console.error('Missing Garmin credentials - Client ID:', !!garminClientId, 'Client Secret:', !!garminClientSecret);
-      throw new Error('Garmin OAuth credentials not configured');
-    }
+  const garminClientId = garminClientIdRaw?.replace(/^\+/, "") || "";
 
-    // Handle GET request to return client ID (public info)
-    if (req.method === 'GET') {
-      console.log('Handling GET request - returning client ID');
-      console.log('Original client ID from env:', garminClientId);
-      // Remove any leading '+' from client ID
-      const cleanClientId = garminClientId?.replace(/^\+/, '') || '';
-      console.log('Cleaned client ID:', cleanClientId);
-      return new Response(JSON.stringify({ client_id: cleanClientId }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  if (!garminClientId || !garminClientSecret) {
+    return new Response("Missing Garmin credentials", { status: 500 });
+  }
 
-    // Only POST requests should have JSON body
-    if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-        status: 405,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  if (req.method === "GET") {
+    return new Response(JSON.stringify({ client_id: garminClientId }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-    // Parse JSON body for POST requests with error handling
-    let requestBody: any;
+  if (req.method === "POST") {
+    let body: any;
     try {
-      const bodyText = await req.text();
-      console.log('Request body text:', bodyText);
-      requestBody = bodyText ? JSON.parse(bodyText) : {};
+      body = await req.json();
     } catch (e) {
-      console.error('Invalid JSON body:', e);
-      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log('Parsed request body:', requestBody);
-    const { action, ...requestData } = requestBody;
+    const { code, codeVerifier, redirectUri } = body;
 
-    let tokenRequestData: TokenRequest;
-
-    if (action === 'exchange_code') {
-      // Exchange authorization code for tokens
-      const { code, codeVerifier, redirectUri } = requestData;
-      
-      tokenRequestData = {
-        grant_type: 'authorization_code',
-        client_id: garminClientId,
-        client_secret: garminClientSecret,
-        code,
-        code_verifier: codeVerifier,
-        redirect_uri: redirectUri,
-      };
-    } else if (action === 'refresh_token') {
-      // Refresh access token
-      const { refreshToken } = requestData;
-      
-      tokenRequestData = {
-        grant_type: 'refresh_token',
-        client_id: garminClientId,
-        client_secret: garminClientSecret,
-        refresh_token: refreshToken,
-      };
-    } else {
-      throw new Error('Invalid action');
+    if (!code || !codeVerifier || !redirectUri) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: code, codeVerifier, redirectUri" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Make request to Garmin token endpoint
+    const tokenRequestData: TokenRequest = {
+      grant_type: "authorization_code",
+      client_id: garminClientId,
+      client_secret: garminClientSecret,
+      code,
+      code_verifier: codeVerifier,
+      redirect_uri: redirectUri,
+    };
+
     const formData = new URLSearchParams();
     Object.entries(tokenRequestData).forEach(([key, value]) => {
       if (value) formData.append(key, value);
     });
 
+    console.log("Sending request to Garmin with:", tokenRequestData);
+
     const response = await fetch(GARMIN_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData.toString(),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Garmin API error:', errorText);
-      throw new Error(`Garmin API error: ${response.status} - ${errorText}`);
+      console.error("Garmin API error:", errorText);
+      return new Response(JSON.stringify({ error: "Garmin API error", detail: errorText }), {
+        status: response.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const tokenResponse: TokenResponse = await response.json();
 
     return new Response(JSON.stringify(tokenResponse), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-  } catch (error) {
-    console.error('OAuth error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
   }
+
+  return new Response("Method not allowed", { status: 405 });
 });
