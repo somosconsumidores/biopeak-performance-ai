@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      garmin_tokens: {
+        Row: {
+          access_token: string
+          consumer_key: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          oauth_verifier: string | null
+          token_secret: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          consumer_key?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          oauth_verifier?: string | null
+          token_secret?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          consumer_key?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          oauth_verifier?: string | null
+          token_secret?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_temp_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          oauth_token: string
+          oauth_token_secret: string | null
+          provider: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          oauth_token: string
+          oauth_token_secret?: string | null
+          provider?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          oauth_token?: string
+          oauth_token_secret?: string | null
+          provider?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

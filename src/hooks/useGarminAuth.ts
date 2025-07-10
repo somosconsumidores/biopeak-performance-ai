@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  generatePKCE,
-  generateState,
-  buildGarminAuthURL,
+import { 
+  generatePKCE, 
+  generateState, 
+  buildGarminAuthURL, 
   parseCallbackParams,
   storeTokens,
   getStoredTokens,
@@ -14,10 +13,11 @@ import {
   isTokenExpired,
   type GarminTokens
 } from '@/lib/garmin-oauth';
+import { useToast } from '@/hooks/use-toast';
 
 const REDIRECT_URI = `${window.location.origin}/garmin-callback`;
 
-export function useGarminAuth() {
+export const useGarminAuth = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [tokens, setTokens] = useState<GarminTokens | null>(null);
@@ -25,200 +25,326 @@ export function useGarminAuth() {
 
   // Check for existing tokens on mount
   useEffect(() => {
-    console.log('🔍 useGarminAuth useEffect triggered');
-    console.log('🔍 Current URL:', window.location.href);
-    
-    const storedTokens = getStoredTokens();
-    console.log('🔍 Stored tokens:', storedTokens ? 'exist' : 'not found');
-    
-    if (storedTokens && !isTokenExpired(storedTokens)) {
-      console.log('✅ Valid tokens found, setting connected state');
-      setTokens(storedTokens);
-      setIsConnected(true);
-    } else if (storedTokens && isTokenExpired(storedTokens)) {
-      console.log('⏰ Tokens expired, trying to refresh');
-      // Try to refresh the token
-      refreshToken(storedTokens.refresh_token);
-    }
+    const checkExistingTokens = async () => {
+      try {
+        console.log('[useGarminAuth] Checking for existing tokens...');
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.log('[useGarminAuth] No authenticated user');
+          return;
+        }
 
-    // Only process OAuth callback if we're on the callback page
+        // Check database for tokens
+        const { data: dbTokens, error } = await supabase
+          .from('garmin_tokens')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('[useGarminAuth] Error checking database tokens:', error);
+          return;
+        }
+
+        if (dbTokens) {
+          console.log('[useGarminAuth] Found tokens in database');
+          
+          // Check if tokens are expired
+          const expiresAt = new Date(dbTokens.expires_at || 0).getTime();
+          const isExpired = Date.now() >= expiresAt;
+          
+          if (!isExpired) {
+            // Convert database tokens to GarminTokens format
+            const garminTokens: GarminTokens = {
+              access_token: dbTokens.access_token,
+              refresh_token: dbTokens.token_secret || '',
+              expires_in: Math.floor((expiresAt - Date.now()) / 1000),
+              token_type: 'Bearer',
+              expires_at: expiresAt,
+              scope: ''
+            };
+            
+            setTokens(garminTokens);
+            setIsConnected(true);
+            
+            // Also store in localStorage for backwards compatibility
+            storeTokens({
+              access_token: garminTokens.access_token,
+              refresh_token: garminTokens.refresh_token,
+              expires_in: garminTokens.expires_in,
+              token_type: garminTokens.token_type,
+              scope: garminTokens.scope
+            });
+            
+            console.log('[useGarminAuth] Tokens are valid, user is connected');
+          } else {
+            console.log('[useGarminAuth] Tokens are expired');
+            // Clean up expired tokens
+            await supabase
+              .from('garmin_tokens')
+              .delete()
+              .eq('user_id', user.id);
+            clearStoredTokens();
+          }
+        } else {
+          console.log('[useGarminAuth] No tokens found in database');
+          // Check localStorage as fallback
+          const storedTokens = getStoredTokens();
+          if (storedTokens && !isTokenExpired(storedTokens)) {
+            setTokens(storedTokens);
+            setIsConnected(true);
+            console.log('[useGarminAuth] Using localStorage tokens');
+          }
+        }
+      } catch (error) {
+        console.error('[useGarminAuth] Error checking tokens:', error);
+      }
+    };
+
+    checkExistingTokens();
+    
+    // Handle OAuth callback if on callback page
     if (window.location.pathname === '/garmin-callback') {
-      // Check if we're returning from OAuth callback
       const urlParams = parseCallbackParams(window.location.href);
-      console.log('🔍 URL params:', urlParams);
       
       if (urlParams.code && urlParams.state) {
-        console.log('🔄 OAuth callback detected, handling...');
+        console.log('[useGarminAuth] OAuth callback detected, handling...');
         handleOAuthCallback(urlParams.code, urlParams.state);
-      } else {
-        console.log('ℹ️ No OAuth callback params found');
       }
     }
   }, []);
 
-  const startOAuthFlow = async () => {
+  const startOAuthFlow = useCallback(async () => {
     try {
       setIsConnecting(true);
-      console.log('🚀 Starting OAuth flow...');
-      
+      console.log('[useGarminAuth] Starting OAuth flow...');
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Get client ID from edge function
-      console.log('📞 Calling garmin-oauth edge function...');
       const { data: clientData, error: clientError } = await supabase.functions.invoke('garmin-oauth', {
         method: 'GET'
       });
-      console.log('📨 Edge function response:', { clientData, clientError });
-      
+
       if (clientError) {
-        console.error('❌ Edge function error:', clientError);
-        throw new Error(`Erro na edge function: ${clientError.message || JSON.stringify(clientError)}`);
+        console.error('[useGarminAuth] Error getting client ID:', clientError);
+        throw new Error('Failed to get client configuration');
       }
-      
-      const clientId = clientData?.client_id;
-      console.log('🔑 Client ID received:', clientId);
-      if (!clientId) throw new Error('Client ID not configured in edge function');
-      
+
+      const clientId = clientData.client_id;
+      console.log('[useGarminAuth] Got client ID:', clientId);
+
       // Generate PKCE parameters
-      console.log('🔐 Generating PKCE parameters...');
       const { codeVerifier, codeChallenge } = await generatePKCE();
       const state = generateState();
-      console.log('✅ PKCE generated - Challenge:', codeChallenge.substring(0, 10) + '...', 'State:', state.substring(0, 10) + '...');
-      
-      // Store PKCE data for later use
-      console.log('💾 Storing PKCE data...');
+
+      // Store PKCE data
       storePKCEData({ codeVerifier, state });
-      
+      console.log('[useGarminAuth] Generated and stored PKCE data');
+
       // Build authorization URL
-      console.log('🔗 Building authorization URL...');
-      const authUrl = buildGarminAuthURL(
-        clientId,
-        REDIRECT_URI,
-        codeChallenge,
-        state
-      );
-      console.log('🌐 Authorization URL built:', authUrl);
-      
-      // Redirect to Garmin authorization
-      console.log('🔄 Redirecting to Garmin...');
+      const authUrl = buildGarminAuthURL(clientId, REDIRECT_URI, codeChallenge, state);
+      console.log('[useGarminAuth] Redirecting to:', authUrl);
+
+      // Redirect to Garmin
       window.location.href = authUrl;
     } catch (error) {
-      console.error('OAuth flow error:', error);
+      console.error('[useGarminAuth] Error starting OAuth flow:', error);
       toast({
-        title: 'Erro na conexão',
-        description: 'Não foi possível iniciar a conexão com Garmin.',
-        variant: 'destructive',
+        title: "Erro na conexão",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao iniciar conexão.",
+        variant: "destructive",
       });
       setIsConnecting(false);
     }
-  };
+  }, [toast]);
 
-  const handleOAuthCallback = async (code: string, state: string) => {
+  const handleOAuthCallback = useCallback(async (code: string, state: string) => {
     try {
-      console.log('🔄 handleOAuthCallback called with:', { code: code.substring(0, 10) + '...', state: state.substring(0, 10) + '...' });
+      console.log('[useGarminAuth] Handling OAuth callback...');
       
+      // Get current user and session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Verify state parameter
       const pkceData = getPKCEData();
-      console.log('🔍 PKCE data:', pkceData ? 'found' : 'not found');
-      
       if (!pkceData || pkceData.state !== state) {
-        console.error('❌ State validation failed:', { stored: pkceData?.state, received: state });
         throw new Error('Invalid state parameter');
       }
-      
-      console.log('✅ State validation passed');
-      console.log('🔄 Calling edge function to exchange code for tokens...');
-      
-      // Exchange code for tokens via edge function
+
+      console.log('[useGarminAuth] State verified, exchanging code for tokens...');
+
+      // Exchange code for tokens via edge function with authentication
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-        body: JSON.stringify({
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
           code,
           codeVerifier: pkceData.codeVerifier,
           redirectUri: REDIRECT_URI,
-        }),
+        }
       });
-
-      console.log('🔍 Edge function response:', { data: data ? 'received' : 'null', error });
 
       if (error) {
-        console.error('❌ Edge function error:', error);
-        throw error;
+        console.error('[useGarminAuth] Edge function error:', error);
+        throw new Error(error.message || 'Failed to exchange code for tokens');
       }
 
-      if (!data) {
-        console.error('❌ No data received from edge function');
-        throw new Error('No data received from token exchange');
+      if (!data.success) {
+        console.error('[useGarminAuth] Token exchange failed:', data.error);
+        throw new Error(data.error || 'Failed to exchange code for tokens');
       }
 
-      console.log('✅ Tokens received, storing...');
-      
+      console.log('[useGarminAuth] Token exchange successful');
+
+      // Create tokens object
+      const newTokens: GarminTokens = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+        token_type: data.token_type || 'Bearer',
+        expires_at: Date.now() + (data.expires_in * 1000) - 600000, // 10 min buffer
+        scope: data.scope || ''
+      };
+
       // Store tokens and update state
-      storeTokens(data);
-      setTokens(data);
+      storeTokens(newTokens);
+      setTokens(newTokens);
       setIsConnected(true);
       setIsConnecting(false);
-      
-      console.log('✅ Connection state updated to connected');
-      
-      // Clean up URL
+
+      // Clear PKCE data
+      localStorage.removeItem('garmin_pkce');
+
+      console.log('[useGarminAuth] Authentication completed successfully');
+
+      toast({
+        title: "Conectado com sucesso!",
+        description: "Sua conta Garmin Connect foi conectada.",
+      });
+
+      // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
-      
-      toast({
-        title: 'Conectado com sucesso!',
-        description: 'Sua conta Garmin foi conectada ao BioPeak.',
-      });
     } catch (error) {
-      console.error('❌ OAuth callback error:', error);
-      clearStoredTokens();
+      console.error('[useGarminAuth] Error in OAuth callback:', error);
       setIsConnecting(false);
+      toast({
+        title: "Erro na conexão",
+        description: error instanceof Error ? error.message : "Erro desconhecido durante a autenticação.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const disconnect = useCallback(async () => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Remove tokens from database
+        await supabase
+          .from('garmin_tokens')
+          .delete()
+          .eq('user_id', user.id);
+      }
+
+      // Clear localStorage
+      clearStoredTokens();
+      
+      // Reset state
+      setTokens(null);
+      setIsConnected(false);
       
       toast({
-        title: 'Erro na autenticação',
-        description: 'Não foi possível conectar com Garmin. Tente novamente.',
-        variant: 'destructive',
+        title: "Desconectado",
+        description: "Sua conta Garmin Connect foi desconectada.",
       });
-    }
-  };
-
-  const refreshToken = async (refreshTokenValue: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-        body: JSON.stringify({
-          action: 'refresh_token',
-          refreshToken: refreshTokenValue,
-        }),
-      });
-
-      if (error) throw error;
-
-      storeTokens(data);
-      setTokens(data);
-      setIsConnected(true);
     } catch (error) {
-      console.error('Token refresh error:', error);
-      disconnect();
+      console.error('[useGarminAuth] Error disconnecting:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao desconectar da conta Garmin.",
+        variant: "destructive",
+      });
     }
-  };
+  }, [toast]);
 
-  const disconnect = () => {
-    clearStoredTokens();
-    setTokens(null);
-    setIsConnected(false);
-    
-    toast({
-      title: 'Desconectado',
-      description: 'Sua conta Garmin foi desconectada.',
-    });
-  };
-
-  const getValidAccessToken = async (): Promise<string | null> => {
-    if (!tokens) return null;
-    
-    if (isTokenExpired(tokens)) {
-      await refreshToken(tokens.refresh_token);
-      const refreshedTokens = getStoredTokens();
-      return refreshedTokens?.access_token || null;
+  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
+    if (!tokens || isTokenExpired(tokens)) {
+      // Try to refresh token
+      if (tokens?.refresh_token) {
+        try {
+          await refreshToken(tokens.refresh_token);
+          return tokens.access_token;
+        } catch (error) {
+          console.error('[useGarminAuth] Error refreshing token:', error);
+          return null;
+        }
+      }
+      return null;
     }
-    
     return tokens.access_token;
-  };
+  }, [tokens]);
+
+  const refreshToken = useCallback(async (refreshTokenValue: string) => {
+    try {
+      console.log('[useGarminAuth] Refreshing token...');
+      
+      // Get current user and session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Call edge function to refresh token
+      const { data, error } = await supabase.functions.invoke('garmin-oauth', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          refresh_token: refreshTokenValue,
+          grant_type: 'refresh_token'
+        }
+      });
+
+      if (error || !data.success) {
+        throw new Error(data?.error || 'Failed to refresh token');
+      }
+
+      const newTokens: GarminTokens = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token || refreshTokenValue,
+        expires_in: data.expires_in,
+        token_type: data.token_type || 'Bearer',
+        expires_at: Date.now() + (data.expires_in * 1000) - 600000,
+        scope: data.scope || ''
+      };
+
+      storeTokens(newTokens);
+      setTokens(newTokens);
+      
+      console.log('[useGarminAuth] Token refreshed successfully');
+    } catch (error) {
+      console.error('[useGarminAuth] Error refreshing token:', error);
+      // If refresh fails, disconnect user
+      await disconnect();
+      throw error;
+    }
+  }, [disconnect]);
 
   return {
     isConnected,
@@ -227,6 +353,6 @@ export function useGarminAuth() {
     startOAuthFlow,
     disconnect,
     getValidAccessToken,
-    handleOAuthCallback, // Export this function for the callback page
+    handleOAuthCallback,
   };
-}
+};
