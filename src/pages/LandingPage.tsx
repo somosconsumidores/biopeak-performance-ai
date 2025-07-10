@@ -3,6 +3,7 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
 import { 
   Activity, 
   Brain, 
@@ -81,9 +82,11 @@ export const LandingPage = () => {
               estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="btn-primary text-lg px-8 py-4">
-                Começar Agora
-                <ArrowRight className="ml-2 h-5 w-5" />
+              <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
+                <Link to="/auth">
+                  Começar Agora
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
               </Button>
               <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
                 Ver Demo
@@ -216,9 +219,11 @@ export const LandingPage = () => {
                 inteligente. Comece sua jornada para a performance máxima hoje.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="btn-primary text-lg px-8 py-4">
-                  Começar Gratuitamente
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
+                  <Link to="/auth">
+                    Começar Gratuitamente
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
                   Falar com Especialista

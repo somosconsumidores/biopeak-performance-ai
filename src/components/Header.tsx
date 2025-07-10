@@ -2,10 +2,16 @@ import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import bioPeakLogo from '@/assets/biopeak-logo.png';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard' },
@@ -27,27 +33,36 @@ export const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="text-foreground/80 hover:text-primary transition-colors duration-200 font-medium"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+          {user ? (
+            <>
+              <nav className="hidden md:flex items-center space-x-8">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-foreground/80 hover:text-primary transition-colors duration-200 font-medium"
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </nav>
 
-          {/* CTA Button */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Button variant="outline" className="glass-card border-glass-border">
-              Login
-            </Button>
-            <Button className="btn-primary">
-              Começar Agora
-            </Button>
-          </div>
+              <div className="hidden md:flex items-center space-x-4">
+                <Button onClick={handleSignOut} variant="outline" className="glass-card border-glass-border">
+                  Sair
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="hidden md:flex items-center space-x-4">
+              <Button variant="outline" className="glass-card border-glass-border" asChild>
+                <Link to="/auth">Login</Link>
+              </Button>
+              <Button className="btn-primary" asChild>
+                <Link to="/auth">Começar Agora</Link>
+              </Button>
+            </div>
+          )}
 
           {/* Mobile menu button */}
           <div className="md:hidden">
@@ -66,24 +81,34 @@ export const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 glass-card mt-2 border-glass-border">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className="block px-3 py-2 text-foreground/80 hover:text-primary transition-colors duration-200"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
-              <div className="pt-4 space-y-2">
-                <Button variant="outline" className="w-full glass-card border-glass-border">
-                  Login
-                </Button>
-                <Button className="w-full btn-primary">
-                  Começar Agora
-                </Button>
-              </div>
+              {user ? (
+                <>
+                  {navigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className="block px-3 py-2 text-foreground/80 hover:text-primary transition-colors duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                  <div className="pt-4">
+                    <Button onClick={handleSignOut} variant="outline" className="w-full glass-card border-glass-border">
+                      Sair
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="pt-4 space-y-2">
+                  <Button variant="outline" className="w-full glass-card border-glass-border" asChild>
+                    <Link to="/auth">Login</Link>
+                  </Button>
+                  <Button className="w-full btn-primary" asChild>
+                    <Link to="/auth">Começar Agora</Link>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}
