@@ -102,40 +102,82 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
 
-    // Calculate time range - last 90 days to capture more historical data
-    const endTime = Math.floor(Date.now() / 1000); // Current time in seconds
-    const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago in seconds
+    // Garmin API limits time range to 86400 seconds (24 hours)
+    const MAX_TIME_RANGE = 86400; // 24 hours in seconds
+    const DAYS_TO_SYNC = 30; // Sync last 30 days
+    const DELAY_BETWEEN_REQUESTS = 100; // 100ms delay between requests
 
-    // Build URL with time range parameters
-    const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
-    apiUrl.searchParams.append('uploadStartTimeInSeconds', startTime.toString());
-    apiUrl.searchParams.append('uploadEndTimeInSeconds', endTime.toString());
+    const endTime = Math.floor(Date.now() / 1000);
+    const totalStartTime = endTime - (DAYS_TO_SYNC * 24 * 60 * 60);
 
-    console.log('[sync-garmin-activities] API URL:', apiUrl.toString());
+    let allActivities: GarminActivity[] = [];
+    let processedDays = 0;
+    let failedDays = 0;
 
-    // Fetch activities from Garmin API
-    const garminResponse = await fetch(apiUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json',
-      },
-    });
+    // Process in 24-hour chunks, starting from most recent
+    for (let currentEndTime = endTime; currentEndTime > totalStartTime; currentEndTime -= MAX_TIME_RANGE) {
+      const currentStartTime = Math.max(currentEndTime - MAX_TIME_RANGE, totalStartTime);
+      
+      console.log(`[sync-garmin-activities] Processing day ${processedDays + 1}/${DAYS_TO_SYNC}...`);
+      
+      try {
+        // Build URL with 24-hour time range
+        const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
+        apiUrl.searchParams.append('uploadStartTimeInSeconds', currentStartTime.toString());
+        apiUrl.searchParams.append('uploadEndTimeInSeconds', currentEndTime.toString());
 
-    if (!garminResponse.ok) {
-      const errorText = await garminResponse.text();
-      console.error('[sync-garmin-activities] Garmin API error:', garminResponse.status, errorText);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to fetch activities from Garmin',
-        details: errorText 
-      }), {
-        status: garminResponse.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+        console.log(`[sync-garmin-activities] Fetching from ${new Date(currentStartTime * 1000).toISOString()} to ${new Date(currentEndTime * 1000).toISOString()}`);
+
+        // Fetch activities for this 24-hour period
+        const garminResponse = await fetch(apiUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!garminResponse.ok) {
+          const errorText = await garminResponse.text();
+          console.error(`[sync-garmin-activities] Garmin API error for day ${processedDays + 1}:`, garminResponse.status, errorText);
+          failedDays++;
+          
+          // Continue with other days even if one fails
+          processedDays++;
+          
+          // Add delay before next request
+          if (currentStartTime > totalStartTime) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+          }
+          continue;
+        }
+
+        const dayActivities: GarminActivity[] = await garminResponse.json();
+        console.log(`[sync-garmin-activities] Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
+        
+        // Add activities to the total collection
+        allActivities = allActivities.concat(dayActivities);
+        processedDays++;
+
+        // Add delay between requests to be respectful to the API
+        if (currentStartTime > totalStartTime) {
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+        }
+
+      } catch (error) {
+        console.error(`[sync-garmin-activities] Error processing day ${processedDays + 1}:`, error);
+        failedDays++;
+        processedDays++;
+        
+        // Add delay before next request even on error
+        if (currentStartTime > totalStartTime) {
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+        }
+      }
     }
 
-    const activities: GarminActivity[] = await garminResponse.json();
-    console.log('[sync-garmin-activities] Fetched', activities.length, 'activities');
+    console.log(`[sync-garmin-activities] Completed sync: ${processedDays} days processed, ${failedDays} failed, ${allActivities.length} total activities`);
+    const activities = allActivities;
 
     if (activities.length === 0) {
       return new Response(JSON.stringify({ 
@@ -210,9 +252,11 @@ serve(async (req) => {
     console.log('[sync-garmin-activities] Successfully synced', syncedCount, 'activities');
 
     return new Response(JSON.stringify({
-      message: 'Activities synced successfully',
+      message: `Activities synced successfully. Processed ${processedDays} days${failedDays > 0 ? `, ${failedDays} days failed` : ''}.`,
       synced: syncedCount,
-      total: activities.length
+      total: activities.length,
+      daysProcessed: processedDays,
+      daysFailed: failedDays
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
