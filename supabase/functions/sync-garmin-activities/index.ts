@@ -102,9 +102,9 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
 
-    // Calculate time range - last 30 days
+    // Calculate time range - last 90 days to capture more historical data
     const endTime = Math.floor(Date.now() / 1000); // Current time in seconds
-    const startTime = endTime - (30 * 24 * 60 * 60); // 30 days ago in seconds
+    const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago in seconds
 
     // Build URL with time range parameters
     const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
