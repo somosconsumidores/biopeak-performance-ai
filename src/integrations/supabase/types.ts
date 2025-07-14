@@ -17,6 +17,7 @@ export type Database = {
       garmin_activities: {
         Row: {
           active_kilocalories: number | null
+          activity_date: string | null
           activity_id: string
           activity_type: string | null
           average_bike_cadence_in_rounds_per_minute: number | null
@@ -57,6 +58,7 @@ export type Database = {
         }
         Insert: {
           active_kilocalories?: number | null
+          activity_date?: string | null
           activity_id: string
           activity_type?: string | null
           average_bike_cadence_in_rounds_per_minute?: number | null
@@ -97,6 +99,7 @@ export type Database = {
         }
         Update: {
           active_kilocalories?: number | null
+          activity_date?: string | null
           activity_id?: string
           activity_type?: string | null
           average_bike_cadence_in_rounds_per_minute?: number | null
