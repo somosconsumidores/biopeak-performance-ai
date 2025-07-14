@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 
-const GARMIN_TOKEN_URL = "https://connectapi.garmin.com/di-oauth2-service/oauth/token";
+const GARMIN_TOKEN_URL = "https://connect.garmin.com/oauth2/token";
 
 interface TokenRequest {
   grant_type: string;
@@ -149,8 +149,9 @@ serve(async (req) => {
 
       const response = await fetch(GARMIN_TOKEN_URL, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": `Basic ${btoa(`${cleanClientId}:${clientSecret}`)}`,
           "Accept": "application/json"
         },
         body: formData.toString(),
@@ -180,8 +181,10 @@ serve(async (req) => {
           access_token: tokenData.access_token,
           token_secret: tokenData.refresh_token || '',
           consumer_key: cleanClientId,
-          oauth_verifier: code,
-          expires_at: expiresAt
+          expires_at: expiresAt,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
         });
 
       if (insertError) {
