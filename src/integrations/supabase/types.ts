@@ -210,32 +210,41 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          birth_date: string | null
           created_at: string
           display_name: string | null
           email: string | null
+          height_cm: number | null
           id: string
           updated_at: string
           user_id: string
+          weight_kg: number | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          birth_date?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          height_cm?: number | null
           id?: string
           updated_at?: string
           user_id: string
+          weight_kg?: number | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          birth_date?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          height_cm?: number | null
           id?: string
           updated_at?: string
           user_id?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
