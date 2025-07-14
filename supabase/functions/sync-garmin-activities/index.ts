@@ -102,8 +102,19 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
 
+    // Calculate time range - last 30 days
+    const endTime = Math.floor(Date.now() / 1000); // Current time in seconds
+    const startTime = endTime - (30 * 24 * 60 * 60); // 30 days ago in seconds
+
+    // Build URL with time range parameters
+    const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
+    apiUrl.searchParams.append('uploadStartTimeInSeconds', startTime.toString());
+    apiUrl.searchParams.append('uploadEndTimeInSeconds', endTime.toString());
+
+    console.log('[sync-garmin-activities] API URL:', apiUrl.toString());
+
     // Fetch activities from Garmin API
-    const garminResponse = await fetch('https://apis.garmin.com/wellness-api/rest/activities', {
+    const garminResponse = await fetch(apiUrl.toString(), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
