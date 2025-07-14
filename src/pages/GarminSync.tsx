@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminSync } from '@/hooks/useGarminSync';
+import { useGarminStats } from '@/hooks/useGarminStats';
 import { 
   Watch, 
   Smartphone, 
@@ -30,10 +31,30 @@ interface SyncStats {
 export function GarminSync() {
   const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useGarminSync();
+  const { activitiesCount, lastSyncAt, loading: statsLoading } = useGarminStats();
+
+  const formatLastSync = (syncAt: string | null) => {
+    if (!syncAt) return 'Nunca sincronizado';
+    
+    const date = new Date(syncAt);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) return 'Há poucos minutos';
+    if (diffInHours < 24) return `Há ${Math.floor(diffInHours)} horas`;
+    
+    return date.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const syncStats = {
-    lastSync: lastSyncResult ? 'Recentemente' : '2024-01-10 14:30',
-    activitiesCount: lastSyncResult?.synced || 127,
+    lastSync: statsLoading ? 'Carregando...' : formatLastSync(lastSyncAt),
+    activitiesCount: statsLoading ? 0 : activitiesCount,
     syncStatus: isConnected ? ('connected' as const) : ('disconnected' as const)
   };
 
