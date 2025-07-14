@@ -177,7 +177,29 @@ serve(async (req) => {
     }
 
     console.log(`[sync-garmin-activities] Completed sync: ${processedDays} days processed, ${failedDays} failed, ${allActivities.length} total activities`);
-    const activities = allActivities;
+    
+    // Deduplicate activities based on summary_id to prevent constraint conflicts
+    const activityMap = new Map<string, GarminActivity>();
+    let duplicatesRemoved = 0;
+    
+    for (const activity of allActivities) {
+      const existingActivity = activityMap.get(activity.summaryId);
+      if (existingActivity) {
+        // Keep the activity with the most recent start time (or first one if no start time)
+        const existingStartTime = existingActivity.startTimeInSeconds || 0;
+        const currentStartTime = activity.startTimeInSeconds || 0;
+        
+        if (currentStartTime > existingStartTime) {
+          activityMap.set(activity.summaryId, activity);
+        }
+        duplicatesRemoved++;
+      } else {
+        activityMap.set(activity.summaryId, activity);
+      }
+    }
+    
+    const activities = Array.from(activityMap.values());
+    console.log(`[sync-garmin-activities] Removed ${duplicatesRemoved} duplicate activities. Final count: ${activities.length}`);
 
     if (activities.length === 0) {
       return new Response(JSON.stringify({ 
