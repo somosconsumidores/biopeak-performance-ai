@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface GarminStats {
   activitiesCount: number;
   lastSyncAt: string | null;
+  deviceName: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -13,6 +14,7 @@ export function useGarminStats(): GarminStats {
   const [stats, setStats] = useState<GarminStats>({
     activitiesCount: 0,
     lastSyncAt: null,
+    deviceName: null,
     loading: true,
     error: null
   });
@@ -39,10 +41,10 @@ export function useGarminStats(): GarminStats {
           throw countError;
         }
 
-        // Buscar data da última sincronização
+        // Buscar data da última sincronização e nome do device
         const { data: lastSync, error: lastSyncError } = await supabase
           .from('garmin_activities')
-          .select('synced_at')
+          .select('synced_at, device_name')
           .eq('user_id', user.id)
           .order('synced_at', { ascending: false })
           .limit(1)
@@ -55,6 +57,7 @@ export function useGarminStats(): GarminStats {
         setStats({
           activitiesCount: count || 0,
           lastSyncAt: lastSync?.synced_at || null,
+          deviceName: lastSync?.device_name || null,
           loading: false,
           error: null
         });

@@ -31,7 +31,7 @@ interface SyncStats {
 export function GarminSync() {
   const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useGarminSync();
-  const { activitiesCount, lastSyncAt, loading: statsLoading } = useGarminStats();
+  const { activitiesCount, lastSyncAt, deviceName, loading: statsLoading } = useGarminStats();
 
   const formatLastSync = (syncAt: string | null) => {
     if (!syncAt) return 'Nunca sincronizado';
@@ -85,12 +85,6 @@ export function GarminSync() {
       default: return 'Desconhecido';
     }
   };
-
-  const garminDevices = [
-    { name: 'Forerunner 955', type: 'watch', connected: true },
-    { name: 'Edge 830', type: 'bike', connected: false },
-    { name: 'Fenix 7', type: 'watch', connected: true },
-  ];
 
   const syncMetrics = [
     { label: 'Atividades Totais', value: syncStats.activitiesCount, icon: Activity },
@@ -213,45 +207,38 @@ export function GarminSync() {
             </Card>
           </ScrollReveal>
 
-          {/* Devices Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {garminDevices.map((device, index) => (
-              <ScrollReveal key={index} delay={200 + (index * 100)}>
+          {/* Device Card */}
+          {deviceName && isConnected && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <ScrollReveal delay={200}>
                 <Card className="glass-card">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {device.type === 'watch' ? (
-                          <Watch className="h-6 w-6 text-primary" />
-                        ) : (
-                          <Smartphone className="h-6 w-6 text-primary" />
-                        )}
+                        <Watch className="h-6 w-6 text-primary" />
                         <div>
-                          <CardTitle className="text-lg">{device.name}</CardTitle>
-                          <CardDescription className="capitalize">{device.type}</CardDescription>
+                          <CardTitle className="text-lg">{deviceName}</CardTitle>
+                          <CardDescription>Dispositivo</CardDescription>
                         </div>
                       </div>
-                      <Badge className={device.connected ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}>
-                        {device.connected ? 'Conectado' : 'Offline'}
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Conectado
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Última atividade:</span>
-                        <span>{device.connected ? 'Hoje, 14:30' : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Bateria:</span>
-                        <span>{device.connected ? '85%' : 'N/A'}</span>
+                        <span className="text-muted-foreground">Última sincronização:</span>
+                        <span>{syncStats.lastSync}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </ScrollReveal>
-            ))}
-          </div>
+            </div>
+          )}
 
           {/* How it Works */}
           <ScrollReveal delay={400}>
