@@ -179,18 +179,22 @@ export const useGarminAuth = () => {
       console.log('[useGarminAuth] State verified, exchanging code for tokens...');
 
       // Exchange code for tokens via edge function with authentication
+      console.log('[useGarminAuth] About to invoke garmin-oauth with:', {
+        code: !!code,
+        codeVerifier: !!pkceData.codeVerifier,
+        redirectUri: REDIRECT_URI,
+        hasToken: !!session.access_token
+      });
+
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
+        body: JSON.stringify({
           code,
           codeVerifier: pkceData.codeVerifier,
           redirectUri: REDIRECT_URI,
-        }
+        })
       });
+
+      console.log('[useGarminAuth] Exchange response:', { data, error });
 
       if (error) {
         console.error('[useGarminAuth] Edge function error:', error);

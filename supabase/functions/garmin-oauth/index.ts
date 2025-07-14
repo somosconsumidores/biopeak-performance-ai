@@ -84,6 +84,7 @@ serve(async (req) => {
       // Get the authorization header
       const authHeader = req.headers.get('authorization');
       if (!authHeader) {
+        console.error('[garmin-oauth] No authorization header found');
         throw new Error('No authorization header');
       }
 
