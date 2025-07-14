@@ -108,16 +108,6 @@ export const useGarminAuth = () => {
     };
 
     checkExistingTokens();
-    
-    // Handle OAuth callback if on callback page
-    if (window.location.pathname === '/garmin-callback') {
-      const urlParams = parseCallbackParams(window.location.href);
-      
-      if (urlParams.code && urlParams.state) {
-        console.log('[useGarminAuth] OAuth callback detected, handling...');
-        handleOAuthCallback(urlParams.code, urlParams.state);
-      }
-    }
   }, []);
 
   const startOAuthFlow = useCallback(async () => {
