@@ -131,10 +131,8 @@ serve(async (req) => {
       }
 
       const cleanClientId = clientId.replace(/^\+/, "");
-      const tokenRequestData: TokenRequest = {
+      const tokenRequestData: Omit<TokenRequest, 'client_id' | 'client_secret'> = {
         grant_type: "authorization_code",
-        client_id: cleanClientId,
-        client_secret: clientSecret,
         code,
         code_verifier: codeVerifier,
         redirect_uri: redirectUri,
@@ -146,6 +144,12 @@ serve(async (req) => {
       });
 
       console.log('[garmin-oauth] Exchanging code for tokens...');
+      console.log('[garmin-oauth] Request body:', formData.toString());
+      console.log('[garmin-oauth] Request headers:', {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${btoa(`${cleanClientId}:${clientSecret}`)}`,
+        "Accept": "application/json"
+      });
 
       const response = await fetch(GARMIN_TOKEN_URL, {
         method: "POST",
