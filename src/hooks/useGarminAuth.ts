@@ -31,17 +31,21 @@ export const useGarminAuth = () => {
         
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('[useGarminAuth] Current user:', user ? `ID: ${user.id}` : 'No user');
         if (!user) {
           console.log('[useGarminAuth] No authenticated user');
           return;
         }
 
         // Check database for tokens
+        console.log('[useGarminAuth] Querying garmin_tokens for user:', user.id);
         const { data: dbTokens, error } = await supabase
           .from('garmin_tokens')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
+
+        console.log('[useGarminAuth] Database query result:', { dbTokens, error });
 
         if (error && error.code !== 'PGRST116') {
           console.error('[useGarminAuth] Error checking database tokens:', error);
@@ -123,6 +127,7 @@ export const useGarminAuth = () => {
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('[useGarminAuth] OAuth flow - Current user:', user ? `ID: ${user.id}` : 'No user');
       if (!user) {
         throw new Error('User not authenticated');
       }
