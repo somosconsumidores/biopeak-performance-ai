@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
+import { useGarminSync } from '@/hooks/useGarminSync';
 import { 
   Watch, 
   Smartphone, 
@@ -28,10 +29,11 @@ interface SyncStats {
 
 export function GarminSync() {
   const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
+  const { syncActivities, isLoading: isSyncing, lastSyncResult } = useGarminSync();
 
   const syncStats = {
-    lastSync: '2024-01-10 14:30',
-    activitiesCount: 127,
+    lastSync: lastSyncResult ? 'Recentemente' : '2024-01-10 14:30',
+    activitiesCount: lastSyncResult?.synced || 127,
     syncStatus: isConnected ? ('connected' as const) : ('disconnected' as const)
   };
 
@@ -41,8 +43,8 @@ export function GarminSync() {
   };
 
   const handleSyncActivities = async () => {
-    // TODO: Implement actual sync with Garmin API
-    console.log('Sync activities functionality to be implemented');
+    console.log('[GarminSync] Starting sync activities...');
+    await syncActivities();
   };
 
   const getStatusColor = (status: string) => {
@@ -155,10 +157,20 @@ export function GarminSync() {
                        ) : (
                         <Button 
                           onClick={handleSyncActivities}
+                          disabled={isSyncing}
                           className="flex-1"
                         >
-                          <Download className="h-4 w-4 mr-2" />
-                          Sincronizar Agora
+                          {isSyncing ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Sincronizando...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4 mr-2" />
+                              Sincronizar Agora
+                            </>
+                          )}
                         </Button>
                       )}
                     </div>

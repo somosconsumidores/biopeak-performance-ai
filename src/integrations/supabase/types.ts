@@ -14,6 +14,129 @@ export type Database = {
   }
   public: {
     Tables: {
+      garmin_activities: {
+        Row: {
+          active_kilocalories: number | null
+          activity_id: string
+          activity_type: string | null
+          average_bike_cadence_in_rounds_per_minute: number | null
+          average_heart_rate_in_beats_per_minute: number | null
+          average_pace_in_minutes_per_kilometer: number | null
+          average_push_cadence_in_pushes_per_minute: number | null
+          average_run_cadence_in_steps_per_minute: number | null
+          average_speed_in_meters_per_second: number | null
+          average_swim_cadence_in_strokes_per_minute: number | null
+          created_at: string
+          device_name: string | null
+          distance_in_meters: number | null
+          duration_in_seconds: number | null
+          id: string
+          is_parent: boolean | null
+          is_web_upload: boolean | null
+          manual: boolean | null
+          max_bike_cadence_in_rounds_per_minute: number | null
+          max_heart_rate_in_beats_per_minute: number | null
+          max_pace_in_minutes_per_kilometer: number | null
+          max_push_cadence_in_pushes_per_minute: number | null
+          max_run_cadence_in_steps_per_minute: number | null
+          max_speed_in_meters_per_second: number | null
+          number_of_active_lengths: number | null
+          parent_summary_id: string | null
+          pushes: number | null
+          start_time_in_seconds: number | null
+          start_time_offset_in_seconds: number | null
+          starting_latitude_in_degree: number | null
+          starting_longitude_in_degree: number | null
+          steps: number | null
+          summary_id: string
+          synced_at: string
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_kilocalories?: number | null
+          activity_id: string
+          activity_type?: string | null
+          average_bike_cadence_in_rounds_per_minute?: number | null
+          average_heart_rate_in_beats_per_minute?: number | null
+          average_pace_in_minutes_per_kilometer?: number | null
+          average_push_cadence_in_pushes_per_minute?: number | null
+          average_run_cadence_in_steps_per_minute?: number | null
+          average_speed_in_meters_per_second?: number | null
+          average_swim_cadence_in_strokes_per_minute?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          id?: string
+          is_parent?: boolean | null
+          is_web_upload?: boolean | null
+          manual?: boolean | null
+          max_bike_cadence_in_rounds_per_minute?: number | null
+          max_heart_rate_in_beats_per_minute?: number | null
+          max_pace_in_minutes_per_kilometer?: number | null
+          max_push_cadence_in_pushes_per_minute?: number | null
+          max_run_cadence_in_steps_per_minute?: number | null
+          max_speed_in_meters_per_second?: number | null
+          number_of_active_lengths?: number | null
+          parent_summary_id?: string | null
+          pushes?: number | null
+          start_time_in_seconds?: number | null
+          start_time_offset_in_seconds?: number | null
+          starting_latitude_in_degree?: number | null
+          starting_longitude_in_degree?: number | null
+          steps?: number | null
+          summary_id: string
+          synced_at?: string
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_kilocalories?: number | null
+          activity_id?: string
+          activity_type?: string | null
+          average_bike_cadence_in_rounds_per_minute?: number | null
+          average_heart_rate_in_beats_per_minute?: number | null
+          average_pace_in_minutes_per_kilometer?: number | null
+          average_push_cadence_in_pushes_per_minute?: number | null
+          average_run_cadence_in_steps_per_minute?: number | null
+          average_speed_in_meters_per_second?: number | null
+          average_swim_cadence_in_strokes_per_minute?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          id?: string
+          is_parent?: boolean | null
+          is_web_upload?: boolean | null
+          manual?: boolean | null
+          max_bike_cadence_in_rounds_per_minute?: number | null
+          max_heart_rate_in_beats_per_minute?: number | null
+          max_pace_in_minutes_per_kilometer?: number | null
+          max_push_cadence_in_pushes_per_minute?: number | null
+          max_run_cadence_in_steps_per_minute?: number | null
+          max_speed_in_meters_per_second?: number | null
+          number_of_active_lengths?: number | null
+          parent_summary_id?: string | null
+          pushes?: number | null
+          start_time_in_seconds?: number | null
+          start_time_offset_in_seconds?: number | null
+          starting_latitude_in_degree?: number | null
+          starting_longitude_in_degree?: number | null
+          steps?: number | null
+          summary_id?: string
+          synced_at?: string
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       garmin_tokens: {
         Row: {
           access_token: string
