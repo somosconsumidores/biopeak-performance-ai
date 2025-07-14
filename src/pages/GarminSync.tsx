@@ -36,6 +36,7 @@ export function GarminSync() {
   };
 
   const handleConnectGarmin = () => {
+    console.log('[GarminSync] Connect button clicked');
     startOAuthFlow();
   };
 
