@@ -98,9 +98,18 @@ serve(async (req) => {
 
       let body;
       try {
-        body = await req.json();
+        const rawText = await req.text();
+        console.log('[garmin-oauth] Raw request body:', rawText);
+        
+        if (!rawText || rawText.trim() === '') {
+          console.error('[garmin-oauth] Empty request body received');
+          throw new Error('Request body is empty');
+        }
+        
+        body = JSON.parse(rawText);
+        console.log('[garmin-oauth] Parsed request body:', body);
       } catch (error) {
-        console.error('Failed to parse request body:', error);
+        console.error('[garmin-oauth] Failed to parse request body:', error);
         throw new Error('Invalid request body - must be valid JSON');
       }
 
