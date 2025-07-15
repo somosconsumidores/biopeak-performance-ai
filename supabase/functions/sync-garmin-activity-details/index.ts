@@ -141,15 +141,10 @@ Deno.serve(async (req) => {
       console.log('[sync-activity-details] Token refreshed successfully');
     }
 
-    // Parse request body for time range
-    const body = await req.json().catch(() => ({}));
-    const uploadStartTime = body.uploadStartTimeInSeconds;
-    const uploadEndTime = body.uploadEndTimeInSeconds;
-
-    // If no time range provided, use last 24 hours
+    // Always use last 24 hours from current time
     const now = Math.floor(Date.now() / 1000);
-    const startTime = uploadStartTime || (now - 86400); // 24 hours ago
-    const endTime = uploadEndTime || now;
+    const startTime = now - 86400; // 24 hours ago
+    const endTime = now;
 
     console.log(`[sync-activity-details] Fetching activity details from ${startTime} to ${endTime}`);
 
