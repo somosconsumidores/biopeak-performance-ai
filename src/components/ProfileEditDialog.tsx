@@ -65,7 +65,16 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
   };
 
   const triggerFileInput = () => {
+    console.log('triggerFileInput called');
     fileInputRef.current?.click();
+  };
+
+  const handleMouseEnter = () => {
+    console.log('Mouse entered dialog content');
+  };
+
+  const handleMouseLeave = () => {
+    console.log('Mouse left dialog content');
   };
 
   return (
@@ -73,12 +82,16 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] glass-card border-glass-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
+      <DialogContent 
+        className="sm:max-w-[500px] glass-card border-glass-border overflow-hidden"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-hidden">
           {/* Avatar */}
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
@@ -92,9 +105,17 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 type="button"
                 size="icon"
                 variant="outline"
-                className="absolute -bottom-2 -right-2 glass-card border-glass-border hover:bg-background/80 transition-colors"
+                className="absolute -bottom-2 -right-2 glass-card border-glass-border static-button"
                 onClick={triggerFileInput}
                 disabled={uploading}
+                onMouseEnter={() => console.log('Camera button hover')}
+                style={{
+                  transition: 'none',
+                  transform: 'none',
+                  position: 'absolute',
+                  bottom: '-8px',
+                  right: '-8px'
+                }}
               >
                 {uploading ? (
                   <Upload className="h-4 w-4 animate-spin" />
