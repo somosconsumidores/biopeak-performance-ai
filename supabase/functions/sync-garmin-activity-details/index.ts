@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
     const response = await fetch(garminUrl.toString(), {
       method: 'GET',
       headers: {
-        'Authorization': authHeaderValue,
+        'Authorization': `Bearer ${tokenData.access_token}`,
         'Accept': 'application/json'
       }
     });
