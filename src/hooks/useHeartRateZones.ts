@@ -11,7 +11,7 @@ export interface HeartRateZone {
   color: string;
 }
 
-export const useHeartRateZones = (activityId: string | null, userMaxHR?: number) => {
+export const useHeartRateZones = (summaryId: string | null, userMaxHR?: number) => {
   const [zones, setZones] = useState<HeartRateZone[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,19 +21,19 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     setError(null);
     
     try {
-      console.log('🔍 ZONES: Calculating zones for activity ID:', id);
+      console.log('🔍 ZONES: Calculating zones for summary ID:', id);
       
-      // Query to count seconds (rows) spent in each heart rate zone
+      // Query using summary_id to match what's being passed from WorkoutSession
       const { data: activityDetails, error } = await supabase
         .from('garmin_activity_details')
         .select('heart_rate')
-        .eq('activity_id', id)
+        .eq('summary_id', id)
         .not('heart_rate', 'is', null)
         .order('sample_timestamp', { ascending: true });
 
       if (error) throw error;
       
-      console.log('🔍 ZONES: Total HR records (seconds):', activityDetails?.length);
+      console.log('🔍 ZONES: Total HR records for summary_id', id, ':', activityDetails?.length);
 
       if (!activityDetails || activityDetails.length === 0) {
         setZones([]);
@@ -97,16 +97,16 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   };
 
   useEffect(() => {
-    console.log('🔍 ZONES: useEffect triggered with activityId:', activityId);
-    if (activityId) {
-      console.log('🔍 ZONES: Starting calculation for activity:', activityId);
-      calculateZones(activityId);
+    console.log('🔍 ZONES: useEffect triggered with summaryId:', summaryId);
+    if (summaryId) {
+      console.log('🔍 ZONES: Starting calculation for summary:', summaryId);
+      calculateZones(summaryId);
     } else {
-      console.log('🔍 ZONES: No activityId provided, clearing zones');
+      console.log('🔍 ZONES: No summaryId provided, clearing zones');
       setZones([]);
       setError(null);
     }
-  }, [activityId, userMaxHR]);
+  }, [summaryId, userMaxHR]);
 
   return {
     zones,
