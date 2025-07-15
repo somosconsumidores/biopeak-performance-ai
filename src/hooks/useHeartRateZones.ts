@@ -28,20 +28,39 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         .from('garmin_activity_details')
         .select('heart_rate')
         .eq('activity_id', id)
-        .not('heart_rate', 'is', null)
         .order('sample_timestamp', { ascending: true });
 
       if (error) throw error;
       
-      console.log('🔍 ZONES: Total HR records for activity_id', id, ':', activityDetails?.length);
+      console.log('🔍 ZONES: Raw query results:', {
+        totalRecords: activityDetails?.length || 0,
+        sampleData: activityDetails?.slice(0, 5)
+      });
 
       if (!activityDetails || activityDetails.length === 0) {
         setZones([]);
         return;
       }
 
-      // Calculate max HR from data or use provided
-      const dataMaxHR = Math.max(...activityDetails.map(d => d.heart_rate));
+      // Filter out null heart rates and check what we're losing
+      const validHRRecords = activityDetails.filter(d => d.heart_rate !== null);
+      const nullHRCount = activityDetails.length - validHRRecords.length;
+      
+      console.log('🔍 ZONES: HR Data Analysis:', {
+        totalRecords: activityDetails.length,
+        validHRRecords: validHRRecords.length,
+        nullHRRecords: nullHRCount,
+        nullPercentage: Math.round((nullHRCount / activityDetails.length) * 100) + '%'
+      });
+
+      if (validHRRecords.length === 0) {
+        setZones([]);
+        return;
+      }
+
+      // Calculate max HR from valid data only
+      const validHRValues = validHRRecords.map(d => d.heart_rate);
+      const dataMaxHR = Math.max(...validHRValues);
       const maxHR = userMaxHR || dataMaxHR;
       
       console.log('🔍 ZONES: Max HR used for zones:', maxHR);
@@ -78,7 +97,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         
         // Count how many seconds (rows) fall within this zone
         // Use <= for the last zone to capture all remaining values
-        const secondsInZone = activityDetails.filter(record => {
+        const secondsInZone = validHRRecords.filter(record => {
           const hr = record.heart_rate;
           if (index === zoneDefinitions.length - 1) {
             // Last zone: capture everything >= minHR
