@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
-import { useGarminSync } from '@/hooks/useGarminSync';
+import { useUnifiedGarminSync } from '@/hooks/useUnifiedGarminSync';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { 
   Watch, 
@@ -19,8 +19,11 @@ import {
   AlertCircle,
   RefreshCw,
   Download,
-  Zap
+  Zap,
+  Database,
+  ArrowRight
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 interface SyncStats {
   lastSync: string;
@@ -30,7 +33,7 @@ interface SyncStats {
 
 export function GarminSync() {
   const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
-  const { syncActivities, isLoading: isSyncing, lastSyncResult } = useGarminSync();
+  const { syncUnified, isLoading: isSyncing, stages, currentStage, lastSyncResult } = useUnifiedGarminSync();
   const { activitiesCount, lastSyncAt, deviceName, loading: statsLoading } = useGarminStats();
 
   const formatLastSync = (syncAt: string | null) => {
@@ -64,8 +67,8 @@ export function GarminSync() {
   };
 
   const handleSyncActivities = async () => {
-    console.log('[GarminSync] Starting sync activities...');
-    await syncActivities();
+    console.log('[GarminSync] Starting unified sync...');
+    await syncUnified();
   };
 
   const getStatusColor = (status: string) => {
@@ -92,6 +95,20 @@ export function GarminSync() {
     { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
+
+  const getStageIcon = (stageName: 'activities' | 'details') => {
+    return stageName === 'activities' ? Activity : Database;
+  };
+
+  const getStageLabel = (stageName: 'activities' | 'details') => {
+    return stageName === 'activities' ? 'Atividades Básicas' : 'Detalhes Recentes';
+  };
+
+  const getStageDescription = (stageName: 'activities' | 'details') => {
+    return stageName === 'activities' 
+      ? 'Sincronizando informações básicas das atividades'
+      : 'Sincronizando detalhes das atividades das últimas 24h';
+  };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -150,12 +167,12 @@ export function GarminSync() {
                       </Alert>
                     )}
                     
-                    <div className="flex gap-4">
+                    <div className="space-y-4">
                       {syncStats.syncStatus === 'disconnected' ? (
                         <Button 
                           onClick={handleConnectGarmin}
                           disabled={isConnecting}
-                          className="flex-1"
+                          className="w-full"
                         >
                           {isConnecting ? (
                             <>
@@ -170,23 +187,99 @@ export function GarminSync() {
                           )}
                         </Button>
                        ) : (
-                        <Button 
-                          onClick={handleSyncActivities}
-                          disabled={isSyncing}
-                          className="flex-1"
-                        >
-                          {isSyncing ? (
-                            <>
-                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              Sincronizando...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-2" />
-                              Sincronizar Agora
-                            </>
+                        <>
+                          <Button 
+                            onClick={handleSyncActivities}
+                            disabled={isSyncing}
+                            className="w-full"
+                          >
+                            {isSyncing ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Sincronização Inteligente...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                Sincronização Inteligente
+                              </>
+                            )}
+                          </Button>
+
+                          {/* Progress Section */}
+                          {isSyncing && (
+                            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
+                              <div className="text-sm font-medium text-center">
+                                Progresso da Sincronização
+                              </div>
+                              
+                              {stages.map((stage, index) => {
+                                const StageIcon = getStageIcon(stage.name);
+                                const isActive = currentStage.name === stage.name;
+                                const isCompleted = stage.status === 'completed';
+                                const isError = stage.status === 'error';
+                                
+                                return (
+                                  <div key={stage.name} className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                          isCompleted ? 'bg-green-500/20 text-green-400' :
+                                          isError ? 'bg-red-500/20 text-red-400' :
+                                          isActive ? 'bg-primary/20 text-primary animate-pulse' :
+                                          'bg-muted/50 text-muted-foreground'
+                                        }`}>
+                                          {isCompleted ? (
+                                            <CheckCircle className="h-3 w-3" />
+                                          ) : isError ? (
+                                            <AlertCircle className="h-3 w-3" />
+                                          ) : (
+                                            <StageIcon className="h-3 w-3" />
+                                          )}
+                                        </div>
+                                        <span className={`text-sm font-medium ${
+                                          isActive ? 'text-primary' : 
+                                          isCompleted ? 'text-green-400' :
+                                          isError ? 'text-red-400' :
+                                          'text-muted-foreground'
+                                        }`}>
+                                          {getStageLabel(stage.name)}
+                                        </span>
+                                      </div>
+                                      {stage.status === 'running' && index < stages.length - 1 && (
+                                        <ArrowRight className="h-4 w-4 text-primary animate-pulse" />
+                                      )}
+                                    </div>
+                                    
+                                    <div className="text-xs text-muted-foreground pl-8">
+                                      {stage.message || getStageDescription(stage.name)}
+                                    </div>
+                                    
+                                    {stage.status === 'running' && stage.progress !== undefined && (
+                                      <div className="pl-8">
+                                        <Progress value={stage.progress} className="h-1.5" />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
-                        </Button>
+
+                          {/* Results Summary */}
+                          {!isSyncing && lastSyncResult && (
+                            <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
+                              <div className="text-sm font-medium text-center text-green-400">
+                                ✓ Última Sincronização Completa
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Atividades: {lastSyncResult.activities.synced}</span>
+                                <span>Detalhes: {lastSyncResult.details.synced}</span>
+                                <span>Tempo: {Math.round(lastSyncResult.totalDuration / 1000)}s</span>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -263,11 +356,11 @@ export function GarminSync() {
                   
                   <div className="text-center space-y-3">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-                      <Download className="h-6 w-6 text-primary" />
+                      <Database className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">2. Sincronizar</h3>
+                    <h3 className="font-semibold">2. Sync Inteligente</h3>
                     <p className="text-sm text-muted-foreground">
-                      Importe automaticamente todas as suas atividades e métricas
+                      Atividades básicas + detalhes automáticos das últimas 24h
                     </p>
                   </div>
                   
@@ -277,7 +370,7 @@ export function GarminSync() {
                     </div>
                     <h3 className="font-semibold">3. Analisar</h3>
                     <p className="text-sm text-muted-foreground">
-                      Receba insights inteligentes baseados nos seus dados
+                      Insights avançados com dados ricos e detalhados
                     </p>
                   </div>
                 </div>
