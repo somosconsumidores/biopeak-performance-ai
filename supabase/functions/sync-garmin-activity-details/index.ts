@@ -267,19 +267,29 @@ Deno.serve(async (req) => {
 
     for (const detail of activityDetails) {
       try {
+        // Check if activity has required fields
+        if (!detail.activityId || !detail.summaryId) {
+          console.error('[sync-activity-details] Missing required fields for activity:', detail);
+          errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
+          continue;
+        }
+
+        // Safe access to activitySummary properties
+        const activitySummary = detail.activitySummary || {};
+        
         const { error: upsertError } = await supabaseClient
           .from('garmin_activity_details')
           .upsert({
             user_id: user.id,
             activity_id: detail.activityId,
             summary_id: detail.summaryId,
-            upload_time_in_seconds: detail.activitySummary.uploadTimeInSeconds,
-            start_time_in_seconds: detail.activitySummary.startTimeInSeconds,
-            duration_in_seconds: detail.activitySummary.durationInSeconds,
-            activity_type: detail.activitySummary.activityType,
-            device_name: detail.activitySummary.deviceName,
+            upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+            start_time_in_seconds: activitySummary.startTimeInSeconds || null,
+            duration_in_seconds: activitySummary.durationInSeconds || null,
+            activity_type: activitySummary.activityType || null,
+            device_name: activitySummary.deviceName || null,
             samples: detail.samples || null,
-            activity_summary: detail.activitySummary,
+            activity_summary: activitySummary,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id,summary_id'
@@ -293,7 +303,7 @@ Deno.serve(async (req) => {
         }
       } catch (error) {
         console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
-        errors.push(`Unexpected error processing activity ${detail.activityId}`);
+        errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
       }
     }
 
