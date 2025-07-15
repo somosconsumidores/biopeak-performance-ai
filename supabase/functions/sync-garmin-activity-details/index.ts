@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     // Get user's Garmin tokens
     const { data: tokenData, error: tokenError } = await supabaseClient
       .from('garmin_tokens')
-      .select('access_token, token_secret, consumer_key')
+      .select('access_token, token_secret, consumer_key, expires_at')
       .eq('user_id', user.id)
       .single();
 
@@ -105,6 +105,40 @@ Deno.serve(async (req) => {
           status: 400 
         }
       );
+    }
+
+    // Check if token is expired
+    const now = new Date();
+    const expiresAt = new Date(tokenData.expires_at);
+    if (now >= expiresAt) {
+      console.log('[sync-activity-details] Token expired, attempting refresh...');
+      
+      // Try to refresh the token by calling garmin-oauth function
+      const { data: refreshData, error: refreshError } = await supabaseClient.functions.invoke('garmin-oauth', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          refresh_token: tokenData.token_secret,
+          grant_type: 'refresh_token'
+        }
+      });
+
+      if (refreshError || !refreshData?.success) {
+        console.error('[sync-activity-details] Token refresh failed:', refreshError);
+        return new Response(
+          JSON.stringify({ error: 'Garmin token expired and refresh failed. Please reconnect your Garmin account.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
+
+      // Update token data with refreshed token
+      tokenData.access_token = refreshData.access_token;
+      console.log('[sync-activity-details] Token refreshed successfully');
     }
 
     // Parse request body for time range
