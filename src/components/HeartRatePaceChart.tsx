@@ -16,7 +16,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Heart className="h-5 w-5 text-primary" />
-            <span>Frequência Cardíaca vs Ritmo</span>
+            <span>Evolução do Ritmo e Frequência Cardíaca</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -34,7 +34,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Heart className="h-5 w-5 text-primary" />
-            <span>Frequência Cardíaca vs Ritmo</span>
+            <span>Evolução do Ritmo e Frequência Cardíaca</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -59,14 +59,14 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const item = payload[0].payload;
-      const minutes = Math.floor(item.pace_min_per_km);
-      const seconds = Math.round((item.pace_min_per_km - minutes) * 60);
+      const data = payload[0].payload;
+      const minutes = Math.floor(data.pace_min_per_km);
+      const seconds = Math.round((data.pace_min_per_km - minutes) * 60);
       
       return (
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-          <p className="text-sm font-medium">{`FC: ${item.heart_rate} bpm`}</p>
           <p className="text-sm font-medium">{`Ritmo: ${minutes}:${seconds.toString().padStart(2, '0')}/km`}</p>
+          <p className="text-sm font-medium">{`FC: ${data.heart_rate} bpm`}</p>
         </div>
       );
     }
@@ -75,71 +75,102 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
 
   return (
     <Card className="glass-card border-glass-border">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Heart className="h-5 w-5 text-primary" />
-          <span>Frequência Cardíaca vs Ritmo</span>
-        </CardTitle>
-      </CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Heart className="h-5 w-5 text-primary" />
+            <span>Evolução do Ritmo e Frequência Cardíaca</span>
+          </CardTitle>
+        </CardHeader>
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis 
-                dataKey="heart_rate" 
+                dataKey="timestamp" 
                 type="number"
-                domain={['dataMin - 5', 'dataMax + 5']}
-                tickFormatter={(value) => `${value} bpm`}
+                domain={[0, 'dataMax']}
+                tickFormatter={(value, index) => {
+                  if (typeof index === 'number' && data.length > 0) {
+                    const percent = Math.round((index / (data.length - 1)) * 100);
+                    return `${percent}%`;
+                  }
+                  return '';
+                }}
               />
               <YAxis 
+                yAxisId="pace"
                 dataKey="pace_min_per_km"
-                type="number"
                 domain={['dataMin - 0.2', 'dataMax + 0.2']}
                 tickFormatter={(value) => {
                   const minutes = Math.floor(value);
                   const seconds = Math.round((value - minutes) * 60);
                   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 }}
+                stroke="hsl(var(--primary))"
+              />
+              <YAxis 
+                yAxisId="hr"
+                orientation="right"
+                domain={['dataMin - 10', 'dataMax + 10']}
+                tickFormatter={(value) => `${Math.round(value)} bpm`}
+                stroke="hsl(var(--secondary))"
               />
               <Tooltip content={<CustomTooltip />} />
               
               {/* Reference lines for averages */}
               <ReferenceLine 
-                x={avgHeartRate} 
+                yAxisId="pace"
+                y={avgPace} 
                 stroke="hsl(var(--primary))" 
                 strokeDasharray="5 5" 
-                strokeOpacity={0.7}
-                label={{ value: "FC Média", position: "top" }}
+                strokeOpacity={0.5}
+                label={{ value: "Ritmo Médio", position: "top" }}
               />
               <ReferenceLine 
-                y={avgPace} 
+                yAxisId="hr"
+                y={avgHeartRate} 
                 stroke="hsl(var(--secondary))" 
                 strokeDasharray="5 5" 
-                strokeOpacity={0.7}
-                label={{ value: "Ritmo Médio", position: "top" }}
+                strokeOpacity={0.5}
+                label={{ value: "FC Média", position: "top" }}
               />
               
               <Line 
+                yAxisId="pace"
                 type="monotone" 
                 dataKey="pace_min_per_km" 
                 stroke="hsl(var(--primary))" 
                 strokeWidth={2}
-                dot={{ r: 2, fill: "hsl(var(--primary))" }}
+                dot={false}
                 activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+                name="Ritmo"
+              />
+              <Line 
+                yAxisId="hr"
+                type="monotone" 
+                dataKey="heart_rate" 
+                stroke="hsl(var(--secondary))" 
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: "hsl(var(--secondary))" }}
+                name="Frequência Cardíaca"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
         
-        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
           <div className="flex items-center space-x-2">
-            <Heart className="h-4 w-4 text-primary" />
-            <span>FC Média: {Math.round(avgHeartRate)} bpm</span>
+            <div className="w-3 h-0.5 bg-primary rounded"></div>
+            <span>Ritmo Médio: {Math.floor(avgPace)}:{Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km</span>
           </div>
           <div className="flex items-center space-x-2">
-            <Timer className="h-4 w-4 text-secondary" />
-            <span>Ritmo Médio: {Math.floor(avgPace)}:{Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km</span>
+            <div className="w-3 h-0.5 bg-secondary rounded"></div>
+            <span>FC Média: {Math.round(avgHeartRate)} bpm</span>
+          </div>
+          <div className="text-muted-foreground">
+            <span>{data.length} amostras</span>
           </div>
         </div>
       </CardContent>
