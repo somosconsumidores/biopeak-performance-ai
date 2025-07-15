@@ -204,7 +204,7 @@ export function useProfileStats() {
       bests.push({
         metric: 'Maior Distância',
         value: `${(longestActivity.distance_in_meters / 1000).toFixed(1)} km`,
-        date: new Date(longestActivity.activity_date).toLocaleDateString('pt-BR'),
+        date: new Date(longestActivity.activity_date + 'T00:00:00').toLocaleDateString('pt-BR'),
         activityType: longestActivity.activity_type || 'Atividade'
       });
     }
@@ -224,7 +224,7 @@ export function useProfileStats() {
       bests.push({
         metric: 'Melhor Pace',
         value: `${Math.floor(bestPaceActivity.average_pace_in_minutes_per_kilometer)}:${String(Math.round((bestPaceActivity.average_pace_in_minutes_per_kilometer % 1) * 60)).padStart(2, '0')}/km`,
-        date: new Date(bestPaceActivity.activity_date).toLocaleDateString('pt-BR'),
+        date: new Date(bestPaceActivity.activity_date + 'T00:00:00').toLocaleDateString('pt-BR'),
         activityType: bestPaceActivity.activity_type || 'Corrida'
       });
     }
@@ -237,7 +237,7 @@ export function useProfileStats() {
       bests.push({
         metric: 'FC Máxima',
         value: `${maxHRActivity.max_heart_rate_in_beats_per_minute} bpm`,
-        date: new Date(maxHRActivity.activity_date).toLocaleDateString('pt-BR'),
+        date: new Date(maxHRActivity.activity_date + 'T00:00:00').toLocaleDateString('pt-BR'),
         activityType: maxHRActivity.activity_type || 'Atividade'
       });
     }
@@ -250,7 +250,7 @@ export function useProfileStats() {
       bests.push({
         metric: 'Mais Calorias',
         value: `${maxCaloriesActivity.active_kilocalories} kcal`,
-        date: new Date(maxCaloriesActivity.activity_date).toLocaleDateString('pt-BR'),
+        date: new Date(maxCaloriesActivity.activity_date + 'T00:00:00').toLocaleDateString('pt-BR'),
         activityType: maxCaloriesActivity.activity_type || 'Atividade'
       });
     }
