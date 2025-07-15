@@ -98,6 +98,40 @@ serve(async (req) => {
       userAge = today.getFullYear() - birthDate.getFullYear();
     }
 
+    // Calculate correct pace from speed (more reliable than stored pace)
+    let calculatedPace = null;
+    let storedPace = activity.average_pace_in_minutes_per_kilometer;
+    
+    if (activity.average_speed_in_meters_per_second) {
+      // Convert m/s to min/km: pace = 60 / (speed_ms * 3.6)
+      calculatedPace = 60 / (activity.average_speed_in_meters_per_second * 3.6);
+      
+      // Log discrepancies for debugging
+      if (storedPace && Math.abs(calculatedPace - storedPace) > 0.1) {
+        console.log(`🚨 Pace discrepancy detected:`);
+        console.log(`  Stored pace: ${storedPace.toFixed(2)} min/km`);
+        console.log(`  Calculated pace: ${calculatedPace.toFixed(2)} min/km`);
+        console.log(`  Difference: ${Math.abs(calculatedPace - storedPace).toFixed(2)} min/km`);
+      }
+    }
+
+    // Use calculated pace if available, fallback to stored pace
+    const accuratePace = calculatedPace || storedPace;
+
+    // Calculate pace variations from detailed data for more insights
+    let paceAnalysis = '';
+    if (activityDetails && activityDetails.length > 0) {
+      const speedSamples = activityDetails
+        .filter(d => d.speed_meters_per_second && d.speed_meters_per_second > 0)
+        .map(d => 60 / (d.speed_meters_per_second * 3.6));
+      
+      if (speedSamples.length > 0) {
+        const minPace = Math.min(...speedSamples);
+        const maxPace = Math.max(...speedSamples);
+        paceAnalysis = `\n      - Variação de pace: ${minPace.toFixed(2)} - ${maxPace.toFixed(2)} min/km`;
+      }
+    }
+
     // Prepare analysis data
     const analysisData = {
       activity: {
@@ -106,7 +140,9 @@ serve(async (req) => {
         distance: activity.distance_in_meters,
         averageHeartRate: activity.average_heart_rate_in_beats_per_minute,
         maxHeartRate: activity.max_heart_rate_in_beats_per_minute,
-        averagePace: activity.average_pace_in_minutes_per_kilometer,
+        averagePace: accuratePace, // Use calculated pace
+        storedPace: storedPace, // Include for comparison
+        calculatedPace: calculatedPace, // Include for debugging
         calories: activity.active_kilocalories,
         elevation: activity.total_elevation_gain_in_meters,
         averageSpeed: activity.average_speed_in_meters_per_second,
@@ -129,7 +165,9 @@ serve(async (req) => {
       - Distância: ${((activity.distance_in_meters || 0) / 1000).toFixed(1)} km
       - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
       - FC máxima: ${activity.max_heart_rate_in_beats_per_minute || 'N/A'} bpm
-      - Pace médio: ${activity.average_pace_in_minutes_per_kilometer?.toFixed(2) || 'N/A'} min/km
+      - Pace médio (calculado): ${calculatedPace?.toFixed(2) || 'N/A'} min/km
+      ${storedPace && calculatedPace && Math.abs(calculatedPace - storedPace) > 0.1 ? 
+        `- Pace armazenado: ${storedPace.toFixed(2)} min/km (discrepância detectada)` : ''}${paceAnalysis}
       - Calorias: ${activity.active_kilocalories || 'N/A'} kcal
       - Elevação: ${activity.total_elevation_gain_in_meters || 0}m
       
