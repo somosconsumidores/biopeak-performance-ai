@@ -52,9 +52,10 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
     );
   }
 
-  // Calculate average values for reference lines
+  // Calculate average values for reference lines (excluding zero values for pace)
+  const validPaceData = data.filter(item => item.pace_min_per_km > 0);
   const avgHeartRate = data.reduce((sum, item) => sum + item.heart_rate, 0) / data.length;
-  const avgPace = data.reduce((sum, item) => sum + item.pace_min_per_km, 0) / data.length;
+  const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace_min_per_km, 0) / validPaceData.length : 0;
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -62,11 +63,12 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
       const data = payload[0].payload;
       const minutes = Math.floor(data.pace_min_per_km);
       const seconds = Math.round((data.pace_min_per_km - minutes) * 60);
+      const paceDisplay = data.pace_min_per_km > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
       
       return (
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
           <p className="text-sm font-medium">{`Distância: ${data.distance_km.toFixed(2)}km`}</p>
-          <p className="text-sm font-medium">{`Ritmo: ${minutes}:${seconds.toString().padStart(2, '0')}/km`}</p>
+          <p className="text-sm font-medium">{`Ritmo: ${paceDisplay}`}</p>
           <p className="text-sm font-medium">{`FC: ${data.heart_rate} bpm`}</p>
         </div>
       );
@@ -114,14 +116,16 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
               <Tooltip content={<CustomTooltip />} />
               
               {/* Reference lines for averages */}
-              <ReferenceLine 
-                yAxisId="pace"
-                y={avgPace} 
-                stroke="hsl(var(--primary))" 
-                strokeDasharray="5 5" 
-                strokeOpacity={0.5}
-                label={{ value: "Ritmo Médio", position: "top" }}
-              />
+              {avgPace > 0 && (
+                <ReferenceLine 
+                  yAxisId="pace"
+                  y={avgPace} 
+                  stroke="hsl(var(--primary))" 
+                  strokeDasharray="5 5" 
+                  strokeOpacity={0.5}
+                  label={{ value: "Ritmo Médio", position: "top" }}
+                />
+              )}
               <ReferenceLine 
                 yAxisId="hr"
                 y={avgHeartRate} 
@@ -140,6 +144,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                 dot={false}
                 activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
                 name="Ritmo"
+                connectNulls={false}
               />
               <Line 
                 yAxisId="hr"
@@ -158,7 +163,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
         <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-0.5 bg-primary rounded"></div>
-            <span>Ritmo Médio: {Math.floor(avgPace)}:{Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km</span>
+            <span>Ritmo Médio: {avgPace > 0 ? `${Math.floor(avgPace)}:${Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km` : 'N/A'}</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-0.5 bg-secondary rounded"></div>

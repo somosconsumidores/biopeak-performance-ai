@@ -5,6 +5,7 @@ export interface HeartRatePaceData {
   distance_km: number;
   heart_rate: number;
   pace_min_per_km: number;
+  speed_meters_per_second: number;
 }
 
 export const useActivityDetailsChart = (activityId: string | null) => {
@@ -22,21 +23,28 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples')
         .eq('activity_id', id)
         .not('heart_rate', 'is', null)
-        .not('speed_meters_per_second', 'is', null)
         .not('total_distance_in_meters', 'is', null)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       
       const chartData = (details || [])
-        .map((sample, index) => ({
-          distance_km: sample.total_distance_in_meters! / 1000, // Convert to km
-          heart_rate: sample.heart_rate!,
-          pace_min_per_km: sample.speed_meters_per_second! > 0 
-            ? (1000 / sample.speed_meters_per_second!) / 60 // Convert to min/km
-            : 0
-        }))
-        .filter(item => item.pace_min_per_km > 0 && item.pace_min_per_km < 20) // Filter out unrealistic pace values
+        .map((sample, index) => {
+          // Calculate pace, handling zero speed cases
+          let pace_min_per_km = 0;
+          if (sample.speed_meters_per_second && sample.speed_meters_per_second > 0) {
+            pace_min_per_km = (1000 / sample.speed_meters_per_second) / 60;
+          }
+          
+          return {
+            distance_km: sample.total_distance_in_meters! / 1000,
+            heart_rate: sample.heart_rate!,
+            pace_min_per_km: pace_min_per_km,
+            speed_meters_per_second: sample.speed_meters_per_second || 0
+          };
+        })
+        // Only filter out obviously invalid pace values, keep zero values
+        .filter(item => item.pace_min_per_km <= 20)
         .sort((a, b) => a.distance_km - b.distance_km);
 
       setData(chartData);
