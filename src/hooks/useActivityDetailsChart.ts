@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface HeartRatePaceData {
-  timestamp: number;
+  distance_km: number;
   heart_rate: number;
   pace_min_per_km: number;
 }
@@ -19,23 +19,25 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     try {
       const { data: details, error } = await supabase
         .from('garmin_activity_details')
-        .select('heart_rate, speed_meters_per_second, samples')
+        .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples')
         .eq('activity_id', id)
         .not('heart_rate', 'is', null)
         .not('speed_meters_per_second', 'is', null)
+        .not('total_distance_in_meters', 'is', null)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       
       const chartData = (details || [])
         .map((sample, index) => ({
-          timestamp: index, // Use index as timestamp since sample_timestamp is null
+          distance_km: sample.total_distance_in_meters! / 1000, // Convert to km
           heart_rate: sample.heart_rate!,
           pace_min_per_km: sample.speed_meters_per_second! > 0 
             ? (1000 / sample.speed_meters_per_second!) / 60 // Convert to min/km
             : 0
         }))
-        .filter(item => item.pace_min_per_km > 0 && item.pace_min_per_km < 20); // Filter out unrealistic pace values
+        .filter(item => item.pace_min_per_km > 0 && item.pace_min_per_km < 20) // Filter out unrealistic pace values
+        .sort((a, b) => a.distance_km - b.distance_km);
 
       setData(chartData);
     } catch (err) {

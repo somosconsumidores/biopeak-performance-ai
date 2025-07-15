@@ -65,6 +65,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
       
       return (
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
+          <p className="text-sm font-medium">{`Distância: ${data.distance_km.toFixed(2)}km`}</p>
           <p className="text-sm font-medium">{`Ritmo: ${minutes}:${seconds.toString().padStart(2, '0')}/km`}</p>
           <p className="text-sm font-medium">{`FC: ${data.heart_rate} bpm`}</p>
         </div>
@@ -87,16 +88,10 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
             <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis 
-                dataKey="timestamp" 
+                dataKey="distance_km" 
                 type="number"
                 domain={[0, 'dataMax']}
-                tickFormatter={(value, index) => {
-                  if (typeof index === 'number' && data.length > 0) {
-                    const percent = Math.round((index / (data.length - 1)) * 100);
-                    return `${percent}%`;
-                  }
-                  return '';
-                }}
+                tickFormatter={(value) => `${value.toFixed(1)}km`}
               />
               <YAxis 
                 yAxisId="pace"
@@ -170,7 +165,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
             <span>FC Média: {Math.round(avgHeartRate)} bpm</span>
           </div>
           <div className="text-muted-foreground">
-            <span>{data.length} amostras</span>
+            <span>Distância: {data.length > 0 ? data[data.length - 1].distance_km.toFixed(1) : 0}km</span>
           </div>
         </div>
       </CardContent>
