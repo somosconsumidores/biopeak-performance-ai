@@ -41,13 +41,14 @@ export const WorkoutSession = () => {
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
   
-  // Get heart rate zones data
-  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(selectedActivityId || null);
-  
   // Determine which activity to show
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : latestActivity;
   const loading = latestLoading || historyLoading;
   const error = latestError || historyError;
+
+  // Get heart rate zones data - use currentActivity.summary_id
+  console.log('🔍 WORKOUTSESSION: currentActivity for zones:', currentActivity?.summary_id);
+  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.summary_id || null);
 
   // Update URL when activity is selected
   useEffect(() => {

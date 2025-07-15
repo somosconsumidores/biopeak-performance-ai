@@ -22,6 +22,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id);
+      console.log('🔍 ZONES: Hook started execution');
       
       // Get all heart rate data for the activity
       const allHRData = [];
@@ -128,9 +129,12 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   };
 
   useEffect(() => {
+    console.log('🔍 ZONES: useEffect triggered with activityId:', activityId);
     if (activityId) {
+      console.log('🔍 ZONES: Starting calculation for activity:', activityId);
       calculateZones(activityId);
     } else {
+      console.log('🔍 ZONES: No activityId provided, clearing zones');
       setZones([]);
       setError(null);
     }
