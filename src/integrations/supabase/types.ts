@@ -149,6 +149,7 @@ export type Database = {
           device_name: string | null
           duration_in_seconds: number | null
           id: string
+          sample_timestamp: number | null
           samples: Json | null
           start_time_in_seconds: number | null
           summary_id: string
@@ -164,6 +165,7 @@ export type Database = {
           device_name?: string | null
           duration_in_seconds?: number | null
           id?: string
+          sample_timestamp?: number | null
           samples?: Json | null
           start_time_in_seconds?: number | null
           summary_id: string
@@ -179,6 +181,7 @@ export type Database = {
           device_name?: string | null
           duration_in_seconds?: number | null
           id?: string
+          sample_timestamp?: number | null
           samples?: Json | null
           start_time_in_seconds?: number | null
           summary_id?: string

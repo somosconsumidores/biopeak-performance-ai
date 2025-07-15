@@ -281,6 +281,8 @@ Deno.serve(async (req) => {
         // If there are samples, save each sample as a separate row
         if (samples.length > 0) {
           for (const sample of samples) {
+            const sampleTimestamp = sample.timestampInSeconds || activitySummary.startTimeInSeconds || null;
+            
             const { error: upsertError } = await supabaseClient
               .from('garmin_activity_details')
               .upsert({
@@ -288,15 +290,16 @@ Deno.serve(async (req) => {
                 activity_id: detail.activityId,
                 summary_id: detail.summaryId,
                 upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
-                start_time_in_seconds: sample.timestampInSeconds || activitySummary.startTimeInSeconds || null,
+                start_time_in_seconds: sampleTimestamp,
                 duration_in_seconds: activitySummary.durationInSeconds || null,
                 activity_type: activitySummary.activityType || null,
                 device_name: activitySummary.deviceName || null,
+                sample_timestamp: sampleTimestamp,
                 samples: sample, // Store individual sample data
                 activity_summary: activitySummary,
                 updated_at: new Date().toISOString()
               }, {
-                onConflict: 'user_id,summary_id'
+                onConflict: 'user_id,summary_id,sample_timestamp'
               });
 
             if (upsertError) {
@@ -306,7 +309,9 @@ Deno.serve(async (req) => {
           }
           syncedCount++;
         } else {
-          // If no samples, save just the activity summary
+          // If no samples, save just the activity summary with a default timestamp
+          const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
+          
           const { error: upsertError } = await supabaseClient
             .from('garmin_activity_details')
             .upsert({
@@ -314,15 +319,16 @@ Deno.serve(async (req) => {
               activity_id: detail.activityId,
               summary_id: detail.summaryId,
               upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
-              start_time_in_seconds: activitySummary.startTimeInSeconds || null,
+              start_time_in_seconds: defaultTimestamp,
               duration_in_seconds: activitySummary.durationInSeconds || null,
               activity_type: activitySummary.activityType || null,
               device_name: activitySummary.deviceName || null,
+              sample_timestamp: defaultTimestamp,
               samples: null,
               activity_summary: activitySummary,
               updated_at: new Date().toISOString()
             }, {
-              onConflict: 'user_id,summary_id'
+              onConflict: 'user_id,summary_id,sample_timestamp'
             });
 
           if (upsertError) {
