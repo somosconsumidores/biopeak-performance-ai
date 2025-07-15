@@ -93,12 +93,17 @@ All colors MUST be HSL.
 
   .glass-card:hover {
     background: hsl(var(--glass-bg-hover));
-    transform: translateY(-2px);
+    /* REMOVIDO: transform: translateY(-2px); */
     box-shadow: var(--shadow-glass), var(--glow-subtle);
   }
 
-  /* Dialog estático - SEM movimento no hover, mas com posicionamento correto */
-  .static-dialog {
+  /* Dialog COMPLETAMENTE estático - ZERO movimento */
+  .static-dialog,
+  .static-dialog *,
+  .static-dialog .glass-card,
+  .static-dialog button,
+  .static-dialog input,
+  .static-dialog div {
     background: hsl(var(--glass-bg)) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
@@ -107,15 +112,16 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-glass) !important;
   }
 
-  /* Bloquear apenas o hover que causava movimento */
-  .static-dialog:hover {
+  /* BLOQUEIO TOTAL de qualquer transformação no hover */
+  .static-dialog:hover,
+  .static-dialog *:hover,
+  .static-dialog .glass-card:hover,
+  .static-dialog button:hover,
+  .static-dialog input:hover,
+  .static-dialog div:hover {
     transform: none !important;
-  }
-
-  /* Bloquear hover especificamente dos elementos glass-card dentro do dialog */
-  .static-dialog .glass-card:hover {
-    transform: none !important;
-    background: hsl(var(--glass-bg)) !important;
+    transition: none !important;
+    animation: none !important;
   }
 
   /* Primary Button with Glow */
@@ -217,7 +223,7 @@ All colors MUST be HSL.
   }
 
   .metric-card:hover {
-    transform: translateY(-3px);
+    /* REMOVIDO: transform: translateY(-3px); */
     box-shadow: var(--glow-subtle);
   }
 }
