@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarIcon, Camera, Upload, ArrowLeft } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, Camera, Upload, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, addMonths, subMonths, setYear, setMonth, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
@@ -20,6 +21,7 @@ export const ProfileEdit = () => {
   const navigate = useNavigate();
   const { profile, updating, updateProfile, uploadAvatar } = useProfile();
   const [uploading, setUploading] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -65,6 +67,25 @@ export const ProfileEdit = () => {
     setUploading(false);
     toast.success('Avatar atualizado com sucesso!');
   };
+
+  // Gerar anos de 1920 até o ano atual
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1920 + 1 }, (_, i) => currentYear - i);
+  
+  const months = [
+    { value: 0, label: 'Janeiro' },
+    { value: 1, label: 'Fevereiro' },
+    { value: 2, label: 'Março' },
+    { value: 3, label: 'Abril' },
+    { value: 4, label: 'Maio' },
+    { value: 5, label: 'Junho' },
+    { value: 6, label: 'Julho' },
+    { value: 7, label: 'Agosto' },
+    { value: 8, label: 'Setembro' },
+    { value: 9, label: 'Outubro' },
+    { value: 10, label: 'Novembro' },
+    { value: 11, label: 'Dezembro' }
+  ];
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -162,15 +183,76 @@ export const ProfileEdit = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.birth_date}
-                        onSelect={(date) => setFormData(prev => ({ ...prev, birth_date: date }))}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
+                      <div className="p-3 space-y-3">
+                        {/* Navegação por Ano e Mês */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Select 
+                              value={calendarDate.getFullYear().toString()} 
+                              onValueChange={(year) => setCalendarDate(setYear(calendarDate, parseInt(year)))}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-48">
+                                {years.map((year) => (
+                                  <SelectItem key={year} value={year.toString()}>
+                                    {year}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            <Select 
+                              value={calendarDate.getMonth().toString()} 
+                              onValueChange={(month) => setCalendarDate(setMonth(calendarDate, parseInt(month)))}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {months.map((month) => (
+                                  <SelectItem key={month.value} value={month.value.toString()}>
+                                    {month.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setCalendarDate(subMonths(calendarDate, 1))}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setCalendarDate(addMonths(calendarDate, 1))}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <Calendar
+                          mode="single"
+                          selected={formData.birth_date}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, birth_date: date }))}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          month={calendarDate}
+                          onMonthChange={setCalendarDate}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </div>
                     </PopoverContent>
                   </Popover>
                 </div>
