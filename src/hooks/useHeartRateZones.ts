@@ -22,55 +22,29 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id);
-      console.log('🔍 ZONES: Hook started execution');
       
-      // Get all heart rate data for the activity
-      const allHRData = [];
-      const chunkSize = 1000;
-      let currentOffset = 0;
-      
-      // First get count
-      const { count, error: countError } = await supabase
+      // Query to count seconds (rows) spent in each heart rate zone
+      const { data: activityDetails, error } = await supabase
         .from('garmin_activity_details')
-        .select('*', { count: 'exact', head: true })
+        .select('heart_rate')
         .eq('activity_id', id)
-        .not('heart_rate', 'is', null);
+        .not('heart_rate', 'is', null)
+        .order('sample_timestamp', { ascending: true });
 
-      if (countError) throw countError;
-      console.log('🔍 ZONES: Total HR records:', count);
+      if (error) throw error;
+      
+      console.log('🔍 ZONES: Total HR records (seconds):', activityDetails?.length);
 
-      // Fetch all data in chunks
-      while (currentOffset < (count || 0)) {
-        const { data: chunk, error: chunkError } = await supabase
-          .from('garmin_activity_details')
-          .select('heart_rate, sample_timestamp')
-          .eq('activity_id', id)
-          .not('heart_rate', 'is', null)
-          .order('sample_timestamp', { ascending: true })
-          .range(currentOffset, currentOffset + chunkSize - 1);
-
-        if (chunkError) throw chunkError;
-        
-        if (chunk && chunk.length > 0) {
-          allHRData.push(...chunk);
-        }
-        
-        currentOffset += chunkSize;
-        if (!chunk || chunk.length < chunkSize) break;
-      }
-
-      console.log('🔍 ZONES: Total HR data points fetched:', allHRData.length);
-
-      if (allHRData.length === 0) {
+      if (!activityDetails || activityDetails.length === 0) {
         setZones([]);
         return;
       }
 
       // Calculate max HR from data or use provided
-      const dataMaxHR = Math.max(...allHRData.map(d => d.heart_rate || 0));
+      const dataMaxHR = Math.max(...activityDetails.map(d => d.heart_rate));
       const maxHR = userMaxHR || dataMaxHR;
       
-      console.log('🔍 ZONES: Max HR used for zones:', maxHR, '(user provided:', userMaxHR, ', data max:', dataMaxHR, ')');
+      console.log('🔍 ZONES: Max HR used for zones:', maxHR);
 
       // Define heart rate zones based on % of max HR
       const zoneDefinitions = [
@@ -81,42 +55,36 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         { zone: 'Zona 5', label: 'Máxima', minPercent: 90, maxPercent: 100, color: 'bg-red-500' }
       ];
 
-      // Calculate time in each zone
-      const zoneCounts = zoneDefinitions.map(zoneDef => {
+      // Count seconds (rows) in each zone
+      const totalSeconds = activityDetails.length;
+      const calculatedZones: HeartRateZone[] = zoneDefinitions.map(zoneDef => {
         const minHR = Math.round((zoneDef.minPercent / 100) * maxHR);
         const maxHR_zone = Math.round((zoneDef.maxPercent / 100) * maxHR);
         
-        const recordsInZone = allHRData.filter(record => {
-          const hr = record.heart_rate || 0;
+        // Count how many seconds (rows) fall within this zone
+        const secondsInZone = activityDetails.filter(record => {
+          const hr = record.heart_rate;
           return hr >= minHR && hr < maxHR_zone;
-        });
+        }).length;
+
+        const percentage = totalSeconds > 0 ? Math.round((secondsInZone / totalSeconds) * 100) : 0;
 
         return {
-          ...zoneDef,
+          zone: zoneDef.zone,
+          label: zoneDef.label,
           minHR,
           maxHR: maxHR_zone,
-          count: recordsInZone.length,
-          timeInZone: recordsInZone.length // Each record represents ~1 second
+          percentage,
+          timeInZone: secondsInZone, // Each record = 1 second
+          color: zoneDef.color
         };
       });
 
-      // Calculate percentages
-      const totalRecords = allHRData.length;
-      const calculatedZones: HeartRateZone[] = zoneCounts.map(zone => ({
-        zone: zone.zone,
-        label: zone.label,
-        minHR: zone.minHR,
-        maxHR: zone.maxHR,
-        percentage: totalRecords > 0 ? Math.round((zone.count / totalRecords) * 100) : 0,
-        timeInZone: zone.timeInZone,
-        color: zone.color
-      }));
-
-      console.log('🔍 ZONES: Calculated zones:', calculatedZones.map(z => ({
+      console.log('🔍 ZONES: Zone distribution:', calculatedZones.map(z => ({
         zone: z.zone,
-        range: `${z.minHR}-${z.maxHR}`,
-        percentage: z.percentage,
-        timeInSeconds: z.timeInZone
+        range: `${z.minHR}-${z.maxHR} bpm`,
+        seconds: z.timeInZone,
+        percentage: z.percentage + '%'
       })));
 
       setZones(calculatedZones);
