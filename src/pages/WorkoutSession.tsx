@@ -30,6 +30,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
+import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -175,14 +176,8 @@ export const WorkoutSession = () => {
     ]
   };
 
-  // Mock heart rate zones (would be calculated from real data)
-  const heartRateZones = [
-    { zone: 'Zona 1', percentage: 15, color: 'bg-blue-500', label: 'Recuperação' },
-    { zone: 'Zona 2', percentage: 35, color: 'bg-green-500', label: 'Aeróbica' },
-    { zone: 'Zona 3', percentage: 30, color: 'bg-yellow-500', label: 'Limiar' },
-    { zone: 'Zona 4', percentage: 15, color: 'bg-orange-500', label: 'Anaeróbica' },
-    { zone: 'Zona 5', percentage: 5, color: 'bg-red-500', label: 'Máxima' }
-  ];
+  // Get heart rate zones data
+  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(selectedActivityId || null);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -375,22 +370,38 @@ export const WorkoutSession = () => {
                     <span>Distribuição por Zona</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {heartRateZones.map((zone, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{zone.zone}</span>
-                          <span className="text-sm text-muted-foreground">{zone.percentage}%</span>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Progress value={zone.percentage} className="flex-1" />
-                          <div className={`w-3 h-3 rounded-full ${zone.color}`} />
-                          <span className="text-xs text-muted-foreground w-20">{zone.label}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                 <CardContent>
+                   {zonesLoading ? (
+                     <div className="text-center py-4">
+                       <p className="text-muted-foreground">Calculando zonas...</p>
+                     </div>
+                   ) : heartRateZones.length > 0 ? (
+                     <div className="space-y-4">
+                       {heartRateZones.map((zone, index) => (
+                         <div key={index} className="space-y-2">
+                           <div className="flex items-center justify-between">
+                             <div className="flex items-center space-x-3">
+                               <div className={`w-3 h-3 rounded-full ${zone.color}`} />
+                               <span className="text-sm font-medium">{zone.zone}</span>
+                               <span className="text-xs text-muted-foreground">({zone.label})</span>
+                               <span className="text-xs text-muted-foreground">{zone.minHR}-{zone.maxHR} bpm</span>
+                             </div>
+                             <div className="flex items-center space-x-2">
+                               <span className="text-sm">{zone.percentage}%</span>
+                               <span className="text-xs text-muted-foreground">
+                                 {Math.floor(zone.timeInZone / 60)}:{(zone.timeInZone % 60).toString().padStart(2, '0')}
+                               </span>
+                             </div>
+                           </div>
+                           <Progress value={zone.percentage} className="flex-1" />
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     <div className="text-center py-4">
+                       <p className="text-muted-foreground">Dados de zona não disponíveis</p>
+                     </div>
+                   )}
                 </CardContent>
               </Card>
             </ScrollReveal>
