@@ -73,7 +73,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] glass-card border-glass-border">
+      <DialogContent className="sm:max-w-[500px] glass-card border-glass-border fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
