@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface ProfileStats {
   totalActivities: number;
   totalDistance: number; // em metros
+  longestDistance: number; // maior distância em uma única atividade
   totalDuration: number; // em segundos
   avgHeartRate: number;
   maxHeartRate: number;
@@ -64,6 +65,7 @@ export function useProfileStats() {
         setStats({
           totalActivities: 0,
           totalDistance: 0,
+          longestDistance: 0,
           totalDuration: 0,
           avgHeartRate: 0,
           maxHeartRate: 0,
@@ -84,6 +86,7 @@ export function useProfileStats() {
       // Calcular estatísticas
       const totalActivities = activities.length;
       const totalDistance = activities.reduce((sum, act) => sum + (act.distance_in_meters || 0), 0);
+      const longestDistance = Math.max(...activities.map(act => act.distance_in_meters || 0));
       const totalDuration = activities.reduce((sum, act) => sum + (act.duration_in_seconds || 0), 0);
       const totalCalories = activities.reduce((sum, act) => sum + (act.active_kilocalories || 0), 0);
 
@@ -127,6 +130,7 @@ export function useProfileStats() {
       const calculatedStats: ProfileStats = {
         totalActivities,
         totalDistance,
+        longestDistance,
         totalDuration,
         avgHeartRate: Math.round(avgHeartRate),
         maxHeartRate,
