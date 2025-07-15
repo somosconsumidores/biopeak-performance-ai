@@ -1,3 +1,4 @@
+// Updated hook to use summary_id consistently
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
