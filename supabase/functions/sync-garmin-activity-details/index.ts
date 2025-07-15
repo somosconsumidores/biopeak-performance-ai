@@ -276,30 +276,61 @@ Deno.serve(async (req) => {
 
         // Safe access to activitySummary properties
         const activitySummary = detail.activitySummary || {};
-        
-        const { error: upsertError } = await supabaseClient
-          .from('garmin_activity_details')
-          .upsert({
-            user_id: user.id,
-            activity_id: detail.activityId,
-            summary_id: detail.summaryId,
-            upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
-            start_time_in_seconds: activitySummary.startTimeInSeconds || null,
-            duration_in_seconds: activitySummary.durationInSeconds || null,
-            activity_type: activitySummary.activityType || null,
-            device_name: activitySummary.deviceName || null,
-            samples: detail.samples || null,
-            activity_summary: activitySummary,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,summary_id'
-          });
+        const samples = detail.samples || [];
 
-        if (upsertError) {
-          console.error('[sync-activity-details] Error upserting activity detail:', upsertError);
-          errors.push(`Failed to store activity ${detail.activityId}: ${upsertError.message}`);
-        } else {
+        // If there are samples, save each sample as a separate row
+        if (samples.length > 0) {
+          for (const sample of samples) {
+            const { error: upsertError } = await supabaseClient
+              .from('garmin_activity_details')
+              .upsert({
+                user_id: user.id,
+                activity_id: detail.activityId,
+                summary_id: detail.summaryId,
+                upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+                start_time_in_seconds: sample.timestampInSeconds || activitySummary.startTimeInSeconds || null,
+                duration_in_seconds: activitySummary.durationInSeconds || null,
+                activity_type: activitySummary.activityType || null,
+                device_name: activitySummary.deviceName || null,
+                samples: sample, // Store individual sample data
+                activity_summary: activitySummary,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,summary_id'
+              });
+
+            if (upsertError) {
+              console.error('[sync-activity-details] Error upserting sample:', upsertError);
+              errors.push(`Failed to store sample for activity ${detail.activityId}: ${upsertError.message}`);
+            }
+          }
           syncedCount++;
+        } else {
+          // If no samples, save just the activity summary
+          const { error: upsertError } = await supabaseClient
+            .from('garmin_activity_details')
+            .upsert({
+              user_id: user.id,
+              activity_id: detail.activityId,
+              summary_id: detail.summaryId,
+              upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+              start_time_in_seconds: activitySummary.startTimeInSeconds || null,
+              duration_in_seconds: activitySummary.durationInSeconds || null,
+              activity_type: activitySummary.activityType || null,
+              device_name: activitySummary.deviceName || null,
+              samples: null,
+              activity_summary: activitySummary,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id,summary_id'
+            });
+
+          if (upsertError) {
+            console.error('[sync-activity-details] Error upserting activity detail:', upsertError);
+            errors.push(`Failed to store activity ${detail.activityId}: ${upsertError.message}`);
+          } else {
+            syncedCount++;
+          }
         }
       } catch (error) {
         console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
