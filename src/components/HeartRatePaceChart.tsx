@@ -52,18 +52,18 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
     );
   }
 
-  // Calculate average values for reference lines (excluding zero values for pace)
-  const validPaceData = data.filter(item => item.pace_min_per_km > 0);
+  // Calculate average values for reference lines (excluding null values for pace)
+  const validPaceData = data.filter(item => item.pace_min_per_km !== null && item.pace_min_per_km > 0);
   const avgHeartRate = data.reduce((sum, item) => sum + item.heart_rate, 0) / data.length;
-  const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace_min_per_km, 0) / validPaceData.length : 0;
+  const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace_min_per_km!, 0) / validPaceData.length : 0;
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const minutes = Math.floor(data.pace_min_per_km);
-      const seconds = Math.round((data.pace_min_per_km - minutes) * 60);
-      const paceDisplay = data.pace_min_per_km > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
+      const minutes = Math.floor(data.pace_min_per_km || 0);
+      const seconds = Math.round(((data.pace_min_per_km || 0) - minutes) * 60);
+      const paceDisplay = data.pace_min_per_km && data.pace_min_per_km > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
       
       return (
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
@@ -78,12 +78,12 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
 
   return (
     <Card className="glass-card border-glass-border">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Heart className="h-5 w-5 text-primary" />
-            <span>Evolução do Ritmo e Frequência Cardíaca</span>
-          </CardTitle>
-        </CardHeader>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Heart className="h-5 w-5 text-primary" />
+          <span>Evolução do Ritmo e Frequência Cardíaca</span>
+        </CardTitle>
+      </CardHeader>
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -100,6 +100,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                 dataKey="pace_min_per_km"
                 domain={['dataMin - 0.2', 'dataMax + 0.2']}
                 tickFormatter={(value) => {
+                  if (value === null || value === undefined) return '';
                   const minutes = Math.floor(value);
                   const seconds = Math.round((value - minutes) * 60);
                   return `${minutes}:${seconds.toString().padStart(2, '0')}`;

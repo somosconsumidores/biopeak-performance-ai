@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface HeartRatePaceData {
   distance_km: number;
   heart_rate: number;
-  pace_min_per_km: number;
+  pace_min_per_km: number | null;
   speed_meters_per_second: number;
 }
 
@@ -31,9 +31,13 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       const chartData = (details || [])
         .map((sample, index) => {
           // Calculate pace, handling zero speed cases
-          let pace_min_per_km = 0;
+          let pace_min_per_km: number | null = null;
           if (sample.speed_meters_per_second && sample.speed_meters_per_second > 0) {
             pace_min_per_km = (1000 / sample.speed_meters_per_second) / 60;
+            // Filter out unrealistic pace values
+            if (pace_min_per_km > 20) {
+              pace_min_per_km = null;
+            }
           }
           
           return {
@@ -43,10 +47,13 @@ export const useActivityDetailsChart = (activityId: string | null) => {
             speed_meters_per_second: sample.speed_meters_per_second || 0
           };
         })
-        // Only filter out obviously invalid pace values, keep zero values
-        .filter(item => item.pace_min_per_km <= 20)
         .sort((a, b) => a.distance_km - b.distance_km);
 
+      console.log('Chart data sample (first 10):', chartData.slice(0, 10));
+      console.log('Chart data sample (last 10):', chartData.slice(-10));
+      console.log('Total data points:', chartData.length);
+      console.log('Zero pace points:', chartData.filter(item => item.pace_min_per_km === null).length);
+      
       setData(chartData);
     } catch (err) {
       console.error('Error fetching activity details:', err);
