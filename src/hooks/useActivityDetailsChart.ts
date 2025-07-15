@@ -27,7 +27,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         .eq('activity_id', id)
         .not('total_distance_in_meters', 'is', null)
         .order('total_distance_in_meters', { ascending: true })
-        .limit(15000);
+        .range(0, 9999);
 
       if (allError) throw allError;
       
@@ -45,7 +45,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         .not('heart_rate', 'is', null)
         .not('total_distance_in_meters', 'is', null)
         .order('total_distance_in_meters', { ascending: true })
-        .limit(15000);
+        .range(0, 9999);
 
       if (error) throw error;
       
