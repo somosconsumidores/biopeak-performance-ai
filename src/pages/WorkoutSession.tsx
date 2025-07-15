@@ -46,9 +46,9 @@ export const WorkoutSession = () => {
   const loading = latestLoading || historyLoading;
   const error = latestError || historyError;
 
-  // Get heart rate zones data - use currentActivity.summary_id
-  console.log('🔍 WORKOUTSESSION: currentActivity for zones:', currentActivity?.summary_id);
-  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.summary_id || null);
+  // Get heart rate zones data - use currentActivity.activity_id
+  console.log('🔍 WORKOUTSESSION: currentActivity for zones:', currentActivity?.activity_id);
+  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.activity_id || null);
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -290,7 +290,7 @@ export const WorkoutSession = () => {
 
           {/* Heart Rate vs Pace Chart */}
           <ScrollReveal delay={150}>
-            <HeartRatePaceChart activityId={currentActivity.summary_id} />
+            <HeartRatePaceChart activityId={currentActivity.activity_id} />
           </ScrollReveal>
 
           {/* AI Analysis */}

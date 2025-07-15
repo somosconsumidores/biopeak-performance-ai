@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 interface GarminActivity {
   id: string;
   summary_id: string;
+  activity_id: string;
   activity_date: string | null;
   activity_type: string | null;
   duration_in_seconds: number | null;
@@ -41,6 +42,7 @@ export const useLatestActivity = () => {
           .select(`
             id,
             summary_id,
+            activity_id,
             activity_date,
             activity_type,
             duration_in_seconds,
