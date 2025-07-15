@@ -29,6 +29,7 @@ import { useActivityHistory } from '@/hooks/useActivityHistory';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
+import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -290,8 +291,13 @@ export const WorkoutSession = () => {
             </Card>
           </ScrollReveal>
 
+          {/* Heart Rate vs Pace Chart */}
+          <ScrollReveal delay={150}>
+            <HeartRatePaceChart summaryId={currentActivity.summary_id} />
+          </ScrollReveal>
+
           {/* AI Analysis */}
-          <div className="grid lg:grid-cols-3 gap-8 mb-8">
+          <div className="grid lg:grid-cols-3 gap-8 mb-8 mt-8">
             {/* What Worked */}
             <ScrollReveal delay={200}>
               <Card className="glass-card border-glass-border">

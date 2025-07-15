@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface Activity {
   id: string;
+  summary_id: string;
   activity_id: string;
   activity_type: string | null;
   activity_date: string | null;
