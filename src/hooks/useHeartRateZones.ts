@@ -88,16 +88,24 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       ];
 
       // Count seconds (rows) in each zone
-      const totalSeconds = activityDetails.length;
+      // Note: Each record may not be exactly 1 second - calculate actual time per record
+      const totalRecords = validHRRecords.length;
+      const actualDurationSeconds = totalRecords > 0 ? totalRecords / 5 : 0; // Garmin records at 5Hz (5 records per second)
+      
+      console.log('🔍 ZONES: Time calculation:', {
+        totalRecords,
+        estimatedDurationSeconds: actualDurationSeconds,
+        recordsPerSecond: totalRecords > 0 ? totalRecords / actualDurationSeconds : 0
+      });
+      
       let totalCounted = 0;
       
       const calculatedZones: HeartRateZone[] = zoneDefinitions.map((zoneDef, index) => {
         const minHR = Math.round((zoneDef.minPercent / 100) * maxHR);
         const maxHR_zone = Math.round((zoneDef.maxPercent / 100) * maxHR);
         
-        // Count how many seconds (rows) fall within this zone
-        // Use <= for the last zone to capture all remaining values
-        const secondsInZone = validHRRecords.filter(record => {
+        // Count how many records fall within this zone
+        const recordsInZone = validHRRecords.filter(record => {
           const hr = record.heart_rate;
           if (index === zoneDefinitions.length - 1) {
             // Last zone: capture everything >= minHR
@@ -108,8 +116,11 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           }
         }).length;
 
-        totalCounted += secondsInZone;
-        const percentage = totalSeconds > 0 ? Math.round((secondsInZone / totalSeconds) * 100) : 0;
+        // Convert records to actual time (records / 5 = seconds)
+        const secondsInZone = Math.round(recordsInZone / 5);
+        totalCounted += recordsInZone;
+        
+        const percentage = totalRecords > 0 ? Math.round((recordsInZone / totalRecords) * 100) : 0;
 
         return {
           zone: zoneDef.zone,
@@ -117,7 +128,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           minHR,
           maxHR: maxHR_zone,
           percentage,
-          timeInZone: secondsInZone, // Each record = 1 second
+          timeInZone: secondsInZone, // Now converted to actual seconds
           color: zoneDef.color
         };
       });
@@ -125,15 +136,18 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       console.log('🔍 ZONES: Zone distribution:', calculatedZones.map(z => ({
         zone: z.zone,
         range: `${z.minHR}-${z.maxHR} bpm`,
+        records: Math.round(z.timeInZone * 5), // Back to records for verification
         seconds: z.timeInZone,
         percentage: z.percentage + '%'
       })));
 
       console.log('🔍 ZONES: Verification:', {
-        totalRecords: totalSeconds,
+        totalRecords: totalRecords,
         totalCounted: totalCounted,
-        uncountedRecords: totalSeconds - totalCounted,
-        accountedPercentage: Math.round((totalCounted / totalSeconds) * 100) + '%'
+        uncountedRecords: totalRecords - totalCounted,
+        accountedPercentage: Math.round((totalCounted / totalRecords) * 100) + '%',
+        totalSecondsCalculated: calculatedZones.reduce((sum, zone) => sum + zone.timeInZone, 0),
+        expectedSeconds: Math.round(actualDurationSeconds)
       });
 
       setZones(calculatedZones);
