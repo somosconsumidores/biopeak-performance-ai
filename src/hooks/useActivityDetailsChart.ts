@@ -47,6 +47,10 @@ export const useActivityDetailsChart = (activityId: string | null) => {
             speed_meters_per_second: sample.speed_meters_per_second || 0
           };
         })
+        .filter(item => {
+          // Only include records where heart rate is valid and pace is not null
+          return item.heart_rate > 0 && item.pace_min_per_km !== null;
+        })
         .sort((a, b) => a.distance_km - b.distance_km);
 
       console.log('Chart data sample (first 10):', chartData.slice(0, 10));
