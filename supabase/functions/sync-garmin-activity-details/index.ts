@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
                 samples: sample, // Store individual sample data
                 activity_summary: activitySummary,
                 // Extract sample data into structured columns
-                heart_rate: sample.heartRateInBeatsPerMinute || null,
+                heart_rate: sample.heartRate || null,
                 latitude_in_degree: sample.latitudeInDegree || null,
                 longitude_in_degree: sample.longitudeInDegree || null,
                 elevation_in_meters: sample.elevationInMeters || null,
