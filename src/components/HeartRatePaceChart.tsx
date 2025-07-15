@@ -4,11 +4,11 @@ import { Heart, Timer, AlertCircle } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 
 interface HeartRatePaceChartProps {
-  summaryId: string | null;
+  activityId: string | null;
 }
 
-export const HeartRatePaceChart = ({ summaryId }: HeartRatePaceChartProps) => {
-  const { data, loading, error, hasData } = useActivityDetailsChart(summaryId);
+export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
+  const { data, loading, error, hasData } = useActivityDetailsChart(activityId);
 
   if (loading) {
     return (

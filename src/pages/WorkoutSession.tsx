@@ -293,7 +293,7 @@ export const WorkoutSession = () => {
 
           {/* Heart Rate vs Pace Chart */}
           <ScrollReveal delay={150}>
-            <HeartRatePaceChart summaryId={currentActivity.summary_id} />
+            <HeartRatePaceChart activityId={currentActivity.summary_id} />
           </ScrollReveal>
 
           {/* AI Analysis */}
