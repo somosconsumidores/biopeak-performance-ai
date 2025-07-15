@@ -20,43 +20,59 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     try {
       console.log('🔍 DEBUG: Fetching data for activity ID:', id);
       
-      // First, get ALL data without heart rate filter to see total available
-      const { data: allDetails, error: allError } = await supabase
+      // First check total count
+      const { count, error: countError } = await supabase
         .from('garmin_activity_details')
-        .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
+        .select('*', { count: 'exact', head: true })
         .eq('activity_id', id)
-        .not('total_distance_in_meters', 'is', null)
-        .order('total_distance_in_meters', { ascending: true })
-        .range(0, 9999);
+        .not('total_distance_in_meters', 'is', null);
 
-      if (allError) throw allError;
+      if (countError) throw countError;
+      console.log('🔍 DEBUG: Total records count:', count);
+
+      // Fetch all data in chunks if needed
+      const allDetails = [];
+      const chunkSize = 1000;
+      let currentOffset = 0;
       
-      console.log('🔍 DEBUG: Total records from DB (no HR filter):', allDetails?.length || 0);
-      if (allDetails && allDetails.length > 0) {
+      while (currentOffset < (count || 0)) {
+        const { data: chunk, error: chunkError } = await supabase
+          .from('garmin_activity_details')
+          .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
+          .eq('activity_id', id)
+          .not('total_distance_in_meters', 'is', null)
+          .order('total_distance_in_meters', { ascending: true })
+          .range(currentOffset, currentOffset + chunkSize - 1);
+
+        if (chunkError) throw chunkError;
+        
+        if (chunk && chunk.length > 0) {
+          allDetails.push(...chunk);
+          console.log(`🔍 DEBUG: Fetched chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+        }
+        
+        currentOffset += chunkSize;
+        
+        // Break if we got less than expected (end of data)
+        if (!chunk || chunk.length < chunkSize) break;
+      }
+      
+      console.log('🔍 DEBUG: Total records fetched:', allDetails.length);
+      if (allDetails.length > 0) {
         const maxDistanceDB = Math.max(...allDetails.map(d => d.total_distance_in_meters || 0)) / 1000;
         console.log('🔍 DEBUG: Max distance in DB:', maxDistanceDB, 'km');
       }
 
-      // Now apply heart rate filter
-      const { data: details, error } = await supabase
-        .from('garmin_activity_details')
-        .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
-        .eq('activity_id', id)
-        .not('heart_rate', 'is', null)
-        .not('total_distance_in_meters', 'is', null)
-        .order('total_distance_in_meters', { ascending: true })
-        .range(0, 9999);
-
-      if (error) throw error;
+      // Filter for records with heart rate
+      const details = allDetails.filter(record => record.heart_rate !== null && record.heart_rate > 0);
+      console.log('🔍 DEBUG: Records after HR filter:', details.length);
       
-      console.log('🔍 DEBUG: Records after HR filter:', details?.length || 0);
-      
-      if (details && details.length > 0) {
+      if (details.length > 0) {
         const maxDistanceFiltered = Math.max(...details.map(d => d.total_distance_in_meters || 0)) / 1000;
         console.log('🔍 DEBUG: Max distance after HR filter:', maxDistanceFiltered, 'km');
       }
       
-      const processedData = (details || []).map((sample, index) => {
+      const processedData = details.map((sample, index) => {
         // Calculate pace, handling zero speed cases
         let pace_min_per_km: number | null = null;
         if (sample.speed_meters_per_second && sample.speed_meters_per_second > 0) {
