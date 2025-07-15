@@ -97,6 +97,24 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-glass), var(--glow-subtle);
   }
 
+  /* Profile Dialog - Static positioning without hover effects */
+  .profile-dialog-content {
+    background: hsl(var(--glass-bg)) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid hsl(var(--glass-border)) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow-glass) !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .profile-dialog-content:hover {
+    background: hsl(var(--glass-bg)) !important;
+    transform: none !important;
+    box-shadow: var(--shadow-glass) !important;
+  }
+
   /* Primary Button with Glow */
   .btn-primary {
     background: var(--gradient-primary);

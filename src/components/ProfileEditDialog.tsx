@@ -65,16 +65,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
   };
 
   const triggerFileInput = () => {
-    console.log('triggerFileInput called');
     fileInputRef.current?.click();
-  };
-
-  const handleMouseEnter = () => {
-    console.log('Mouse entered dialog content');
-  };
-
-  const handleMouseLeave = () => {
-    console.log('Mouse left dialog content');
   };
 
   return (
@@ -83,15 +74,22 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
         {children}
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-[500px] glass-card border-glass-border overflow-hidden"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        className="sm:max-w-[500px] profile-dialog-content border-glass-border"
+        style={{
+          background: 'hsl(var(--glass-bg))',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-glass)',
+          transform: 'none !important',
+          transition: 'none !important'
+        }}
       >
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6 overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Avatar */}
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
@@ -105,13 +103,15 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 type="button"
                 size="icon"
                 variant="outline"
-                className="absolute -bottom-2 -right-2 glass-card border-glass-border static-button"
+                className="absolute -bottom-2 -right-2 border-glass-border"
                 onClick={triggerFileInput}
                 disabled={uploading}
-                onMouseEnter={() => console.log('Camera button hover')}
                 style={{
-                  transition: 'none',
-                  transform: 'none',
+                  background: 'hsl(var(--glass-bg))',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  transform: 'none !important',
+                  transition: 'none !important',
                   position: 'absolute',
                   bottom: '-8px',
                   right: '-8px'
