@@ -97,7 +97,7 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-glass), var(--glow-subtle);
   }
 
-  /* Dialog estático - SEM movimento no hover */
+  /* Dialog estático - SEM movimento no hover, mas com posicionamento correto */
   .static-dialog {
     background: hsl(var(--glass-bg)) !important;
     backdrop-filter: blur(20px) !important;
@@ -105,26 +105,17 @@ All colors MUST be HSL.
     border: 1px solid hsl(var(--glass-border)) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-glass) !important;
-    transform: none !important;
-    transition: none !important;
   }
 
-  /* Garantir que NADA dentro do dialog se move no hover */
-  .static-dialog:hover,
-  .static-dialog *:hover,
-  .static-dialog .glass-card:hover,
-  .static-dialog .btn-primary:hover,
-  .static-dialog button:hover,
-  .static-dialog input:hover {
+  /* Bloquear apenas o hover que causava movimento */
+  .static-dialog:hover {
     transform: none !important;
-    transition: none !important;
   }
 
-  /* Sobrescrever especificamente o hover do glass-card */
+  /* Bloquear hover especificamente dos elementos glass-card dentro do dialog */
   .static-dialog .glass-card:hover {
-    background: hsl(var(--glass-bg)) !important;
     transform: none !important;
-    box-shadow: var(--shadow-glass) !important;
+    background: hsl(var(--glass-bg)) !important;
   }
 
   /* Primary Button with Glow */
