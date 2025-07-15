@@ -73,7 +73,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] profile-dialog-content border-glass-border">
+      <DialogContent className="sm:max-w-[500px] static-dialog border-glass-border">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
@@ -133,7 +133,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
               value={formData.display_name}
               onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
               placeholder="Seu nome completo"
-              className="glass-card border-glass-border"
+              className="border-glass-border bg-glass-bg"
             />
           </div>
 
@@ -145,7 +145,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full justify-start text-left font-normal glass-card border-glass-border",
+                    "w-full justify-start text-left font-normal border-glass-border bg-glass-bg",
                     !formData.birth_date && "text-muted-foreground"
                   )}
                 >
@@ -157,7 +157,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 glass-card border-glass-border" align="start">
+              <PopoverContent className="w-auto p-0 border-glass-border bg-glass-bg" align="start">
                 <Calendar
                   mode="single"
                   selected={formData.birth_date}
@@ -185,7 +185,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 value={formData.weight_kg}
                 onChange={(e) => setFormData(prev => ({ ...prev, weight_kg: e.target.value }))}
                 placeholder="70.5"
-                className="glass-card border-glass-border"
+                className="border-glass-border bg-glass-bg"
               />
             </div>
             <div className="space-y-2">
@@ -198,7 +198,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 value={formData.height_cm}
                 onChange={(e) => setFormData(prev => ({ ...prev, height_cm: e.target.value }))}
                 placeholder="175"
-                className="glass-card border-glass-border"
+                className="border-glass-border bg-glass-bg"
               />
             </div>
           </div>
@@ -209,7 +209,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="glass-card border-glass-border"
+              className="border-glass-border bg-glass-bg"
             >
               Cancelar
             </Button>

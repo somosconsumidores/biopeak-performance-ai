@@ -97,26 +97,34 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-glass), var(--glow-subtle);
   }
 
-  /* Profile Dialog - Static positioning without hover effects */
-  .profile-dialog-content {
+  /* Dialog estático - SEM movimento no hover */
+  .static-dialog {
     background: hsl(var(--glass-bg)) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
     border: 1px solid hsl(var(--glass-border)) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-glass) !important;
+    transform: none !important;
+    transition: none !important;
   }
 
-  .profile-dialog-content:hover {
+  /* Garantir que NADA dentro do dialog se move no hover */
+  .static-dialog:hover,
+  .static-dialog *:hover,
+  .static-dialog .glass-card:hover,
+  .static-dialog .btn-primary:hover,
+  .static-dialog button:hover,
+  .static-dialog input:hover {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* Sobrescrever especificamente o hover do glass-card */
+  .static-dialog .glass-card:hover {
     background: hsl(var(--glass-bg)) !important;
     transform: none !important;
     box-shadow: var(--shadow-glass) !important;
-  }
-
-  /* Sobrescrever qualquer hover da classe glass-card dentro do dialog */
-  .profile-dialog-content .glass-card:hover {
-    transform: none !important;
-    background: hsl(var(--glass-bg)) !important;
   }
 
   /* Primary Button with Glow */
