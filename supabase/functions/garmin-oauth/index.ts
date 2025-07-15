@@ -114,14 +114,100 @@ serve(async (req) => {
         throw new Error('Invalid request body - must be valid JSON');
       }
 
-      const { code, codeVerifier, redirectUri } = body;
+      const { code, codeVerifier, redirectUri, refresh_token, grant_type } = body;
 
-      console.log('[garmin-oauth] Received OAuth parameters:', {
+      console.log('[garmin-oauth] Received parameters:', {
         code: !!code,
         codeVerifier: !!codeVerifier,
-        redirectUri: !!redirectUri
+        redirectUri: !!redirectUri,
+        refresh_token: !!refresh_token,
+        grant_type: grant_type
       });
 
+      // Handle refresh token flow
+      if (grant_type === 'refresh_token') {
+        if (!refresh_token) {
+          throw new Error('Missing refresh_token for refresh flow');
+        }
+
+        // Decode the refresh token from base64
+        let refreshTokenValue;
+        try {
+          const decodedSecret = atob(refresh_token);
+          const secretData = JSON.parse(decodedSecret);
+          refreshTokenValue = secretData.refreshTokenValue;
+        } catch (error) {
+          console.error('[garmin-oauth] Error decoding refresh token:', error);
+          throw new Error('Invalid refresh token format');
+        }
+
+        const cleanClientId = clientId.replace(/^\+/, "");
+        const refreshRequestData: TokenRequest = {
+          grant_type: "refresh_token",
+          client_id: cleanClientId,
+          client_secret: clientSecret,
+          refresh_token: refreshTokenValue,
+        };
+
+        const formData = new URLSearchParams();
+        Object.entries(refreshRequestData).forEach(([key, value]) => {
+          if (value) formData.append(key, value);
+        });
+
+        console.log('[garmin-oauth] Refreshing tokens...');
+        const response = await fetch(GARMIN_TOKEN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json"
+          },
+          body: formData.toString(),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[garmin-oauth] Token refresh failed:', errorText);
+          throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
+        }
+
+        const tokenData = await response.json();
+        console.log('[garmin-oauth] New tokens received');
+
+        // Update tokens in database
+        const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+        const newTokenSecret = btoa(JSON.stringify({
+          refreshTokenValue: tokenData.refresh_token || refreshTokenValue,
+          garminGuid: JSON.parse(atob(refresh_token)).garminGuid
+        }));
+
+        const { error: updateError } = await supabase
+          .from('garmin_tokens')
+          .update({
+            access_token: tokenData.access_token,
+            token_secret: newTokenSecret,
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('[garmin-oauth] Error updating tokens:', updateError);
+          throw updateError;
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          access_token: tokenData.access_token,
+          token_type: tokenData.token_type,
+          expires_in: tokenData.expires_in,
+          refresh_token: tokenData.refresh_token,
+          scope: tokenData.scope
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Handle authorization code flow
       if (!code || !codeVerifier || !redirectUri) {
         throw new Error('Missing required fields: code, codeVerifier, redirectUri');
       }
