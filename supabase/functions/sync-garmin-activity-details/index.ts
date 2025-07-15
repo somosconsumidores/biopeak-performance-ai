@@ -108,9 +108,9 @@ Deno.serve(async (req) => {
     }
 
     // Check if token is expired
-    const now = new Date();
+    const currentTime = new Date();
     const expiresAt = new Date(tokenData.expires_at);
-    if (now >= expiresAt) {
+    if (currentTime >= expiresAt) {
       console.log('[sync-activity-details] Token expired, attempting refresh...');
       
       // Try to refresh the token by calling garmin-oauth function
