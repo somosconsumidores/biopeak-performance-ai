@@ -10,6 +10,7 @@ import { WorkoutSession } from "./pages/WorkoutSession";
 import { WorkoutComparison } from "./pages/WorkoutComparison";
 import { Insights } from "./pages/Insights";
 import { Profile } from "./pages/Profile";
+import { ProfileEdit } from "./pages/ProfileEdit";
 import { Auth } from "./pages/Auth";
 import { ResetPassword } from "./pages/ResetPassword";
 import { GarminSync } from "./pages/GarminSync";
@@ -104,6 +105,11 @@ const App = () => (
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/edit" element={
+              <ProtectedRoute>
+                <ProfileEdit />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

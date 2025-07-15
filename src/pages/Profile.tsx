@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { ProfileEditDialog } from '@/components/ProfileEditDialog';
+import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { 
@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 
 export const Profile = () => {
+  const navigate = useNavigate();
   const { profile, loading: profileLoading, age } = useProfile();
   const { 
     stats, 
@@ -186,12 +187,13 @@ export const Profile = () => {
                     </div>
                   </div>
                   
-                  <ProfileEditDialog>
-                    <Button className="btn-primary">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar Perfil
-                    </Button>
-                  </ProfileEditDialog>
+                  <Button 
+                    className="btn-primary"
+                    onClick={() => navigate('/profile/edit')}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar Perfil
+                  </Button>
                 </div>
               </CardContent>
             </Card>
