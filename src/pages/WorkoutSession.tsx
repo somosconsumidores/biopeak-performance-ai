@@ -41,6 +41,9 @@ export const WorkoutSession = () => {
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
   
+  // Get heart rate zones data
+  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(selectedActivityId || null);
+  
   // Determine which activity to show
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : latestActivity;
   const loading = latestLoading || historyLoading;
@@ -176,8 +179,6 @@ export const WorkoutSession = () => {
     ]
   };
 
-  // Get heart rate zones data
-  const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(selectedActivityId || null);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
