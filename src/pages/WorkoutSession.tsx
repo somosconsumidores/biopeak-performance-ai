@@ -31,6 +31,7 @@ import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
+import { AIInsightsCard } from '@/components/AIInsightsCard';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -161,24 +162,6 @@ export const WorkoutSession = () => {
     );
   }
 
-  // Mock AI insights (would come from AI analysis in real implementation)
-  const aiInsights = {
-    whatWorked: [
-      'Ritmo constante manteve você na zona aeróbica ideal',
-      'Frequência cardíaca controlada durante a maior parte do exercício',
-      'Boa distribuição de energia ao longo da atividade'
-    ],
-    toImprove: [
-      'Considere um aquecimento mais longo para melhor performance',
-      'Monitore a hidratação durante exercícios mais longos',
-      'Trabalhe na resistência para manter o ritmo'
-    ],
-    recommendations: [
-      'Próximo treino: Foco em resistência aeróbica',
-      'Tempo de recuperação recomendado: 18-24 horas',
-      'Considere exercícios complementares de força'
-    ]
-  };
 
 
   return (
@@ -294,73 +277,11 @@ export const WorkoutSession = () => {
           </ScrollReveal>
 
           {/* AI Analysis */}
-          <div className="grid lg:grid-cols-3 gap-8 mb-8 mt-8">
-            {/* What Worked */}
-            <ScrollReveal delay={200}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-green-400">
-                    <ThumbsUp className="h-5 w-5" />
-                    <span>O que Funcionou</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {aiInsights.whatWorked.map((insight, index) => (
-                      <div key={index} className="flex items-start space-x-3">
-                        <div className="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0" />
-                        <p className="text-sm">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-
-            {/* To Improve */}
-            <ScrollReveal delay={300}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-yellow-400">
-                    <ThumbsDown className="h-5 w-5" />
-                    <span>Para Melhorar</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {aiInsights.toImprove.map((insight, index) => (
-                      <div key={index} className="flex items-start space-x-3">
-                        <div className="w-2 h-2 rounded-full bg-yellow-400 mt-2 flex-shrink-0" />
-                        <p className="text-sm">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-
-            {/* Recommendations */}
-            <ScrollReveal delay={400}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-primary">
-                    <Brain className="h-5 w-5" />
-                    <span>Recomendações IA</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {aiInsights.recommendations.map((insight, index) => (
-                      <div key={index} className="flex items-start space-x-3">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                        <p className="text-sm">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          </div>
+          <ScrollReveal delay={200}>
+            <div className="mb-8 mt-8">
+              <AIInsightsCard activityId={currentActivity.activity_id} />
+            </div>
+          </ScrollReveal>
 
           {/* Heart Rate Zones */}
           <div className="grid lg:grid-cols-2 gap-8 mb-8">

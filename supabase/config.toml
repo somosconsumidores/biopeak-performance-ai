@@ -2,3 +2,6 @@ project_id = "grcwlmltlcltmwbhdpky"
 
 [functions.garmin-oauth]
 verify_jwt = false
+
+[functions.analyze-workout]
+verify_jwt = true
