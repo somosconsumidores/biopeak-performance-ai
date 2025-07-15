@@ -73,7 +73,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] glass-card border-glass-border">
+      <DialogContent className="sm:max-w-[500px] glass-card border-glass-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
@@ -92,7 +92,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
                 type="button"
                 size="icon"
                 variant="outline"
-                className="absolute -bottom-2 -right-2 glass-card border-glass-border"
+                className="absolute -bottom-2 -right-2 glass-card border-glass-border hover:bg-background/80 transition-colors"
                 onClick={triggerFileInput}
                 disabled={uploading}
               >
