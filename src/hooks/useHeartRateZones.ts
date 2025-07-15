@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export interface HeartRateZone {
   zone: string;
@@ -15,18 +16,24 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   const [zones, setZones] = useState<HeartRateZone[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const calculateZones = async (id: string) => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('🔍 ZONES: Calculating zones for activity ID:', id);
+      console.log('🔍 ZONES: Calculating zones for activity ID:', id, 'User ID:', user?.id);
       
-      // Query using activity_id to match what's being passed from WorkoutSession
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Query filtering by BOTH user_id AND activity_id
       const { data: activityDetails, error } = await supabase
         .from('garmin_activity_details')
         .select('heart_rate')
+        .eq('user_id', user.id)
         .eq('activity_id', id)
         .order('sample_timestamp', { ascending: true });
 
@@ -58,10 +65,31 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         return;
       }
 
+      // Get user's profile to calculate theoretical max HR
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('birth_date')
+        .eq('user_id', user.id)
+        .single();
+
+      // Calculate theoretical max HR based on age
+      let theoreticalMaxHR = 190; // Default fallback
+      if (profile?.birth_date) {
+        const birthDate = new Date(profile.birth_date);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear() - 
+          (today.getMonth() < birthDate.getMonth() || 
+           (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+        theoreticalMaxHR = 220 - age;
+        console.log('🔍 ZONES: User age:', age, 'Theoretical Max HR:', theoreticalMaxHR);
+      }
+
       // Calculate max HR from valid data only
       const validHRValues = validHRRecords.map(d => d.heart_rate);
       const dataMaxHR = Math.max(...validHRValues);
-      const maxHR = userMaxHR || dataMaxHR;
+      
+      // Use user-provided max HR, or theoretical max HR, or data max HR as fallback
+      const maxHR = userMaxHR || theoreticalMaxHR;
       
       console.log('🔍 ZONES: Max HR used for zones:', maxHR);
 
@@ -87,15 +115,20 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         { zone: 'Zona 5', label: 'Máxima', minPercent: 90, maxPercent: 150, color: 'bg-red-500' } // Extended to capture all high HR
       ];
 
-      // Count seconds (rows) in each zone
-      // Note: Each record may not be exactly 1 second - calculate actual time per record
+      // Check if we have the expected 2,160 records for 36 minutes (2,160 seconds)
       const totalRecords = validHRRecords.length;
-      const actualDurationSeconds = totalRecords > 0 ? totalRecords / 5 : 0; // Garmin records at 5Hz (5 records per second)
+      const expectedSecondsFor36Min = 36 * 60; // 2,160 seconds
+      
+      // If we have exactly 2,160 records for 36 minutes, then 1 record = 1 second
+      const recordsPerSecond = totalRecords === expectedSecondsFor36Min ? 1 : (totalRecords / expectedSecondsFor36Min);
+      const actualDurationSeconds = Math.round(totalRecords / recordsPerSecond);
       
       console.log('🔍 ZONES: Time calculation:', {
         totalRecords,
-        estimatedDurationSeconds: actualDurationSeconds,
-        recordsPerSecond: totalRecords > 0 ? totalRecords / actualDurationSeconds : 0
+        expectedRecordsFor36Min: expectedSecondsFor36Min,
+        recordsPerSecond,
+        calculatedDurationSeconds: actualDurationSeconds,
+        durationMinutes: Math.round(actualDurationSeconds / 60)
       });
       
       let totalCounted = 0;
@@ -116,8 +149,8 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           }
         }).length;
 
-        // Convert records to actual time (records / 5 = seconds)
-        const secondsInZone = Math.round(recordsInZone / 5);
+        // Convert records to actual time based on calculated records per second
+        const secondsInZone = Math.round(recordsInZone / recordsPerSecond);
         totalCounted += recordsInZone;
         
         const percentage = totalRecords > 0 ? Math.round((recordsInZone / totalRecords) * 100) : 0;
