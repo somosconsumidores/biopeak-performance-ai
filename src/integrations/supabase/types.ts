@@ -145,14 +145,25 @@ export type Database = {
           activity_id: string
           activity_summary: Json | null
           activity_type: string | null
+          clock_duration_in_seconds: number | null
           created_at: string
           device_name: string | null
           duration_in_seconds: number | null
+          elevation_in_meters: number | null
+          heart_rate: number | null
           id: string
+          latitude_in_degree: number | null
+          longitude_in_degree: number | null
+          moving_duration_in_seconds: number | null
+          power_in_watts: number | null
           sample_timestamp: number | null
           samples: Json | null
+          speed_meters_per_second: number | null
           start_time_in_seconds: number | null
+          steps_per_minute: number | null
           summary_id: string
+          timer_duration_in_seconds: number | null
+          total_distance_in_meters: number | null
           updated_at: string
           upload_time_in_seconds: number | null
           user_id: string
@@ -161,14 +172,25 @@ export type Database = {
           activity_id: string
           activity_summary?: Json | null
           activity_type?: string | null
+          clock_duration_in_seconds?: number | null
           created_at?: string
           device_name?: string | null
           duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
           id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          moving_duration_in_seconds?: number | null
+          power_in_watts?: number | null
           sample_timestamp?: number | null
           samples?: Json | null
+          speed_meters_per_second?: number | null
           start_time_in_seconds?: number | null
+          steps_per_minute?: number | null
           summary_id: string
+          timer_duration_in_seconds?: number | null
+          total_distance_in_meters?: number | null
           updated_at?: string
           upload_time_in_seconds?: number | null
           user_id: string
@@ -177,14 +199,25 @@ export type Database = {
           activity_id?: string
           activity_summary?: Json | null
           activity_type?: string | null
+          clock_duration_in_seconds?: number | null
           created_at?: string
           device_name?: string | null
           duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
           id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          moving_duration_in_seconds?: number | null
+          power_in_watts?: number | null
           sample_timestamp?: number | null
           samples?: Json | null
+          speed_meters_per_second?: number | null
           start_time_in_seconds?: number | null
+          steps_per_minute?: number | null
           summary_id?: string
+          timer_duration_in_seconds?: number | null
+          total_distance_in_meters?: number | null
           updated_at?: string
           upload_time_in_seconds?: number | null
           user_id?: string

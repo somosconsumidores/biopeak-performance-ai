@@ -297,6 +297,18 @@ Deno.serve(async (req) => {
                 sample_timestamp: sampleTimestamp,
                 samples: sample, // Store individual sample data
                 activity_summary: activitySummary,
+                // Extract sample data into structured columns
+                heart_rate: sample.heartRateInBeatsPerMinute || null,
+                latitude_in_degree: sample.latitudeInDegree || null,
+                longitude_in_degree: sample.longitudeInDegree || null,
+                elevation_in_meters: sample.elevationInMeters || null,
+                speed_meters_per_second: sample.speedMetersPerSecond || null,
+                power_in_watts: sample.powerInWatts || null,
+                total_distance_in_meters: sample.totalDistanceInMeters || null,
+                steps_per_minute: sample.stepsPerMinute || null,
+                clock_duration_in_seconds: sample.clockDurationInSeconds || null,
+                moving_duration_in_seconds: sample.movingDurationInSeconds || null,
+                timer_duration_in_seconds: sample.timerDurationInSeconds || null,
                 updated_at: new Date().toISOString()
               }, {
                 onConflict: 'user_id,summary_id,sample_timestamp'
