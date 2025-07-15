@@ -8,7 +8,7 @@ export interface HeartRatePaceData {
   speed_meters_per_second: number;
 }
 
-export const useActivityDetailsChart = (activityId: string | null) => {
+export const useActivityDetailsChart = (summaryId: string | null) => {
   const [data, setData] = useState<HeartRatePaceData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,13 +18,13 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     setError(null);
     
     try {
-      console.log('🔍 DEBUG: Fetching data for activity ID:', id);
+      console.log('🔍 DEBUG: Fetching data for summary ID:', id);
       
       // First check total count
       const { count, error: countError } = await supabase
         .from('garmin_activity_details')
         .select('*', { count: 'exact', head: true })
-        .eq('activity_id', id)
+        .eq('summary_id', id)
         .not('total_distance_in_meters', 'is', null);
 
       if (countError) throw countError;
@@ -39,7 +39,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         const { data: chunk, error: chunkError } = await supabase
           .from('garmin_activity_details')
           .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
-          .eq('activity_id', id)
+          .eq('summary_id', id)
           .not('total_distance_in_meters', 'is', null)
           .order('total_distance_in_meters', { ascending: true })
           .range(currentOffset, currentOffset + chunkSize - 1);
@@ -149,13 +149,13 @@ export const useActivityDetailsChart = (activityId: string | null) => {
   };
 
   useEffect(() => {
-    if (activityId) {
-      fetchData(activityId);
+    if (summaryId) {
+      fetchData(summaryId);
     } else {
       setData([]);
       setError(null);
     }
-  }, [activityId]);
+  }, [summaryId]);
 
   return {
     data,
