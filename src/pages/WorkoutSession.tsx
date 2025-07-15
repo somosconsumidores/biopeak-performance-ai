@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Activity, 
   Clock, 
@@ -19,15 +20,42 @@ import {
   ThumbsDown,
   ArrowLeft,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
+import { useActivityHistory } from '@/hooks/useActivityHistory';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState, useEffect } from 'react';
 
 export const WorkoutSession = () => {
-  const { activity, loading, error } = useLatestActivity();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
+    searchParams.get('activityId')
+  );
+  
+  const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
+  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
+  
+  // Determine which activity to show
+  const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : latestActivity;
+  const loading = latestLoading || historyLoading;
+  const error = latestError || historyError;
+
+  // Update URL when activity is selected
+  useEffect(() => {
+    if (selectedActivityId) {
+      setSearchParams({ activityId: selectedActivityId });
+    } else {
+      setSearchParams({});
+    }
+  }, [selectedActivityId, setSearchParams]);
+
+  const handleActivitySelect = (activityId: string) => {
+    setSelectedActivityId(activityId === 'latest' ? null : activityId);
+  };
 
   // Helper functions to format data
   const formatDuration = (seconds: number | null) => {
@@ -92,7 +120,7 @@ export const WorkoutSession = () => {
     );
   }
 
-  if (error || !activity) {
+  if (error || !currentActivity) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
@@ -162,6 +190,36 @@ export const WorkoutSession = () => {
       
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
+          {/* Activity Selector */}
+          <ScrollReveal>
+            <Card className="glass-card border-glass-border mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <span>Selecionar Atividade</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select 
+                  value={selectedActivityId || 'latest'} 
+                  onValueChange={handleActivitySelect}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Escolha uma atividade do seu histórico" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="latest">Última Atividade</SelectItem>
+                    {activities.map((activity) => (
+                      <SelectItem key={activity.id} value={activity.id}>
+                        {formatActivityDisplay(activity)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+
           {/* Header */}
           <ScrollReveal>
             <div className="flex items-center space-x-4 mb-8">
@@ -176,8 +234,8 @@ export const WorkoutSession = () => {
                 </h1>
                 <p className="text-muted-foreground flex items-center space-x-2">
                   <Calendar className="h-4 w-4" />
-                  <span>{formatDate(activity.start_time_in_seconds)}</span>
-                  <Badge variant="outline">{getActivityType(activity.activity_type)}</Badge>
+                  <span>{formatDate(currentActivity.start_time_in_seconds)}</span>
+                  <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
                 </p>
               </div>
             </div>
@@ -199,32 +257,32 @@ export const WorkoutSession = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   <div className="text-center">
                     <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatDuration(activity.duration_in_seconds)}</div>
+                    <div className="text-2xl font-bold">{formatDuration(currentActivity.duration_in_seconds)}</div>
                     <div className="text-sm text-muted-foreground">Duração</div>
                   </div>
                   <div className="text-center">
                     <MapPin className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatDistance(activity.distance_in_meters)}</div>
+                    <div className="text-2xl font-bold">{formatDistance(currentActivity.distance_in_meters)}</div>
                     <div className="text-sm text-muted-foreground">Distância</div>
                   </div>
                   <div className="text-center">
                     <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatPace(activity.average_pace_in_minutes_per_kilometer)}</div>
+                    <div className="text-2xl font-bold">{formatPace(currentActivity.average_pace_in_minutes_per_kilometer)}</div>
                     <div className="text-sm text-muted-foreground">Pace Médio</div>
                   </div>
                   <div className="text-center">
                     <Zap className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{activity.active_kilocalories || '--'}</div>
+                    <div className="text-2xl font-bold">{currentActivity.active_kilocalories || '--'}</div>
                     <div className="text-sm text-muted-foreground">Calorias</div>
                   </div>
                   <div className="text-center">
                     <Heart className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{activity.average_heart_rate_in_beats_per_minute || '--'}</div>
+                    <div className="text-2xl font-bold">{currentActivity.average_heart_rate_in_beats_per_minute || '--'}</div>
                     <div className="text-sm text-muted-foreground">FC Média</div>
                   </div>
                   <div className="text-center">
                     <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatElevation(activity.total_elevation_gain_in_meters)}</div>
+                    <div className="text-2xl font-bold">{formatElevation(currentActivity.total_elevation_gain_in_meters)}</div>
                     <div className="text-sm text-muted-foreground">Elevação</div>
                   </div>
                 </div>
@@ -344,13 +402,13 @@ export const WorkoutSession = () => {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-primary mb-1">
-                        {activity.max_heart_rate_in_beats_per_minute || '--'}
+                        {currentActivity.max_heart_rate_in_beats_per_minute || '--'}
                       </div>
                       <div className="text-sm text-muted-foreground">FC Máxima</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-primary mb-1">
-                        {activity.device_name || 'Dispositivo'}
+                        {currentActivity.device_name || 'Dispositivo'}
                       </div>
                       <div className="text-sm text-muted-foreground">Equipamento</div>
                     </div>
