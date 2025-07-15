@@ -140,6 +140,54 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_activity_details: {
+        Row: {
+          activity_id: string
+          activity_summary: Json | null
+          activity_type: string | null
+          created_at: string
+          device_name: string | null
+          duration_in_seconds: number | null
+          id: string
+          samples: Json | null
+          start_time_in_seconds: number | null
+          summary_id: string
+          updated_at: string
+          upload_time_in_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_summary?: Json | null
+          activity_type?: string | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          id?: string
+          samples?: Json | null
+          start_time_in_seconds?: number | null
+          summary_id: string
+          updated_at?: string
+          upload_time_in_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_summary?: Json | null
+          activity_type?: string | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          id?: string
+          samples?: Json | null
+          start_time_in_seconds?: number | null
+          summary_id?: string
+          updated_at?: string
+          upload_time_in_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       garmin_tokens: {
         Row: {
           access_token: string
