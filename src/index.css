@@ -105,14 +105,18 @@ All colors MUST be HSL.
     border: 1px solid hsl(var(--glass-border)) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-glass) !important;
-    transform: none !important;
-    transition: none !important;
   }
 
   .profile-dialog-content:hover {
     background: hsl(var(--glass-bg)) !important;
     transform: none !important;
     box-shadow: var(--shadow-glass) !important;
+  }
+
+  /* Sobrescrever qualquer hover da classe glass-card dentro do dialog */
+  .profile-dialog-content .glass-card:hover {
+    transform: none !important;
+    background: hsl(var(--glass-bg)) !important;
   }
 
   /* Primary Button with Glow */

@@ -73,18 +73,7 @@ export function ProfileEditDialog({ children }: ProfileEditDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent 
-        className="sm:max-w-[500px] profile-dialog-content border-glass-border fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-        style={{
-          background: 'hsl(var(--glass-bg))',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow-glass)',
-          transform: 'translate(-50%, -50%) !important',
-          transition: 'none !important'
-        }}
-      >
+      <DialogContent className="sm:max-w-[500px] profile-dialog-content border-glass-border">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
         </DialogHeader>
