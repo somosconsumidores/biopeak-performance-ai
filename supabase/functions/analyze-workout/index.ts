@@ -108,11 +108,17 @@ serve(async (req) => {
       calculatedPaceFromSpeed = 60 / (activity.average_speed_in_meters_per_second * 3.6);
     }
     
-    // Method 2: Calculate from total distance and time (more accurate)
+    // Method 2: Calculate from total distance and time (most accurate)
+    // Using formula: Pace = Tempo (em minutos) / Distância (em km)
     if (activity.distance_in_meters && activity.duration_in_seconds) {
       const timeInMinutes = activity.duration_in_seconds / 60;
       const distanceInKm = activity.distance_in_meters / 1000;
       calculatedPaceFromDistance = timeInMinutes / distanceInKm;
+      
+      console.log(`🔍 Pace calculation details:`);
+      console.log(`  Time: ${activity.duration_in_seconds}s = ${timeInMinutes.toFixed(3)} minutes`);
+      console.log(`  Distance: ${activity.distance_in_meters}m = ${distanceInKm.toFixed(5)} km`);
+      console.log(`  Pace = ${timeInMinutes.toFixed(3)} / ${distanceInKm.toFixed(5)} = ${calculatedPaceFromDistance.toFixed(4)} min/km`);
     }
     
     // Log all calculations for debugging
