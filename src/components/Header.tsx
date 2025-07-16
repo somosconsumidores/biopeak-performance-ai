@@ -3,7 +3,8 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import bioPeakLogo from '@/assets/biopeak-logo.png';
+// Updated logo import
+const bioPeakLogo = '/lovable-uploads/e928b6ff-ba08-471f-9f25-81fca3bc7b75.png';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
