@@ -1,6 +1,7 @@
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
+import { CommitmentsCard } from '@/components/CommitmentsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -164,9 +165,16 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
+          {/* Commitments Section */}
+          <ScrollReveal delay={150}>
+            <div className="mb-8">
+              <CommitmentsCard />
+            </div>
+          </ScrollReveal>
+
           {/* Overtraining Risk Analysis */}
           {overtrainingRisk && (
-            <ScrollReveal delay={150}>
+            <ScrollReveal delay={175}>
               <Card className="glass-card border-glass-border mb-8">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">

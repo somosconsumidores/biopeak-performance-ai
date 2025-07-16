@@ -335,6 +335,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_commitments: {
+        Row: {
+          applied_at: string
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          priority: string
+          target_metric: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          priority: string
+          target_metric?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          priority?: string
+          target_metric?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

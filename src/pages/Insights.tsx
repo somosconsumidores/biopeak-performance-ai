@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useInsights } from '@/hooks/useInsights';
+import { useCommitments } from '@/hooks/useCommitments';
 import { 
   Brain, 
   TrendingUp, 
@@ -28,6 +29,7 @@ import {
 
 export const Insights = () => {
   const { insights, loading, error, refreshInsights } = useInsights();
+  const { applyRecommendation } = useCommitments();
 
   if (loading) {
     return (
@@ -262,12 +264,22 @@ export const Insights = () => {
                          </Badge>
                        </div>
                        <p className="text-sm text-muted-foreground">{rec.description}</p>
-                       <div className="flex items-center justify-between">
-                         <Button size="sm" variant="outline" className="glass-card border-glass-border">
-                           Aplicar
-                           <ArrowRight className="ml-2 h-4 w-4" />
-                         </Button>
-                       </div>
+                        <div className="flex items-center justify-between">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="glass-card border-glass-border"
+                            onClick={() => applyRecommendation({
+                              title: rec.title,
+                              description: rec.description,
+                              priority: rec.priority,
+                              category: 'Recomendação IA'
+                            })}
+                          >
+                            Aplicar
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
                      </div>
                    ))}
                  </div>
