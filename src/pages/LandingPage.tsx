@@ -17,7 +17,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import bioPeakLogo from '@/assets/biopeak-logo.png';
-import heroAnimation from '@/assets/hero-animation.gif';
+import heroAnimation from '@/assets/hero-animation-new.gif';
 
 export const LandingPage = () => {
   const features = [
