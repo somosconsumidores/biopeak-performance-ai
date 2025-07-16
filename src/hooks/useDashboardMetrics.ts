@@ -61,12 +61,20 @@ interface PeakPerformance {
   potential: number;
 }
 
+interface OvertrainingRisk {
+  level: 'baixo' | 'medio' | 'alto';
+  score: number;
+  factors: string[];
+  recommendation: string;
+}
+
 export function useDashboardMetrics() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activityDistribution, setActivityDistribution] = useState<ActivityDistribution[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [peakPerformance, setPeakPerformance] = useState<PeakPerformance | null>(null);
+  const [overtrainingRisk, setOvertrainingRisk] = useState<OvertrainingRisk | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -106,6 +114,7 @@ export function useDashboardMetrics() {
         setAlerts([]);
         setRecentActivities([]);
         setPeakPerformance(null);
+        setOvertrainingRisk(null);
         return;
       }
 
@@ -128,6 +137,10 @@ export function useDashboardMetrics() {
       // Calcular pico de performance
       const peak = calculatePeakPerformance(activities);
       setPeakPerformance(peak);
+
+      // Calcular risco de overtraining
+      const overtraining = calculateOvertrainingRisk(activities);
+      setOvertrainingRisk(overtraining);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -396,12 +409,104 @@ export function useDashboardMetrics() {
     };
   };
 
+  const calculateOvertrainingRisk = (activities: any[]): OvertrainingRisk => {
+    const last7Days = activities.filter(act => {
+      const actDate = new Date(act.activity_date);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return actDate >= sevenDaysAgo;
+    });
+
+    const last14Days = activities.filter(act => {
+      const actDate = new Date(act.activity_date);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      return actDate >= fourteenDaysAgo;
+    });
+
+    let score = 0;
+    const factors: string[] = [];
+
+    // Fator 1: Frequência de treinos (30% do score)
+    const weeklyFrequency = last7Days.length;
+    if (weeklyFrequency > 6) {
+      score += 30;
+      factors.push('Frequência muito alta (>6 treinos/semana)');
+    } else if (weeklyFrequency > 4) {
+      score += 15;
+      factors.push('Frequência alta (4-6 treinos/semana)');
+    }
+
+    // Fator 2: Intensidade média (25% do score)
+    const highIntensityActivities = last7Days.filter(act => {
+      const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
+      const maxHR = act.max_heart_rate_in_beats_per_minute || 0;
+      return maxHR > 0 && (avgHR / maxHR) > 0.85;
+    });
+
+    const intensityPercentage = last7Days.length > 0 ? (highIntensityActivities.length / last7Days.length) * 100 : 0;
+    if (intensityPercentage > 50) {
+      score += 25;
+      factors.push('Muitos treinos de alta intensidade (>50%)');
+    } else if (intensityPercentage > 30) {
+      score += 12;
+      factors.push('Intensidade moderada-alta');
+    }
+
+    // Fator 3: Falta de recuperação (20% do score)
+    const avgRestDays = 7 - weeklyFrequency;
+    if (avgRestDays < 1) {
+      score += 20;
+      factors.push('Falta de dias de descanso');
+    } else if (avgRestDays < 2) {
+      score += 10;
+      factors.push('Poucos dias de recuperação');
+    }
+
+    // Fator 4: Duração excessiva (15% do score)
+    const longActivities = last7Days.filter(act => (act.duration_in_seconds || 0) > 7200); // >2h
+    if (longActivities.length > 2) {
+      score += 15;
+      factors.push('Múltiplas sessões longas (>2h)');
+    } else if (longActivities.length > 0) {
+      score += 7;
+      factors.push('Algumas sessões longas');
+    }
+
+    // Fator 5: Tendência crescente (10% do score)
+    const weeklyIncrease = last7Days.length > last14Days.length / 2;
+    if (weeklyIncrease) {
+      score += 10;
+      factors.push('Aumento súbito no volume');
+    }
+
+    // Determinar nível de risco
+    let level: 'baixo' | 'medio' | 'alto' = 'baixo';
+    let recommendation = 'Continue com seu plano atual de treinos.';
+
+    if (score >= 60) {
+      level = 'alto';
+      recommendation = 'Considere reduzir volume e intensidade. Inclua mais dias de recuperação.';
+    } else if (score >= 30) {
+      level = 'medio';
+      recommendation = 'Monitore sinais de fadiga. Considere incluir mais recuperação ativa.';
+    }
+
+    return {
+      level,
+      score: Math.min(100, score),
+      factors: factors.length > 0 ? factors : ['Sem fatores de risco identificados'],
+      recommendation
+    };
+  };
+
   return {
     metrics,
     activityDistribution,
     alerts,
     recentActivities,
     peakPerformance,
+    overtrainingRisk,
     loading,
     error,
     refetch: fetchDashboardData
