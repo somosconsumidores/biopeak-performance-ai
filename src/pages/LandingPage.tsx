@@ -302,7 +302,7 @@ export const LandingPage = () => {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-glass-border text-center text-muted-foreground">
-            <p>&copy; 2024 BioPeak. Todos os direitos reservados.</p>
+            <p>&copy; 2025 BioPeak. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
