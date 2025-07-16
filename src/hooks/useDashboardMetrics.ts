@@ -25,6 +25,13 @@ interface DashboardMetrics {
   };
 }
 
+interface ActivityDistribution {
+  name: string;
+  value: number;
+  percentage: number;
+  color: string;
+}
+
 interface WeeklyData {
   day: string;
   training: number;
@@ -56,7 +63,7 @@ interface PeakPerformance {
 
 export function useDashboardMetrics() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [activityDistribution, setActivityDistribution] = useState<ActivityDistribution[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [peakPerformance, setPeakPerformance] = useState<PeakPerformance | null>(null);
@@ -95,7 +102,7 @@ export function useDashboardMetrics() {
 
       if (!activities || activities.length === 0) {
         setMetrics(null);
-        setWeeklyData([]);
+        setActivityDistribution([]);
         setAlerts([]);
         setRecentActivities([]);
         setPeakPerformance(null);
@@ -106,9 +113,9 @@ export function useDashboardMetrics() {
       const calculatedMetrics = calculateMetrics(activities);
       setMetrics(calculatedMetrics);
 
-      // Calcular dados semanais
-      const weeklyStats = calculateWeeklyData(activities);
-      setWeeklyData(weeklyStats);
+      // Calcular distribuição de atividades
+      const distribution = calculateActivityDistribution(activities);
+      setActivityDistribution(distribution);
 
       // Gerar alertas inteligentes
       const intelligentAlerts = generateAlerts(activities);
@@ -211,31 +218,58 @@ export function useDashboardMetrics() {
     };
   };
 
-  const calculateWeeklyData = (activities: any[]): WeeklyData[] => {
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const weeklyStats: WeeklyData[] = [];
+  const calculateActivityDistribution = (activities: any[]): ActivityDistribution[] => {
+    // Contar atividades por tipo
+    const typeCounts: { [key: string]: number } = {};
+    
+    activities.forEach(activity => {
+      const type = activity.activity_type || 'Outros';
+      
+      // Normalizar nomes de atividades
+      let normalizedType = type;
+      if (type.toLowerCase().includes('run')) {
+        normalizedType = 'Corrida';
+      } else if (type.toLowerCase().includes('bike') || type.toLowerCase().includes('cycling')) {
+        normalizedType = 'Ciclismo';
+      } else if (type.toLowerCase().includes('swim')) {
+        normalizedType = 'Natação';
+      } else if (type.toLowerCase().includes('walk')) {
+        normalizedType = 'Caminhada';
+      } else if (type.toLowerCase().includes('strength') || type.toLowerCase().includes('weight')) {
+        normalizedType = 'Musculação';
+      } else if (type.toLowerCase().includes('yoga')) {
+        normalizedType = 'Yoga';
+      } else if (type.toLowerCase().includes('cardio')) {
+        normalizedType = 'Cardio';
+      } else {
+        normalizedType = 'Outros';
+      }
+      
+      typeCounts[normalizedType] = (typeCounts[normalizedType] || 0) + 1;
+    });
 
-    for (let i = 0; i < 7; i++) {
-      const dayActivities = activities.filter(act => {
-        const actDate = new Date(act.activity_date);
-        return actDate.getDay() === i;
-      });
+    const total = activities.length;
+    const colors = [
+      '#10b981', // green-500 - Corrida
+      '#f59e0b', // amber-500 - Ciclismo  
+      '#06b6d4', // cyan-500 - Natação
+      '#8b5cf6', // violet-500 - Caminhada
+      '#ef4444', // red-500 - Musculação
+      '#ec4899', // pink-500 - Yoga
+      '#6366f1', // indigo-500 - Cardio
+      '#64748b'  // slate-500 - Outros
+    ];
 
-      const trainingIntensity = dayActivities.length > 0 
-        ? Math.min(100, (dayActivities.length * 25) + (dayActivities.reduce((sum, act) => 
-            sum + (act.average_heart_rate_in_beats_per_minute || 0), 0) / dayActivities.length / 2))
-        : 0;
+    const distribution = Object.entries(typeCounts)
+      .map(([type, count], index) => ({
+        name: type,
+        value: count,
+        percentage: Math.round((count / total) * 100),
+        color: colors[index % colors.length]
+      }))
+      .sort((a, b) => b.value - a.value); // Ordenar por quantidade
 
-      const recovery = Math.max(0, 100 - trainingIntensity);
-
-      weeklyStats.push({
-        day: days[i],
-        training: Math.round(trainingIntensity),
-        recovery: Math.round(recovery)
-      });
-    }
-
-    return weeklyStats;
+    return distribution;
   };
 
   const generateAlerts = (activities: any[]): Alert[] => {
@@ -364,7 +398,7 @@ export function useDashboardMetrics() {
 
   return {
     metrics,
-    weeklyData,
+    activityDistribution,
     alerts,
     recentActivities,
     peakPerformance,

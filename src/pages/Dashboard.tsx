@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { 
   Activity, 
   TrendingUp, 
@@ -17,13 +18,14 @@ import {
   Zap,
   Award,
   BarChart3,
-  Loader2
+  Loader2,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 
 export const Dashboard = () => {
   const { 
     metrics, 
-    weeklyData, 
+    activityDistribution, 
     alerts, 
     recentActivities, 
     peakPerformance, 
@@ -188,45 +190,74 @@ export const Dashboard = () => {
 
           {/* Charts Section */}
           <div className="grid lg:grid-cols-2 gap-8 mb-8">
-            {/* Weekly Evolution */}
+            {/* Activity Distribution */}
             <ScrollReveal delay={300}>
               <Card className="glass-card border-glass-border">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <span>Evolução Semanal</span>
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    <span>Distribuição dos Treinos</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {weeklyData.map((day, index) => (
-                      <div key={index} className="flex items-center space-x-4">
-                        <div className="w-8 text-sm text-muted-foreground">{day.day}</div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <div className="text-xs text-muted-foreground w-16">Treino</div>
-                            <div className="flex-1 bg-muted/20 rounded-full h-2">
-                              <div 
-                                className="bg-gradient-primary h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${day.training}%` }}
-                              />
-                            </div>
-                            <div className="text-xs w-8">{day.training}%</div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="text-xs text-muted-foreground w-16">Recup.</div>
-                            <div className="flex-1 bg-muted/20 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${day.recovery}%` }}
-                              />
-                            </div>
-                            <div className="text-xs w-8">{day.recovery}%</div>
-                          </div>
-                        </div>
+                  {activityDistribution.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={activityDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {activityDistribution.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value, name) => [`${value} atividades`, name]}
+                            labelFormatter={(label) => `${label}: ${activityDistribution.find(item => item.name === label)?.percentage}%`}
+                          />
+                          <Legend 
+                            verticalAlign="bottom" 
+                            height={36}
+                            formatter={(value: string) => {
+                              const item = activityDistribution.find(item => item.name === value);
+                              return `${value} (${item?.percentage}%)`;
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <PieChartIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Nenhuma atividade encontrada</p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+                  
+                  {/* Statistics below chart */}
+                  {activityDistribution.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {activityDistribution.length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Tipos Diferentes</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {activityDistribution.reduce((sum, item) => sum + item.value, 0)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Atividades</div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </ScrollReveal>
