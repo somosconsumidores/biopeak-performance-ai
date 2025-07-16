@@ -170,12 +170,14 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
           </div>
         </div>
 
-        {/* BioPeak branding */}
+        {/* Logo branding */}
         <div className="mt-6 pt-4 border-t border-glass-border text-center">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-primary rounded-full flex items-center justify-center">
-              <Activity className="h-3 w-3 text-white" />
-            </div>
+          <div className="flex items-center justify-center space-x-3">
+            <img 
+              src="/lovable-uploads/a86de37b-65f7-4f6c-bf8b-80abd070a45e.png" 
+              alt="Logo" 
+              className="w-8 h-8 object-contain filter brightness-110"
+            />
             <span className="text-sm font-semibold bg-gradient-primary bg-clip-text text-transparent">
               BioPeak
             </span>
