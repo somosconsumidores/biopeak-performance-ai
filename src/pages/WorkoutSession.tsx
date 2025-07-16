@@ -240,7 +240,13 @@ export const WorkoutSession = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/share/${currentActivity.id}`)}
+                    onClick={() => {
+                      console.log('🔗 Compartilhar clicked, currentActivity:', currentActivity);
+                      if (currentActivity) {
+                        navigate(`/share/${currentActivity.id}`);
+                      }
+                    }}
+                    disabled={!currentActivity}
                     className="glass-card border-glass-border hover:bg-glass-bg-hover group"
                   >
                     <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
