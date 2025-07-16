@@ -82,8 +82,8 @@ export const LandingPage = () => {
               O primeiro app que usa IA para transformar seus dados de treino Garmin em 
               estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.
             </p>
-            <div className="flex justify-center mb-8">
-              <img src={heroAnimation} alt="BioPeak Animation" className="h-80 w-auto max-w-2xl" />
+            <div className="flex justify-center mb-8 px-4">
+              <img src={heroAnimation} alt="BioPeak Animation" className="h-48 sm:h-64 lg:h-80 w-auto max-w-full" />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
