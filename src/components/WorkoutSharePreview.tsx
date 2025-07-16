@@ -83,6 +83,19 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
       
       {/* Main preview card */}
       <div className="relative glass-card border-glass-border p-6 rounded-2xl">
+        {/* Logo Header */}
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center space-x-3 bg-gradient-to-r from-primary/10 to-accent/10 backdrop-blur-sm rounded-full px-4 py-2 border border-glass-border">
+            <img 
+              src="/lovable-uploads/a86de37b-65f7-4f6c-bf8b-80abd070a45e.png" 
+              alt="Logo" 
+              className="w-10 h-10 object-contain filter brightness-110 drop-shadow-lg"
+            />
+            <span className="text-lg font-bold bg-gradient-primary bg-clip-text text-transparent">
+              BioPeak
+            </span>
+          </div>
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
@@ -170,20 +183,10 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
           </div>
         </div>
 
-        {/* Logo branding */}
+        {/* Performance tagline */}
         <div className="mt-6 pt-4 border-t border-glass-border text-center">
-          <div className="flex items-center justify-center space-x-3">
-            <img 
-              src="/lovable-uploads/a86de37b-65f7-4f6c-bf8b-80abd070a45e.png" 
-              alt="Logo" 
-              className="w-8 h-8 object-contain filter brightness-110"
-            />
-            <span className="text-sm font-semibold bg-gradient-primary bg-clip-text text-transparent">
-              BioPeak
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Análise inteligente de performance
+          <p className="text-xs text-muted-foreground">
+            ✨ Análise inteligente de performance
           </p>
         </div>
 
