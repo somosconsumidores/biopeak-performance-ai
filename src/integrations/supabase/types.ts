@@ -55,6 +55,7 @@ export type Database = {
           total_elevation_loss_in_meters: number | null
           updated_at: string
           user_id: string
+          vo2_max: number | null
         }
         Insert: {
           active_kilocalories?: number | null
@@ -96,6 +97,7 @@ export type Database = {
           total_elevation_loss_in_meters?: number | null
           updated_at?: string
           user_id: string
+          vo2_max?: number | null
         }
         Update: {
           active_kilocalories?: number | null
@@ -137,6 +139,7 @@ export type Database = {
           total_elevation_loss_in_meters?: number | null
           updated_at?: string
           user_id?: string
+          vo2_max?: number | null
         }
         Relationships: []
       }
@@ -337,7 +340,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_vo2_max: {
+        Args: {
+          activity_type_param: string
+          pace_min_km: number
+          avg_hr: number
+          max_hr: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
