@@ -16,6 +16,7 @@ import { ResetPassword } from "./pages/ResetPassword";
 import { GarminSync } from "./pages/GarminSync";
 import { GarminCallback } from "./pages/GarminCallback";
 import NotFound from "./pages/NotFound";
+import { WorkoutShare } from "./pages/WorkoutShare";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,11 @@ const App = () => (
             <Route path="/profile/edit" element={
               <ProtectedRoute>
                 <ProfileEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="/share/:workoutId" element={
+              <ProtectedRoute>
+                <WorkoutShare />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
