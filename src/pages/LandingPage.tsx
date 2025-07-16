@@ -68,7 +68,7 @@ export const LandingPage = () => {
         <div className="container mx-auto text-center">
           <ScrollReveal>
             <div className="flex justify-center mb-8">
-              <img src={bioPeakLogo} alt="BioPeak" className="h-20 w-20 data-glow" />
+              <img src={`${bioPeakLogo}?v=${Date.now()}`} alt="BioPeak" className="h-20 w-20 data-glow" />
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
@@ -240,7 +240,7 @@ export const LandingPage = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-3 mb-4">
-                <img src={bioPeakLogo} alt="BioPeak" className="h-8 w-8" />
+                <img src={`${bioPeakLogo}?v=${Date.now()}`} alt="BioPeak" className="h-8 w-8" />
                 <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                   BioPeak
                 </span>

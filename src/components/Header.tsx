@@ -26,7 +26,7 @@ export const Header = () => {
         <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
-            <img src={bioPeakLogo} alt="BioPeak" className="h-6 w-6 sm:h-8 sm:w-8" />
+            <img src={`${bioPeakLogo}?v=${Date.now()}`} alt="BioPeak" className="h-6 w-6 sm:h-8 sm:w-8" />
             <span className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               BioPeak
             </span>
