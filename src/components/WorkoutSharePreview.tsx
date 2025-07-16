@@ -207,10 +207,6 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
           </p>
         </div>
 
-        {/* Floating particles effect */}
-        <div className="absolute top-4 right-4 w-2 h-2 bg-primary/40 rounded-full animate-ping" />
-        <div className="absolute bottom-4 left-4 w-1 h-1 bg-accent/40 rounded-full animate-pulse" />
-        <div className="absolute top-1/2 right-8 w-1.5 h-1.5 bg-primary/30 rounded-full animate-bounce" />
         </div>
       </div>
     </div>
