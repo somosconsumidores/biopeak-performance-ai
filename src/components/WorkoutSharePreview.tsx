@@ -82,7 +82,24 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/20 animate-pulse" />
       
       {/* Main preview card */}
-      <div className="relative glass-card border-glass-border p-6 rounded-2xl">
+      <div className="relative glass-card border-glass-border p-6 rounded-2xl overflow-hidden">
+        {/* Background Video */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-20 z-0"
+          style={{ filter: 'blur(1px)' }}
+        >
+          <source src="/data-metrics-background.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-[2px] z-10" />
+        
+        {/* Content layer */}
+        <div className="relative z-20">
         {/* Logo Header */}
         <div className="flex justify-center mb-6">
           <div className="flex items-center space-x-3 bg-gradient-to-r from-primary/10 to-accent/10 backdrop-blur-sm rounded-full px-4 py-2 border border-glass-border">
@@ -194,6 +211,7 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         <div className="absolute top-4 right-4 w-2 h-2 bg-primary/40 rounded-full animate-ping" />
         <div className="absolute bottom-4 left-4 w-1 h-1 bg-accent/40 rounded-full animate-pulse" />
         <div className="absolute top-1/2 right-8 w-1.5 h-1.5 bg-primary/30 rounded-full animate-bounce" />
+        </div>
       </div>
     </div>
   );
