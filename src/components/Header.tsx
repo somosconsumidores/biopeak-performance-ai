@@ -22,12 +22,12 @@ export const Header = () => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-card border-0 border-b border-glass-border">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
-            <img src={bioPeakLogo} alt="BioPeak" className="h-8 w-8" />
-            <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
+            <img src={bioPeakLogo} alt="BioPeak" className="h-6 w-6 sm:h-8 sm:w-8" />
+            <span className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               BioPeak
             </span>
           </Link>
@@ -47,11 +47,11 @@ export const Header = () => {
                 ))}
               </nav>
 
-              <div className="hidden md:flex items-center space-x-4">
-                <Button variant="outline" className="glass-card border-glass-border" asChild>
+              <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
+                <Button variant="outline" className="glass-card border-glass-border text-sm" asChild>
                   <Link to="/sync">Sincronizar Atividades</Link>
                 </Button>
-                <Button onClick={handleSignOut} variant="outline" className="glass-card border-glass-border">
+                <Button onClick={handleSignOut} variant="outline" className="glass-card border-glass-border text-sm">
                   Sair
                 </Button>
               </div>
@@ -90,7 +90,7 @@ export const Header = () => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className="block px-3 py-2 text-foreground/80 hover:text-primary transition-colors duration-200"
+                      className="block px-3 py-3 text-sm font-medium text-foreground/80 hover:text-primary transition-colors duration-200 touch-manipulation"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       {item.name}
@@ -98,23 +98,31 @@ export const Header = () => {
                   ))}
                   <Link
                     to="/sync"
-                    className="block px-3 py-2 text-foreground/80 hover:text-primary transition-colors duration-200"
+                    className="block px-3 py-3 text-sm font-medium text-foreground/80 hover:text-primary transition-colors duration-200 touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Sincronizar Atividades
                   </Link>
-                  <div className="pt-4">
-                    <Button onClick={handleSignOut} variant="outline" className="w-full glass-card border-glass-border">
+                  <div className="pt-4 pb-2">
+                    <Button 
+                      onClick={handleSignOut} 
+                      variant="outline" 
+                      className="w-full glass-card border-glass-border h-12 text-sm touch-manipulation"
+                    >
                       Sair
                     </Button>
                   </div>
                 </>
               ) : (
-                <div className="pt-4 space-y-2">
-                  <Button variant="outline" className="w-full glass-card border-glass-border" asChild>
+                <div className="pt-4 pb-2 space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full glass-card border-glass-border h-12 text-sm touch-manipulation" 
+                    asChild
+                  >
                     <Link to="/auth">Login</Link>
                   </Button>
-                  <Button className="w-full btn-primary" asChild>
+                  <Button className="w-full btn-primary h-12 text-sm touch-manipulation" asChild>
                     <Link to="/auth">Começar Agora</Link>
                   </Button>
                 </div>

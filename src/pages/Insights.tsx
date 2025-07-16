@@ -82,24 +82,30 @@ export const Insights = () => {
       <ParticleBackground />
       <Header />
       
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="container mx-auto">
           {/* Header */}
           <ScrollReveal>
-            <div className="text-center mb-12 flex items-center justify-between">
-              <div className="flex-1">
-                <h1 className="text-4xl lg:text-5xl font-bold mb-4">
-                  Insights <span className="bg-gradient-primary bg-clip-text text-transparent">Personalizados</span>
-                </h1>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                  Análise inteligente da sua performance com recomendações baseadas em IA 
-                  para maximizar seus resultados
-                </p>
+            <div className="text-center mb-8 md:mb-12">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
+                    Insights <span className="bg-gradient-primary bg-clip-text text-transparent">Personalizados</span>
+                  </h1>
+                  <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                    Análise inteligente da sua performance com recomendações baseadas em IA 
+                    para maximizar seus resultados
+                  </p>
+                </div>
+                <Button 
+                  onClick={refreshInsights} 
+                  variant="outline" 
+                  className="self-center sm:self-start h-10 sm:h-auto px-4 text-sm touch-manipulation"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Atualizar
+                </Button>
               </div>
-              <Button onClick={refreshInsights} variant="outline" className="ml-4">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
-              </Button>
             </div>
           </ScrollReveal>
 
