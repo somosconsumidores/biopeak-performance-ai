@@ -17,6 +17,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import bioPeakLogo from '@/assets/biopeak-logo.png';
+import heroAnimation from '@/assets/hero-animation.gif';
 
 export const LandingPage = () => {
   const features = [
@@ -81,6 +82,9 @@ export const LandingPage = () => {
               O primeiro app que usa IA para transformar seus dados de treino Garmin em 
               estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.
             </p>
+            <div className="flex justify-center mb-8">
+              <img src={heroAnimation} alt="BioPeak Animation" className="h-48 w-auto" />
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
                 <Link to="/auth">
