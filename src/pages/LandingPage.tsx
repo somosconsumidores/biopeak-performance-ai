@@ -75,7 +75,7 @@ export const LandingPage = () => {
                 Treino é Físico.
               </span>
               <br />
-              Treinos em Estratégia
+              Evolução é nos Dados.
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               O primeiro app que usa IA para transformar seus dados de treino Garmin em 
