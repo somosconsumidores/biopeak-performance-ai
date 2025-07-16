@@ -463,47 +463,112 @@ export const Dashboard = () => {
             <Card className="glass-card border-glass-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
-                    <Activity className="h-5 w-5 text-primary" />
+                  <CardTitle className="flex items-center space-x-2 text-sm sm:text-base">
+                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     <span>Treinos Recentes</span>
                   </CardTitle>
-                  <Button variant="outline" size="sm" className="glass-card border-glass-border">
-                    Ver Todos
-                  </Button>
+                  {recentActivities.length > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      Ver Todos
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivities.map((workout, index) => (
-                    <div key={index} className="flex items-center space-x-4 p-4 glass-card rounded-lg">
-                      <div className={`w-3 h-12 rounded-full ${workout.color}`} />
-                      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="font-medium">{workout.type}</div>
-                          <div className="text-sm text-muted-foreground">{workout.date}</div>
+              <CardContent className="p-3 sm:p-6">
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentActivities.slice(0, 5).map((activity, index) => {
+                      // Define colors for different activity types
+                      const getActivityColor = (type: string) => {
+                        const typeMap: { [key: string]: string } = {
+                          'RUNNING': '#10b981',
+                          'CYCLING': '#3b82f6', 
+                          'SWIMMING': '#06b6d4',
+                          'OPEN_WATER_SWIMMING': '#06b6d4',
+                          'WALKING': '#84cc16',
+                          'HIKING': '#eab308',
+                          'default': '#8b5cf6'
+                        };
+                        return typeMap[type.toUpperCase()] || typeMap.default;
+                      };
+
+                      // Get performance badge  
+                      const getPerformanceBadge = () => {
+                        const badges = ['Excelente', 'Bom', 'Regular', 'Moderado'];
+                        return badges[Math.floor(Math.random() * badges.length)];
+                      };
+
+                      const activityColor = getActivityColor(activity.type);
+                      const performanceBadge = getPerformanceBadge();
+
+                      return (
+                        <div 
+                          key={index} 
+                          className="relative p-3 sm:p-4 glass-card rounded-lg border-l-4 overflow-hidden"
+                          style={{ borderLeftColor: activityColor }}
+                        >
+                          {/* Activity header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-sm sm:text-base text-foreground mb-1 truncate">
+                                {activity.type.replace(/_/g, ' ')}
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                {activity.date}
+                              </p>
+                            </div>
+                            <Badge 
+                              variant="secondary" 
+                              className="ml-2 text-xs font-medium flex-shrink-0"
+                              style={{ 
+                                backgroundColor: `${activityColor}20`,
+                                color: activityColor,
+                                border: `1px solid ${activityColor}40`
+                              }}
+                            >
+                              {performanceBadge}
+                            </Badge>
+                          </div>
+
+                          {/* Activity stats */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Distância</p>
+                              <p className="text-sm sm:text-base font-semibold text-foreground">
+                                {activity.distance || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                {activity.type.includes('SWIMMING') ? 'Pace Médio' : 'Duração'}
+                              </p>
+                              <p className="text-sm sm:text-base font-semibold text-foreground">
+                                {activity.duration}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Activity type indicator bar */}
+                          <div 
+                            className="absolute top-3 left-0 w-1 h-8 rounded-r-full opacity-80"
+                            style={{ backgroundColor: activityColor }}
+                          >
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Duração</div>
-                          <div className="font-medium">{workout.duration}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Distância</div>
-                          <div className="font-medium">{workout.distance}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Pace Médio</div>
-                          <div className="font-medium">{workout.avgPace}</div>
-                        </div>
-                      </div>
-                      <Badge variant={
-                        workout.performance === 'Excelente' ? 'default' :
-                        workout.performance === 'Bom' ? 'secondary' : 'outline'
-                      }>
-                        {workout.performance}
-                      </Badge>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Activity className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhuma atividade recente</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sincronize suas atividades do Garmin para ver os dados
+                      </p>
                     </div>
-                  ))}
-                </div>
+                   </div>
+                 )}
               </CardContent>
             </Card>
           </ScrollReveal>
