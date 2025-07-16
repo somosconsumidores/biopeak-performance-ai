@@ -21,7 +21,8 @@ import {
   ArrowLeft,
   Calendar,
   AlertCircle,
-  ChevronDown
+  ChevronDown,
+  Share2
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
@@ -32,12 +33,14 @@ import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
+import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     searchParams.get('activityId')
   );
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
@@ -226,12 +229,23 @@ export const WorkoutSession = () => {
           <ScrollReveal delay={100}>
             <Card className="glass-card border-glass-border mb-8">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span>Resumo do Treino</span>
-                  <Badge variant="default">
-                    Concluído
-                  </Badge>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    <span>Resumo do Treino</span>
+                    <Badge variant="default">
+                      Concluído
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShareDialogOpen(true)}
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group"
+                  >
+                    <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    Compartilhar
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -400,6 +414,15 @@ export const WorkoutSession = () => {
           </ScrollReveal>
         </div>
       </div>
+
+      {/* Share Dialog */}
+      {currentActivity && (
+        <ShareWorkoutDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          workoutData={currentActivity}
+        />
+      )}
     </div>
   );
 };
