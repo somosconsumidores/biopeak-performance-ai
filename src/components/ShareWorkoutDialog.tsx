@@ -82,7 +82,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   };
 
   // Generate share URL
-  const shareUrl = `${window.location.origin}/workouts?activityId=${workoutData.id}`;
+  const shareUrl = `${window.location.origin}/share/${workoutData.id}`;
 
   // Generate share text
   const generateShareText = (platform: string) => {
