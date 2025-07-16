@@ -3,7 +3,9 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { 
   Activity, 
   Brain, 
@@ -20,6 +22,8 @@ const bioPeakLogo = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 import heroAnimation from '@/assets/hero-animation-new.gif';
 
 export const LandingPage = () => {
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+
   const features = [
     {
       icon: Brain,
@@ -92,9 +96,25 @@ export const LandingPage = () => {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
-                Ver Demo
-              </Button>
+              <Dialog open={isVideoOpen} onOpenChange={setIsVideoOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
+                    Ver Demo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-4xl p-0 bg-black/95 border-glass-border">
+                  <div className="relative aspect-video w-full">
+                    <video
+                      className="w-full h-full rounded-lg"
+                      controls
+                      autoPlay
+                      src="https://video.wixstatic.com/video/a025ad_6886c1403efa47e4b2a36a4ba2d58ead/720p/mp4/file.mp4"
+                    >
+                      Seu navegador não suporta vídeos HTML5.
+                    </video>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </ScrollReveal>
         </div>
