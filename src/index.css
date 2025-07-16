@@ -109,17 +109,32 @@ All colors MUST be HSL.
     border: 1px solid hsl(var(--glass-border)) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-glass) !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    pointer-events: auto !important;
   }
 
-  /* Bloquear apenas o hover que causava movimento */
+  /* Bloquear qualquer movimento do dialog */
   .static-dialog:hover {
-    transform: none !important;
+    transform: translate(-50%, -50%) !important;
+    animation: none !important;
   }
 
-  /* Bloquear hover especificamente dos elementos glass-card dentro do dialog */
+  /* Bloquear hover de todos os elementos dentro do dialog */
+  .static-dialog * {
+    pointer-events: auto !important;
+  }
+
   .static-dialog .glass-card:hover {
     transform: none !important;
     background: hsl(var(--glass-bg)) !important;
+  }
+
+  /* Garantir que botões dentro do dialog não se movam */
+  .static-dialog button:hover {
+    transform: none !important;
   }
 
   /* Primary Button with Glow */
