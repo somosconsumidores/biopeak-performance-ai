@@ -173,14 +173,39 @@ export const useGarminAuth = () => {
       // Verify state parameter
       const pkceData = getPKCEData();
       if (!pkceData || pkceData.state !== state) {
-        throw new Error('Invalid state parameter');
+        console.error('[useGarminAuth] State verification failed:', {
+          storedState: pkceData?.state,
+          receivedState: state
+        });
+        throw new Error('Invalid state parameter - possible CSRF attack');
       }
 
       console.log('[useGarminAuth] State verified, exchanging code for tokens...');
 
+      // Clear any existing connection first if user already has tokens
+      try {
+        const { data: existingTokens } = await supabase
+          .from('garmin_tokens')
+          .select('id, expires_at')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (existingTokens) {
+          console.log('[useGarminAuth] Found existing tokens, cleaning up...');
+          await supabase
+            .from('garmin_tokens')
+            .delete()
+            .eq('user_id', session.user.id);
+          clearStoredTokens();
+        }
+      } catch (cleanupError) {
+        console.warn('[useGarminAuth] Error during token cleanup:', cleanupError);
+        // Continue with authorization even if cleanup fails
+      }
+
       // Exchange code for tokens via edge function with authentication
       console.log('[useGarminAuth] About to invoke garmin-oauth with:', {
-        code: !!code,
+        code: code.substring(0, 8) + '...',
         codeVerifier: !!pkceData.codeVerifier,
         redirectUri: REDIRECT_URI,
         hasToken: !!session.access_token
@@ -198,12 +223,24 @@ export const useGarminAuth = () => {
 
       if (error) {
         console.error('[useGarminAuth] Edge function error:', error);
+        // Handle specific OAuth errors with user-friendly messages
+        if (error.message?.includes('Invalid authorization code')) {
+          throw new Error('Código de autorização inválido. Por favor, tente conectar novamente.');
+        } else if (error.message?.includes('already connected')) {
+          throw new Error('Conta já conectada. Desconecte primeiro antes de tentar novamente.');
+        }
         throw new Error(error.message || 'Failed to exchange code for tokens');
       }
 
-      if (!data.success) {
-        console.error('[useGarminAuth] Token exchange failed:', data.error);
-        throw new Error(data.error || 'Failed to exchange code for tokens');
+      if (!data?.success) {
+        console.error('[useGarminAuth] Token exchange failed:', data?.error);
+        // Handle specific OAuth errors
+        if (data?.error?.includes('Invalid authorization code')) {
+          throw new Error('Código de autorização inválido. Por favor, tente conectar novamente.');
+        } else if (data?.error?.includes('already connected')) {
+          throw new Error('Conta já conectada. Desconecte primeiro antes de tentar novamente.');
+        }
+        throw new Error(data?.error || 'Failed to exchange code for tokens');
       }
 
       console.log('[useGarminAuth] Token exchange successful');
@@ -239,11 +276,21 @@ export const useGarminAuth = () => {
     } catch (error) {
       console.error('[useGarminAuth] Error in OAuth callback:', error);
       setIsConnecting(false);
+      
+      // Clear any partial state
+      localStorage.removeItem('garmin_pkce');
+      clearStoredTokens();
+      setTokens(null);
+      setIsConnected(false);
+      
       toast({
         title: "Erro na conexão",
         description: error instanceof Error ? error.message : "Erro desconhecido durante a autenticação.",
         variant: "destructive",
       });
+      
+      // Clear URL parameters even on error
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [toast]);
 

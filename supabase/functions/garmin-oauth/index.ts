@@ -212,6 +212,30 @@ serve(async (req) => {
         throw new Error('Missing required fields: code, codeVerifier, redirectUri');
       }
 
+      // Check if this code has already been used by looking for existing tokens
+      const { data: existingTokens } = await supabase
+        .from('garmin_tokens')
+        .select('id, expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingTokens) {
+        const expiresAt = new Date(existingTokens.expires_at || 0).getTime();
+        const isExpired = Date.now() >= expiresAt;
+        
+        if (!isExpired) {
+          // User already has valid tokens, don't proceed with new authorization
+          console.log('[garmin-oauth] User already has valid tokens, rejecting new authorization');
+          throw new Error('User already connected to Garmin. Please disconnect first or use token refresh.');
+        } else {
+          // Delete expired tokens before proceeding
+          await supabase
+            .from('garmin_tokens')
+            .delete()
+            .eq('user_id', user.id);
+        }
+      }
+
       // Store PKCE data in database for verification
       const { error: pkceError } = await supabase
         .from('oauth_temp_tokens')
