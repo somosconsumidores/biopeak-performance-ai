@@ -394,6 +394,10 @@ export type Database = {
         }
         Returns: number
       }
+      cleanup_expired_oauth_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

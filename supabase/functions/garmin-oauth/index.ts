@@ -283,6 +283,25 @@ serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('[garmin-oauth] Token exchange failed:', errorText);
+        
+        // Clean up any partial state on failure
+        await supabase
+          .from('oauth_temp_tokens')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('provider', 'garmin');
+        
+        // Provide more specific error messages
+        if (response.status === 400) {
+          if (errorText.includes('invalid_request') || errorText.includes('Invalid authorization code')) {
+            throw new Error(`Código de autorização inválido ou expirado. Isso pode acontecer se você tentar conectar mais de uma vez ou se demorar muito tempo. Por favor, tente novamente: ${response.status}`);
+          } else if (errorText.includes('invalid_client')) {
+            throw new Error('Configuração do cliente OAuth inválida. Verifique as credenciais do Garmin.');
+          } else if (errorText.includes('invalid_grant')) {
+            throw new Error('Autorização inválida. Por favor, tente conectar novamente.');
+          }
+        }
+        
         throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
       }
 

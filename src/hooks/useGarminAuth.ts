@@ -37,6 +37,14 @@ export const useGarminAuth = () => {
           return;
         }
 
+        // Clean up expired tokens first
+        try {
+          await supabase.rpc('cleanup_expired_oauth_data');
+          console.log('[useGarminAuth] Expired tokens cleaned up');
+        } catch (cleanupError) {
+          console.warn('[useGarminAuth] Token cleanup failed:', cleanupError);
+        }
+
         // Check database for tokens
         console.log('[useGarminAuth] Querying garmin_tokens for user:', user.id);
         const { data: dbTokens, error } = await supabase
