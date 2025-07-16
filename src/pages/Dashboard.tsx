@@ -4,6 +4,7 @@ import { ScrollReveal } from '@/components/ScrollReveal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { 
   Activity, 
   TrendingUp, 
@@ -15,101 +16,93 @@ import {
   Heart,
   Zap,
   Award,
-  BarChart3
+  BarChart3,
+  Loader2
 } from 'lucide-react';
 
 export const Dashboard = () => {
-  const alerts = [
-    {
-      type: 'warning',
-      icon: AlertTriangle,
-      title: 'Risco de Overtraining',
-      message: 'Seus índices de fadiga estão elevados. Considere um dia de recuperação.',
-      priority: 'high'
-    },
-    {
-      type: 'success',
-      icon: TrendingUp,
-      title: 'Performance em Alta',
-      message: 'Seu VO2 max aumentou 3% nas últimas duas semanas.',
-      priority: 'medium'
-    }
-  ];
+  const { 
+    metrics, 
+    weeklyData, 
+    alerts, 
+    recentActivities, 
+    peakPerformance, 
+    loading, 
+    error 
+  } = useDashboardMetrics();
 
-  const weeklyData = [
-    { day: 'Seg', training: 85, recovery: 70 },
-    { day: 'Ter', training: 90, recovery: 65 },
-    { day: 'Qua', training: 75, recovery: 80 },
-    { day: 'Qui', training: 95, recovery: 60 },
-    { day: 'Sex', training: 80, recovery: 75 },
-    { day: 'Sáb', training: 100, recovery: 55 },
-    { day: 'Dom', training: 40, recovery: 95 }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <ParticleBackground />
+        <Header />
+        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                <p className="text-muted-foreground">Carregando métricas...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const metrics = [
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <ParticleBackground />
+        <Header />
+        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-yellow-500" />
+                <p className="text-muted-foreground">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formattedMetrics = metrics ? [
     {
-      title: 'VO2 Max',
-      value: '58.4',
+      title: 'VO₂ Max',
+      value: metrics.vo2Max.current ? metrics.vo2Max.current.toFixed(1) : 'N/A',
       unit: 'ml/kg/min',
-      change: '+12%',
-      trend: 'up',
-      color: 'text-green-400'
+      change: metrics.vo2Max.current ? `${metrics.vo2Max.change > 0 ? '+' : ''}${metrics.vo2Max.change}%` : 'N/A',
+      trend: metrics.vo2Max.trend,
+      color: metrics.vo2Max.trend === 'up' ? 'text-green-400' : 'text-blue-400'
     },
     {
       title: 'Frequência Cardíaca',
-      value: '152',
+      value: metrics.heartRate.average.toString(),
       unit: 'bpm médio',
-      change: '-3%',
-      trend: 'down',
-      color: 'text-blue-400'
+      change: `${metrics.heartRate.trend === 'down' ? '-' : '+'}${metrics.heartRate.change}%`,
+      trend: metrics.heartRate.trend,
+      color: metrics.heartRate.trend === 'down' ? 'text-green-400' : 'text-blue-400'
     },
     {
       title: 'Zona de Treino',
-      value: '3-4',
+      value: metrics.trainingZone.currentZone,
       unit: 'zona ótima',
-      change: '85%',
-      trend: 'up',
+      change: `${metrics.trainingZone.percentage}%`,
+      trend: metrics.trainingZone.trend,
       color: 'text-purple-400'
     },
     {
       title: 'Recuperação',
-      value: '94%',
+      value: `${metrics.recovery.level}%`,
       unit: 'nível atual',
-      change: '+8%',
-      trend: 'up',
+      change: `+${metrics.recovery.change}%`,
+      trend: metrics.recovery.trend,
       color: 'text-green-400'
     }
-  ];
-
-  const recentWorkouts = [
-    {
-      date: '2024-01-15',
-      type: 'Corrida',
-      duration: '45:32',
-      distance: '8.5 km',
-      avgPace: '5:22/km',
-      performance: 'Excelente',
-      color: 'bg-green-500'
-    },
-    {
-      date: '2024-01-13',
-      type: 'Ciclismo',
-      duration: '1:22:15',
-      distance: '35.2 km',
-      avgPace: '28.5 km/h',
-      performance: 'Bom',
-      color: 'bg-blue-500'
-    },
-    {
-      date: '2024-01-11',
-      type: 'Natação',
-      duration: '32:40',
-      distance: '1.2 km',
-      avgPace: '2:43/100m',
-      performance: 'Regular',
-      color: 'bg-yellow-500'
-    }
-  ];
+  ] : [];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -133,36 +126,43 @@ export const Dashboard = () => {
           {/* Alerts */}
           <ScrollReveal delay={100}>
             <div className="grid md:grid-cols-2 gap-4 mb-8">
-              {alerts.map((alert, index) => (
-                <Card key={index} className="glass-card border-glass-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-full ${
-                        alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-green-500/20 text-green-400'
-                      }`}>
-                        <alert.icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold">{alert.title}</h3>
-                          <Badge variant={alert.priority === 'high' ? 'destructive' : 'secondary'}>
-                            {alert.priority === 'high' ? 'Alta' : 'Média'}
-                          </Badge>
+              {alerts.map((alert, index) => {
+                const IconComponent = alert.type === 'warning' ? AlertTriangle : 
+                                    alert.type === 'success' ? TrendingUp : 
+                                    Activity;
+                
+                return (
+                  <Card key={index} className="glass-card border-glass-border">
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className={`p-2 rounded-full ${
+                          alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                          alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          <IconComponent className="h-5 w-5" />
                         </div>
-                        <p className="text-sm text-muted-foreground">{alert.message}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-semibold">{alert.title}</h3>
+                            <Badge variant={alert.priority === 'high' ? 'destructive' : 'secondary'}>
+                              {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{alert.message}</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </ScrollReveal>
 
           {/* Main Metrics */}
           <ScrollReveal delay={200}>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {metrics.map((metric, index) => (
+              {formattedMetrics.map((metric, index) => (
                 <Card key={index} className="glass-card border-glass-border">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-2">
@@ -259,23 +259,27 @@ export const Dashboard = () => {
                           stroke="hsl(var(--primary))"
                           strokeWidth="8"
                           fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 56 * 0.87} ${2 * Math.PI * 56}`}
+                          strokeDasharray={`${2 * Math.PI * 56 * ((peakPerformance?.current || 0) / 100)} ${2 * Math.PI * 56}`}
                           className="data-glow"
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="text-center">
-                          <div className="text-2xl font-bold">87%</div>
+                          <div className="text-2xl font-bold">{peakPerformance?.current || 0}%</div>
                           <div className="text-xs text-muted-foreground">Atual</div>
                         </div>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-sm text-muted-foreground">
-                        Previsão de pico: <span className="text-primary font-medium">Janeiro 25</span>
+                        Previsão de pico: <span className="text-primary font-medium">
+                          {peakPerformance?.prediction || 'Calculando...'}
+                        </span>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Potencial máximo: <span className="text-primary font-medium">95%</span>
+                        Potencial máximo: <span className="text-primary font-medium">
+                          {peakPerformance?.potential || 0}%
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -300,7 +304,7 @@ export const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentWorkouts.map((workout, index) => (
+                  {recentActivities.map((workout, index) => (
                     <div key={index} className="flex items-center space-x-4 p-4 glass-card rounded-lg">
                       <div className={`w-3 h-12 rounded-full ${workout.color}`} />
                       <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
