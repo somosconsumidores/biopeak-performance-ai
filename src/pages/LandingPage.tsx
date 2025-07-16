@@ -16,7 +16,7 @@ import {
   ArrowRight,
   CheckCircle
 } from 'lucide-react';
-import bioPeakLogo from '@/assets/biopeak-logo.png';
+const bioPeakLogo = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 import heroAnimation from '@/assets/hero-animation-new.gif';
 
 export const LandingPage = () => {
