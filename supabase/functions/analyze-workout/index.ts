@@ -132,6 +132,15 @@ serve(async (req) => {
     
     // Use the most accurate method (distance/time is generally more reliable)
     const accuratePace = calculatedPaceFromDistance || calculatedPaceFromSpeed || storedPace;
+    
+    // Convert pace to min:sec format for clarity
+    const formatPace = (paceMinKm: number) => {
+      const minutes = Math.floor(paceMinKm);
+      const seconds = Math.round((paceMinKm - minutes) * 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+    
+    const formattedPace = accuratePace ? formatPace(accuratePace) : 'N/A';
 
     // Calculate pace variations from detailed data for more insights
     let paceAnalysis = '';
@@ -179,11 +188,11 @@ serve(async (req) => {
       - Tipo: ${activity.activity_type}
       - Duração: ${Math.round((activity.duration_in_seconds || 0) / 60)} minutos
       - Distância: ${((activity.distance_in_meters || 0) / 1000).toFixed(1)} km
-      - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
-      - FC máxima: ${activity.max_heart_rate_in_beats_per_minute || 'N/A'} bpm
-       - Pace médio (distância/tempo): ${calculatedPaceFromDistance?.toFixed(2) || 'N/A'} min/km
-       ${calculatedPaceFromSpeed ? `- Pace da velocidade: ${calculatedPaceFromSpeed.toFixed(2)} min/km` : ''}
-       ${storedPace ? `- Pace armazenado: ${storedPace.toFixed(2)} min/km` : ''}${paceAnalysis}
+       - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
+       - FC máxima: ${activity.max_heart_rate_in_beats_per_minute || 'N/A'} bpm
+       - Pace médio: ${formattedPace} min/km (${calculatedPaceFromDistance?.toFixed(3) || 'N/A'} min/km decimal)
+       ${calculatedPaceFromSpeed ? `- Pace da velocidade: ${formatPace(calculatedPaceFromSpeed)} min/km` : ''}
+       ${storedPace ? `- Pace armazenado: ${formatPace(storedPace)} min/km` : ''}${paceAnalysis}
       - Calorias: ${activity.active_kilocalories || 'N/A'} kcal
       - Elevação: ${activity.total_elevation_gain_in_meters || 0}m
       
