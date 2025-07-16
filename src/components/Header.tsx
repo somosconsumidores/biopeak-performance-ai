@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 // Updated logo import
-const bioPeakLogo = '/lovable-uploads/e928b6ff-ba08-471f-9f25-81fca3bc7b75.png';
+const bioPeakLogo = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
