@@ -24,7 +24,7 @@ import {
   ChevronDown,
   Share2
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
 import { useActivityHistory } from '@/hooks/useActivityHistory';
 import { format } from 'date-fns';
@@ -33,14 +33,14 @@ import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
-import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
+
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     searchParams.get('activityId')
   );
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
@@ -240,7 +240,7 @@ export const WorkoutSession = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShareDialogOpen(true)}
+                    onClick={() => navigate(`/share/${currentActivity.id}`)}
                     className="glass-card border-glass-border hover:bg-glass-bg-hover group"
                   >
                     <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
@@ -415,14 +415,6 @@ export const WorkoutSession = () => {
         </div>
       </div>
 
-      {/* Share Dialog */}
-      {currentActivity && (
-        <ShareWorkoutDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          workoutData={currentActivity}
-        />
-      )}
     </div>
   );
 };
