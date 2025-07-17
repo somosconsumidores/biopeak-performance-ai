@@ -70,10 +70,10 @@ serve(async (req) => {
       throw new Error('Activity not found');
     }
 
-    // Get detailed workout data
+    // Get detailed workout data including activity name
     const { data: activityDetails, error: detailsError } = await supabase
       .from('garmin_activity_details')
-      .select('heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
+      .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
       .eq('user_id', user.id)
       .eq('activity_id', activityId)
       .order('sample_timestamp', { ascending: true })
@@ -156,10 +156,16 @@ serve(async (req) => {
       }
     }
 
+    // Check if this is a high-intensity workout based on activity name
+    const activityName = activityDetails?.[0]?.activity_name?.toLowerCase() || '';
+    const highIntensityKeywords = ['limite', 'vo2', 'superséries', 'superseries', 'corrida de tempo', 'sprint'];
+    const isHighIntensityWorkout = highIntensityKeywords.some(keyword => activityName.includes(keyword));
+
     // Prepare analysis data
     const analysisData = {
       activity: {
         type: activity.activity_type,
+        name: activityDetails?.[0]?.activity_name,
         duration: activity.duration_in_seconds,
         distance: activity.distance_in_meters,
         averageHeartRate: activity.average_heart_rate_in_beats_per_minute,
@@ -171,6 +177,7 @@ serve(async (req) => {
         calories: activity.active_kilocalories,
         elevation: activity.total_elevation_gain_in_meters,
         averageSpeed: activity.average_speed_in_meters_per_second,
+        isHighIntensity: isHighIntensityWorkout,
       },
       userContext: {
         age: userAge,
@@ -186,6 +193,7 @@ serve(async (req) => {
       
       Dados do treino:
       - Tipo: ${activity.activity_type}
+      ${activityDetails?.[0]?.activity_name ? `- Nome: ${activityDetails[0].activity_name}` : ''}
       - Duração: ${Math.round((activity.duration_in_seconds || 0) / 60)} minutos
       - Distância: ${((activity.distance_in_meters || 0) / 1000).toFixed(1)} km
        - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
@@ -195,6 +203,8 @@ serve(async (req) => {
        ${storedPace ? `- Pace armazenado: ${formatPace(storedPace)} min/km` : ''}${paceAnalysis}
       - Calorias: ${activity.active_kilocalories || 'N/A'} kcal
       - Elevação: ${activity.total_elevation_gain_in_meters || 0}m
+      
+      ${isHighIntensityWorkout ? '⚠️ IMPORTANTE: Este é um treino de ALTA INTENSIDADE (detectado pelas palavras-chave: limite, vo2, superséries, corrida de tempo, sprint). Em treinos desta natureza, variações de pace e frequência cardíaca são ESPERADAS e NORMAIS, pois há momentos de esforço intenso alternados com períodos de recuperação. Considere isso na análise e não trate as variações como problemas, mas sim como características do tipo de treino.' : ''}
       
       ${userAge ? `Idade do usuário: ${userAge} anos` : ''}
       ${profile?.weight_kg ? `Peso: ${profile.weight_kg}kg` : ''}
