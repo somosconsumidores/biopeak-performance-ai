@@ -42,7 +42,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
     console.log('🔄 CLEARING METRICS - Activity changed from previous to:', activityId);
     setMetrics(null);
     setError(null);
-    setLoading(false);
+    setLoading(true); // Force loading state to trigger fresh calculation
   }, [activityId]);
 
   useEffect(() => {
@@ -107,7 +107,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         const metricsWithTimestamp = {
           ...calculatedMetrics,
           _timestamp: Date.now(),
-          _activityId: activityId
+          _activityId: activityId,
+          _cacheBreaker: Math.random() // Extra cache breaker
         };
         
         setMetrics(metricsWithTimestamp);
