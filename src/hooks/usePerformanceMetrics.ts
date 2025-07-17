@@ -200,26 +200,24 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
         return aDuration - bDuration;
       });
       
-      // Dividir em terços IGUAIS por número de registros (não por tempo!)
+      // Dividir em terços seguindo EXATAMENTE a lógica SQL: FLOOR(total_records / 3)
       const totalRecords = sortedDetails.length;
-      const thirdSize = Math.floor(totalRecords / 3);
-      const remainder = totalRecords % 3;
+      const thirdSize = Math.floor(totalRecords / 3); // 3599 para 10797 registros
       
-      // Dividir os registros em 3 grupos iguais
-      const firstThirdEnd = thirdSize + (remainder > 0 ? 1 : 0); // Primeiro terço pega 1 extra se sobrar
-      const secondThirdEnd = firstThirdEnd + thirdSize + (remainder > 1 ? 1 : 0); // Segundo terço pega 1 extra se sobrar 2
+      // Seguir exatamente a mesma lógica da SQL:
+      // Primeiro terço: índices 0 até thirdSize-1 (0-3598 = 3599 registros)
+      // Segundo terço: índices thirdSize até (thirdSize*2)-1 (3599-7197 = 3599 registros)  
+      // Terceiro terço: índices thirdSize*2 até o final (7198-10796 = 3599 registros)
+      const beginningData = sortedDetails.slice(0, thirdSize);
+      const middleData = sortedDetails.slice(thirdSize, thirdSize * 2);
+      const endData = sortedDetails.slice(thirdSize * 2);
       
-      const beginningData = sortedDetails.slice(0, firstThirdEnd);
-      const middleData = sortedDetails.slice(firstThirdEnd, secondThirdEnd);
-      const endData = sortedDetails.slice(secondThirdEnd);
-      
-      console.log('🎯 NEW EFFORT DISTRIBUTION LOGIC:');
+      console.log('🎯 FIXED EFFORT DISTRIBUTION LOGIC (matching SQL):');
       console.log('  Total valid records:', totalRecords);
-      console.log('  Third size (base):', thirdSize);
-      console.log('  Remainder:', remainder);
-      console.log('  Beginning records:', beginningData.length, '(indices 0-' + (firstThirdEnd-1) + ')');
-      console.log('  Middle records:', middleData.length, '(indices ' + firstThirdEnd + '-' + (secondThirdEnd-1) + ')');
-      console.log('  End records:', endData.length, '(indices ' + secondThirdEnd + '-' + (totalRecords-1) + ')');
+      console.log('  Third size (FLOOR):', thirdSize);
+      console.log('  Beginning records:', beginningData.length, '(indices 0-' + (thirdSize-1) + ')');
+      console.log('  Middle records:', middleData.length, '(indices ' + thirdSize + '-' + ((thirdSize*2)-1) + ')');
+      console.log('  End records:', endData.length, '(indices ' + (thirdSize*2) + '-' + (totalRecords-1) + ')');
 
       // Calcular média de FC para cada terço
       const beginningHR = beginningData.length > 0 
