@@ -64,28 +64,51 @@ serve(async (req) => {
       );
     }
 
-    // Get activity details
-    const { data: activityDetails, error: detailsError } = await supabase
-      .from('garmin_activity_details')
-      .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
-      .eq('activity_id', activity_id)
-      .eq('user_id', user_id)
-      .not('heart_rate', 'is', null)
-      .not('clock_duration_in_seconds', 'is', null)
-      .order('clock_duration_in_seconds', { ascending: true });
+    // Get activity details in batches to overcome 1000 record limit
+    console.log('🔍 Fetching activity details in batches...');
+    let allActivityDetails: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
 
-    if (detailsError) {
-      console.error('❌ Error fetching activity details:', detailsError);
-      return new Response(
-        JSON.stringify({ error: 'Error fetching activity details' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    while (hasMore) {
+      const { data: batchDetails, error: detailsError } = await supabase
+        .from('garmin_activity_details')
+        .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
+        .eq('activity_id', activity_id)
+        .eq('user_id', user_id)
+        .not('heart_rate', 'is', null)
+        .not('clock_duration_in_seconds', 'is', null)
+        .order('clock_duration_in_seconds', { ascending: true })
+        .range(offset, offset + batchSize - 1);
+
+      if (detailsError) {
+        console.error('❌ Error fetching activity details:', detailsError);
+        return new Response(
+          JSON.stringify({ error: 'Error fetching activity details' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (batchDetails && batchDetails.length > 0) {
+        allActivityDetails = allActivityDetails.concat(batchDetails);
+        console.log(`📦 Fetched batch ${Math.floor(offset/batchSize) + 1}: ${batchDetails.length} records (total: ${allActivityDetails.length})`);
+        
+        // If we got less than batchSize records, we've reached the end
+        if (batchDetails.length < batchSize) {
+          hasMore = false;
+        } else {
+          offset += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
     }
 
-    console.log(`📊 Found ${activityDetails?.length || 0} detail records for calculation`);
+    console.log(`📊 Found ${allActivityDetails.length} total detail records for calculation`);
 
     // Calculate performance metrics
-    const metrics = calculatePerformanceMetrics(activity, activityDetails || []);
+    const metrics = calculatePerformanceMetrics(activity, allActivityDetails);
     
     // Save to performance_metrics table
     const { error: insertError } = await supabase
@@ -111,7 +134,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         metrics,
-        details_count: activityDetails?.length || 0
+        details_count: allActivityDetails.length
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
