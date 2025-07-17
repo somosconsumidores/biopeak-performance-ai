@@ -14,17 +14,29 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useWorkoutAIAnalysis, WorkoutAnalysis } from '@/hooks/useWorkoutAIAnalysis';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AIInsightsCardProps {
   activityId: string;
 }
 
 export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
-  const { analysis, loading, error, analyzeWorkout } = useWorkoutAIAnalysis();
+  const { analysis, loading, error, analyzeWorkout, clearAnalysis } = useWorkoutAIAnalysis();
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
+  // Load stored analysis when component mounts or activityId changes
+  useEffect(() => {
+    if (activityId) {
+      analyzeWorkout(activityId);
+    }
+  }, [activityId]);
+
   const handleAnalyze = () => {
+    analyzeWorkout(activityId);
+  };
+
+  const handleNewAnalysis = () => {
+    clearAnalysis();
     analyzeWorkout(activityId);
   };
 
@@ -242,7 +254,7 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
 
       {/* Re-analyze Button */}
       <div className="text-center">
-        <Button variant="ghost" onClick={handleAnalyze} disabled={loading}>
+        <Button variant="ghost" onClick={handleNewAnalysis} disabled={loading}>
           <Brain className="h-4 w-4 mr-2" />
           Nova Análise
         </Button>
