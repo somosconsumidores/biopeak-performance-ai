@@ -39,8 +39,10 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
   // Clear metrics when activityId changes to force fresh calculation
   useEffect(() => {
+    console.log('🔄 CLEARING METRICS - Activity changed from previous to:', activityId);
     setMetrics(null);
     setError(null);
+    setLoading(false);
   }, [activityId]);
 
   useEffect(() => {
@@ -54,9 +56,11 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
       setError(null);
 
       try {
-        console.log('🔍 DEBUG: Fetching performance metrics for activity:', activityId);
+        const timestamp = new Date().toISOString();
+        console.log(`🔍 [${timestamp}] STARTING FRESH CALCULATION for activity:`, activityId);
 
-        // Fetch activity data
+        // Fetch activity data with detailed logging
+        console.log('📋 SQL Query for activity:', `SELECT * FROM garmin_activities WHERE activity_id = '${activityId}'`);
         const { data: activity, error: activityError } = await supabase
           .from('garmin_activities')
           .select('*')
@@ -67,6 +71,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         if (!activity) throw new Error('Activity not found');
 
         // Fetch activity details for pace variation calculation and effort distribution
+        console.log('📋 SQL Query for details:', `SELECT speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds FROM garmin_activity_details WHERE activity_id = '${activityId}' AND speed_meters_per_second IS NOT NULL AND heart_rate IS NOT NULL ORDER BY clock_duration_in_seconds ASC`);
+        
         const { data: activityDetails, error: detailsError } = await supabase
           .from('garmin_activity_details')
           .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
@@ -90,13 +96,21 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           console.log('📈 Last detail sample:', activityDetails[activityDetails.length - 1]);
         }
 
-        // Calculate metrics
+        // Calculate metrics with forced recalculation indicator
+        console.log('🧮 STARTING CALCULATION with fresh data...');
         const calculatedMetrics = calculatePerformanceMetrics(activity, activityDetails || []);
         
-        console.log('🧮 CALCULATED METRICS:', calculatedMetrics);
-        console.log('🧮 EFFORT DISTRIBUTION CALCULATED:', calculatedMetrics.effortDistribution);
+        console.log('✅ FINAL CALCULATED METRICS:', JSON.stringify(calculatedMetrics, null, 2));
+        console.log('✅ FINAL EFFORT DISTRIBUTION:', calculatedMetrics.effortDistribution);
         
-        setMetrics(calculatedMetrics);
+        // Force state update with timestamp to prevent cache issues
+        const metricsWithTimestamp = {
+          ...calculatedMetrics,
+          _timestamp: Date.now(),
+          _activityId: activityId
+        };
+        
+        setMetrics(metricsWithTimestamp);
 
       } catch (err) {
         console.error('Error calculating performance metrics:', err);

@@ -10,18 +10,32 @@ interface PerformanceIndicatorsProps {
 export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
 
-  // Debug logging to verify data received by component
-  console.log('🎯 PerformanceIndicators - Activity ID:', activityId);
-  console.log('🎯 PerformanceIndicators - Metrics received:', metrics);
-  console.log('🎯 PerformanceIndicators - Loading state:', loading);
-  console.log('🎯 PerformanceIndicators - Error state:', error);
+  // Enhanced debug logging to track component re-renders and data flow
+  const renderTimestamp = new Date().toISOString();
+  console.log(`🎯 [${renderTimestamp}] PerformanceIndicators RENDER`);
+  console.log('  🔑 Activity ID:', activityId);
+  console.log('  📊 Metrics received:', metrics);
+  console.log('  ⏳ Loading state:', loading);
+  console.log('  ❌ Error state:', error);
+  
+  // Special logging for metrics with timestamp
+  if (metrics) {
+    console.log('  🕒 Metrics timestamp:', (metrics as any)._timestamp);
+    console.log('  🆔 Metrics activity ID:', (metrics as any)._activityId);
+  }
   
   if (metrics?.effortDistribution) {
-    console.log('🔥 EFFORT DISTRIBUTION DATA:');
-    console.log('  - Beginning:', metrics.effortDistribution.beginning);
-    console.log('  - Middle:', metrics.effortDistribution.middle);
-    console.log('  - End:', metrics.effortDistribution.end);
-    console.log('  - Comment:', metrics.effortDistribution.comment);
+    console.log('🔥 COMPONENT EFFORT DISTRIBUTION:');
+    console.log('  🟢 Beginning:', metrics.effortDistribution.beginning);
+    console.log('  🟡 Middle:', metrics.effortDistribution.middle);
+    console.log('  🔴 End:', metrics.effortDistribution.end);
+    console.log('  💬 Comment:', metrics.effortDistribution.comment);
+    
+    // Check if values match expected pattern
+    const beginVal = metrics.effortDistribution.beginning.replace(' bpm', '');
+    const middleVal = metrics.effortDistribution.middle.replace(' bpm', '');
+    const endVal = metrics.effortDistribution.end.replace(' bpm', '');
+    console.log('  🔍 Raw values:', { beginVal, middleVal, endVal });
   }
 
   if (loading) {
