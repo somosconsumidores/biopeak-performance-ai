@@ -60,14 +60,14 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         if (activityError) throw activityError;
         if (!activity) throw new Error('Activity not found');
 
-        // Fetch activity details for pace variation calculation
+        // Fetch activity details for pace variation calculation and effort distribution
         const { data: activityDetails, error: detailsError } = await supabase
           .from('garmin_activity_details')
-          .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp')
+          .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
           .eq('activity_id', activityId)
           .not('speed_meters_per_second', 'is', null)
           .not('heart_rate', 'is', null)
-          .order('sample_timestamp', { ascending: true });
+          .order('clock_duration_in_seconds', { ascending: true });
 
         if (detailsError) throw detailsError;
 
@@ -140,26 +140,43 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
     ? `${(((avgHR - 60) / (maxHR - 60)) * 100).toFixed(1)}%` // Using resting HR = 60 as default
     : 'N/A';
 
-  // 4. Distribuição do Esforço
+  // 4. Distribuição do Esforço (usando clock_duration_in_seconds para divisão temporal precisa)
   let beginning = 'N/A', middle = 'N/A', end = 'N/A';
   
-  if (details.length > 0) {
-    const thirdLength = Math.floor(details.length / 3);
-    const beginningHR = details.slice(0, thirdLength)
-      .filter(d => d.heart_rate)
-      .reduce((sum, d) => sum + d.heart_rate, 0) / thirdLength || 0;
+  if (details.length > 0 && details.some(d => d.clock_duration_in_seconds)) {
+    // Filtrar apenas dados com clock_duration_in_seconds válido
+    const validDetails = details.filter(d => d.clock_duration_in_seconds && d.heart_rate);
     
-    const middleHR = details.slice(thirdLength, thirdLength * 2)
-      .filter(d => d.heart_rate)
-      .reduce((sum, d) => sum + d.heart_rate, 0) / thirdLength || 0;
-    
-    const endHR = details.slice(thirdLength * 2)
-      .filter(d => d.heart_rate)
-      .reduce((sum, d) => sum + d.heart_rate, 0) / (details.length - thirdLength * 2) || 0;
-    
-    beginning = beginningHR > 0 ? `${Math.round(beginningHR)} bpm` : 'N/A';
-    middle = middleHR > 0 ? `${Math.round(middleHR)} bpm` : 'N/A';
-    end = endHR > 0 ? `${Math.round(endHR)} bpm` : 'N/A';
+    if (validDetails.length > 0) {
+      // Determinar duração total usando o maior valor de clock_duration_in_seconds
+      const totalDuration = Math.max(...validDetails.map(d => d.clock_duration_in_seconds));
+      
+      // Calcular os terços temporais (33%, 66% da duração total)
+      const firstThird = totalDuration * 0.33;
+      const secondThird = totalDuration * 0.66;
+      
+      // Separar dados por terços temporais
+      const beginningData = validDetails.filter(d => d.clock_duration_in_seconds <= firstThird);
+      const middleData = validDetails.filter(d => d.clock_duration_in_seconds > firstThird && d.clock_duration_in_seconds <= secondThird);
+      const endData = validDetails.filter(d => d.clock_duration_in_seconds > secondThird);
+      
+      // Calcular média de FC para cada terço
+      const beginningHR = beginningData.length > 0 
+        ? beginningData.reduce((sum, d) => sum + d.heart_rate, 0) / beginningData.length 
+        : 0;
+      
+      const middleHR = middleData.length > 0 
+        ? middleData.reduce((sum, d) => sum + d.heart_rate, 0) / middleData.length 
+        : 0;
+      
+      const endHR = endData.length > 0 
+        ? endData.reduce((sum, d) => sum + d.heart_rate, 0) / endData.length 
+        : 0;
+      
+      beginning = beginningHR > 0 ? `${Math.round(beginningHR)} bpm` : 'N/A';
+      middle = middleHR > 0 ? `${Math.round(middleHR)} bpm` : 'N/A';
+      end = endHR > 0 ? `${Math.round(endHR)} bpm` : 'N/A';
+    }
   }
 
   // Generate AI comments based on data
