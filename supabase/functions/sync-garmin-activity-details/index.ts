@@ -289,8 +289,8 @@ Deno.serve(async (req) => {
         const activitySummary = detail.activitySummary || {};
         const samples = detail.samples || [];
         
-        // Extract activity name directly from API response, consistent with activity_id extraction
-        const extractedActivityName = detail.activityName || null;
+        // Extract activity name from the summary field (as shown in API logs)
+        const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
 
         // If there are samples, save each sample as a separate row
         if (samples.length > 0) {
