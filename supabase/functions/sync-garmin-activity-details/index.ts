@@ -251,6 +251,16 @@ Deno.serve(async (req) => {
 
     const activityDetails: GarminActivityDetail[] = await response.json();
     console.log(`[sync-activity-details] Received ${activityDetails.length} activity details from Garmin`);
+    
+    // Debug: Log the structure of the first activity detail to understand the API response
+    if (activityDetails.length > 0) {
+      console.log('[sync-activity-details] First activity detail structure:', JSON.stringify(activityDetails[0], null, 2));
+      console.log('[sync-activity-details] Activity name locations:', {
+        rootActivityName: activityDetails[0].activityName,
+        summaryActivityName: activityDetails[0].activitySummary?.activityName,
+        availableFields: Object.keys(activityDetails[0])
+      });
+    }
 
     if (activityDetails.length === 0) {
       return new Response(
@@ -278,6 +288,16 @@ Deno.serve(async (req) => {
         // Safe access to activitySummary properties
         const activitySummary = detail.activitySummary || {};
         const samples = detail.samples || [];
+        
+        // Debug: Log activity name extraction for this specific activity
+        const extractedActivityName = detail.activityName || activitySummary.activityName || null;
+        console.log(`[sync-activity-details] Activity ${detail.summaryId} - activityName extraction:`, {
+          fromRoot: detail.activityName,
+          fromSummary: activitySummary.activityName,
+          extracted: extractedActivityName,
+          detailKeys: Object.keys(detail),
+          summaryKeys: Object.keys(activitySummary)
+        });
 
         // If there are samples, save each sample as a separate row
         if (samples.length > 0) {
@@ -290,7 +310,7 @@ Deno.serve(async (req) => {
                 user_id: user.id,
                 activity_id: detail.activityId,
                 summary_id: detail.summaryId,
-                activity_name: detail.activityName || activitySummary.activityName || null,
+                activity_name: extractedActivityName,
                 upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
                 start_time_in_seconds: sampleTimestamp,
                 duration_in_seconds: activitySummary.durationInSeconds || null,
@@ -299,8 +319,7 @@ Deno.serve(async (req) => {
                 sample_timestamp: sampleTimestamp,
                 samples: sample, // Store individual sample data
                 activity_summary: activitySummary,
-              // Extract sample data into structured columns
-              activity_name: detail.activityName || activitySummary.activityName || null,
+                // Extract sample data into structured columns
               heart_rate: sample.heartRate || null,
               latitude_in_degree: sample.latitudeInDegree || null,
               longitude_in_degree: sample.longitudeInDegree || null,
@@ -333,7 +352,7 @@ Deno.serve(async (req) => {
               user_id: user.id,
               activity_id: detail.activityId,
               summary_id: detail.summaryId,
-              activity_name: detail.activityName || activitySummary.activityName || null,
+              activity_name: extractedActivityName,
               upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
               start_time_in_seconds: defaultTimestamp,
               duration_in_seconds: activitySummary.durationInSeconds || null,
