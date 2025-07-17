@@ -144,15 +144,28 @@ export function GarminSync() {
                       Monitore o status da sua conexão com Garmin Connect
                     </CardDescription>
                   </div>
-                   <Badge className={getStatusColor(syncStats.syncStatus)}>
-                    {syncStats.syncStatus === 'connected' && (
-                      <CheckCircle className="h-4 w-4 mr-2" />
+                  <div className="flex items-center gap-3">
+                    <Badge className={getStatusColor(syncStats.syncStatus)}>
+                      {syncStats.syncStatus === 'connected' && (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {syncStats.syncStatus === 'disconnected' && (
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {getStatusText(syncStats.syncStatus)}
+                    </Badge>
+                    
+                    {isConnected && (
+                      <Button 
+                        onClick={disconnect}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                      >
+                        Desconectar
+                      </Button>
                     )}
-                    {syncStats.syncStatus === 'disconnected' && (
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                    )}
-                    {getStatusText(syncStats.syncStatus)}
-                  </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
