@@ -242,44 +242,45 @@ export const WorkoutSession = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => setShareDialogOpen(true)}
-                    className="glass-card border-glass-border hover:bg-glass-bg-hover group"
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation"
                   >
-                    <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                    Compartilhar
+                    <Share2 className="h-4 w-4 mr-1 sm:mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline">Compartilhar</span>
+                    <span className="sm:hidden">Share</span>
                   </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
                   <div className="text-center">
-                    <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatDuration(currentActivity.duration_in_seconds)}</div>
-                    <div className="text-sm text-muted-foreground">Duração</div>
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{formatDuration(currentActivity.duration_in_seconds)}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Duração</div>
                   </div>
                   <div className="text-center">
-                    <MapPin className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatDistance(currentActivity.distance_in_meters)}</div>
-                    <div className="text-sm text-muted-foreground">Distância</div>
+                    <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{formatDistance(currentActivity.distance_in_meters)}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Distância</div>
                   </div>
                   <div className="text-center">
-                    <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatPace(currentActivity.average_pace_in_minutes_per_kilometer)}</div>
-                    <div className="text-sm text-muted-foreground">Pace Médio</div>
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{formatPace(currentActivity.average_pace_in_minutes_per_kilometer)}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Pace Médio</div>
                   </div>
                   <div className="text-center">
-                    <Zap className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{currentActivity.active_kilocalories || '--'}</div>
-                    <div className="text-sm text-muted-foreground">Calorias</div>
+                    <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{currentActivity.active_kilocalories || '--'}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Calorias</div>
                   </div>
                   <div className="text-center">
-                    <Heart className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{currentActivity.average_heart_rate_in_beats_per_minute || '--'}</div>
-                    <div className="text-sm text-muted-foreground">FC Média</div>
+                    <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{currentActivity.average_heart_rate_in_beats_per_minute || '--'}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">FC Média</div>
                   </div>
                   <div className="text-center">
-                    <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{formatElevation(currentActivity.total_elevation_gain_in_meters)}</div>
-                    <div className="text-sm text-muted-foreground">Elevação</div>
+                    <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">{formatElevation(currentActivity.total_elevation_gain_in_meters)}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Elevação</div>
                   </div>
                 </div>
               </CardContent>

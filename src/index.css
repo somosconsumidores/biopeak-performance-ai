@@ -114,6 +114,21 @@ All colors MUST be HSL.
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     pointer-events: auto !important;
+    /* Mobile optimizations */
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Mobile-specific dialog positioning */
+  @media (max-width: 768px) {
+    .static-dialog {
+      width: 95vw !important;
+      max-width: 95vw !important;
+      margin: 0 !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+    }
   }
 
   /* Bloquear qualquer movimento do dialog */

@@ -59,38 +59,38 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="static-dialog max-w-2xl p-0 overflow-hidden">
+      <DialogContent className="static-dialog w-[95vw] max-w-2xl max-h-[95vh] p-0 overflow-y-auto">
         {/* Animated Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20 animate-pulse" />
         
         {/* Header */}
-        <DialogHeader className="relative p-6 pb-4">
+        <DialogHeader className="relative p-4 sm:p-6 pb-2 sm:pb-4 sticky top-0 bg-background/80 backdrop-blur-sm z-50">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <DialogTitle className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               ✨ Compartilhe sua Conquista
             </DialogTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
-              className="hover:bg-muted/20"
+              className="hover:bg-muted/20 flex-shrink-0"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </DialogHeader>
 
         {/* Content */}
-        <div className="relative p-6 pt-0 space-y-6">
+        <div className="relative p-4 sm:p-6 pt-2 sm:pt-0 space-y-4 sm:space-y-6 pb-6">
           {/* Workout Preview */}
           <div className="relative" ref={previewRef}>
             <WorkoutSharePreview workoutData={workoutData} />
           </div>
 
           {/* Social Media Buttons */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-center">Compartilhar Imagem do Treino</h3>
-            <p className="text-sm text-muted-foreground text-center">
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold text-center">Compartilhar Imagem do Treino</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground text-center">
               Gere uma imagem personalizada com suas métricas para compartilhar
             </p>
             
@@ -99,7 +99,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
               <Button
                 onClick={() => handleImageShare('native')}
                 disabled={isGeneratingImage}
-                className="w-full mb-4 bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80"
+                className="w-full mb-3 sm:mb-4 bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-sm"
               >
                 {isGeneratingImage ? (
                   <>
@@ -115,7 +115,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
               </Button>
             )}
             
-            <div className={`grid grid-cols-5 gap-3 transition-all duration-500 ${shareAnimationActive ? 'scale-95' : 'scale-100'}`}>
+            <div className={`grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 transition-all duration-500 ${shareAnimationActive ? 'scale-95' : 'scale-100'}`}>
               <SocialShareButton
                 icon={Instagram}
                 label="Instagram"
@@ -160,12 +160,12 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             <Button
               variant="outline"
               onClick={() => handleImageShare('download')}
               disabled={isGeneratingImage}
-              className="glass-card border-glass-border hover:bg-glass-bg-hover group"
+              className="glass-card border-glass-border hover:bg-glass-bg-hover group text-sm"
             >
               {isGeneratingImage ? (
                 <>
@@ -184,10 +184,10 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Loading Message */}
           {shareAnimationActive && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-              <div className="glass-card border-glass-border p-6 text-center animate-scale-in">
-                <ImageIcon className="h-8 w-8 mx-auto mb-2 text-primary animate-pulse" />
-                <p className="font-semibold">
+            <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-lg z-40">
+              <div className="glass-card border-glass-border p-4 sm:p-6 text-center animate-scale-in">
+                <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-primary animate-pulse" />
+                <p className="font-semibold text-sm sm:text-base">
                   {isGeneratingImage ? 'Gerando imagem...' : 'Processando...'}
                 </p>
               </div>

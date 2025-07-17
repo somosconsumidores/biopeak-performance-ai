@@ -135,32 +135,32 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center space-y-2">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <Clock className="h-5 w-5 text-primary" />
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-            <div className="text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-foreground">
               {formatDuration(workoutData.duration_in_seconds)}
             </div>
             <div className="text-xs text-muted-foreground">Duração</div>
           </div>
           
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <MapPin className="h-5 w-5 text-primary" />
+              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-            <div className="text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-foreground">
               {formatDistance(workoutData.distance_in_meters)}
             </div>
             <div className="text-xs text-muted-foreground">Distância</div>
           </div>
           
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <TrendingUp className="h-5 w-5 text-primary" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-            <div className="text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-foreground">
               {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
             </div>
             <div className="text-xs text-muted-foreground">Pace</div>
@@ -168,12 +168,12 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         </div>
 
         {/* Secondary Metrics */}
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-glass-border">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-glass-border">
           <div className="text-center space-y-1">
             <div className="flex justify-center">
-              <Zap className="h-4 w-4 text-orange-400" />
+              <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-orange-400" />
             </div>
-            <div className="text-sm font-semibold text-orange-400">
+            <div className="text-xs sm:text-sm font-semibold text-orange-400">
               {workoutData.active_kilocalories || '--'}
             </div>
             <div className="text-xs text-muted-foreground">kcal</div>
@@ -181,9 +181,9 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
           
           <div className="text-center space-y-1">
             <div className="flex justify-center">
-              <Heart className="h-4 w-4 text-red-400" />
+              <Heart className="h-3 w-3 sm:h-4 sm:w-4 text-red-400" />
             </div>
-            <div className="text-sm font-semibold text-red-400">
+            <div className="text-xs sm:text-sm font-semibold text-red-400">
               {workoutData.average_heart_rate_in_beats_per_minute || '--'}
             </div>
             <div className="text-xs text-muted-foreground">bpm</div>
@@ -191,9 +191,9 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
           
           <div className="text-center space-y-1">
             <div className="flex justify-center">
-              <BarChart3 className="h-4 w-4 text-blue-400" />
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400" />
             </div>
-            <div className="text-sm font-semibold text-blue-400">
+            <div className="text-xs sm:text-sm font-semibold text-blue-400">
               {formatElevation(workoutData.total_elevation_gain_in_meters)}
             </div>
             <div className="text-xs text-muted-foreground">elevação</div>
