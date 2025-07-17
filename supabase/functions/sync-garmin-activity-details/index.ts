@@ -8,6 +8,7 @@ const corsHeaders = {
 interface GarminActivityDetail {
   activityId: string
   summaryId: string
+  activityName?: string
   activitySummary: {
     activityType: string
     deviceName: string
@@ -289,6 +290,7 @@ Deno.serve(async (req) => {
                 user_id: user.id,
                 activity_id: detail.activityId,
                 summary_id: detail.summaryId,
+                activity_name: detail.activityName || activitySummary.activityName || null,
                 upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
                 start_time_in_seconds: sampleTimestamp,
                 duration_in_seconds: activitySummary.durationInSeconds || null,
@@ -330,6 +332,7 @@ Deno.serve(async (req) => {
               user_id: user.id,
               activity_id: detail.activityId,
               summary_id: detail.summaryId,
+              activity_name: detail.activityName || activitySummary.activityName || null,
               upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
               start_time_in_seconds: defaultTimestamp,
               duration_in_seconds: activitySummary.durationInSeconds || null,

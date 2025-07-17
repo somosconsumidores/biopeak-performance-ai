@@ -146,6 +146,7 @@ export type Database = {
       garmin_activity_details: {
         Row: {
           activity_id: string
+          activity_name: string | null
           activity_summary: Json | null
           activity_type: string | null
           clock_duration_in_seconds: number | null
@@ -173,6 +174,7 @@ export type Database = {
         }
         Insert: {
           activity_id: string
+          activity_name?: string | null
           activity_summary?: Json | null
           activity_type?: string | null
           clock_duration_in_seconds?: number | null
@@ -200,6 +202,7 @@ export type Database = {
         }
         Update: {
           activity_id?: string
+          activity_name?: string | null
           activity_summary?: Json | null
           activity_type?: string | null
           clock_duration_in_seconds?: number | null
