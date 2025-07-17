@@ -24,11 +24,10 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
   const { analysis, loading, error, analyzeWorkout, clearAnalysis } = useWorkoutAIAnalysis();
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
-  // Load stored analysis when component mounts or activityId changes
+  // Load stored analysis when component mounts or activityId changes (only load from cache, don't trigger new analysis)
   useEffect(() => {
-    if (activityId) {
-      analyzeWorkout(activityId);
-    }
+    // This hook now only loads stored analysis from localStorage, doesn't trigger new analysis
+    // Analysis is now triggered only on-demand via button clicks
   }, [activityId]);
 
   const handleAnalyze = () => {
