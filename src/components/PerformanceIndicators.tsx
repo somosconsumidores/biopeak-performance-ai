@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Clock, Heart, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Settings, Clock, Heart, TrendingUp, RefreshCw } from 'lucide-react';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
+import { useRecalculateMetrics } from '@/hooks/useRecalculateMetrics';
 
 interface PerformanceIndicatorsProps {
   activityId: string;
@@ -9,6 +11,7 @@ interface PerformanceIndicatorsProps {
 
 export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
+  const recalculateMetrics = useRecalculateMetrics();
 
   // Enhanced debug logging to track component re-renders and data flow
   const renderTimestamp = new Date().toISOString();
@@ -127,9 +130,20 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
   return (
     <Card key={activityId} className="glass-card border-glass-border">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          <span>Indicadores de Performance</span>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            <span>Indicadores de Performance</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => recalculateMetrics.mutate({ activityId })}
+            disabled={recalculateMetrics.isPending}
+            className="text-muted-foreground hover:text-primary"
+          >
+            <RefreshCw className={`h-4 w-4 ${recalculateMetrics.isPending ? 'animate-spin' : ''}`} />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
