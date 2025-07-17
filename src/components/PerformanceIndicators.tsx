@@ -10,6 +10,20 @@ interface PerformanceIndicatorsProps {
 export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
 
+  // Debug logging to verify data received by component
+  console.log('🎯 PerformanceIndicators - Activity ID:', activityId);
+  console.log('🎯 PerformanceIndicators - Metrics received:', metrics);
+  console.log('🎯 PerformanceIndicators - Loading state:', loading);
+  console.log('🎯 PerformanceIndicators - Error state:', error);
+  
+  if (metrics?.effortDistribution) {
+    console.log('🔥 EFFORT DISTRIBUTION DATA:');
+    console.log('  - Beginning:', metrics.effortDistribution.beginning);
+    console.log('  - Middle:', metrics.effortDistribution.middle);
+    console.log('  - End:', metrics.effortDistribution.end);
+    console.log('  - Comment:', metrics.effortDistribution.comment);
+  }
+
   if (loading) {
     return (
       <Card className="glass-card border-glass-border">
@@ -97,7 +111,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
   ];
 
   return (
-    <Card className="glass-card border-glass-border">
+    <Card key={activityId} className="glass-card border-glass-border">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <TrendingUp className="h-5 w-5 text-primary" />
@@ -107,7 +121,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {indicators.map((indicator, index) => (
-            <div key={index} className="space-y-4">
+            <div key={`${activityId}-${index}`} className="space-y-4">
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">{indicator.emoji}</span>
                 <div>

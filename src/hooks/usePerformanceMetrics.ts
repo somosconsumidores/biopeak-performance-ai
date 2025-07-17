@@ -37,6 +37,12 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Clear metrics when activityId changes to force fresh calculation
+  useEffect(() => {
+    setMetrics(null);
+    setError(null);
+  }, [activityId]);
+
   useEffect(() => {
     if (!activityId) {
       setMetrics(null);
@@ -71,8 +77,25 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
         if (detailsError) throw detailsError;
 
+        console.log('📊 Activity data:', {
+          activity_id: activity.activity_id,
+          duration_in_seconds: activity.duration_in_seconds,
+          avg_hr: activity.average_heart_rate_in_beats_per_minute,
+          max_hr: activity.max_heart_rate_in_beats_per_minute
+        });
+        
+        console.log('📈 Activity details count:', activityDetails?.length || 0);
+        if (activityDetails && activityDetails.length > 0) {
+          console.log('📈 First detail sample:', activityDetails[0]);
+          console.log('📈 Last detail sample:', activityDetails[activityDetails.length - 1]);
+        }
+
         // Calculate metrics
         const calculatedMetrics = calculatePerformanceMetrics(activity, activityDetails || []);
+        
+        console.log('🧮 CALCULATED METRICS:', calculatedMetrics);
+        console.log('🧮 EFFORT DISTRIBUTION CALCULATED:', calculatedMetrics.effortDistribution);
+        
         setMetrics(calculatedMetrics);
 
       } catch (err) {
@@ -160,6 +183,14 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
       const middleData = validDetails.filter(d => d.clock_duration_in_seconds > firstThird && d.clock_duration_in_seconds <= secondThird);
       const endData = validDetails.filter(d => d.clock_duration_in_seconds > secondThird);
       
+      console.log('⏱️ EFFORT DISTRIBUTION CALCULATION:');
+      console.log('  Total duration (seconds):', totalDuration);
+      console.log('  First third threshold:', firstThird);
+      console.log('  Second third threshold:', secondThird);
+      console.log('  Beginning data points:', beginningData.length);
+      console.log('  Middle data points:', middleData.length);
+      console.log('  End data points:', endData.length);
+
       // Calcular média de FC para cada terço
       const beginningHR = beginningData.length > 0 
         ? beginningData.reduce((sum, d) => sum + d.heart_rate, 0) / beginningData.length 
@@ -172,10 +203,20 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
       const endHR = endData.length > 0 
         ? endData.reduce((sum, d) => sum + d.heart_rate, 0) / endData.length 
         : 0;
+
+      console.log('💓 CALCULATED HEART RATES:');
+      console.log('  Beginning HR (raw):', beginningHR);
+      console.log('  Middle HR (raw):', middleHR);
+      console.log('  End HR (raw):', endHR);
       
       beginning = beginningHR > 0 ? `${Math.round(beginningHR)} bpm` : 'N/A';
       middle = middleHR > 0 ? `${Math.round(middleHR)} bpm` : 'N/A';
       end = endHR > 0 ? `${Math.round(endHR)} bpm` : 'N/A';
+
+      console.log('💓 FINAL FORMATTED VALUES:');
+      console.log('  Beginning:', beginning);
+      console.log('  Middle:', middle);
+      console.log('  End:', end);
     }
   }
 
