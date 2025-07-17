@@ -289,15 +289,8 @@ Deno.serve(async (req) => {
         const activitySummary = detail.activitySummary || {};
         const samples = detail.samples || [];
         
-        // Debug: Log activity name extraction for this specific activity
-        const extractedActivityName = detail.activityName || activitySummary.activityName || null;
-        console.log(`[sync-activity-details] Activity ${detail.summaryId} - activityName extraction:`, {
-          fromRoot: detail.activityName,
-          fromSummary: activitySummary.activityName,
-          extracted: extractedActivityName,
-          detailKeys: Object.keys(detail),
-          summaryKeys: Object.keys(activitySummary)
-        });
+        // Extract activity name directly from API response, consistent with activity_id extraction
+        const extractedActivityName = detail.activityName || null;
 
         // If there are samples, save each sample as a separate row
         if (samples.length > 0) {
