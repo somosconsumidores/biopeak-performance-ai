@@ -73,13 +73,15 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         // Fetch activity details for pace variation calculation and effort distribution
         console.log('📋 SQL Query for details:', `SELECT speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds FROM garmin_activity_details WHERE activity_id = '${activityId}' AND heart_rate IS NOT NULL AND clock_duration_in_seconds IS NOT NULL ORDER BY clock_duration_in_seconds ASC`);
         
+        // FORÇA buscar TODOS os registros (não apenas 1000) - até 50.000 registros
         const { data: activityDetails, error: detailsError } = await supabase
           .from('garmin_activity_details')
           .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
           .eq('activity_id', activityId)
           .not('heart_rate', 'is', null)
           .not('clock_duration_in_seconds', 'is', null)
-          .order('clock_duration_in_seconds', { ascending: true });
+          .order('clock_duration_in_seconds', { ascending: true })
+          .range(0, 49999); // Busca até 50.000 registros para garantir que peguemos todos
 
         if (detailsError) throw detailsError;
 
