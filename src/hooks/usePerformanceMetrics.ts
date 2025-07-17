@@ -1,27 +1,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface PerformanceMetrics {
+interface PerformanceMetrics {
   efficiency: {
-    powerPerBeat: string;
-    distancePerMinute: string;
+    powerPerBeat: number | null;
+    distancePerMinute: number | null;
     comment: string;
   };
   pace: {
-    averageSpeed: string;
-    variationCoefficient: string;
+    averageSpeedKmh: number | null;
+    paceVariationCoefficient: number | null;
     comment: string;
   };
   heartRate: {
-    averageHR: string;
-    relativeIntensity: string;
-    relativeReserve: string;
+    averageHr: number | null;
+    relativeIntensity: number | null;
+    relativeReserve: number | null;
     comment: string;
   };
   effortDistribution: {
-    beginning: string;
-    middle: string;
-    end: string;
+    beginning: number | null;
+    middle: number | null;
+    end: number | null;
     comment: string;
   };
 }
@@ -37,280 +37,113 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear metrics when activityId changes to force fresh calculation
   useEffect(() => {
-    console.log('🔄 CLEARING METRICS - Activity changed from previous to:', activityId);
+    // Clear metrics when activityId changes
     setMetrics(null);
     setError(null);
-    setLoading(true); // Force loading state to trigger fresh calculation
-  }, [activityId]);
+    setLoading(true);
 
-  useEffect(() => {
     if (!activityId) {
-      setMetrics(null);
+      setLoading(false);
       return;
     }
 
-    const calculateMetrics = async () => {
-      setLoading(true);
-      setError(null);
-
+    const fetchMetrics = async () => {
       try {
-        const timestamp = new Date().toISOString();
-        console.log(`🔍 [${timestamp}] STARTING FRESH CALCULATION for activity:`, activityId);
-
-        // Fetch activity data with detailed logging
-        console.log('📋 SQL Query for activity:', `SELECT * FROM garmin_activities WHERE activity_id = '${activityId}'`);
-        const { data: activity, error: activityError } = await supabase
-          .from('garmin_activities')
-          .select('*')
-          .eq('activity_id', activityId)
-          .single();
-
-        if (activityError) throw activityError;
-        if (!activity) throw new Error('Activity not found');
-
-        // Fetch activity details for pace variation calculation and effort distribution
-        console.log('📋 SQL Query for details:', `SELECT speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds FROM garmin_activity_details WHERE activity_id = '${activityId}' AND heart_rate IS NOT NULL AND clock_duration_in_seconds IS NOT NULL ORDER BY clock_duration_in_seconds ASC`);
+        console.log('🔄 Fetching pre-calculated performance metrics for activity:', activityId);
+        const startTime = Date.now();
         
-        // FORÇA buscar TODOS os registros (não apenas 1000) - até 50.000 registros
-        const { data: activityDetails, error: detailsError } = await supabase
-          .from('garmin_activity_details')
-          .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
-          .eq('activity_id', activityId)
-          .not('heart_rate', 'is', null)
-          .not('clock_duration_in_seconds', 'is', null)
-          .order('clock_duration_in_seconds', { ascending: true })
-          .range(0, 49999); // Busca até 50.000 registros para garantir que peguemos todos
-
-        if (detailsError) throw detailsError;
-
-        console.log('📊 Activity data:', {
-          activity_id: activity.activity_id,
-          duration_in_seconds: activity.duration_in_seconds,
-          avg_hr: activity.average_heart_rate_in_beats_per_minute,
-          max_hr: activity.max_heart_rate_in_beats_per_minute
-        });
-        
-        console.log('📈 Activity details count:', activityDetails?.length || 0);
-        if (activityDetails && activityDetails.length > 0) {
-          console.log('📈 First detail sample:', activityDetails[0]);
-          console.log('📈 Last detail sample:', activityDetails[activityDetails.length - 1]);
+        // Get the current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
         }
 
-        // Calculate metrics with forced recalculation indicator
-        console.log('🧮 STARTING CALCULATION with fresh data...');
-        const calculatedMetrics = calculatePerformanceMetrics(activity, activityDetails || []);
+        // Fetch pre-calculated metrics from performance_metrics table
+        console.log('📋 SQL Query for metrics:', `SELECT * FROM performance_metrics WHERE activity_id = '${activityId}' AND user_id = '${user.id}'`);
         
-        console.log('✅ FINAL CALCULATED METRICS:', JSON.stringify(calculatedMetrics, null, 2));
-        console.log('✅ FINAL EFFORT DISTRIBUTION:', calculatedMetrics.effortDistribution);
-        
-        // Force state update with timestamp to prevent cache issues
-        const metricsWithTimestamp = {
-          ...calculatedMetrics,
-          _timestamp: Date.now(),
-          _activityId: activityId,
-          _cacheBreaker: Math.random() // Extra cache breaker
-        };
-        
-        setMetrics(metricsWithTimestamp);
+        const { data: metricsData, error: metricsError } = await supabase
+          .from('performance_metrics')
+          .select('*')
+          .eq('activity_id', activityId)
+          .eq('user_id', user.id)
+          .single();
 
-      } catch (err) {
-        console.error('Error calculating performance metrics:', err);
-        setError(err instanceof Error ? err.message : 'Erro ao calcular métricas');
+        if (metricsError) {
+          // If no pre-calculated metrics found, trigger calculation
+          if (metricsError.code === 'PGRST116') {
+            console.log('⚡ No pre-calculated metrics found. Triggering calculation...');
+            
+            const { error: functionError } = await supabase.functions.invoke('calculate-performance-metrics', {
+              body: { 
+                activity_id: activityId, 
+                user_id: user.id 
+              }
+            });
+
+            if (functionError) {
+              throw new Error(`Failed to calculate metrics: ${functionError.message}`);
+            }
+
+            // Retry fetching after calculation
+            const { data: retryMetricsData, error: retryError } = await supabase
+              .from('performance_metrics')
+              .select('*')
+              .eq('activity_id', activityId)
+              .eq('user_id', user.id)
+              .single();
+
+            if (retryError) throw retryError;
+            
+            setMetrics(formatMetricsFromDB(retryMetricsData));
+          } else {
+            throw metricsError;
+          }
+        } else {
+          setMetrics(formatMetricsFromDB(metricsData));
+        }
+        
+        const endTime = Date.now();
+        console.log(`✅ Performance metrics loaded in ${endTime - startTime}ms`);
+        
+      } catch (err: any) {
+        console.error('❌ Error fetching performance metrics:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    calculateMetrics();
+    fetchMetrics();
   }, [activityId]);
 
   return { metrics, loading, error };
 };
 
-function calculatePerformanceMetrics(activity: any, details: any[]): PerformanceMetrics {
-  // 1. Eficiência
-  const avgHR = activity.average_heart_rate_in_beats_per_minute;
-  const distance = activity.distance_in_meters / 1000; // km
-  const duration = activity.duration_in_seconds / 60; // minutes
-  
-  // Power per beat (usando dados detalhados se disponível)
-  const avgPower = details.length > 0 
-    ? details.filter(d => d.power_in_watts).reduce((sum, d) => sum + d.power_in_watts, 0) / details.filter(d => d.power_in_watts).length
-    : null;
-  
-  const powerPerBeat = avgPower && avgHR 
-    ? `${(avgPower / avgHR).toFixed(2)} W/bpm`
-    : 'N/A';
-  
-  const distancePerMinute = distance && duration 
-    ? `${(distance / duration).toFixed(3)} km/min`
-    : 'N/A';
-
-  // 2. Ritmo
-  const avgSpeed = activity.average_speed_in_meters_per_second 
-    ? `${(activity.average_speed_in_meters_per_second * 3.6).toFixed(1)} km/h`
-    : 'N/A';
-  
-  // Coefficient of variation for pace
-  let variationCoefficient = 'N/A';
-  if (details.length > 0) {
-    const speeds = details.filter(d => d.speed_meters_per_second).map(d => d.speed_meters_per_second);
-    if (speeds.length > 1) {
-      const mean = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
-      const variance = speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
-      const stdDev = Math.sqrt(variance);
-      const cv = (stdDev / mean) * 100;
-      variationCoefficient = `${cv.toFixed(1)}%`;
-    }
-  }
-
-  // 3. Frequência Cardíaca
-  const avgHRDisplay = avgHR ? `${avgHR} bpm` : 'N/A';
-  const maxHR = activity.max_heart_rate_in_beats_per_minute;
-  
-  // Assuming max theoretical HR = 220 - age (we'll use a default estimation)
-  const theoreticalMaxHR = 190; // Default value since we don't have age
-  const relativeIntensity = avgHR && theoreticalMaxHR 
-    ? `${((avgHR / theoreticalMaxHR) * 100).toFixed(1)}%`
-    : 'N/A';
-  
-  const relativeReserve = avgHR && maxHR 
-    ? `${(((avgHR - 60) / (maxHR - 60)) * 100).toFixed(1)}%` // Using resting HR = 60 as default
-    : 'N/A';
-
-  // 4. Distribuição do Esforço - NOVA IMPLEMENTAÇÃO: Divisão por terços iguais de registros
-  let beginning = 'N/A', middle = 'N/A', end = 'N/A';
-  
-  if (details.length > 0) {
-    console.log('🔄 REWRITING EFFORT DISTRIBUTION - Using equal record thirds instead of time');
-    
-    // Filtrar APENAS dados com heart_rate válido (mesmo critério da SQL)
-    const validDetails = details.filter(d => 
-      d.heart_rate !== null && 
-      d.heart_rate !== undefined
-    );
-    
-    console.log('📊 Valid details with HR:', validDetails.length);
-    
-    if (validDetails.length >= 3) { // Precisamos de pelo menos 3 registros para dividir em terços
-      // Ordenar por clock_duration_in_seconds (ascendente) - mesmo que a SQL
-      const sortedDetails = [...validDetails].sort((a, b) => {
-        const aDuration = a.clock_duration_in_seconds || 0;
-        const bDuration = b.clock_duration_in_seconds || 0;
-        return aDuration - bDuration;
-      });
-      
-      // Dividir em terços seguindo EXATAMENTE a lógica SQL: FLOOR(total_records / 3)
-      const totalRecords = sortedDetails.length;
-      const thirdSize = Math.floor(totalRecords / 3); // 3599 para 10797 registros
-      
-      // Seguir exatamente a mesma lógica da SQL:
-      // Primeiro terço: índices 0 até thirdSize-1 (0-3598 = 3599 registros)
-      // Segundo terço: índices thirdSize até (thirdSize*2)-1 (3599-7197 = 3599 registros)  
-      // Terceiro terço: índices thirdSize*2 até o final (7198-10796 = 3599 registros)
-      const beginningData = sortedDetails.slice(0, thirdSize);
-      const middleData = sortedDetails.slice(thirdSize, thirdSize * 2);
-      const endData = sortedDetails.slice(thirdSize * 2);
-      
-      console.log('🎯 FIXED EFFORT DISTRIBUTION LOGIC (matching SQL):');
-      console.log('  Total valid records:', totalRecords);
-      console.log('  Third size (FLOOR):', thirdSize);
-      console.log('  Beginning records:', beginningData.length, '(indices 0-' + (thirdSize-1) + ')');
-      console.log('  Middle records:', middleData.length, '(indices ' + thirdSize + '-' + ((thirdSize*2)-1) + ')');
-      console.log('  End records:', endData.length, '(indices ' + (thirdSize*2) + '-' + (totalRecords-1) + ')');
-
-      // Calcular média de FC para cada terço
-      const beginningHR = beginningData.length > 0 
-        ? beginningData.reduce((sum, d) => sum + d.heart_rate, 0) / beginningData.length 
-        : 0;
-      
-      const middleHR = middleData.length > 0 
-        ? middleData.reduce((sum, d) => sum + d.heart_rate, 0) / middleData.length 
-        : 0;
-      
-      const endHR = endData.length > 0 
-        ? endData.reduce((sum, d) => sum + d.heart_rate, 0) / endData.length 
-        : 0;
-
-      console.log('💓 NEW CALCULATED HEART RATES (should match SQL: 136, 140, 136):');
-      console.log('  Beginning HR (raw):', beginningHR);
-      console.log('  Middle HR (raw):', middleHR);
-      console.log('  End HR (raw):', endHR);
-      
-      beginning = beginningHR > 0 ? `${Math.round(beginningHR)} bpm` : 'N/A';
-      middle = middleHR > 0 ? `${Math.round(middleHR)} bpm` : 'N/A';
-      end = endHR > 0 ? `${Math.round(endHR)} bpm` : 'N/A';
-
-      console.log('💓 FINAL FORMATTED VALUES (should be 136, 140, 136):');
-      console.log('  Beginning:', beginning);
-      console.log('  Middle:', middle);
-      console.log('  End:', end);
-      
-      // Extra validation log
-      if (beginning === '136 bpm' && middle === '140 bpm' && end === '136 bpm') {
-        console.log('✅ SUCCESS! Values match SQL query results!');
-      } else {
-        console.log('❌ WARNING! Values do not match expected SQL results (136, 140, 136)');
-      }
-    }
-  }
-
-  // Generate AI comments based on data
-  const generateEfficiencyComment = () => {
-    if (powerPerBeat === 'N/A') return 'Dados de potência não disponíveis para análise completa.';
-    if (parseFloat(powerPerBeat) > 2) return 'Excelente eficiência na geração de potência por batimento cardíaco.';
-    return 'Boa relação entre potência e frequência cardíaca, continue focando na técnica.';
-  };
-
-  const generatePaceComment = () => {
-    if (variationCoefficient === 'N/A') return 'Mantenha um ritmo mais consistente durante o treino.';
-    const cv = parseFloat(variationCoefficient);
-    if (cv < 10) return 'Excelente consistência de ritmo ao longo do treino.';
-    if (cv < 20) return 'Boa consistência de ritmo, com algumas variações naturais.';
-    return 'Ritmo variado - típico de treinos intervalados ou terrenos desafiadores.';
-  };
-
-  const generateHRComment = () => {
-    if (!avgHR) return 'Dados de frequência cardíaca não disponíveis.';
-    const intensity = parseFloat(relativeIntensity);
-    if (intensity > 85) return 'Treino de alta intensidade - excelente para desenvolvimento cardiovascular.';
-    if (intensity > 70) return 'Intensidade moderada-alta, ideal para melhorar condicionamento.';
-    return 'Intensidade moderada, perfeita para treinos base e recuperação ativa.';
-  };
-
-  const generateEffortComment = () => {
-    if (beginning === 'N/A') return 'Mantenha um aquecimento adequado e finalize com intensidade controlada.';
-    const beginHR = parseInt(beginning);
-    const endHR = parseInt(end);
-    if (endHR > beginHR + 10) return 'Progressão positiva do esforço - terminou forte!';
-    if (endHR < beginHR - 10) return 'Desaceleração natural - bom controle do esforço final.';
-    return 'Distribuição equilibrada do esforço ao longo do treino.';
-  };
-
+// Format metrics from database format to component format
+function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
   return {
     efficiency: {
-      powerPerBeat,
-      distancePerMinute,
-      comment: generateEfficiencyComment()
+      powerPerBeat: dbMetrics.power_per_beat,
+      distancePerMinute: dbMetrics.distance_per_minute,
+      comment: dbMetrics.efficiency_comment || "Sem dados suficientes"
     },
     pace: {
-      averageSpeed: avgSpeed,
-      variationCoefficient,
-      comment: generatePaceComment()
+      averageSpeedKmh: dbMetrics.average_speed_kmh,
+      paceVariationCoefficient: dbMetrics.pace_variation_coefficient,
+      comment: dbMetrics.pace_comment || "Sem dados suficientes"
     },
     heartRate: {
-      averageHR: avgHRDisplay,
-      relativeIntensity,
-      relativeReserve,
-      comment: generateHRComment()
+      averageHr: dbMetrics.average_hr,
+      relativeIntensity: dbMetrics.relative_intensity,
+      relativeReserve: dbMetrics.relative_reserve,
+      comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
     },
     effortDistribution: {
-      beginning,
-      middle,
-      end,
-      comment: generateEffortComment()
+      beginning: dbMetrics.effort_beginning_bpm,
+      middle: dbMetrics.effort_middle_bpm,
+      end: dbMetrics.effort_end_bpm,
+      comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
     }
   };
 }

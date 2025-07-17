@@ -381,6 +381,32 @@ Deno.serve(async (req) => {
 
     console.log('[sync-activity-details] Sync completed:', result);
 
+    // Trigger performance metrics calculation for each synced activity
+    if (syncedCount > 0) {
+      console.log('[sync-activity-details] Triggering performance metrics calculation...');
+      
+      const uniqueActivityIds = [...new Set(activityDetails.map(detail => detail.activityId))];
+      
+      for (const activityId of uniqueActivityIds) {
+        try {
+          const { error: metricsError } = await supabaseClient.functions.invoke('calculate-performance-metrics', {
+            body: { 
+              activity_id: activityId, 
+              user_id: user.id 
+            }
+          });
+          
+          if (metricsError) {
+            console.error(`[sync-activity-details] Error calculating metrics for ${activityId}:`, metricsError);
+          } else {
+            console.log(`[sync-activity-details] Metrics calculated for ${activityId}`);
+          }
+        } catch (metricsError) {
+          console.error(`[sync-activity-details] Failed to trigger metrics calculation for ${activityId}:`, metricsError);
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify(result),
       { 

@@ -32,9 +32,9 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     console.log('  💬 Comment:', metrics.effortDistribution.comment);
     
     // Check if values match expected pattern
-    const beginVal = metrics.effortDistribution.beginning.replace(' bpm', '');
-    const middleVal = metrics.effortDistribution.middle.replace(' bpm', '');
-    const endVal = metrics.effortDistribution.end.replace(' bpm', '');
+    const beginVal = metrics.effortDistribution.beginning;
+    const middleVal = metrics.effortDistribution.middle;
+    const endVal = metrics.effortDistribution.end;
     console.log('  🔍 Raw values:', { beginVal, middleVal, endVal });
   }
 
@@ -81,8 +81,8 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       title: 'Eficiência',
       emoji: '⚙️',
       metrics: [
-        { label: 'Potência por batimento', value: metrics.efficiency.powerPerBeat },
-        { label: 'Distância por minuto', value: metrics.efficiency.distancePerMinute }
+        { label: 'Potência por batimento', value: `${metrics.efficiency.powerPerBeat} W/bpm` },
+        { label: 'Distância por minuto', value: `${metrics.efficiency.distancePerMinute} km/min` }
       ],
       comment: metrics.efficiency.comment,
       color: 'text-blue-400'
@@ -92,8 +92,8 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       title: 'Ritmo',
       emoji: '⏱️',
       metrics: [
-        { label: 'Velocidade média', value: metrics.pace.averageSpeed },
-        { label: 'Coef. variação do ritmo', value: metrics.pace.variationCoefficient }
+        { label: 'Velocidade média', value: `${metrics.pace.averageSpeedKmh} km/h` },
+        { label: 'Coef. variação do ritmo', value: `${metrics.pace.paceVariationCoefficient}%` }
       ],
       comment: metrics.pace.comment,
       color: 'text-green-400'
@@ -103,9 +103,9 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       title: 'Frequência Cardíaca',
       emoji: '❤️',
       metrics: [
-        { label: 'FC média', value: metrics.heartRate.averageHR },
-        { label: 'Intensidade relativa', value: metrics.heartRate.relativeIntensity },
-        { label: 'Reserva de FC relativa', value: metrics.heartRate.relativeReserve }
+        { label: 'FC média', value: `${metrics.heartRate.averageHr} bpm` },
+        { label: 'Intensidade relativa', value: `${metrics.heartRate.relativeIntensity}%` },
+        { label: 'Reserva de FC relativa', value: `${metrics.heartRate.relativeReserve}%` }
       ],
       comment: metrics.heartRate.comment,
       color: 'text-red-400'
@@ -115,9 +115,9 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       title: 'Distribuição do Esforço',
       emoji: '📈',
       metrics: [
-        { label: 'Início', value: metrics.effortDistribution.beginning },
-        { label: 'Meio', value: metrics.effortDistribution.middle },
-        { label: 'Fim', value: metrics.effortDistribution.end }
+        { label: 'Início', value: `${metrics.effortDistribution.beginning} bpm` },
+        { label: 'Meio', value: `${metrics.effortDistribution.middle} bpm` },
+        { label: 'Fim', value: `${metrics.effortDistribution.end} bpm` }
       ],
       comment: metrics.effortDistribution.comment,
       color: 'text-purple-400'

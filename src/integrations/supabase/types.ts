@@ -296,6 +296,75 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_metrics: {
+        Row: {
+          activity_id: string
+          average_hr: number | null
+          average_speed_kmh: number | null
+          calculated_at: string
+          created_at: string
+          distance_per_minute: number | null
+          efficiency_comment: string | null
+          effort_beginning_bpm: number | null
+          effort_distribution_comment: string | null
+          effort_end_bpm: number | null
+          effort_middle_bpm: number | null
+          heart_rate_comment: string | null
+          id: string
+          pace_comment: string | null
+          pace_variation_coefficient: number | null
+          power_per_beat: number | null
+          relative_intensity: number | null
+          relative_reserve: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          average_hr?: number | null
+          average_speed_kmh?: number | null
+          calculated_at?: string
+          created_at?: string
+          distance_per_minute?: number | null
+          efficiency_comment?: string | null
+          effort_beginning_bpm?: number | null
+          effort_distribution_comment?: string | null
+          effort_end_bpm?: number | null
+          effort_middle_bpm?: number | null
+          heart_rate_comment?: string | null
+          id?: string
+          pace_comment?: string | null
+          pace_variation_coefficient?: number | null
+          power_per_beat?: number | null
+          relative_intensity?: number | null
+          relative_reserve?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          average_hr?: number | null
+          average_speed_kmh?: number | null
+          calculated_at?: string
+          created_at?: string
+          distance_per_minute?: number | null
+          efficiency_comment?: string | null
+          effort_beginning_bpm?: number | null
+          effort_distribution_comment?: string | null
+          effort_end_bpm?: number | null
+          effort_middle_bpm?: number | null
+          heart_rate_comment?: string | null
+          id?: string
+          pace_comment?: string | null
+          pace_variation_coefficient?: number | null
+          power_per_beat?: number | null
+          relative_intensity?: number | null
+          relative_reserve?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
