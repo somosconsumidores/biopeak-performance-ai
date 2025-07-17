@@ -34,6 +34,7 @@ import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
+import { PerformanceIndicators } from '@/components/PerformanceIndicators';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -288,6 +289,13 @@ export const WorkoutSession = () => {
           {/* Heart Rate vs Pace Chart */}
           <ScrollReveal delay={150}>
             <HeartRatePaceChart activityId={currentActivity.activity_id} />
+          </ScrollReveal>
+
+          {/* Performance Indicators */}
+          <ScrollReveal delay={175}>
+            <div className="mb-8 mt-8">
+              <PerformanceIndicators activityId={currentActivity.activity_id} />
+            </div>
           </ScrollReveal>
 
           {/* AI Analysis */}
