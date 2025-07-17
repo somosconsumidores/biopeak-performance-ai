@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Settings, Clock, Heart, TrendingUp, RefreshCw } from 'lucide-react';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useRecalculateMetrics } from '@/hooks/useRecalculateMetrics';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PerformanceIndicatorsProps {
   activityId: string;
@@ -12,6 +13,7 @@ interface PerformanceIndicatorsProps {
 export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
   const recalculateMetrics = useRecalculateMetrics();
+  const isMobile = useIsMobile();
 
   // Enhanced debug logging to track component re-renders and data flow
   const renderTimestamp = new Date().toISOString();
@@ -147,29 +149,29 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} ${isMobile ? 'gap-4' : 'gap-6'}`}>
           {indicators.map((indicator, index) => (
-            <div key={`${activityId}-${index}`} className="space-y-4">
+            <div key={`${activityId}-${index}`} className={`space-y-3 ${isMobile ? 'p-3 bg-muted/5 rounded-lg' : 'space-y-4'}`}>
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">{indicator.emoji}</span>
+                <span className={`${isMobile ? 'text-xl' : 'text-2xl'}`}>{indicator.emoji}</span>
                 <div>
-                  <h3 className="font-semibold text-lg">{indicator.title}</h3>
+                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{indicator.title}</h3>
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className={`space-y-2 ${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
                 {indicator.metrics.map((metric, metricIndex) => (
-                  <div key={metricIndex} className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">{metric.label}</span>
-                    <Badge variant="outline" className={`${indicator.color} font-mono`}>
+                  <div key={metricIndex} className={`flex justify-between items-center ${isMobile ? 'gap-2' : ''}`}>
+                    <span className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'} ${isMobile ? 'flex-1' : ''}`}>{metric.label}</span>
+                    <Badge variant="outline" className={`${indicator.color} font-mono ${isMobile ? 'text-xs px-2 py-1' : ''} flex-shrink-0`}>
                       {metric.value}
                     </Badge>
                   </div>
                 ))}
               </div>
               
-              <div className="p-3 bg-muted/10 rounded-lg">
-                <p className="text-sm text-muted-foreground italic">
+              <div className={`bg-muted/10 rounded-lg ${isMobile ? 'p-2' : 'p-3'}`}>
+                <p className={`text-muted-foreground italic ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   {indicator.comment}
                 </p>
               </div>

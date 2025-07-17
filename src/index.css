@@ -276,4 +276,59 @@ All colors MUST be HSL.
     transform: translateY(-3px);
     box-shadow: var(--glow-subtle);
   }
+
+  /* Chart mobile optimizations */
+  @media (max-width: 768px) {
+    .recharts-responsive-container {
+      font-size: 10px;
+    }
+    
+    .recharts-cartesian-axis-tick-value {
+      font-size: 9px !important;
+    }
+    
+    .recharts-tooltip-wrapper {
+      font-size: 11px;
+    }
+    
+    .recharts-legend-item {
+      font-size: 11px;
+    }
+    
+    /* Make pie charts responsive */
+    .dashboard-pie-chart {
+      width: 100%;
+      height: auto;
+      max-width: 120px;
+    }
+  }
+
+  /* Performance indicators mobile spacing */
+  @media (max-width: 768px) {
+    .performance-indicator-card {
+      padding: 0.75rem;
+    }
+    
+    .performance-metric-row {
+      gap: 0.5rem;
+    }
+    
+    .performance-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+
+  /* Touch-friendly button sizing */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Disable hover effects on touch devices */
+  @media (hover: none) {
+    .hover\\:bg-glass-bg-hover:hover {
+      background-color: transparent;
+    }
+  }
 }

@@ -242,16 +242,16 @@ export const WorkoutSession = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => setShareDialogOpen(true)}
-                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation"
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-3"
                   >
                     <Share2 className="h-4 w-4 mr-1 sm:mr-2 group-hover:scale-110 transition-transform" />
                     <span className="hidden sm:inline">Compartilhar</span>
-                    <span className="sm:hidden">Share</span>
+                    <span className="sm:hidden text-xs">Share</span>
                   </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
                   <div className="text-center">
                     <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
                     <div className="text-lg sm:text-2xl font-bold">{formatDuration(currentActivity.duration_in_seconds)}</div>

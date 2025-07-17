@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useScreenSize } from '@/hooks/use-mobile';
 
 import { 
   Activity, 
@@ -36,6 +37,8 @@ export const Dashboard = () => {
     loading, 
     error 
   } = useDashboardMetrics();
+  
+  const { isMobile, isTablet } = useScreenSize();
 
   if (loading) {
     return (
@@ -317,77 +320,78 @@ export const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {activityDistribution.length > 0 ? (
-                    <div className="text-center space-y-4">
-                      <div className="relative w-32 h-32 mx-auto">
-                        <svg className="w-32 h-32 transform -rotate-90">
-                          {/* Background circle */}
-                          <circle
-                            cx="64"
-                            cy="64"
-                            r="56"
-                            stroke="hsl(var(--muted))"
-                            strokeWidth="8"
-                            fill="transparent"
-                          />
-                          
-                          {/* Activity segments */}
-                          {activityDistribution.map((activity, index) => {
-                            const prevPercentage = activityDistribution
-                              .slice(0, index)
-                              .reduce((sum, act) => sum + act.percentage, 0);
-                            const currentPercentage = activity.percentage;
-                            const circumference = 2 * Math.PI * 56;
-                            const strokeDasharray = `${(currentPercentage / 100) * circumference} ${circumference}`;
-                            const strokeDashoffset = -((prevPercentage / 100) * circumference);
-                            
-                            return (
-                              <circle
-                                key={index}
-                                cx="64"
-                                cy="64"
-                                r="56"
-                                stroke={activity.color}
-                                strokeWidth="8"
-                                fill="transparent"
-                                strokeDasharray={strokeDasharray}
-                                strokeDashoffset={strokeDashoffset}
-                                className="transition-all duration-500"
-                                style={{
-                                  filter: 'drop-shadow(0 0 4px rgba(var(--primary-rgb), 0.3))'
-                                }}
-                              />
-                            );
-                          })}
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold">{activityDistribution.length}</div>
-                            <div className="text-xs text-muted-foreground">Tipos</div>
-                          </div>
-                        </div>
-                      </div>
+                   {activityDistribution.length > 0 ? (
+                     <div className="text-center space-y-4">
+                       <div className={`relative mx-auto ${isMobile ? 'w-24 h-24' : 'w-32 h-32'}`}>
+                         <svg className={`${isMobile ? 'w-24 h-24' : 'w-32 h-32'} transform -rotate-90`}>
+                           {/* Background circle */}
+                           <circle
+                             cx={isMobile ? "48" : "64"}
+                             cy={isMobile ? "48" : "64"}
+                             r={isMobile ? "40" : "56"}
+                             stroke="hsl(var(--muted))"
+                             strokeWidth={isMobile ? "6" : "8"}
+                             fill="transparent"
+                           />
+                           
+                           {/* Activity segments */}
+                           {activityDistribution.map((activity, index) => {
+                             const prevPercentage = activityDistribution
+                               .slice(0, index)
+                               .reduce((sum, act) => sum + act.percentage, 0);
+                             const currentPercentage = activity.percentage;
+                             const radius = isMobile ? 40 : 56;
+                             const circumference = 2 * Math.PI * radius;
+                             const strokeDasharray = `${(currentPercentage / 100) * circumference} ${circumference}`;
+                             const strokeDashoffset = -((prevPercentage / 100) * circumference);
+                             
+                             return (
+                               <circle
+                                 key={index}
+                                 cx={isMobile ? "48" : "64"}
+                                 cy={isMobile ? "48" : "64"}
+                                 r={radius}
+                                 stroke={activity.color}
+                                 strokeWidth={isMobile ? "6" : "8"}
+                                 fill="transparent"
+                                 strokeDasharray={strokeDasharray}
+                                 strokeDashoffset={strokeDashoffset}
+                                 className="transition-all duration-500"
+                                 style={{
+                                   filter: 'drop-shadow(0 0 4px rgba(var(--primary-rgb), 0.3))'
+                                 }}
+                               />
+                             );
+                           })}
+                         </svg>
+                         <div className="absolute inset-0 flex items-center justify-center">
+                           <div className="text-center">
+                             <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>{activityDistribution.length}</div>
+                             <div className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-xs'}`}>Tipos</div>
+                           </div>
+                         </div>
+                       </div>
                       
-                      {/* Legend */}
-                      <div className="space-y-2">
-                        {activityDistribution.slice(0, 3).map((activity, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center space-x-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: activity.color }}
-                              />
-                              <span className="text-muted-foreground">{activity.name}</span>
-                            </div>
-                            <span className="font-medium">{activity.percentage}%</span>
-                          </div>
-                        ))}
-                        {activityDistribution.length > 3 && (
-                          <div className="text-xs text-muted-foreground text-center pt-1">
-                            +{activityDistribution.length - 3} outros tipos
-                          </div>
-                        )}
-                      </div>
+                       {/* Legend */}
+                       <div className={`space-y-2 ${isMobile ? 'space-y-1' : 'space-y-2'}`}>
+                         {activityDistribution.slice(0, 3).map((activity, index) => (
+                           <div key={index} className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                             <div className="flex items-center space-x-2">
+                               <div 
+                                 className={`rounded-full ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`}
+                                 style={{ backgroundColor: activity.color }}
+                               />
+                               <span className="text-muted-foreground truncate">{activity.name}</span>
+                             </div>
+                             <span className="font-medium flex-shrink-0">{activity.percentage}%</span>
+                           </div>
+                         ))}
+                         {activityDistribution.length > 3 && (
+                           <div className="text-xs text-muted-foreground text-center pt-1">
+                             +{activityDistribution.length - 3} outros tipos
+                           </div>
+                         )}
+                       </div>
                     </div>
                   ) : (
                     <div className="h-64 flex items-center justify-center text-muted-foreground">

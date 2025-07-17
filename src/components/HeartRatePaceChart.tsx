@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Heart, Timer, AlertCircle } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
+import { useScreenSize } from '@/hooks/use-mobile';
 
 interface HeartRatePaceChartProps {
   activityId: string | null;
@@ -9,6 +10,7 @@ interface HeartRatePaceChartProps {
 
 export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
   const { data, loading, error, hasData } = useActivityDetailsChart(activityId);
+  const { isMobile, isTablet } = useScreenSize();
 
   if (loading) {
     return (
@@ -57,7 +59,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
   const avgHeartRate = data.reduce((sum, item) => sum + item.heart_rate, 0) / data.length;
   const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace_min_per_km!, 0) / validPaceData.length : 0;
 
-  // Custom tooltip
+  // Custom tooltip optimized for mobile
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -66,10 +68,18 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
       const paceDisplay = data.pace_min_per_km && data.pace_min_per_km > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
       
       return (
-        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-          <p className="text-sm font-medium">{`Distância: ${data.distance_km.toFixed(2)}km`}</p>
-          <p className="text-sm font-medium">{`Ritmo: ${paceDisplay}`}</p>
-          <p className="text-sm font-medium">{`FC: ${data.heart_rate} bpm`}</p>
+        <div className={`bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg ${
+          isMobile ? 'p-2 max-w-[200px]' : 'p-3'
+        }`}>
+          <p className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            {isMobile ? `${data.distance_km.toFixed(1)}km` : `Distância: ${data.distance_km.toFixed(2)}km`}
+          </p>
+          <p className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            {isMobile ? paceDisplay : `Ritmo: ${paceDisplay}`}
+          </p>
+          <p className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            {isMobile ? `${data.heart_rate} bpm` : `FC: ${data.heart_rate} bpm`}
+          </p>
         </div>
       );
     }
@@ -85,15 +95,15 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-72 sm:h-80">
+        <div className={`${isMobile ? 'h-64' : 'h-72 sm:h-80'}`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={data} 
               margin={{ 
                 top: 10, 
-                right: window.innerWidth < 768 ? 10 : 30, 
-                left: window.innerWidth < 768 ? 10 : 20, 
-                bottom: 10 
+                right: isMobile ? 15 : (isTablet ? 20 : 30), 
+                left: isMobile ? 15 : (isTablet ? 20 : 25), 
+                bottom: isMobile ? 15 : 20 
               }}
             >
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -101,9 +111,10 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                 dataKey="distance_km" 
                 type="number"
                 domain={[0, 'dataMax']}
-                tickFormatter={(value) => `${value.toFixed(1)}km`}
-                fontSize={window.innerWidth < 768 ? 10 : 12}
-                tick={{ fontSize: window.innerWidth < 768 ? 10 : 12 }}
+                tickFormatter={(value) => isMobile ? `${value.toFixed(0)}km` : `${value.toFixed(1)}km`}
+                fontSize={isMobile ? 9 : 12}
+                tick={{ fontSize: isMobile ? 9 : 12 }}
+                interval={isMobile ? 'preserveStartEnd' : 0}
               />
               <YAxis 
                 yAxisId="pace"
@@ -113,27 +124,27 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                   if (value === null || value === undefined) return '';
                   const minutes = Math.floor(value);
                   const seconds = Math.round((value - minutes) * 60);
-                  return window.innerWidth < 768 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  return isMobile ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 }}
                 stroke="hsl(var(--primary))"
-                fontSize={window.innerWidth < 768 ? 10 : 12}
-                tick={{ fontSize: window.innerWidth < 768 ? 10 : 12 }}
-                width={window.innerWidth < 768 ? 35 : 45}
+                fontSize={isMobile ? 9 : 12}
+                tick={{ fontSize: isMobile ? 9 : 12 }}
+                width={isMobile ? 40 : 50}
               />
               <YAxis 
                 yAxisId="hr"
                 orientation="right"
                 domain={['dataMin - 10', 'dataMax + 10']}
-                tickFormatter={(value) => window.innerWidth < 768 ? `${Math.round(value)}` : `${Math.round(value)} bpm`}
+                tickFormatter={(value) => isMobile ? `${Math.round(value)}` : `${Math.round(value)} bpm`}
                 stroke="hsl(var(--secondary))"
-                fontSize={window.innerWidth < 768 ? 10 : 12}
-                tick={{ fontSize: window.innerWidth < 768 ? 10 : 12 }}
-                width={window.innerWidth < 768 ? 30 : 45}
+                fontSize={isMobile ? 9 : 12}
+                tick={{ fontSize: isMobile ? 9 : 12 }}
+                width={isMobile ? 35 : 50}
               />
               <Tooltip content={<CustomTooltip />} />
               
               {/* Reference lines for averages - hide on mobile for clarity */}
-              {avgPace > 0 && window.innerWidth >= 768 && (
+              {avgPace > 0 && !isMobile && (
                 <ReferenceLine 
                   yAxisId="pace"
                   y={avgPace} 
@@ -143,7 +154,7 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                   label={{ value: "Ritmo Médio", position: "top", fontSize: 10 }}
                 />
               )}
-              {window.innerWidth >= 768 && (
+              {!isMobile && (
                 <ReferenceLine 
                   yAxisId="hr"
                   y={avgHeartRate} 
@@ -159,9 +170,9 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                 type="monotone" 
                 dataKey="pace_min_per_km" 
                 stroke="hsl(var(--primary))" 
-                strokeWidth={window.innerWidth < 768 ? 1.5 : 2}
+                strokeWidth={isMobile ? 1.5 : 2}
                 dot={false}
-                activeDot={{ r: window.innerWidth < 768 ? 3 : 4, fill: "hsl(var(--primary))" }}
+                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--primary))" }}
                 name="Ritmo"
                 connectNulls={false}
               />
@@ -170,22 +181,22 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
                 type="monotone" 
                 dataKey="heart_rate" 
                 stroke="hsl(var(--secondary))" 
-                strokeWidth={window.innerWidth < 768 ? 1.5 : 2}
+                strokeWidth={isMobile ? 1.5 : 2}
                 dot={false}
-                activeDot={{ r: window.innerWidth < 768 ? 3 : 4, fill: "hsl(var(--secondary))" }}
+                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--secondary))" }}
                 name="Frequência Cardíaca"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
         
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+        <div className={`mt-4 grid gap-2 ${isMobile ? 'grid-cols-1 text-xs' : 'grid-cols-1 sm:grid-cols-3 text-xs sm:text-sm'}`}>
           <div className="flex items-center space-x-2 justify-center sm:justify-start">
-            <div className="w-3 h-0.5 bg-primary rounded"></div>
+            <div className="w-3 h-0.5 bg-primary rounded flex-shrink-0"></div>
             <span className="truncate">Ritmo: {avgPace > 0 ? `${Math.floor(avgPace)}:${Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km` : 'N/A'}</span>
           </div>
           <div className="flex items-center space-x-2 justify-center sm:justify-start">
-            <div className="w-3 h-0.5 bg-secondary rounded"></div>
+            <div className="w-3 h-0.5 bg-secondary rounded flex-shrink-0"></div>
             <span className="truncate">FC: {Math.round(avgHeartRate)} bpm</span>
           </div>
           <div className="text-muted-foreground text-center sm:text-left">
