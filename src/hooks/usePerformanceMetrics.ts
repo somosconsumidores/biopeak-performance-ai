@@ -177,38 +177,48 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
     ? `${(((avgHR - 60) / (maxHR - 60)) * 100).toFixed(1)}%` // Using resting HR = 60 as default
     : 'N/A';
 
-  // 4. Distribuição do Esforço (usando clock_duration_in_seconds para divisão temporal precisa)
+  // 4. Distribuição do Esforço - NOVA IMPLEMENTAÇÃO: Divisão por terços iguais de registros
   let beginning = 'N/A', middle = 'N/A', end = 'N/A';
   
   if (details.length > 0) {
-    // Filtrar APENAS dados com heart_rate e clock_duration_in_seconds válidos (critério mais restritivo)
+    console.log('🔄 REWRITING EFFORT DISTRIBUTION - Using equal record thirds instead of time');
+    
+    // Filtrar APENAS dados com heart_rate válido (mesmo critério da SQL)
     const validDetails = details.filter(d => 
-      d.clock_duration_in_seconds !== null && 
-      d.clock_duration_in_seconds !== undefined && 
       d.heart_rate !== null && 
       d.heart_rate !== undefined
     );
     
-    if (validDetails.length > 0) {
-      // Determinar duração total usando o maior valor de clock_duration_in_seconds
-      const totalDuration = Math.max(...validDetails.map(d => d.clock_duration_in_seconds));
+    console.log('📊 Valid details with HR:', validDetails.length);
+    
+    if (validDetails.length >= 3) { // Precisamos de pelo menos 3 registros para dividir em terços
+      // Ordenar por clock_duration_in_seconds (ascendente) - mesmo que a SQL
+      const sortedDetails = [...validDetails].sort((a, b) => {
+        const aDuration = a.clock_duration_in_seconds || 0;
+        const bDuration = b.clock_duration_in_seconds || 0;
+        return aDuration - bDuration;
+      });
       
-      // Calcular os terços temporais (33%, 66% da duração total)
-      const firstThird = totalDuration * 0.33;
-      const secondThird = totalDuration * 0.66;
+      // Dividir em terços IGUAIS por número de registros (não por tempo!)
+      const totalRecords = sortedDetails.length;
+      const thirdSize = Math.floor(totalRecords / 3);
+      const remainder = totalRecords % 3;
       
-      // Separar dados por terços temporais
-      const beginningData = validDetails.filter(d => d.clock_duration_in_seconds <= firstThird);
-      const middleData = validDetails.filter(d => d.clock_duration_in_seconds > firstThird && d.clock_duration_in_seconds <= secondThird);
-      const endData = validDetails.filter(d => d.clock_duration_in_seconds > secondThird);
+      // Dividir os registros em 3 grupos iguais
+      const firstThirdEnd = thirdSize + (remainder > 0 ? 1 : 0); // Primeiro terço pega 1 extra se sobrar
+      const secondThirdEnd = firstThirdEnd + thirdSize + (remainder > 1 ? 1 : 0); // Segundo terço pega 1 extra se sobrar 2
       
-      console.log('⏱️ EFFORT DISTRIBUTION CALCULATION:');
-      console.log('  Total duration (seconds):', totalDuration);
-      console.log('  First third threshold:', firstThird);
-      console.log('  Second third threshold:', secondThird);
-      console.log('  Beginning data points:', beginningData.length);
-      console.log('  Middle data points:', middleData.length);
-      console.log('  End data points:', endData.length);
+      const beginningData = sortedDetails.slice(0, firstThirdEnd);
+      const middleData = sortedDetails.slice(firstThirdEnd, secondThirdEnd);
+      const endData = sortedDetails.slice(secondThirdEnd);
+      
+      console.log('🎯 NEW EFFORT DISTRIBUTION LOGIC:');
+      console.log('  Total valid records:', totalRecords);
+      console.log('  Third size (base):', thirdSize);
+      console.log('  Remainder:', remainder);
+      console.log('  Beginning records:', beginningData.length, '(indices 0-' + (firstThirdEnd-1) + ')');
+      console.log('  Middle records:', middleData.length, '(indices ' + firstThirdEnd + '-' + (secondThirdEnd-1) + ')');
+      console.log('  End records:', endData.length, '(indices ' + secondThirdEnd + '-' + (totalRecords-1) + ')');
 
       // Calcular média de FC para cada terço
       const beginningHR = beginningData.length > 0 
@@ -223,7 +233,7 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
         ? endData.reduce((sum, d) => sum + d.heart_rate, 0) / endData.length 
         : 0;
 
-      console.log('💓 CALCULATED HEART RATES:');
+      console.log('💓 NEW CALCULATED HEART RATES (should match SQL: 136, 140, 136):');
       console.log('  Beginning HR (raw):', beginningHR);
       console.log('  Middle HR (raw):', middleHR);
       console.log('  End HR (raw):', endHR);
@@ -232,10 +242,17 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
       middle = middleHR > 0 ? `${Math.round(middleHR)} bpm` : 'N/A';
       end = endHR > 0 ? `${Math.round(endHR)} bpm` : 'N/A';
 
-      console.log('💓 FINAL FORMATTED VALUES:');
+      console.log('💓 FINAL FORMATTED VALUES (should be 136, 140, 136):');
       console.log('  Beginning:', beginning);
       console.log('  Middle:', middle);
       console.log('  End:', end);
+      
+      // Extra validation log
+      if (beginning === '136 bpm' && middle === '140 bpm' && end === '136 bpm') {
+        console.log('✅ SUCCESS! Values match SQL query results!');
+      } else {
+        console.log('❌ WARNING! Values do not match expected SQL results (136, 140, 136)');
+      }
     }
   }
 
