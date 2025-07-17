@@ -77,8 +77,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           .from('garmin_activity_details')
           .select('speed_meters_per_second, heart_rate, power_in_watts, sample_timestamp, clock_duration_in_seconds')
           .eq('activity_id', activityId)
-          .not('speed_meters_per_second', 'is', null)
           .not('heart_rate', 'is', null)
+          .not('clock_duration_in_seconds', 'is', null)
           .order('clock_duration_in_seconds', { ascending: true });
 
         if (detailsError) throw detailsError;
@@ -180,9 +180,14 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
   // 4. Distribuição do Esforço (usando clock_duration_in_seconds para divisão temporal precisa)
   let beginning = 'N/A', middle = 'N/A', end = 'N/A';
   
-  if (details.length > 0 && details.some(d => d.clock_duration_in_seconds)) {
-    // Filtrar apenas dados com clock_duration_in_seconds válido
-    const validDetails = details.filter(d => d.clock_duration_in_seconds && d.heart_rate);
+  if (details.length > 0) {
+    // Filtrar APENAS dados com heart_rate e clock_duration_in_seconds válidos (critério mais restritivo)
+    const validDetails = details.filter(d => 
+      d.clock_duration_in_seconds !== null && 
+      d.clock_duration_in_seconds !== undefined && 
+      d.heart_rate !== null && 
+      d.heart_rate !== undefined
+    );
     
     if (validDetails.length > 0) {
       // Determinar duração total usando o maior valor de clock_duration_in_seconds
