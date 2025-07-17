@@ -8,18 +8,9 @@ interface PerformanceIndicatorsProps {
 }
 
 export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
-  console.log('🔍 PERF_INDICATORS: Rendering with activityId:', activityId);
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
-  
-  console.log('🔍 PERF_INDICATORS: Hook state:', { 
-    hasMetrics: !!metrics, 
-    loading, 
-    error,
-    metricsDetail: metrics 
-  });
 
   if (loading) {
-    console.log('🔍 PERF_INDICATORS: Showing loading state');
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
@@ -32,7 +23,6 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Calculando indicadores...</p>
-            <p className="text-xs text-muted-foreground mt-2">Activity ID: {activityId}</p>
           </div>
         </CardContent>
       </Card>
@@ -40,9 +30,8 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
   }
 
   if (error || !metrics) {
-    console.log('🔍 PERF_INDICATORS: Showing error/no data state:', { error, hasMetrics: !!metrics });
     return (
-      <Card className="glass-card border-glass-border bg-red-50 border-red-200">
+      <Card className="glass-card border-glass-border">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -51,17 +40,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <p className="text-muted-foreground mb-2">
-              {error ? 'Erro ao calcular indicadores' : 'Dados insuficientes para calcular indicadores'}
-            </p>
-            {error && (
-              <p className="text-xs text-red-600 bg-red-100 p-2 rounded">{error}</p>
-            )}
-            <div className="mt-4 text-xs text-muted-foreground space-y-1">
-              <p>Activity ID: {activityId}</p>
-              <p>Has Metrics: {metrics ? 'Yes' : 'No'}</p>
-              <p>Error: {error || 'None'}</p>
-            </div>
+            <p className="text-muted-foreground">Dados insuficientes para calcular indicadores</p>
           </div>
         </CardContent>
       </Card>
@@ -117,14 +96,12 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     }
   ];
 
-  console.log('🔍 PERF_INDICATORS: Rendering indicators successfully');
-
   return (
-    <Card className="glass-card border-glass-border bg-green-50 border-green-200">
+    <Card className="glass-card border-glass-border">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <TrendingUp className="h-5 w-5 text-primary" />
-          <span>Indicadores de Performance ✅</span>
+          <span>Indicadores de Performance</span>
         </CardTitle>
       </CardHeader>
       <CardContent>

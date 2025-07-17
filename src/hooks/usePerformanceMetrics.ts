@@ -39,18 +39,16 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
   useEffect(() => {
     if (!activityId) {
-      console.log('🔍 PERF_METRICS: No activityId provided');
       setMetrics(null);
       return;
     }
 
     const calculateMetrics = async () => {
-      console.log('🔍 PERF_METRICS: Starting calculation for activity:', activityId);
       setLoading(true);
       setError(null);
 
       try {
-        console.log('🔍 PERF_METRICS: Fetching activity data...');
+        console.log('🔍 DEBUG: Fetching performance metrics for activity:', activityId);
 
         // Fetch activity data
         const { data: activity, error: activityError } = await supabase
@@ -59,18 +57,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           .eq('activity_id', activityId)
           .single();
 
-        console.log('🔍 PERF_METRICS: Activity query result:', { activity, activityError });
-
-        if (activityError) {
-          console.error('🔍 PERF_METRICS: Activity error:', activityError);
-          throw activityError;
-        }
-        if (!activity) {
-          console.error('🔍 PERF_METRICS: No activity found');
-          throw new Error('Activity not found');
-        }
-
-        console.log('🔍 PERF_METRICS: Activity found, fetching details...');
+        if (activityError) throw activityError;
+        if (!activity) throw new Error('Activity not found');
 
         // Fetch activity details for pace variation calculation and effort distribution
         const { data: activityDetails, error: detailsError } = await supabase
@@ -81,32 +69,17 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           .not('heart_rate', 'is', null)
           .order('clock_duration_in_seconds', { ascending: true });
 
-        console.log('🔍 PERF_METRICS: Activity details query result:', { 
-          detailsCount: activityDetails?.length || 0, 
-          detailsError,
-          sampleDetail: activityDetails?.[0] 
-        });
-
-        if (detailsError) {
-          console.error('🔍 PERF_METRICS: Details error:', detailsError);
-          throw detailsError;
-        }
-
-        console.log('🔍 PERF_METRICS: Starting metrics calculation...');
+        if (detailsError) throw detailsError;
 
         // Calculate metrics
         const calculatedMetrics = calculatePerformanceMetrics(activity, activityDetails || []);
-        console.log('🔍 PERF_METRICS: Calculated metrics:', calculatedMetrics);
-        
         setMetrics(calculatedMetrics);
-        console.log('🔍 PERF_METRICS: Metrics set successfully');
 
       } catch (err) {
-        console.error('🔍 PERF_METRICS: Error calculating performance metrics:', err);
+        console.error('Error calculating performance metrics:', err);
         setError(err instanceof Error ? err.message : 'Erro ao calcular métricas');
       } finally {
         setLoading(false);
-        console.log('🔍 PERF_METRICS: Calculation completed');
       }
     };
 
