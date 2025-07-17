@@ -206,12 +206,11 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
     }
   }
 
-  // Effort Distribution calculation
+  // Effort Distribution calculation (chronological segments)
   if (details.length >= 3) {
     const heartRates = details
       .filter(d => d.heart_rate !== null)
-      .map(d => d.heart_rate)
-      .sort((a, b) => a - b);
+      .map(d => d.heart_rate);
     
     if (heartRates.length >= 3) {
       const third = Math.floor(heartRates.length / 3);
