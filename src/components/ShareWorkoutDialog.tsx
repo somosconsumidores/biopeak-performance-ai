@@ -4,24 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Share2, 
-  Copy, 
-  QrCode, 
+  Download,
+  Image as ImageIcon,
   Instagram, 
   Facebook, 
   Twitter, 
   Linkedin, 
   MessageCircle,
   Check,
-  Clock,
-  MapPin,
-  Heart,
-  Zap,
-  TrendingUp,
-  BarChart3,
   X
 } from 'lucide-react';
 import { SocialShareButton } from './SocialShareButton';
 import { WorkoutSharePreview } from './WorkoutSharePreview';
+import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
 import { toast } from '@/hooks/use-toast';
 
 interface ShareWorkoutDialogProps {
@@ -42,132 +37,25 @@ interface ShareWorkoutDialogProps {
 
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
-  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  const [showQRCode, setShowQRCode] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
 
-  // Helper functions
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '--';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatDistance = (meters: number | null) => {
-    if (!meters) return '--';
-    return `${(meters / 1000).toFixed(1)} km`;
-  };
-
-  const formatPace = (paceInMinutes: number | null) => {
-    if (!paceInMinutes) return '--';
-    const minutes = Math.floor(paceInMinutes);
-    const seconds = Math.round((paceInMinutes - minutes) * 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
-  };
-
-  const getActivityType = (type: string | null) => {
-    if (!type) return 'Atividade';
-    const typeMap: { [key: string]: string } = {
-      'running': 'Corrida',
-      'cycling': 'Ciclismo', 
-      'walking': 'Caminhada',
-      'swimming': 'Natação',
-      'fitness_equipment': 'Academia'
-    };
-    return typeMap[type.toLowerCase()] || type;
-  };
-
-  // Generate share URL
-  const shareUrl = `${window.location.origin}/workouts?activityId=${workoutData.id}`;
-
-  // Generate share text
-  const generateShareText = (platform: string) => {
-    const activity = getActivityType(workoutData.activity_type);
-    const duration = formatDuration(workoutData.duration_in_seconds);
-    const distance = formatDistance(workoutData.distance_in_meters);
-    const pace = formatPace(workoutData.average_pace_in_minutes_per_kilometer);
-    const calories = workoutData.active_kilocalories || '--';
-
-    const baseText = `🏃‍♂️ Acabei de completar uma ${activity}!
-⏱️ ${duration} | 📍 ${distance} | ⚡ ${pace}
-🔥 ${calories} kcal queimadas
-
-#BioPeak #Fitness #Treino`;
-
-    switch (platform) {
-      case 'instagram':
-        return `${baseText}\n\n✨ Acompanhe meus treinos no BioPeak!`;
-      case 'facebook':
-        return `${baseText}\n\nVeja minha análise completa no BioPeak: ${shareUrl}`;
-      case 'twitter':
-        return `${baseText}\n\n📊 ${shareUrl}`;
-      case 'linkedin':
-        return `Mantenho minha rotina de exercícios em dia! 💪\n\n${baseText}\n\nAcompanhe meus progressos: ${shareUrl}`;
-      case 'whatsapp':
-        return `${baseText}\n\nConfira minha análise completa: ${shareUrl}`;
-      default:
-        return baseText;
-    }
-  };
-
-  // Copy to clipboard
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopiedToClipboard(true);
-      toast({
-        title: "Link copiado!",
-        description: "O link foi copiado para a área de transferência.",
-      });
-      setTimeout(() => setCopiedToClipboard(false), 2000);
-    } catch (error) {
-      toast({
-        title: "Erro ao copiar",
-        description: "Não foi possível copiar o link.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Share handlers
-  const handleShare = (platform: string) => {
+  // Share handlers with image generation
+  const handleImageShare = async (platform: string) => {
     setShareAnimationActive(true);
-    setTimeout(() => setShareAnimationActive(false), 600);
-
-    const text = generateShareText(platform);
-    let url = '';
-
-    switch (platform) {
-      case 'instagram':
-        // Instagram doesn't support direct sharing via URL, so we copy the text
-        navigator.clipboard.writeText(text);
-        toast({
-          title: "Texto copiado!",
-          description: "Cole no Instagram para compartilhar.",
-        });
-        break;
-      case 'facebook':
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`;
-        break;
-      case 'twitter':
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-        break;
-      case 'linkedin':
-        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&summary=${encodeURIComponent(text)}`;
-        break;
-      case 'whatsapp':
-        url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        break;
-    }
-
-    if (url) {
-      window.open(url, '_blank', 'width=600,height=400');
+    setIsGeneratingImage(true);
+    
+    try {
+      await shareWorkoutImage(platform, workoutData);
+    } finally {
+      setShareAnimationActive(false);
+      setIsGeneratingImage(false);
     }
   };
+
+  // Check if Web Share API supports files
+  const canShareFiles = navigator.share && navigator.canShare && 
+    navigator.canShare({ files: [new File([''], 'test.png', { type: 'image/png' })] });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -195,101 +83,113 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
         {/* Content */}
         <div className="relative p-6 pt-0 space-y-6">
           {/* Workout Preview */}
-          <div className="relative">
+          <div className="relative" ref={previewRef}>
             <WorkoutSharePreview workoutData={workoutData} />
           </div>
 
           {/* Social Media Buttons */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-center">Compartilhar nas Redes Sociais</h3>
+            <h3 className="text-lg font-semibold text-center">Compartilhar Imagem do Treino</h3>
+            <p className="text-sm text-muted-foreground text-center">
+              Gere uma imagem personalizada com suas métricas para compartilhar
+            </p>
+            
+            {/* Quick Share Button if supported */}
+            {canShareFiles && (
+              <Button
+                onClick={() => handleImageShare('native')}
+                disabled={isGeneratingImage}
+                className="w-full mb-4 bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80"
+              >
+                {isGeneratingImage ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Gerando imagem...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Compartilhar Imagem
+                  </>
+                )}
+              </Button>
+            )}
             
             <div className={`grid grid-cols-5 gap-3 transition-all duration-500 ${shareAnimationActive ? 'scale-95' : 'scale-100'}`}>
               <SocialShareButton
                 icon={Instagram}
                 label="Instagram"
                 color="from-pink-500 to-purple-600"
-                onClick={() => handleShare('instagram')}
+                onClick={() => handleImageShare('instagram')}
                 delay={0}
+                disabled={isGeneratingImage}
               />
               <SocialShareButton
                 icon={Facebook}
                 label="Facebook"
                 color="from-blue-600 to-blue-700"
-                onClick={() => handleShare('facebook')}
+                onClick={() => handleImageShare('facebook')}
                 delay={100}
+                disabled={isGeneratingImage}
               />
               <SocialShareButton
                 icon={Twitter}
                 label="Twitter"
                 color="from-sky-400 to-blue-500"
-                onClick={() => handleShare('twitter')}
+                onClick={() => handleImageShare('twitter')}
                 delay={200}
+                disabled={isGeneratingImage}
               />
               <SocialShareButton
                 icon={Linkedin}
                 label="LinkedIn"
                 color="from-blue-700 to-blue-800"
-                onClick={() => handleShare('linkedin')}
+                onClick={() => handleImageShare('linkedin')}
                 delay={300}
+                disabled={isGeneratingImage}
               />
               <SocialShareButton
                 icon={MessageCircle}
                 label="WhatsApp"
                 color="from-green-500 to-green-600"
-                onClick={() => handleShare('whatsapp')}
+                onClick={() => handleImageShare('whatsapp')}
                 delay={400}
+                disabled={isGeneratingImage}
               />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Button
               variant="outline"
-              onClick={handleCopyLink}
+              onClick={() => handleImageShare('download')}
+              disabled={isGeneratingImage}
               className="glass-card border-glass-border hover:bg-glass-bg-hover group"
             >
-              {copiedToClipboard ? (
+              {isGeneratingImage ? (
                 <>
-                  <Check className="h-4 w-4 mr-2 text-green-400" />
-                  Copiado!
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                  Gerando...
                 </>
               ) : (
                 <>
-                  <Copy className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                  Copiar Link
+                  <Download className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                  Baixar Imagem
                 </>
               )}
             </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => setShowQRCode(!showQRCode)}
-              className="glass-card border-glass-border hover:bg-glass-bg-hover group"
-            >
-              <QrCode className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
-              QR Code
-            </Button>
           </div>
 
-          {/* QR Code Section */}
-          {showQRCode && (
-            <div className="mt-4 p-4 glass-card border-glass-border rounded-lg text-center animate-fade-in">
-              <div className="w-32 h-32 mx-auto bg-white rounded-lg flex items-center justify-center mb-2">
-                <QrCode className="h-16 w-16 text-black" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Escaneie para acessar o treino no mobile
-              </p>
-            </div>
-          )}
 
-          {/* Success Message */}
+          {/* Loading Message */}
           {shareAnimationActive && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
               <div className="glass-card border-glass-border p-6 text-center animate-scale-in">
-                <Share2 className="h-8 w-8 mx-auto mb-2 text-primary animate-pulse" />
-                <p className="font-semibold">Compartilhando...</p>
+                <ImageIcon className="h-8 w-8 mx-auto mb-2 text-primary animate-pulse" />
+                <p className="font-semibold">
+                  {isGeneratingImage ? 'Gerando imagem...' : 'Processando...'}
+                </p>
               </div>
             </div>
           )}
