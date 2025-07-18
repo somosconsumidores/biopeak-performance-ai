@@ -54,7 +54,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundImage: `url(/lovable-uploads/fda0a265-1a3c-4ecb-a989-ea9ea3d54202.png)`,
+        backgroundImage: `url(/lovable-uploads/2bfefeef-66b1-477e-a779-6d1e44775f6c.png)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
