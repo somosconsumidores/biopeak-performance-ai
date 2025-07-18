@@ -272,11 +272,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Process and store all activity details preserving ALL samples
+    // Process and store activity details
     let syncedCount = 0;
     const errors: string[] = [];
 
-    // Process activities one by one to avoid CPU timeout while preserving all data
     for (const detail of activityDetails) {
       try {
         // Check if activity has required fields
@@ -288,66 +287,56 @@ Deno.serve(async (req) => {
 
         // Safe access to activitySummary properties
         const activitySummary = detail.activitySummary || {};
-        const samples = detail.samples || []; // Keep ALL samples - don't limit
+        const samples = detail.samples || [];
         
         // Extract activity name from the summary field (as shown in API logs)
         const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
 
-        console.log(`[sync-activity-details] Processing activity ${detail.activityId} with ${samples.length} samples`);
-
-        // For activities with many samples, store them in chunks to reduce memory pressure
-        if (samples.length > 500) {
-          // For large activities, store samples in chunks but preserve all data
-          const CHUNK_SIZE = 250;
-          for (let i = 0; i < samples.length; i += CHUNK_SIZE) {
-            const sampleChunk = samples.slice(i, i + CHUNK_SIZE);
-            const chunkTimestamp = sampleChunk[0]?.startTimeInSeconds || 
-                                 activitySummary.startTimeInSeconds || 
-                                 activitySummary.uploadTimeInSeconds || 
-                                 Date.now() / 1000;
-
+        // If there are samples, save each sample as a separate row
+        if (samples.length > 0) {
+          for (const sample of samples) {
+            const sampleTimestamp = sample.timestampInSeconds || activitySummary.startTimeInSeconds || null;
+            
             const { error: upsertError } = await supabaseClient
               .from('garmin_activity_details')
               .upsert({
                 user_id: user.id,
                 activity_id: detail.activityId,
-                summary_id: `${detail.summaryId}-chunk-${Math.floor(i / CHUNK_SIZE)}`,
+                summary_id: detail.summaryId,
                 activity_name: extractedActivityName,
                 upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
-                start_time_in_seconds: activitySummary.startTimeInSeconds || null,
+                start_time_in_seconds: sampleTimestamp,
                 duration_in_seconds: activitySummary.durationInSeconds || null,
                 activity_type: activitySummary.activityType || null,
                 device_name: activitySummary.deviceName || null,
-                sample_timestamp: Math.floor(chunkTimestamp),
-                samples: sampleChunk,
-                activity_summary: i === 0 ? activitySummary : null, // Only store summary in first chunk
-                // Store data from first sample in chunk
-                heart_rate: sampleChunk[0]?.heartRate || null,
-                latitude_in_degree: sampleChunk[0]?.latitudeInDegree || null,
-                longitude_in_degree: sampleChunk[0]?.longitudeInDegree || null,
-                elevation_in_meters: sampleChunk[0]?.elevationInMeters || null,
-                speed_meters_per_second: sampleChunk[0]?.speedMetersPerSecond || null,
-                power_in_watts: sampleChunk[0]?.powerInWatts || null,
-                total_distance_in_meters: sampleChunk[0]?.totalDistanceInMeters || null,
-                steps_per_minute: sampleChunk[0]?.stepsPerMinute || null,
-                clock_duration_in_seconds: sampleChunk[0]?.clockDurationInSeconds || null,
-                moving_duration_in_seconds: sampleChunk[0]?.movingDurationInSeconds || null,
-                timer_duration_in_seconds: sampleChunk[0]?.timerDurationInSeconds || null,
-                updated_at: new Date().toISOString()
+                sample_timestamp: sampleTimestamp,
+                samples: sample, // Store individual sample data
+                activity_summary: activitySummary,
+                // Extract sample data into structured columns
+              heart_rate: sample.heartRate || null,
+              latitude_in_degree: sample.latitudeInDegree || null,
+              longitude_in_degree: sample.longitudeInDegree || null,
+              elevation_in_meters: sample.elevationInMeters || null,
+              speed_meters_per_second: sample.speedMetersPerSecond || null,
+              power_in_watts: sample.powerInWatts || null,
+              total_distance_in_meters: sample.totalDistanceInMeters || null,
+              steps_per_minute: sample.stepsPerMinute || null,
+              clock_duration_in_seconds: sample.clockDurationInSeconds || null,
+              moving_duration_in_seconds: sample.movingDurationInSeconds || null,
+              timer_duration_in_seconds: sample.timerDurationInSeconds || null,
+              updated_at: new Date().toISOString()
               }, {
                 onConflict: 'user_id,summary_id,sample_timestamp'
               });
 
             if (upsertError) {
-              console.error('[sync-activity-details] Error upserting activity detail chunk:', upsertError);
-              errors.push(`Failed to store activity ${detail.activityId} chunk ${Math.floor(i / CHUNK_SIZE)}: ${upsertError.message}`);
+              console.error('[sync-activity-details] Error upserting sample:', upsertError);
+              errors.push(`Failed to store sample for activity ${detail.activityId}: ${upsertError.message}`);
             }
-
-            // Small yield between chunks to prevent CPU timeout
-            await new Promise(resolve => setTimeout(resolve, 5));
           }
+          syncedCount++;
         } else {
-          // For smaller activities, store normally
+          // If no samples, save just the activity summary with a default timestamp
           const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
           
           const { error: upsertError } = await supabaseClient
@@ -363,20 +352,8 @@ Deno.serve(async (req) => {
               activity_type: activitySummary.activityType || null,
               device_name: activitySummary.deviceName || null,
               sample_timestamp: defaultTimestamp,
-              samples: samples.length > 0 ? samples : null,
+              samples: null,
               activity_summary: activitySummary,
-              // Store summary data from first sample if available
-              heart_rate: samples[0]?.heartRate || null,
-              latitude_in_degree: samples[0]?.latitudeInDegree || null,
-              longitude_in_degree: samples[0]?.longitudeInDegree || null,
-              elevation_in_meters: samples[0]?.elevationInMeters || null,
-              speed_meters_per_second: samples[0]?.speedMetersPerSecond || null,
-              power_in_watts: samples[0]?.powerInWatts || null,
-              total_distance_in_meters: samples[0]?.totalDistanceInMeters || null,
-              steps_per_minute: samples[0]?.stepsPerMinute || null,
-              clock_duration_in_seconds: samples[0]?.clockDurationInSeconds || null,
-              moving_duration_in_seconds: samples[0]?.movingDurationInSeconds || null,
-              timer_duration_in_seconds: samples[0]?.timerDurationInSeconds || null,
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'user_id,summary_id,sample_timestamp'
@@ -385,14 +362,10 @@ Deno.serve(async (req) => {
           if (upsertError) {
             console.error('[sync-activity-details] Error upserting activity detail:', upsertError);
             errors.push(`Failed to store activity ${detail.activityId}: ${upsertError.message}`);
+          } else {
+            syncedCount++;
           }
         }
-
-        syncedCount++;
-        
-        // Small yield between activities to prevent CPU timeout
-        await new Promise(resolve => setTimeout(resolve, 10));
-        
       } catch (error) {
         console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
         errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
