@@ -133,63 +133,15 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching daily summaries from ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
 
-    // Prepare OAuth 1.0 signature for Garmin API
+    // Use Bearer token like other functions
     const garminUrl = `https://apis.garmin.com/wellness-api/rest/dailies?uploadStartTimeInSeconds=${startTime}&uploadEndTimeInSeconds=${endTime}`;
-    
-    // Generate OAuth 1.0 signature
-    const oauthTimestamp = Math.floor(Date.now() / 1000).toString();
-    const oauthNonce = Math.random().toString(36).substring(2, 15);
-    
-    const oauthParams = {
-      oauth_consumer_key: Deno.env.get('GARMIN_CLIENT_ID'),
-      oauth_token: tokenData.access_token,
-      oauth_signature_method: 'HMAC-SHA1',
-      oauth_timestamp: oauthTimestamp,
-      oauth_nonce: oauthNonce,
-      oauth_version: '1.0'
-    };
 
-    // Create signature base string
-    const paramString = Object.keys(oauthParams)
-      .concat([`uploadStartTimeInSeconds=${startTime}`, `uploadEndTimeInSeconds=${endTime}`])
-      .sort()
-      .join('&');
-    
-    const signatureBaseString = `GET&${encodeURIComponent(garminUrl.split('?')[0])}&${encodeURIComponent(paramString)}`;
-    const signingKey = `${encodeURIComponent(Deno.env.get('GARMIN_CLIENT_SECRET'))}&${encodeURIComponent(tokenData.token_secret || '')}`;
-
-    // Generate HMAC-SHA1 signature
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(signingKey);
-    const dataToSign = encoder.encode(signatureBaseString);
-    
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-1' },
-      false,
-      ['sign']
-    );
-    
-    const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataToSign);
-    const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
-
-    // Build Authorization header
-    const authParams = {
-      ...oauthParams,
-      oauth_signature: signatureBase64
-    };
-
-    const oauthAuthHeader = 'OAuth ' + Object.entries(authParams)
-      .map(([key, value]) => `${key}="${encodeURIComponent(value)}"`)
-      .join(', ');
-
-    // Fetch daily summaries from Garmin API
+    // Fetch daily summaries from Garmin API using Bearer token
     console.log('Fetching from Garmin API...');
     const response = await fetch(garminUrl, {
       method: 'GET',
       headers: {
-        'Authorization': oauthAuthHeader,
+        'Authorization': `Bearer ${tokenData.access_token}`,
         'Accept': 'application/json'
       }
     });
