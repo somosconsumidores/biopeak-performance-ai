@@ -410,94 +410,179 @@ export function useDashboardMetrics() {
   };
 
   const calculateOvertrainingRisk = (activities: any[]): OvertrainingRisk => {
+    if (activities.length === 0) {
+      return {
+        level: 'baixo',
+        score: 0,
+        factors: ['Dados insuficientes para análise'],
+        recommendation: 'Registre mais atividades para análise completa.'
+      };
+    }
+
+    // Filtros de tempo
+    const now = new Date();
     const last7Days = activities.filter(act => {
       const actDate = new Date(act.activity_date);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 7);
       return actDate >= sevenDaysAgo;
     });
 
     const last14Days = activities.filter(act => {
       const actDate = new Date(act.activity_date);
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const fourteenDaysAgo = new Date(now);
+      fourteenDaysAgo.setDate(now.getDate() - 14);
       return actDate >= fourteenDaysAgo;
+    });
+
+    const last30Days = activities.filter(act => {
+      const actDate = new Date(act.activity_date);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      return actDate >= thirtyDaysAgo;
     });
 
     let score = 0;
     const factors: string[] = [];
 
-    // Fator 1: Frequência de treinos (30% do score)
-    const weeklyFrequency = last7Days.length;
-    if (weeklyFrequency > 6) {
-      score += 30;
-      factors.push('Frequência muito alta (>6 treinos/semana)');
-    } else if (weeklyFrequency > 4) {
-      score += 15;
-      factors.push('Frequência alta (4-6 treinos/semana)');
-    }
+    // === Fator 1: Carga de Treino (35% do score) ===
+    const calculateTrainingLoad = (activities: any[]) => {
+      return activities.reduce((total, act) => {
+        const duration = (act.duration_in_seconds || 0) / 3600; // em horas
+        const calories = act.active_kilocalories || 0;
+        const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
+        const maxHR = act.max_heart_rate_in_beats_per_minute || 220; // estimativa se não houver dado
+        
+        // Intensidade baseada na FC (mais realista)
+        let intensityFactor = 1;
+        if (avgHR > 0 && maxHR > 0) {
+          const hrReserve = (avgHR / maxHR);
+          if (hrReserve >= 0.75) intensityFactor = 2.5; // Zona 4-5
+          else if (hrReserve >= 0.65) intensityFactor = 2.0; // Zona 3
+          else if (hrReserve >= 0.55) intensityFactor = 1.5; // Zona 2
+        }
+        
+        // Fator de atividade
+        const activityType = (act.activity_type || '').toLowerCase();
+        let activityFactor = 1;
+        if (activityType.includes('run')) activityFactor = 1.2;
+        else if (activityType.includes('bike') || activityType.includes('cycling')) activityFactor = 1.0;
+        else if (activityType.includes('swim')) activityFactor = 1.3;
+        
+        return total + (duration * intensityFactor * activityFactor * (calories / 100));
+      }, 0);
+    };
 
-    // Fator 2: Intensidade média (25% do score)
-    const highIntensityActivities = last7Days.filter(act => {
-      const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
-      const maxHR = act.max_heart_rate_in_beats_per_minute || 0;
-      return maxHR > 0 && (avgHR / maxHR) > 0.85;
-    });
+    const currentWeekLoad = calculateTrainingLoad(last7Days);
+    const previousWeekLoad = calculateTrainingLoad(last14Days.slice(7));
+    const avgMonthlyLoad = calculateTrainingLoad(last30Days) / 4.3; // média semanal do mês
 
-    const intensityPercentage = last7Days.length > 0 ? (highIntensityActivities.length / last7Days.length) * 100 : 0;
-    if (intensityPercentage > 50) {
-      score += 25;
-      factors.push('Muitos treinos de alta intensidade (>50%)');
-    } else if (intensityPercentage > 30) {
-      score += 12;
-      factors.push('Intensidade moderada-alta');
-    }
-
-    // Fator 3: Falta de recuperação (20% do score)
-    const avgRestDays = 7 - weeklyFrequency;
-    if (avgRestDays < 1) {
+    // Análise de carga
+    if (currentWeekLoad > avgMonthlyLoad * 1.5) {
+      score += 35;
+      factors.push(`Carga de treino muito alta (${currentWeekLoad.toFixed(1)} vs média ${avgMonthlyLoad.toFixed(1)})`);
+    } else if (currentWeekLoad > avgMonthlyLoad * 1.2) {
       score += 20;
-      factors.push('Falta de dias de descanso');
-    } else if (avgRestDays < 2) {
+      factors.push('Carga de treino elevada');
+    }
+
+    // === Fator 2: Frequência e Recuperação (25% do score) ===
+    const weeklyFrequency = last7Days.length;
+    const consecutiveDays = getConsecutiveTrainingDays(last7Days);
+    
+    if (weeklyFrequency > 6) {
+      score += 15;
+      factors.push('Frequência muito alta (>6 treinos/semana)');
+    } else if (weeklyFrequency > 5) {
+      score += 8;
+      factors.push('Frequência alta');
+    }
+
+    if (consecutiveDays > 5) {
       score += 10;
+      factors.push(`${consecutiveDays} dias consecutivos sem descanso`);
+    } else if (consecutiveDays > 3) {
+      score += 5;
       factors.push('Poucos dias de recuperação');
     }
 
-    // Fator 4: Duração excessiva (15% do score)
-    const longActivities = last7Days.filter(act => (act.duration_in_seconds || 0) > 7200); // >2h
-    if (longActivities.length > 2) {
-      score += 15;
-      factors.push('Múltiplas sessões longas (>2h)');
-    } else if (longActivities.length > 0) {
-      score += 7;
-      factors.push('Algumas sessões longas');
-    }
+    // === Fator 3: Intensidade Acumulada (20% do score) ===
+    const highIntensityCount = last7Days.filter(act => {
+      const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
+      const maxHR = act.max_heart_rate_in_beats_per_minute || 220;
+      const calories = act.active_kilocalories || 0;
+      const duration = (act.duration_in_seconds || 0) / 3600;
+      
+      // Critério mais realista: FC > 75% ou alta queima calórica
+      const highHR = avgHR > 0 && maxHR > 0 && (avgHR / maxHR) > 0.75;
+      const highCalorieRate = duration > 0 && (calories / duration) > 400; // cal/hora
+      
+      return highHR || highCalorieRate;
+    }).length;
 
-    // Fator 5: Tendência crescente (10% do score)
-    const weeklyIncrease = last7Days.length > last14Days.length / 2;
-    if (weeklyIncrease) {
+    const intensityRatio = last7Days.length > 0 ? (highIntensityCount / last7Days.length) : 0;
+    if (intensityRatio > 0.6) {
+      score += 20;
+      factors.push(`${Math.round(intensityRatio * 100)}% treinos alta intensidade`);
+    } else if (intensityRatio > 0.4) {
       score += 10;
-      factors.push('Aumento súbito no volume');
+      factors.push('Muitos treinos intensos');
     }
 
-    // Determinar nível de risco
-    let level: 'baixo' | 'medio' | 'alto' = 'baixo';
-    let recommendation = 'Continue com seu plano atual de treinos.';
+    // === Fator 4: Tendência de Volume (20% do score) ===
+    if (previousWeekLoad > 0) {
+      const loadIncrease = (currentWeekLoad - previousWeekLoad) / previousWeekLoad;
+      if (loadIncrease > 0.3) {
+        score += 20;
+        factors.push(`Aumento súbito de ${Math.round(loadIncrease * 100)}% na carga`);
+      } else if (loadIncrease > 0.15) {
+        score += 10;
+        factors.push('Crescimento rápido no volume');
+      }
+    }
 
-    if (score >= 60) {
+    // Determinar nível de risco e recomendações
+    let level: 'baixo' | 'medio' | 'alto' = 'baixo';
+    let recommendation = 'Continue com seu plano atual, mantendo equilíbrio entre treino e recuperação.';
+
+    if (score >= 50) {
       level = 'alto';
-      recommendation = 'Considere reduzir volume e intensidade. Inclua mais dias de recuperação.';
-    } else if (score >= 30) {
+      recommendation = 'ATENÇÃO: Risco alto de overtraining. Reduza volume/intensidade, aumente recuperação e considere consultar um profissional.';
+    } else if (score >= 25) {
       level = 'medio';
-      recommendation = 'Monitore sinais de fadiga. Considere incluir mais recuperação ativa.';
+      recommendation = 'Monitore sinais de fadiga. Inclua mais recuperação ativa e evite aumentos súbitos de carga.';
     }
 
     return {
       level,
       score: Math.min(100, score),
-      factors: factors.length > 0 ? factors : ['Sem fatores de risco identificados'],
+      factors: factors.length > 0 ? factors : ['Carga de treino equilibrada'],
       recommendation
     };
+  };
+
+  // Função auxiliar para calcular dias consecutivos
+  const getConsecutiveTrainingDays = (activities: any[]): number => {
+    if (activities.length === 0) return 0;
+    
+    const dates = activities
+      .map(act => new Date(act.activity_date))
+      .sort((a, b) => b.getTime() - a.getTime());
+    
+    let consecutive = 1;
+    let maxConsecutive = 1;
+    
+    for (let i = 1; i < dates.length; i++) {
+      const dayDiff = Math.abs(dates[i-1].getTime() - dates[i].getTime()) / (1000 * 60 * 60 * 24);
+      if (dayDiff <= 1.1) { // tolerância para fusos horários
+        consecutive++;
+        maxConsecutive = Math.max(maxConsecutive, consecutive);
+      } else {
+        consecutive = 1;
+      }
+    }
+    
+    return maxConsecutive;
   };
 
   return {
