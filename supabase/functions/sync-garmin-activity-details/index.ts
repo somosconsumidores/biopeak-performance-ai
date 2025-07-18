@@ -272,71 +272,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Process and store activity details
+    // Process and store activity details in batches to avoid CPU timeout
     let syncedCount = 0;
     const errors: string[] = [];
+    const BATCH_SIZE = 10; // Process 10 activities at a time
+    const MAX_SAMPLES_PER_ACTIVITY = 100; // Limit samples to prevent memory issues
 
-    for (const detail of activityDetails) {
-      try {
-        // Check if activity has required fields
-        if (!detail.activityId || !detail.summaryId) {
-          console.error('[sync-activity-details] Missing required fields for activity:', detail);
-          errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
-          continue;
-        }
-
-        // Safe access to activitySummary properties
-        const activitySummary = detail.activitySummary || {};
-        const samples = detail.samples || [];
-        
-        // Extract activity name from the summary field (as shown in API logs)
-        const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
-
-        // If there are samples, save each sample as a separate row
-        if (samples.length > 0) {
-          for (const sample of samples) {
-            const sampleTimestamp = sample.timestampInSeconds || activitySummary.startTimeInSeconds || null;
-            
-            const { error: upsertError } = await supabaseClient
-              .from('garmin_activity_details')
-              .upsert({
-                user_id: user.id,
-                activity_id: detail.activityId,
-                summary_id: detail.summaryId,
-                activity_name: extractedActivityName,
-                upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
-                start_time_in_seconds: sampleTimestamp,
-                duration_in_seconds: activitySummary.durationInSeconds || null,
-                activity_type: activitySummary.activityType || null,
-                device_name: activitySummary.deviceName || null,
-                sample_timestamp: sampleTimestamp,
-                samples: sample, // Store individual sample data
-                activity_summary: activitySummary,
-                // Extract sample data into structured columns
-              heart_rate: sample.heartRate || null,
-              latitude_in_degree: sample.latitudeInDegree || null,
-              longitude_in_degree: sample.longitudeInDegree || null,
-              elevation_in_meters: sample.elevationInMeters || null,
-              speed_meters_per_second: sample.speedMetersPerSecond || null,
-              power_in_watts: sample.powerInWatts || null,
-              total_distance_in_meters: sample.totalDistanceInMeters || null,
-              steps_per_minute: sample.stepsPerMinute || null,
-              clock_duration_in_seconds: sample.clockDurationInSeconds || null,
-              moving_duration_in_seconds: sample.movingDurationInSeconds || null,
-              timer_duration_in_seconds: sample.timerDurationInSeconds || null,
-              updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'user_id,summary_id,sample_timestamp'
-              });
-
-            if (upsertError) {
-              console.error('[sync-activity-details] Error upserting sample:', upsertError);
-              errors.push(`Failed to store sample for activity ${detail.activityId}: ${upsertError.message}`);
-            }
+    for (let i = 0; i < activityDetails.length; i += BATCH_SIZE) {
+      const batch = activityDetails.slice(i, i + BATCH_SIZE);
+      
+      for (const detail of batch) {
+        try {
+          // Check if activity has required fields
+          if (!detail.activityId || !detail.summaryId) {
+            console.error('[sync-activity-details] Missing required fields for activity:', detail);
+            errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
+            continue;
           }
-          syncedCount++;
-        } else {
-          // If no samples, save just the activity summary with a default timestamp
+
+          // Safe access to activitySummary properties
+          const activitySummary = detail.activitySummary || {};
+          const samples = detail.samples ? detail.samples.slice(0, MAX_SAMPLES_PER_ACTIVITY) : [];
+          
+          // Extract activity name from the summary field (as shown in API logs)
+          const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
+
+          // Store just one row per activity with samples as JSON to reduce processing time
           const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
           
           const { error: upsertError } = await supabaseClient
@@ -352,8 +313,20 @@ Deno.serve(async (req) => {
               activity_type: activitySummary.activityType || null,
               device_name: activitySummary.deviceName || null,
               sample_timestamp: defaultTimestamp,
-              samples: null,
+              samples: samples.length > 0 ? samples : null,
               activity_summary: activitySummary,
+              // Store summary data from first sample if available
+              heart_rate: samples[0]?.heartRate || null,
+              latitude_in_degree: samples[0]?.latitudeInDegree || null,
+              longitude_in_degree: samples[0]?.longitudeInDegree || null,
+              elevation_in_meters: samples[0]?.elevationInMeters || null,
+              speed_meters_per_second: samples[0]?.speedMetersPerSecond || null,
+              power_in_watts: samples[0]?.powerInWatts || null,
+              total_distance_in_meters: samples[0]?.totalDistanceInMeters || null,
+              steps_per_minute: samples[0]?.stepsPerMinute || null,
+              clock_duration_in_seconds: samples[0]?.clockDurationInSeconds || null,
+              moving_duration_in_seconds: samples[0]?.movingDurationInSeconds || null,
+              timer_duration_in_seconds: samples[0]?.timerDurationInSeconds || null,
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'user_id,summary_id,sample_timestamp'
@@ -365,10 +338,15 @@ Deno.serve(async (req) => {
           } else {
             syncedCount++;
           }
+        } catch (error) {
+          console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
+          errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
         }
-      } catch (error) {
-        console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
-        errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
+      }
+      
+      // Small delay between batches to prevent CPU timeout
+      if (i + BATCH_SIZE < activityDetails.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
 
