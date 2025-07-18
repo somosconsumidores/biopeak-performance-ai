@@ -87,7 +87,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       emoji: '⚙️',
       metrics: [
         { label: 'Potência por batimento', value: `${metrics.efficiency.powerPerBeat} W/bpm` },
-        { label: 'Distância por minuto', value: `${metrics.efficiency.distancePerMinute} km/min` }
+        { label: 'Distância por minuto', value: `${metrics.efficiency.distancePerMinute} m/min` }
       ],
       comment: metrics.efficiency.comment,
       color: 'text-blue-400'
