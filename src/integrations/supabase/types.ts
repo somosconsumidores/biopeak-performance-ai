@@ -230,6 +230,129 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_daily_summaries: {
+        Row: {
+          active_kilocalories: number | null
+          active_time_in_seconds: number | null
+          activity_stress_duration_in_seconds: number | null
+          activity_type: string | null
+          average_heart_rate_in_beats_per_minute: number | null
+          average_stress_level: number | null
+          bmr_kilocalories: number | null
+          calendar_date: string
+          created_at: string
+          distance_in_meters: number | null
+          duration_in_seconds: number | null
+          floors_climbed: number | null
+          floors_climbed_goal: number | null
+          high_stress_duration_in_seconds: number | null
+          id: string
+          intensity_duration_goal_in_seconds: number | null
+          low_stress_duration_in_seconds: number | null
+          max_heart_rate_in_beats_per_minute: number | null
+          max_stress_level: number | null
+          medium_stress_duration_in_seconds: number | null
+          min_heart_rate_in_beats_per_minute: number | null
+          moderate_intensity_duration_in_seconds: number | null
+          push_distance_in_meters: number | null
+          pushes: number | null
+          pushes_goal: number | null
+          rest_stress_duration_in_seconds: number | null
+          resting_heart_rate_in_beats_per_minute: number | null
+          start_time_in_seconds: number | null
+          start_time_offset_in_seconds: number | null
+          steps: number | null
+          steps_goal: number | null
+          stress_duration_in_seconds: number | null
+          stress_qualifier: string | null
+          summary_id: string
+          time_offset_heart_rate_samples: Json | null
+          updated_at: string
+          user_id: string
+          vigorous_intensity_duration_in_seconds: number | null
+        }
+        Insert: {
+          active_kilocalories?: number | null
+          active_time_in_seconds?: number | null
+          activity_stress_duration_in_seconds?: number | null
+          activity_type?: string | null
+          average_heart_rate_in_beats_per_minute?: number | null
+          average_stress_level?: number | null
+          bmr_kilocalories?: number | null
+          calendar_date: string
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          floors_climbed?: number | null
+          floors_climbed_goal?: number | null
+          high_stress_duration_in_seconds?: number | null
+          id?: string
+          intensity_duration_goal_in_seconds?: number | null
+          low_stress_duration_in_seconds?: number | null
+          max_heart_rate_in_beats_per_minute?: number | null
+          max_stress_level?: number | null
+          medium_stress_duration_in_seconds?: number | null
+          min_heart_rate_in_beats_per_minute?: number | null
+          moderate_intensity_duration_in_seconds?: number | null
+          push_distance_in_meters?: number | null
+          pushes?: number | null
+          pushes_goal?: number | null
+          rest_stress_duration_in_seconds?: number | null
+          resting_heart_rate_in_beats_per_minute?: number | null
+          start_time_in_seconds?: number | null
+          start_time_offset_in_seconds?: number | null
+          steps?: number | null
+          steps_goal?: number | null
+          stress_duration_in_seconds?: number | null
+          stress_qualifier?: string | null
+          summary_id: string
+          time_offset_heart_rate_samples?: Json | null
+          updated_at?: string
+          user_id: string
+          vigorous_intensity_duration_in_seconds?: number | null
+        }
+        Update: {
+          active_kilocalories?: number | null
+          active_time_in_seconds?: number | null
+          activity_stress_duration_in_seconds?: number | null
+          activity_type?: string | null
+          average_heart_rate_in_beats_per_minute?: number | null
+          average_stress_level?: number | null
+          bmr_kilocalories?: number | null
+          calendar_date?: string
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          floors_climbed?: number | null
+          floors_climbed_goal?: number | null
+          high_stress_duration_in_seconds?: number | null
+          id?: string
+          intensity_duration_goal_in_seconds?: number | null
+          low_stress_duration_in_seconds?: number | null
+          max_heart_rate_in_beats_per_minute?: number | null
+          max_stress_level?: number | null
+          medium_stress_duration_in_seconds?: number | null
+          min_heart_rate_in_beats_per_minute?: number | null
+          moderate_intensity_duration_in_seconds?: number | null
+          push_distance_in_meters?: number | null
+          pushes?: number | null
+          pushes_goal?: number | null
+          rest_stress_duration_in_seconds?: number | null
+          resting_heart_rate_in_beats_per_minute?: number | null
+          start_time_in_seconds?: number | null
+          start_time_offset_in_seconds?: number | null
+          steps?: number | null
+          steps_goal?: number | null
+          stress_duration_in_seconds?: number | null
+          stress_qualifier?: string | null
+          summary_id?: string
+          time_offset_heart_rate_samples?: Json | null
+          updated_at?: string
+          user_id?: string
+          vigorous_intensity_duration_in_seconds?: number | null
+        }
+        Relationships: []
+      }
       garmin_tokens: {
         Row: {
           access_token: string
