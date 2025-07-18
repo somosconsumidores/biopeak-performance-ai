@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { SocialShareButton } from './SocialShareButton';
 import { WorkoutSharePreview } from './WorkoutSharePreview';
+import { WorkoutShareImage } from './WorkoutShareImage';
 import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
 import { toast } from '@/hooks/use-toast';
 
@@ -82,9 +83,14 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
         {/* Content */}
         <div className="relative p-4 sm:p-6 pt-2 sm:pt-0 space-y-4 sm:space-y-6 pb-6">
-          {/* Workout Preview */}
-          <div className="relative" ref={previewRef}>
+          {/* Workout Preview para visualização */}
+          <div className="mb-6">
             <WorkoutSharePreview workoutData={workoutData} />
+          </div>
+
+          {/* Hidden div for image generation */}
+          <div className="absolute -top-[10000px] left-0" ref={previewRef}>
+            <WorkoutShareImage workoutData={workoutData} />
           </div>
 
           {/* Social Media Buttons */}
