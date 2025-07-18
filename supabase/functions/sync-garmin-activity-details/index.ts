@@ -272,32 +272,82 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Process and store activity details in batches to avoid CPU timeout
+    // Process and store all activity details preserving ALL samples
     let syncedCount = 0;
     const errors: string[] = [];
-    const BATCH_SIZE = 10; // Process 10 activities at a time
-    const MAX_SAMPLES_PER_ACTIVITY = 100; // Limit samples to prevent memory issues
 
-    for (let i = 0; i < activityDetails.length; i += BATCH_SIZE) {
-      const batch = activityDetails.slice(i, i + BATCH_SIZE);
-      
-      for (const detail of batch) {
-        try {
-          // Check if activity has required fields
-          if (!detail.activityId || !detail.summaryId) {
-            console.error('[sync-activity-details] Missing required fields for activity:', detail);
-            errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
-            continue;
+    // Process activities one by one to avoid CPU timeout while preserving all data
+    for (const detail of activityDetails) {
+      try {
+        // Check if activity has required fields
+        if (!detail.activityId || !detail.summaryId) {
+          console.error('[sync-activity-details] Missing required fields for activity:', detail);
+          errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
+          continue;
+        }
+
+        // Safe access to activitySummary properties
+        const activitySummary = detail.activitySummary || {};
+        const samples = detail.samples || []; // Keep ALL samples - don't limit
+        
+        // Extract activity name from the summary field (as shown in API logs)
+        const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
+
+        console.log(`[sync-activity-details] Processing activity ${detail.activityId} with ${samples.length} samples`);
+
+        // For activities with many samples, store them in chunks to reduce memory pressure
+        if (samples.length > 500) {
+          // For large activities, store samples in chunks but preserve all data
+          const CHUNK_SIZE = 250;
+          for (let i = 0; i < samples.length; i += CHUNK_SIZE) {
+            const sampleChunk = samples.slice(i, i + CHUNK_SIZE);
+            const chunkTimestamp = sampleChunk[0]?.startTimeInSeconds || 
+                                 activitySummary.startTimeInSeconds || 
+                                 activitySummary.uploadTimeInSeconds || 
+                                 Date.now() / 1000;
+
+            const { error: upsertError } = await supabaseClient
+              .from('garmin_activity_details')
+              .upsert({
+                user_id: user.id,
+                activity_id: detail.activityId,
+                summary_id: `${detail.summaryId}-chunk-${Math.floor(i / CHUNK_SIZE)}`,
+                activity_name: extractedActivityName,
+                upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+                start_time_in_seconds: activitySummary.startTimeInSeconds || null,
+                duration_in_seconds: activitySummary.durationInSeconds || null,
+                activity_type: activitySummary.activityType || null,
+                device_name: activitySummary.deviceName || null,
+                sample_timestamp: Math.floor(chunkTimestamp),
+                samples: sampleChunk,
+                activity_summary: i === 0 ? activitySummary : null, // Only store summary in first chunk
+                // Store data from first sample in chunk
+                heart_rate: sampleChunk[0]?.heartRate || null,
+                latitude_in_degree: sampleChunk[0]?.latitudeInDegree || null,
+                longitude_in_degree: sampleChunk[0]?.longitudeInDegree || null,
+                elevation_in_meters: sampleChunk[0]?.elevationInMeters || null,
+                speed_meters_per_second: sampleChunk[0]?.speedMetersPerSecond || null,
+                power_in_watts: sampleChunk[0]?.powerInWatts || null,
+                total_distance_in_meters: sampleChunk[0]?.totalDistanceInMeters || null,
+                steps_per_minute: sampleChunk[0]?.stepsPerMinute || null,
+                clock_duration_in_seconds: sampleChunk[0]?.clockDurationInSeconds || null,
+                moving_duration_in_seconds: sampleChunk[0]?.movingDurationInSeconds || null,
+                timer_duration_in_seconds: sampleChunk[0]?.timerDurationInSeconds || null,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,summary_id,sample_timestamp'
+              });
+
+            if (upsertError) {
+              console.error('[sync-activity-details] Error upserting activity detail chunk:', upsertError);
+              errors.push(`Failed to store activity ${detail.activityId} chunk ${Math.floor(i / CHUNK_SIZE)}: ${upsertError.message}`);
+            }
+
+            // Small yield between chunks to prevent CPU timeout
+            await new Promise(resolve => setTimeout(resolve, 5));
           }
-
-          // Safe access to activitySummary properties
-          const activitySummary = detail.activitySummary || {};
-          const samples = detail.samples ? detail.samples.slice(0, MAX_SAMPLES_PER_ACTIVITY) : [];
-          
-          // Extract activity name from the summary field (as shown in API logs)
-          const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
-
-          // Store just one row per activity with samples as JSON to reduce processing time
+        } else {
+          // For smaller activities, store normally
           const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
           
           const { error: upsertError } = await supabaseClient
@@ -335,18 +385,17 @@ Deno.serve(async (req) => {
           if (upsertError) {
             console.error('[sync-activity-details] Error upserting activity detail:', upsertError);
             errors.push(`Failed to store activity ${detail.activityId}: ${upsertError.message}`);
-          } else {
-            syncedCount++;
           }
-        } catch (error) {
-          console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
-          errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
         }
-      }
-      
-      // Small delay between batches to prevent CPU timeout
-      if (i + BATCH_SIZE < activityDetails.length) {
+
+        syncedCount++;
+        
+        // Small yield between activities to prevent CPU timeout
         await new Promise(resolve => setTimeout(resolve, 10));
+        
+      } catch (error) {
+        console.error('[sync-activity-details] Unexpected error processing activity detail:', error);
+        errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
       }
     }
 
