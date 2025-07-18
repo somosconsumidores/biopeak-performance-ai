@@ -8,6 +8,7 @@ import {
   BarChart3,
   Activity 
 } from 'lucide-react';
+import socialShareBg from '@/assets/social-share-bg.png';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -78,133 +79,136 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
 
   return (
     <div 
-      className="w-[800px] h-[600px] relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+      className="w-[800px] h-[600px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        background: 'linear-gradient(135deg, #0f172a 0%, #581c87 50%, #0f172a 100%)'
+        backgroundImage: `url(${socialShareBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-10 left-10 w-32 h-32 border border-white/20 rounded-full"></div>
-        <div className="absolute top-32 right-20 w-24 h-24 border border-white/10 rounded-full"></div>
-        <div className="absolute bottom-20 left-32 w-16 h-16 border border-white/15 rounded-full"></div>
-        <div className="absolute bottom-32 right-16 w-20 h-20 border border-white/10 rounded-full"></div>
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60"></div>
+      
+      {/* Additional overlay in corners for branding */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black/80 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/70 to-transparent"></div>
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 p-12 h-full flex flex-col">
-        {/* Logo Header */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center space-x-4 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3 border border-white/20">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">B</span>
+      <div className="relative z-20 p-8 h-full flex flex-col">
+        {/* Logo Header - positioned in top left */}
+        <div className="flex justify-start mb-6">
+          <div className="flex items-center space-x-3 bg-white/95 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white/30">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-base">B</span>
             </div>
-            <span className="text-2xl font-bold text-white">
+            <span className="text-xl font-bold text-gray-900">
               BioPeak
             </span>
           </div>
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center space-x-4">
-            <div className="text-6xl">
-              {getActivityEmoji(workoutData.activity_type)}
+        {/* Header - positioned on the right side */}
+        <div className="flex items-start justify-end mb-8">
+          <div className="text-right max-w-md">
+            <div className="flex items-center justify-end space-x-4 mb-4">
+              <div className="text-5xl">
+                {getActivityEmoji(workoutData.activity_type)}
+              </div>
+              <div className="bg-green-500/90 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-lg">
+                <Activity className="h-4 w-4" />
+                <span className="font-medium text-sm">Concluído</span>
+              </div>
             </div>
-            <div>
-              <h3 className="text-3xl font-bold text-white">
-                {getActivityType(workoutData.activity_type)}
-              </h3>
-              <p className="text-lg text-gray-300">
-                Treino completado com sucesso
-              </p>
-            </div>
-          </div>
-          <div className="bg-green-500/20 text-green-300 border border-green-500/30 px-4 py-2 rounded-full flex items-center space-x-2">
-            <Activity className="h-5 w-5" />
-            <span className="font-medium">Concluído</span>
-          </div>
-        </div>
-
-        {/* Main Metrics Grid */}
-        <div className="grid grid-cols-3 gap-8 mb-10 flex-1">
-          <div className="text-center space-y-3 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="flex justify-center">
-              <Clock className="h-8 w-8 text-purple-400" />
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {formatDuration(workoutData.duration_in_seconds)}
-            </div>
-            <div className="text-gray-300 text-lg">Duração</div>
-          </div>
-          
-          <div className="text-center space-y-3 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="flex justify-center">
-              <MapPin className="h-8 w-8 text-purple-400" />
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {formatDistance(workoutData.distance_in_meters)}
-            </div>
-            <div className="text-gray-300 text-lg">Distância</div>
-          </div>
-          
-          <div className="text-center space-y-3 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="flex justify-center">
-              <TrendingUp className="h-8 w-8 text-purple-400" />
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
-            </div>
-            <div className="text-gray-300 text-lg">Pace</div>
+            <h3 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
+              {getActivityType(workoutData.activity_type)}
+            </h3>
+            <p className="text-lg text-white/90 drop-shadow">
+              Treino completado com sucesso
+            </p>
           </div>
         </div>
 
-        {/* Secondary Metrics */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          <div className="text-center space-y-2 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex justify-center">
-              <Zap className="h-6 w-6 text-orange-400" />
+        {/* Main Metrics Grid - positioned in lower section */}
+        <div className="mt-auto mb-6">
+          <div className="grid grid-cols-3 gap-6 mb-6">
+            <div className="text-center space-y-3 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-lg">
+              <div className="flex justify-center">
+                <Clock className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
+                {formatDuration(workoutData.duration_in_seconds)}
+              </div>
+              <div className="text-gray-600 text-lg font-medium">Duração</div>
             </div>
-            <div className="text-xl font-semibold text-orange-300">
-              {workoutData.active_kilocalories || '--'}
+            
+            <div className="text-center space-y-3 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-lg">
+              <div className="flex justify-center">
+                <MapPin className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
+                {formatDistance(workoutData.distance_in_meters)}
+              </div>
+              <div className="text-gray-600 text-lg font-medium">Distância</div>
             </div>
-            <div className="text-gray-400">kcal</div>
+            
+            <div className="text-center space-y-3 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-lg">
+              <div className="flex justify-center">
+                <TrendingUp className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
+                {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
+              </div>
+              <div className="text-gray-600 text-lg font-medium">Pace</div>
+            </div>
           </div>
-          
-          <div className="text-center space-y-2 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex justify-center">
-              <Heart className="h-6 w-6 text-red-400" />
+
+          {/* Secondary Metrics */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center space-y-2 bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow">
+              <div className="flex justify-center">
+                <Zap className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="text-xl font-semibold text-gray-900">
+                {workoutData.active_kilocalories || '--'}
+              </div>
+              <div className="text-gray-600 text-sm font-medium">kcal</div>
             </div>
-            <div className="text-xl font-semibold text-red-300">
-              {workoutData.average_heart_rate_in_beats_per_minute || '--'}
+            
+            <div className="text-center space-y-2 bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow">
+              <div className="flex justify-center">
+                <Heart className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="text-xl font-semibold text-gray-900">
+                {workoutData.average_heart_rate_in_beats_per_minute || '--'}
+              </div>
+              <div className="text-gray-600 text-sm font-medium">bpm</div>
             </div>
-            <div className="text-gray-400">bpm</div>
-          </div>
-          
-          <div className="text-center space-y-2 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex justify-center">
-              <BarChart3 className="h-6 w-6 text-blue-400" />
+            
+            <div className="text-center space-y-2 bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow">
+              <div className="flex justify-center">
+                <BarChart3 className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="text-xl font-semibold text-gray-900">
+                {formatElevation(workoutData.total_elevation_gain_in_meters)}
+              </div>
+              <div className="text-gray-600 text-sm font-medium">elevação</div>
             </div>
-            <div className="text-xl font-semibold text-blue-300">
-              {formatElevation(workoutData.total_elevation_gain_in_meters)}
-            </div>
-            <div className="text-gray-400">elevação</div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center border-t border-white/10 pt-6">
-          <p className="text-gray-300 text-lg">
-            ✨ Análise inteligente de performance com BioPeak
-          </p>
+        <div className="text-center">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30 shadow-lg inline-block">
+            <p className="text-gray-800 text-base font-medium">
+              ✨ Análise inteligente de performance com BioPeak
+            </p>
+          </div>
         </div>
       </div>
-
-      {/* Decorative elements */}
-      <div className="absolute top-8 right-8 w-3 h-3 bg-purple-400/60 rounded-full animate-pulse"></div>
-      <div className="absolute bottom-8 left-8 w-2 h-2 bg-pink-400/60 rounded-full animate-pulse"></div>
-      <div className="absolute top-1/2 right-12 w-2.5 h-2.5 bg-purple-300/50 rounded-full animate-pulse"></div>
     </div>
   );
 };
