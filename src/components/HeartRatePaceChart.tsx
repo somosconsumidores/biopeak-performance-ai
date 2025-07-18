@@ -94,100 +94,146 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
           <span>Evolução do Ritmo e Frequência Cardíaca</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className={`${isMobile ? 'h-64' : 'h-72 sm:h-80'}`}>
+      <CardContent className="p-3 sm:p-6">
+        {/* Strava-style chart with gradient background */}
+        <div className={`relative overflow-hidden rounded-lg ${isMobile ? 'h-72' : 'h-80 sm:h-96'}`} style={{
+          background: isMobile ? 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)/10) 100%)' : undefined
+        }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={data} 
               margin={{ 
-                top: 10, 
-                right: isMobile ? 15 : (isTablet ? 20 : 30), 
-                left: isMobile ? 15 : (isTablet ? 20 : 25), 
-                bottom: isMobile ? 15 : 20 
+                top: isMobile ? 20 : 25, 
+                right: isMobile ? 20 : 30, 
+                left: isMobile ? 45 : 50, 
+                bottom: isMobile ? 30 : 40 
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              {/* Simplified grid for cleaner look */}
+              <CartesianGrid 
+                strokeDasharray="2 4" 
+                className="opacity-20" 
+                horizontal={true}
+                vertical={false}
+              />
+              
+              {/* Bottom axis - Distance */}
               <XAxis 
                 dataKey="distance_km" 
                 type="number"
                 domain={[0, 'dataMax']}
-                tickFormatter={(value) => isMobile ? `${value.toFixed(0)}km` : `${value.toFixed(1)}km`}
-                fontSize={isMobile ? 9 : 12}
-                tick={{ fontSize: isMobile ? 9 : 12 }}
-                interval={isMobile ? 'preserveStartEnd' : 0}
+                tickFormatter={(value) => `${value.toFixed(isMobile ? 0 : 1)}`}
+                fontSize={isMobile ? 11 : 13}
+                tick={{ fontSize: isMobile ? 11 : 13, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+                interval={isMobile ? 'preserveStartEnd' : 'preserveStartEnd'}
+                tickCount={isMobile ? 4 : 6}
               />
+              
+              {/* Left axis - Pace */}
               <YAxis 
                 yAxisId="pace"
                 dataKey="pace_min_per_km"
-                domain={['dataMin - 0.2', 'dataMax + 0.2']}
+                domain={['dataMin - 0.3', 'dataMax + 0.3']}
                 tickFormatter={(value) => {
                   if (value === null || value === undefined) return '';
                   const minutes = Math.floor(value);
                   const seconds = Math.round((value - minutes) * 60);
-                  return isMobile ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 }}
-                stroke="hsl(var(--primary))"
-                fontSize={isMobile ? 9 : 12}
-                tick={{ fontSize: isMobile ? 9 : 12 }}
-                width={isMobile ? 40 : 50}
+                fontSize={isMobile ? 10 : 12}
+                tick={{ fontSize: isMobile ? 10 : 12, fill: 'hsl(var(--primary))' }}
+                axisLine={false}
+                tickLine={false}
+                width={isMobile ? 42 : 50}
+                tickCount={isMobile ? 4 : 5}
               />
+              
+              {/* Right axis - Heart Rate */}
               <YAxis 
                 yAxisId="hr"
                 orientation="right"
-                domain={['dataMin - 10', 'dataMax + 10']}
-                tickFormatter={(value) => isMobile ? `${Math.round(value)}` : `${Math.round(value)} bpm`}
-                stroke="hsl(var(--secondary))"
-                fontSize={isMobile ? 9 : 12}
-                tick={{ fontSize: isMobile ? 9 : 12 }}
-                width={isMobile ? 35 : 50}
+                domain={['dataMin - 5', 'dataMax + 5']}
+                tickFormatter={(value) => `${Math.round(value)}`}
+                fontSize={isMobile ? 10 : 12}
+                tick={{ fontSize: isMobile ? 10 : 12, fill: 'hsl(var(--chart-2))' }}
+                axisLine={false}
+                tickLine={false}
+                width={isMobile ? 35 : 45}
+                tickCount={isMobile ? 4 : 5}
               />
+              
+              {/* Strava-style tooltip */}
               <Tooltip content={<CustomTooltip />} />
               
-              {/* Reference lines for averages - hide on mobile for clarity */}
-              {avgPace > 0 && !isMobile && (
-                <ReferenceLine 
-                  yAxisId="pace"
-                  y={avgPace} 
-                  stroke="hsl(var(--primary))" 
-                  strokeDasharray="5 5" 
-                  strokeOpacity={0.5}
-                  label={{ value: "Ritmo Médio", position: "top", fontSize: 10 }}
-                />
-              )}
-              {!isMobile && (
-                <ReferenceLine 
-                  yAxisId="hr"
-                  y={avgHeartRate} 
-                  stroke="hsl(var(--secondary))" 
-                  strokeDasharray="5 5" 
-                  strokeOpacity={0.5}
-                  label={{ value: "FC Média", position: "top", fontSize: 10 }}
-                />
-              )}
+              {/* Pace line with Strava-style gradient */}
+              <defs>
+                <linearGradient id="paceGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="hrGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={0.6}/>
+                  <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity={0.05}/>
+                </linearGradient>
+              </defs>
               
+              {/* Heart Rate area (background layer) */}
+              <Line 
+                yAxisId="hr"
+                type="monotone" 
+                dataKey="heart_rate" 
+                stroke="hsl(var(--chart-2))" 
+                strokeWidth={isMobile ? 2.5 : 3}
+                dot={false}
+                activeDot={{ 
+                  r: isMobile ? 4 : 5, 
+                  fill: "hsl(var(--chart-2))",
+                  stroke: "white",
+                  strokeWidth: 2
+                }}
+                name="FC"
+                fillOpacity={0.3}
+                fill="url(#hrGradient)"
+              />
+              
+              {/* Pace line (foreground layer) */}
               <Line 
                 yAxisId="pace"
                 type="monotone" 
                 dataKey="pace_min_per_km" 
                 stroke="hsl(var(--primary))" 
-                strokeWidth={isMobile ? 1.5 : 2}
+                strokeWidth={isMobile ? 3 : 3.5}
                 dot={false}
-                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--primary))" }}
+                activeDot={{ 
+                  r: isMobile ? 5 : 6, 
+                  fill: "hsl(var(--primary))",
+                  stroke: "white",
+                  strokeWidth: 2,
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                }}
                 name="Ritmo"
                 connectNulls={false}
-              />
-              <Line 
-                yAxisId="hr"
-                type="monotone" 
-                dataKey="heart_rate" 
-                stroke="hsl(var(--secondary))" 
-                strokeWidth={isMobile ? 1.5 : 2}
-                dot={false}
-                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--secondary))" }}
-                name="Frequência Cardíaca"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </LineChart>
           </ResponsiveContainer>
+          
+          {/* Strava-style floating labels on mobile */}
+          {isMobile && (
+            <div className="absolute top-3 left-3 flex flex-col space-y-1">
+              <div className="flex items-center space-x-2 text-xs bg-card/90 backdrop-blur-sm rounded-full px-2 py-1">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                <span className="font-medium">Ritmo</span>
+              </div>
+              <div className="flex items-center space-x-2 text-xs bg-card/90 backdrop-blur-sm rounded-full px-2 py-1">
+                <div className="w-2 h-2 bg-chart-2 rounded-full"></div>
+                <span className="font-medium">FC</span>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className={`mt-4 grid gap-2 ${isMobile ? 'grid-cols-1 text-xs' : 'grid-cols-1 sm:grid-cols-3 text-xs sm:text-sm'}`}>
