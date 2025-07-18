@@ -21,15 +21,15 @@ export const useWorkoutImageShare = () => {
       
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
-        scale: 2, // Maior qualidade
+        scale: 1, // Ajustado para o tamanho do Instagram Stories
         useCORS: true,
         allowTaint: true,
-        width: 800,
-        height: 600,
+        width: 1080,
+        height: 1920,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: 800,
-        windowHeight: 600,
+        windowWidth: 1080,
+        windowHeight: 1920,
         logging: false,
       });
 
