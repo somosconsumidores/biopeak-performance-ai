@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       oauth_signature: signatureBase64
     };
 
-    const authHeader = 'OAuth ' + Object.entries(authParams)
+    const oauthAuthHeader = 'OAuth ' + Object.entries(authParams)
       .map(([key, value]) => `${key}="${encodeURIComponent(value)}"`)
       .join(', ');
 
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     const response = await fetch(garminUrl, {
       method: 'GET',
       headers: {
-        'Authorization': authHeader,
+        'Authorization': oauthAuthHeader,
         'Accept': 'application/json'
       }
     });
