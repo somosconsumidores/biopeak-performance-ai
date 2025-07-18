@@ -60,6 +60,18 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
         backgroundRepeat: 'no-repeat'
       }}
     >
+      {/* Activity Name - Top position */}
+      <div className="absolute" style={{ 
+        top: '30%', 
+        left: '50%', 
+        transform: 'translate(-50%, -50%)',
+        textAlign: 'center'
+      }}>
+        <div className="text-white font-bold text-6xl">
+          {workoutData.activity_type || 'Treino'}
+        </div>
+      </div>
+
       {/* Heart Rate - Central position over the ECG graph */}
       <div className="absolute" style={{ 
         top: '48%', 
