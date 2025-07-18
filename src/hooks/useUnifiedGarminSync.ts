@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface UnifiedSyncStage {
-  name: 'activities' | 'details';
+  name: 'activities' | 'details' | 'dailies';
   status: 'pending' | 'running' | 'completed' | 'error';
   progress?: number;
   message?: string;
@@ -21,6 +21,12 @@ interface UnifiedSyncResult {
     total: number;
     errors?: string[];
   };
+  dailies: {
+    message?: string;
+    synced: number;
+    total?: number;
+    errors?: string[];
+  };
   totalDuration: number;
 }
 
@@ -29,12 +35,13 @@ export const useUnifiedGarminSync = () => {
   const [currentStage, setCurrentStage] = useState<UnifiedSyncStage>({ name: 'activities', status: 'pending' });
   const [stages, setStages] = useState<UnifiedSyncStage[]>([
     { name: 'activities', status: 'pending', message: 'Aguardando...' },
-    { name: 'details', status: 'pending', message: 'Aguardando...' }
+    { name: 'details', status: 'pending', message: 'Aguardando...' },
+    { name: 'dailies', status: 'pending', message: 'Aguardando...' }
   ]);
   const [lastSyncResult, setLastSyncResult] = useState<UnifiedSyncResult | null>(null);
   const { toast } = useToast();
 
-  const updateStage = (stageName: 'activities' | 'details', updates: Partial<UnifiedSyncStage>) => {
+  const updateStage = (stageName: 'activities' | 'details' | 'dailies', updates: Partial<UnifiedSyncStage>) => {
     setStages(prev => prev.map(stage => 
       stage.name === stageName ? { ...stage, ...updates } : stage
     ));
@@ -51,7 +58,8 @@ export const useUnifiedGarminSync = () => {
     // Reset stages
     setStages([
       { name: 'activities', status: 'pending', message: 'Aguardando...' },
-      { name: 'details', status: 'pending', message: 'Aguardando...' }
+      { name: 'details', status: 'pending', message: 'Aguardando...' },
+      { name: 'dailies', status: 'pending', message: 'Aguardando...' }
     ]);
 
     try {
@@ -147,18 +155,57 @@ export const useUnifiedGarminSync = () => {
           message: `${detailsResult.synced} detalhes sincronizados` 
         });
 
-        toast({
-          title: "Sincronização completa",
-          description: `${activitiesResult.synced} atividades e ${detailsResult.synced} detalhes sincronizados com sucesso.`,
-          variant: "default",
+      }
+
+      // ETAPA 3: Sincronizar dados diários (últimas 24h)
+      console.log('[useUnifiedGarminSync] Starting dailies sync...');
+      updateStage('dailies', { 
+        status: 'running', 
+        progress: 0, 
+        message: 'Sincronizando dados diários...' 
+      });
+
+      const { data: dailiesData, error: dailiesError } = await supabase.functions.invoke('sync-garmin-dailies', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      let dailiesResult = { syncedCount: 0, message: 'Dados diários não sincronizados', errors: [] };
+      if (dailiesError || dailiesData?.error) {
+        updateStage('dailies', { 
+          status: 'error', 
+          message: 'Erro ao sincronizar dados diários' 
+        });
+        
+        console.warn('[useUnifiedGarminSync] Dailies sync failed');
+      } else {
+        dailiesResult = dailiesData;
+        updateStage('dailies', { 
+          status: 'completed', 
+          progress: 100, 
+          message: `${dailiesResult.syncedCount || 0} resumos diários sincronizados` 
         });
       }
+
+      // Toast final com todos os resultados
+      const detailsResult = detailsData;
+      toast({
+        title: "Sincronização completa",
+        description: `${activitiesResult.synced} atividades, ${detailsResult?.synced || 0} detalhes e ${dailiesResult.syncedCount || 0} resumos diários sincronizados.`,
+        variant: "default",
+      });
 
       // Armazenar resultado completo
       const totalDuration = Date.now() - startTime;
       const finalResult: UnifiedSyncResult = {
         activities: activitiesResult,
         details: detailsData || { message: 'Falha', synced: 0, total: 0 },
+        dailies: {
+          synced: dailiesResult.syncedCount || 0,
+          message: dailiesResult.message || 'Sincronizado',
+          errors: dailiesResult.errors || []
+        },
         totalDuration
       };
       

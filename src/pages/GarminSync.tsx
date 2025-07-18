@@ -21,7 +21,8 @@ import {
   Download,
   Zap,
   Database,
-  ArrowRight
+  ArrowRight,
+  Calendar
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -96,18 +97,22 @@ export function GarminSync() {
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
-  const getStageIcon = (stageName: 'activities' | 'details') => {
-    return stageName === 'activities' ? Activity : Database;
+  const getStageIcon = (stageName: 'activities' | 'details' | 'dailies') => {
+    if (stageName === 'activities') return Activity;
+    if (stageName === 'details') return Database;
+    return Calendar;
   };
 
-  const getStageLabel = (stageName: 'activities' | 'details') => {
-    return stageName === 'activities' ? 'Atividades Básicas' : 'Detalhes Recentes';
+  const getStageLabel = (stageName: 'activities' | 'details' | 'dailies') => {
+    if (stageName === 'activities') return 'Atividades Básicas';
+    if (stageName === 'details') return 'Detalhes Recentes';
+    return 'Resumos Diários';
   };
 
-  const getStageDescription = (stageName: 'activities' | 'details') => {
-    return stageName === 'activities' 
-      ? 'Sincronizando informações básicas das atividades'
-      : 'Sincronizando detalhes das atividades das últimas 24h';
+  const getStageDescription = (stageName: 'activities' | 'details' | 'dailies') => {
+    if (stageName === 'activities') return 'Sincronizando informações básicas das atividades';
+    if (stageName === 'details') return 'Sincronizando detalhes das atividades das últimas 24h';
+    return 'Sincronizando resumos diários de wellness';
   };
 
   return (
@@ -285,9 +290,10 @@ export function GarminSync() {
                               <div className="text-sm font-medium text-center text-green-400">
                                 ✓ Última Sincronização Completa
                               </div>
-                              <div className="flex justify-between text-xs text-muted-foreground">
+                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                                 <span>Atividades: {lastSyncResult.activities.synced}</span>
                                 <span>Detalhes: {lastSyncResult.details.synced}</span>
+                                <span>Resumos: {lastSyncResult.dailies.synced}</span>
                                 <span>Tempo: {Math.round(lastSyncResult.totalDuration / 1000)}s</span>
                               </div>
                             </div>
