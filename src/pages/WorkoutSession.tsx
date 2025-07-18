@@ -230,25 +230,24 @@ export const WorkoutSession = () => {
           <ScrollReveal delay={100}>
             <Card className="glass-card border-glass-border mb-8">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <CardTitle className="flex items-center space-x-2">
                     <Activity className="h-5 w-5 text-primary" />
                     <span>Resumo do Treino</span>
                     <Badge variant="default">
                       Concluído
                     </Badge>
-                  </div>
+                  </CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShareDialogOpen(true)}
-                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-3"
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
                   >
-                    <Share2 className="h-4 w-4 mr-1 sm:mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="hidden sm:inline">Compartilhar</span>
-                    <span className="sm:hidden text-xs">Share</span>
+                    <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    <span>Compartilhar</span>
                   </Button>
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
