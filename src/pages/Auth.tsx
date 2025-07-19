@@ -27,7 +27,10 @@ export function Auth() {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      // Check if user is new (just signed up) by checking if they have a profile
+      // For now, we'll redirect all authenticated users to sync page
+      // This could be enhanced to check if it's their first login
+      navigate('/sync');
     }
   }, [user, navigate]);
 
