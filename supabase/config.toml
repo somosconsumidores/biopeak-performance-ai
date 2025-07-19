@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.analyze-workout]
 verify_jwt = true
+
+[functions.send-error-notification]
+verify_jwt = false

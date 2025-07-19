@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { handleError } from '../_shared/error-handler.ts';
 
 const GARMIN_TOKEN_URL = "https://connectapi.garmin.com/di-oauth2-service/oauth/token";
 
@@ -39,7 +40,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
+  return await handleError('garmin-oauth', async () => {
     console.log('[garmin-oauth] Entering try block...');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -355,15 +356,7 @@ serve(async (req) => {
     }
 
     return new Response("Method not allowed", { status: 405 });
-
-  } catch (error) {
-    console.error('[garmin-oauth] Error in OAuth flow:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  }, {
+    requestData: { method: req.method, url: req.url }
+  });
 });
