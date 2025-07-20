@@ -46,18 +46,23 @@ serve(async (req) => {
     });
   }
 
+  // Get activityId from request body
+  const body = await req.json();
+  const { activityId } = body;
+  
+  if (!activityId) {
+    return new Response(JSON.stringify({ error: 'Activity ID is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   return await handleError('analyze-workout', async () => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
       throw new Error('Invalid authorization');
-    }
-
-    const { activityId } = await req.json();
-    
-    if (!activityId) {
-      throw new Error('Activity ID is required');
     }
 
     console.log('🤖 AI Analysis: Starting analysis for activity:', activityId, 'User:', user.id);
