@@ -4,12 +4,18 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
-// Updated logo import
-const bioPeakLogo = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
+import { useTheme } from '@/components/providers/ThemeProvider';
+// Logo imports
+const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
+const bioPeakLogoLight = '/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { theme } = useTheme();
+
+  // Get current logo based on theme
+  const currentLogo = theme === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
 
   const handleSignOut = async () => {
     await signOut();
@@ -28,7 +34,7 @@ export const Header = () => {
         <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
-            <img src={`${bioPeakLogo}?v=${Date.now()}`} alt="BioPeak" className="h-6 w-6 sm:h-8 sm:w-8" />
+            <img src={`${currentLogo}?v=${Date.now()}`} alt="BioPeak" className="h-6 w-6 sm:h-8 sm:w-8" />
             <span className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               BioPeak
             </span>
