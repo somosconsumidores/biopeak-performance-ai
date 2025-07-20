@@ -3,6 +3,7 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/ThemeToggle';
 // Updated logo import
 const bioPeakLogo = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
 
@@ -49,6 +50,7 @@ export const Header = () => {
               </nav>
 
               <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
+                <ThemeToggle />
                 <Button variant="outline" className="glass-card border-glass-border text-sm" asChild>
                   <Link to="/sync">Sincronizar Atividades</Link>
                 </Button>
@@ -59,6 +61,7 @@ export const Header = () => {
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-4">
+              <ThemeToggle />
               <Button variant="outline" className="glass-card border-glass-border" asChild>
                 <Link to="/auth">Login</Link>
               </Button>
@@ -69,7 +72,8 @@ export const Header = () => {
           )}
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center space-x-2">
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"

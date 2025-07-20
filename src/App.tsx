@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { LandingPage } from "./pages/LandingPage";
 import { Dashboard } from "./pages/Dashboard";
 import { WorkoutSession } from "./pages/WorkoutSession";
@@ -55,10 +56,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
+    <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
@@ -118,6 +120,7 @@ const App = () => (
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
+  </ThemeProvider>
   </QueryClientProvider>
 );
 

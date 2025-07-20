@@ -8,7 +8,68 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* BioPeak Color Palette */
+    /* BioPeak Light Mode */
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 280 90% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220 8.9% 46.1%;
+
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    --accent: 280 90% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 280 90% 65%;
+
+    --radius: 1rem;
+
+    /* BioPeak Light Glassmorphism Colors */
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 220 13% 91%;
+    --glass-bg-hover: 0 0% 100% / 0.9;
+
+    /* Light Mode Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(280 90% 65%), hsl(300 80% 70%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.8), hsl(0 0% 100% / 0.6));
+    --gradient-glow: linear-gradient(135deg, hsl(280 90% 65% / 0.2), hsl(300 80% 70% / 0.1));
+
+    /* Light Mode Shadows and Glows */
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.1);
+    --glow-primary: 0 0 40px hsl(280 90% 65% / 0.3);
+    --glow-subtle: 0 0 20px hsl(280 90% 65% / 0.15);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 71.4% 4.1%;
+    --sidebar-primary: 280 90% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14.3% 95.9%;
+    --sidebar-accent-foreground: 224 71.4% 4.1%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 280 90% 65%;
+  }
+
+  .dark {
+    /* BioPeak Dark Mode */
     --background: 250 90% 6%;
     --foreground: 0 0% 100%;
 
@@ -37,26 +98,20 @@ All colors MUST be HSL.
     --input: 0 0% 100% / 0.05;
     --ring: 280 90% 65%;
 
-    --radius: 1rem;
-
-    /* BioPeak Glassmorphism Colors */
+    /* Dark Mode Glassmorphism Colors */
     --glass-bg: 0 0% 100% / 0.05;
     --glass-border: 0 0% 100% / 0.1;
     --glass-bg-hover: 0 0% 100% / 0.08;
 
-    /* Gradients */
+    /* Dark Mode Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(280 90% 65%), hsl(300 80% 70%));
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.05));
     --gradient-glow: linear-gradient(135deg, hsl(280 90% 65% / 0.3), hsl(300 80% 70% / 0.2));
 
-    /* Shadows and Glows */
+    /* Dark Mode Shadows and Glows */
     --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.37);
     --glow-primary: 0 0 40px hsl(280 90% 65% / 0.4);
     --glow-subtle: 0 0 20px hsl(280 90% 65% / 0.2);
-
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 250 90% 6%;
     --sidebar-foreground: 0 0% 100%;
