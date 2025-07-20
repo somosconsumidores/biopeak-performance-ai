@@ -15,7 +15,14 @@ export const Header = () => {
   const { theme } = useTheme();
 
   // Get current logo based on theme
-  const currentLogo = theme === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
+  const getEffectiveTheme = () => {
+    if (theme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return theme;
+  };
+  
+  const currentLogo = getEffectiveTheme() === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
 
   const handleSignOut = async () => {
     await signOut();
