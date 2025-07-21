@@ -353,6 +353,45 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_sync_control: {
+        Row: {
+          callback_url: string | null
+          created_at: string | null
+          id: string
+          last_sync_at: string
+          status: string | null
+          sync_type: string
+          triggered_by: string
+          updated_at: string | null
+          user_id: string
+          webhook_payload: Json | null
+        }
+        Insert: {
+          callback_url?: string | null
+          created_at?: string | null
+          id?: string
+          last_sync_at?: string
+          status?: string | null
+          sync_type: string
+          triggered_by: string
+          updated_at?: string | null
+          user_id: string
+          webhook_payload?: Json | null
+        }
+        Update: {
+          callback_url?: string | null
+          created_at?: string | null
+          id?: string
+          last_sync_at?: string
+          status?: string | null
+          sync_type?: string
+          triggered_by?: string
+          updated_at?: string | null
+          user_id?: string
+          webhook_payload?: Json | null
+        }
+        Relationships: []
+      }
       garmin_tokens: {
         Row: {
           access_token: string
@@ -628,6 +667,14 @@ export type Database = {
         }
         Returns: number
       }
+      can_sync_user: {
+        Args: {
+          user_id_param: string
+          sync_type_param: string
+          min_interval_minutes?: number
+        }
+        Returns: boolean
+      }
       cleanup_expired_oauth_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -636,8 +683,22 @@ export type Database = {
         Args: { garmin_user_id_param: string }
         Returns: undefined
       }
+      log_sync_attempt: {
+        Args: {
+          user_id_param: string
+          sync_type_param: string
+          triggered_by_param: string
+          webhook_payload_param?: Json
+          callback_url_param?: string
+        }
+        Returns: string
+      }
       sync_all_users_dailies: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_sync_status: {
+        Args: { sync_id_param: string; status_param: string }
         Returns: undefined
       }
     }

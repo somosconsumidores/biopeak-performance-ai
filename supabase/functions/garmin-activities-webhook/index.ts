@@ -81,19 +81,24 @@ Deno.serve(async (req) => {
               })
 
             // Trigger sync for this specific user's activities
-            // This is a PING webhook, so we need to initiate our own sync
+            // This is a webhook PING, so we initiate sync using callback URL if available
             try {
               console.log(`Triggering activity sync for user: ${token.user_id}`)
               
-              // Call our existing sync functions
-              const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-garmin-activities`, {
+              // Use callbackURL from webhook if available, otherwise standard endpoint
+              const apiUrl = activity.callbackURL || `${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-garmin-activities`;
+              
+              const syncResponse = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token.access_token}`,
                 },
                 body: JSON.stringify({
-                  timeRange: 'last_24_hours' // Sync recent activities
+                  webhook_triggered: true,
+                  callback_url: activity.callbackURL,
+                  webhook_payload: activity,
+                  timeRange: 'last_24_hours'
                 })
               })
 

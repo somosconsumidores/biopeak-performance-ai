@@ -53,6 +53,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Parse request body to check for webhook trigger and parameters
+    let requestBody: any = {};
+    let isWebhookTriggered = false;
+    let callbackURL: string | null = null;
+    let webhookPayload: any = null;
+
+    try {
+      requestBody = await req.json();
+      isWebhookTriggered = requestBody.webhook_triggered || false;
+      callbackURL = requestBody.callback_url || null;
+      webhookPayload = requestBody.webhook_payload || null;
+    } catch (e) {
+      // If no body or invalid JSON, treat as manual
+      console.log('[sync-garmin-activities] No request body, treating as manual sync');
+    }
+
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -74,6 +90,37 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual';
+    console.log(`[sync-garmin-activities] Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
+
+    // Check rate limiting for this user and sync type
+    const { data: canSync } = await supabase.rpc('can_sync_user', {
+      user_id_param: user.id,
+      sync_type_param: 'activities',
+      min_interval_minutes: 5
+    });
+
+    if (!canSync && !requestBody.force_sync) {
+      console.log('[sync-garmin-activities] Rate limit exceeded, sync skipped');
+      return new Response(JSON.stringify({ 
+        error: 'Sync rate limit exceeded',
+        message: 'Please wait 5 minutes between sync requests',
+        canRetryAfter: 5 * 60 * 1000 // 5 minutes in milliseconds
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Log sync attempt
+    const { data: syncId } = await supabase.rpc('log_sync_attempt', {
+      user_id_param: user.id,
+      sync_type_param: 'activities',
+      triggered_by_param: triggeredBy,
+      webhook_payload_param: webhookPayload,
+      callback_url_param: callbackURL
+    });
 
     console.log('[sync-garmin-activities] Syncing activities for user:', user.id);
 
@@ -261,6 +308,15 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('[sync-garmin-activities] Insert error:', insertError);
+      
+      // Update sync status to failed
+      if (syncId) {
+        await supabase.rpc('update_sync_status', {
+          sync_id_param: syncId,
+          status_param: 'failed'
+        });
+      }
+      
       return new Response(JSON.stringify({ 
         error: 'Failed to save activities',
         details: insertError.message 
@@ -273,12 +329,21 @@ serve(async (req) => {
     const syncedCount = insertedData?.length || 0;
     console.log('[sync-garmin-activities] Successfully synced', syncedCount, 'activities');
 
+    // Update sync status to completed
+    if (syncId) {
+      await supabase.rpc('update_sync_status', {
+        sync_id_param: syncId,
+        status_param: 'completed'
+      });
+    }
+
     return new Response(JSON.stringify({
       message: `Activities synced successfully. Processed ${processedDays} days${failedDays > 0 ? `, ${failedDays} days failed` : ''}.`,
       synced: syncedCount,
       total: activities.length,
       daysProcessed: processedDays,
-      daysFailed: failedDays
+      daysFailed: failedDays,
+      triggeredBy: triggeredBy
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -286,6 +351,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[sync-garmin-activities] Unexpected error:', error);
+    
+    // Try to update sync status to failed if we have syncId
+    try {
+      if (syncId) {
+        await supabase.rpc('update_sync_status', {
+          sync_id_param: syncId,
+          status_param: 'failed'
+        });
+      }
+    } catch (statusError) {
+      console.error('[sync-garmin-activities] Failed to update sync status:', statusError);
+    }
+    
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
       details: error.message 

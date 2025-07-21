@@ -40,6 +40,10 @@ export const useGarminSync = () => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: {
+          webhook_triggered: false,
+          force_sync: true // Force manual sync for UI
+        }
       });
 
       if (error) {

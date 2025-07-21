@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 // CORS headers for the response
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +49,7 @@ interface SyncResult {
   syncedCount: number;
   errorCount: number;
   errors?: any[];
+  triggeredBy: string;
 }
 
 Deno.serve(async (req) => {
@@ -55,13 +58,28 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let syncId: string | null = null;
+
   try {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse request body to check for webhook trigger
+    let requestBody: any = {};
+    let isWebhookTriggered = false;
+    let callbackURL: string | null = null;
+    let webhookPayload: any = null;
+
+    try {
+      requestBody = await req.json();
+      isWebhookTriggered = requestBody.webhook_triggered || false;
+      callbackURL = requestBody.callback_url || null;
+      webhookPayload = requestBody.webhook_payload || null;
+    } catch (e) {
+      console.log('[sync-garmin-dailies] No request body, treating as manual sync');
+    }
 
     // Get the authorization header and extract user
     const authHeader = req.headers.get('Authorization');
@@ -78,12 +96,45 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      console.error('Auth error:', authError);
+      console.error('[sync-garmin-dailies] Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: corsHeaders }
       );
     }
+
+    const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual';
+    console.log(`[sync-garmin-dailies] Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
+
+    // Check rate limiting for this user and sync type
+    const { data: canSync } = await supabase.rpc('can_sync_user', {
+      user_id_param: user.id,
+      sync_type_param: 'dailies',
+      min_interval_minutes: 5
+    });
+
+    if (!canSync && !requestBody.force_sync) {
+      console.log('[sync-garmin-dailies] Rate limit exceeded, sync skipped');
+      return new Response(JSON.stringify({ 
+        error: 'Sync rate limit exceeded',
+        message: 'Please wait 5 minutes between sync requests',
+        canRetryAfter: 5 * 60 * 1000
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Log sync attempt
+    const { data: loggedSyncId } = await supabase.rpc('log_sync_attempt', {
+      user_id_param: user.id,
+      sync_type_param: 'dailies',
+      triggered_by_param: triggeredBy,
+      webhook_payload_param: webhookPayload,
+      callback_url_param: callbackURL
+    });
+    
+    syncId = loggedSyncId;
 
     console.log(`Starting daily summaries sync for user: ${user.id}`);
 
@@ -95,7 +146,15 @@ Deno.serve(async (req) => {
       .single();
 
     if (tokenError || !tokenData) {
-      console.error('Token error:', tokenError);
+      console.error('[sync-garmin-dailies] Token error:', tokenError);
+      
+      if (syncId) {
+        await supabase.rpc('update_sync_status', {
+          sync_id_param: syncId,
+          status_param: 'failed'
+        });
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Garmin tokens not found' }),
         { status: 404, headers: corsHeaders }
@@ -104,7 +163,7 @@ Deno.serve(async (req) => {
 
     // Check if token needs refresh
     if (tokenData.expires_at && new Date(tokenData.expires_at) <= new Date()) {
-      console.log('Token expired, refreshing...');
+      console.log('[sync-garmin-dailies] Token expired, refreshing...');
       
       // Call garmin-oauth function to refresh token
       const { data: refreshData, error: refreshError } = await supabase.functions.invoke('garmin-oauth', {
@@ -115,7 +174,15 @@ Deno.serve(async (req) => {
       });
 
       if (refreshError) {
-        console.error('Token refresh error:', refreshError);
+        console.error('[sync-garmin-dailies] Token refresh error:', refreshError);
+        
+        if (syncId) {
+          await supabase.rpc('update_sync_status', {
+            sync_id_param: syncId,
+            status_param: 'failed'
+          });
+        }
+        
         return new Response(
           JSON.stringify({ error: 'Failed to refresh token' }),
           { status: 500, headers: corsHeaders }
@@ -127,16 +194,27 @@ Deno.serve(async (req) => {
       tokenData.token_secret = refreshData.token_secret;
     }
 
-    // Define time range (last 24 hours)
-    const endTime = Math.floor(Date.now() / 1000);
-    const startTime = endTime - (24 * 60 * 60); // 24 hours ago
+    // Define time range - use webhook callback URL if available, otherwise last 24 hours
+    let startTime: number;
+    let endTime: number;
+    
+    if (callbackURL) {
+      console.log(`[sync-garmin-dailies] Using webhook callback URL: ${callbackURL}`);
+      // If using callback URL, just fetch recent data
+      endTime = Math.floor(Date.now() / 1000);
+      startTime = endTime - (24 * 60 * 60); // Last 24 hours
+    } else {
+      // Standard time range for manual sync
+      endTime = Math.floor(Date.now() / 1000);
+      startTime = endTime - (24 * 60 * 60); // Last 24 hours
+    }
 
     console.log(`Fetching daily summaries from ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
 
-    // Use Bearer token like other functions
-    const garminUrl = `https://apis.garmin.com/wellness-api/rest/dailies?uploadStartTimeInSeconds=${startTime}&uploadEndTimeInSeconds=${endTime}`;
+    // Use Bearer token for API call
+    const garminUrl = callbackURL || `https://apis.garmin.com/wellness-api/rest/dailies?uploadStartTimeInSeconds=${startTime}&uploadEndTimeInSeconds=${endTime}`;
 
-    // Fetch daily summaries from Garmin API using Bearer token
+    // Fetch daily summaries from Garmin API
     console.log('Fetching from Garmin API...');
     const response = await fetch(garminUrl, {
       method: 'GET',
@@ -148,7 +226,15 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Garmin API error:', response.status, errorText);
+      console.error('[sync-garmin-dailies] Garmin API error:', response.status, errorText);
+      
+      if (syncId) {
+        await supabase.rpc('update_sync_status', {
+          sync_id_param: syncId,
+          status_param: 'failed'
+        });
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to fetch from Garmin API',
@@ -166,7 +252,8 @@ Deno.serve(async (req) => {
       success: true,
       syncedCount: 0,
       errorCount: 0,
-      errors: []
+      errors: [],
+      triggeredBy: triggeredBy
     };
 
     // Process and store each daily summary
@@ -217,7 +304,7 @@ Deno.serve(async (req) => {
           });
 
         if (upsertError) {
-          console.error('Error upserting daily summary:', upsertError);
+          console.error('[sync-garmin-dailies] Error upserting daily summary:', upsertError);
           syncResult.errorCount++;
           syncResult.errors?.push({
             summaryId: summary.summaryId,
@@ -228,13 +315,21 @@ Deno.serve(async (req) => {
           syncResult.syncedCount++;
         }
       } catch (error) {
-        console.error('Error processing daily summary:', error);
+        console.error('[sync-garmin-dailies] Error processing daily summary:', error);
         syncResult.errorCount++;
         syncResult.errors?.push({
           summaryId: summary.summaryId,
           error: error.message
         });
       }
+    }
+
+    // Update sync status to completed
+    if (syncId) {
+      await supabase.rpc('update_sync_status', {
+        sync_id_param: syncId,
+        status_param: 'completed'
+      });
     }
 
     console.log(`Sync completed: ${syncResult.syncedCount} synced, ${syncResult.errorCount} errors`);
@@ -248,7 +343,24 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Sync error:', error);
+    console.error('[sync-garmin-dailies] Sync error:', error);
+    
+    // Update sync status to failed
+    try {
+      if (syncId) {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        );
+        await supabase.rpc('update_sync_status', {
+          sync_id_param: syncId,
+          status_param: 'failed'
+        });
+      }
+    } catch (statusError) {
+      console.error('[sync-garmin-dailies] Failed to update sync status:', statusError);
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
