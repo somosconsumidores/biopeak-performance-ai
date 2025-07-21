@@ -313,6 +313,30 @@ serve(async (req) => {
         expiresIn: tokenData.expires_in
       });
 
+      // Fetch Garmin User API ID for webhook association
+      console.log('[garmin-oauth] Fetching Garmin User API ID...');
+      let garminUserId = null;
+      
+      try {
+        const userIdResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/id', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (userIdResponse.ok) {
+          const userIdData = await userIdResponse.json();
+          garminUserId = userIdData.userId;
+          console.log('[garmin-oauth] Garmin User API ID retrieved:', garminUserId);
+        } else {
+          console.warn('[garmin-oauth] Failed to fetch Garmin User ID:', userIdResponse.status);
+        }
+      } catch (error) {
+        console.warn('[garmin-oauth] Error fetching Garmin User ID:', error);
+      }
+
       // Store tokens in database
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
       const { error: insertError } = await supabase
@@ -322,6 +346,7 @@ serve(async (req) => {
           access_token: tokenData.access_token,
           token_secret: tokenData.refresh_token || '',
           consumer_key: cleanClientId,
+          garmin_user_id: garminUserId,
           expires_at: expiresAt,
           updated_at: new Date().toISOString()
         }, {

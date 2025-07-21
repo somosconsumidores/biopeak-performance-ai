@@ -398,6 +398,7 @@ export type Database = {
           consumer_key: string | null
           created_at: string
           expires_at: string | null
+          garmin_user_id: string | null
           id: string
           is_active: boolean | null
           oauth_verifier: string | null
@@ -410,6 +411,7 @@ export type Database = {
           consumer_key?: string | null
           created_at?: string
           expires_at?: string | null
+          garmin_user_id?: string | null
           id?: string
           is_active?: boolean | null
           oauth_verifier?: string | null
@@ -422,6 +424,7 @@ export type Database = {
           consumer_key?: string | null
           created_at?: string
           expires_at?: string | null
+          garmin_user_id?: string | null
           id?: string
           is_active?: boolean | null
           oauth_verifier?: string | null

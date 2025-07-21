@@ -55,11 +55,11 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing activity notification for Garmin user: ${garminUserId}, activity: ${summaryId}`)
 
-        // Find user tokens
+        // Find user tokens using the official Garmin User API ID
         const { data: tokens, error: tokenError } = await supabaseClient
           .from('garmin_tokens')
           .select('user_id, access_token, is_active')
-          .or(`token_secret.ilike.%${garminUserId}%,consumer_key.eq.${garminUserId}`)
+          .eq('garmin_user_id', garminUserId)
           .eq('is_active', true)
 
         if (tokenError) {
