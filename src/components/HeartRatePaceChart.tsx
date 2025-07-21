@@ -65,7 +65,8 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                   setIsRefreshing(true);
                   try {
                     // Calculate 24-hour window for the activity date
-                    const activityDateTime = new Date(activityDate + 'T00:00:00Z');
+                    // Parse the activity date and create a local date for the start of that day
+                    const activityDateTime = new Date(activityDate + 'T00:00:00');
                     const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
@@ -171,7 +172,8 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                   setIsRefreshing(true);
                   try {
                     // Calculate 24-hour window for the activity date
-                    const activityDateTime = new Date(activityDate + 'T00:00:00Z');
+                    // Parse the activity date and create a local date for the start of that day
+                    const activityDateTime = new Date(activityDate + 'T00:00:00');
                     const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
