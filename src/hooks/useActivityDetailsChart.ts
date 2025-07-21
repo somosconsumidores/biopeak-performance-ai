@@ -80,10 +80,6 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         let pace_min_per_km: number | null = null;
         if (sample.speed_meters_per_second && sample.speed_meters_per_second > 0) {
           pace_min_per_km = (1000 / sample.speed_meters_per_second) / 60;
-          // Filter out unrealistic pace values
-          if (pace_min_per_km > 20) {
-            pace_min_per_km = null;
-          }
         }
         
         return {
