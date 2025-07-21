@@ -16,6 +16,9 @@ verify_jwt = true
 [functions.garmin-activities-webhook]
 verify_jwt = false
 
+[functions.garmin-activity-details-webhook]
+verify_jwt = false
+
 [functions.garmin-deregistration]
 verify_jwt = false
 

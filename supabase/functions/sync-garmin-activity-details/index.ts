@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -58,6 +59,8 @@ Deno.serve(async (req) => {
     let isAdminOverride = false;
     let callbackURL: string | null = null;
     let webhookPayload: any = null;
+    let specificActivityId: string | null = null;
+    let specificSummaryId: string | null = null;
 
     try {
       requestBody = await req.json();
@@ -65,6 +68,8 @@ Deno.serve(async (req) => {
       isAdminOverride = requestBody.admin_override || false;
       callbackURL = requestBody.callback_url || null;
       webhookPayload = requestBody.webhook_payload || null;
+      specificActivityId = requestBody.activity_id || null;
+      specificSummaryId = requestBody.summary_id || null;
     } catch (e) {
       console.log('[sync-activity-details] No request body provided');
     }
@@ -110,7 +115,7 @@ Deno.serve(async (req) => {
     }
 
     const triggeredBy = isWebhookTriggered ? 'webhook' : (isAdminOverride ? 'admin_override' : 'unknown');
-    console.log(`[sync-activity-details] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
+    console.log(`[sync-activity-details] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}${specificActivityId ? `, activity: ${specificActivityId}` : ''}`);
 
     // Check rate limiting for this user and sync type
     const { data: canSync } = await supabaseClient.rpc('can_sync_user', {
@@ -234,7 +239,7 @@ Deno.serve(async (req) => {
       console.log(`[sync-activity-details] Using default 24h range from ${startTime} to ${endTime}`);
     }
 
-    console.log(`[sync-activity-details] Fetching activity details from ${startTime} to ${endTime}`);
+    console.log(`[sync-activity-details] Fetching activity details from ${startTime} to ${endTime}${specificActivityId ? ` for activity: ${specificActivityId}` : ''}`);
 
     // Use callback URL if available, otherwise build standard API URL
     let apiUrl: string;
@@ -290,7 +295,18 @@ Deno.serve(async (req) => {
     const activityDetails: GarminActivityDetail[] = await response.json();
     console.log(`[sync-activity-details] Received ${activityDetails.length} activity details from Garmin`);
 
-    if (activityDetails.length === 0) {
+    // Filter by specific activity if provided
+    let filteredDetails = activityDetails;
+    if (specificActivityId) {
+      filteredDetails = activityDetails.filter(detail => detail.activityId === specificActivityId);
+      console.log(`[sync-activity-details] Filtered to ${filteredDetails.length} details for activity ${specificActivityId}`);
+    }
+    if (specificSummaryId) {
+      filteredDetails = filteredDetails.filter(detail => detail.summaryId === specificSummaryId);
+      console.log(`[sync-activity-details] Filtered to ${filteredDetails.length} details for summary ${specificSummaryId}`);
+    }
+
+    if (filteredDetails.length === 0) {
       // Update sync status to completed even with no data
       if (syncId) {
         await supabaseClient.rpc('update_sync_status', {
@@ -301,7 +317,7 @@ Deno.serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          message: 'No activity details found for the specified time range', 
+          message: 'No activity details found for the specified criteria', 
           synced: 0, 
           total: 0,
           triggeredBy: triggeredBy
@@ -317,7 +333,7 @@ Deno.serve(async (req) => {
     let syncedCount = 0;
     const errors: string[] = [];
 
-    for (const detail of activityDetails) {
+    for (const detail of filteredDetails) {
       try {
         // Check if activity has required fields
         if (!detail.activityId || !detail.summaryId) {
@@ -421,9 +437,9 @@ Deno.serve(async (req) => {
     }
 
     const result = {
-      message: `Successfully synced ${syncedCount} of ${activityDetails.length} activity details`,
+      message: `Successfully synced ${syncedCount} of ${filteredDetails.length} activity details`,
       synced: syncedCount,
-      total: activityDetails.length,
+      total: filteredDetails.length,
       triggeredBy: triggeredBy,
       errors: errors.length > 0 ? errors : undefined
     };
@@ -434,7 +450,7 @@ Deno.serve(async (req) => {
     if (syncedCount > 0 && !isWebhookTriggered) {
       console.log('[sync-activity-details] Triggering performance metrics calculation...');
       
-      const uniqueActivityIds = [...new Set(activityDetails.map(detail => detail.activityId))];
+      const uniqueActivityIds = [...new Set(filteredDetails.map(detail => detail.activityId))];
       
       for (const activityId of uniqueActivityIds) {
         try {
