@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
         const { data: syncData, error: syncError } = await supabaseClient.functions.invoke('sync-garmin-activity-details', {
           headers: {
-            'Authorization': `Bearer ${userTokens.access_token}`,
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
             'Content-Type': 'application/json'
           },
           body: syncPayload
