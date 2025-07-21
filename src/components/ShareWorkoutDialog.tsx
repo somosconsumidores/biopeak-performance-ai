@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,7 @@ interface ShareWorkoutDialogProps {
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const { previewRef, shareWorkoutImage, handleMapLoaded, isMapLoaded } = useWorkoutImageShare();
+  const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
 
   // Share handlers with image generation
   const handleImageShare = async (platform: string) => {
@@ -59,13 +58,6 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   // Check if Web Share API supports files
   const canShareFiles = navigator.share && navigator.canShare && 
     navigator.canShare({ files: [new File([''], 'test.png', { type: 'image/png' })] });
-
-  const getLoadingMessage = () => {
-    if (workoutData.coordinates?.length > 0 && !isMapLoaded) {
-      return 'Carregando mapa...';
-    }
-    return isGeneratingImage ? 'Gerando imagem...' : 'Processando...';
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,24 +91,8 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <WorkoutShareImage workoutData={workoutData} onMapLoaded={handleMapLoaded} />
+            <WorkoutShareImage workoutData={workoutData} />
           </div>
-
-          {/* Map Status Indicator */}
-          {workoutData.coordinates?.length > 0 && (
-            <div className="text-center mb-4">
-              <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs ${
-                isMapLoaded 
-                  ? 'bg-green-100 text-green-700 border border-green-200' 
-                  : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${
-                  isMapLoaded ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
-                }`} />
-                <span>{isMapLoaded ? 'Mapa carregado' : 'Carregando mapa...'}</span>
-              </div>
-            </div>
-          )}
 
           {/* Social Media Buttons */}
           <div className="space-y-3 sm:space-y-4">
@@ -135,7 +111,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
                 {isGeneratingImage ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    {getLoadingMessage()}
+                    Gerando imagem...
                   </>
                 ) : (
                   <>
@@ -201,7 +177,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
               {isGeneratingImage ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
-                  {getLoadingMessage()}
+                  Gerando...
                 </>
               ) : (
                 <>
@@ -212,19 +188,15 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
             </Button>
           </div>
 
+
           {/* Loading Message */}
           {shareAnimationActive && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-lg z-40">
               <div className="glass-card border-glass-border p-4 sm:p-6 text-center animate-scale-in">
                 <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-primary animate-pulse" />
                 <p className="font-semibold text-sm sm:text-base">
-                  {getLoadingMessage()}
+                  {isGeneratingImage ? 'Gerando imagem...' : 'Processando...'}
                 </p>
-                {workoutData.coordinates?.length > 0 && !isMapLoaded && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Aguardando o mapa carregar completamente...
-                  </p>
-                )}
               </div>
             </div>
           )}

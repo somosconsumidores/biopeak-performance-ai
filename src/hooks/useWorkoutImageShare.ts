@@ -1,11 +1,9 @@
-
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { toast } from '@/hooks/use-toast';
 
 export const useWorkoutImageShare = () => {
   const previewRef = useRef<HTMLDivElement>(null);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   const generateWorkoutImage = useCallback(async (workoutData: any): Promise<Blob | null> => {
     if (!previewRef.current) {
@@ -18,45 +16,12 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
-      console.log('🖼️ Starting image generation...');
+      // Aguardar um pouco para garantir que o componente esteja totalmente renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Wait for map to be fully loaded if coordinates exist
-      if (workoutData.coordinates?.length > 0) {
-        console.log('⏳ Waiting for map to load...');
-        setIsMapLoaded(false);
-        
-        // Wait up to 10 seconds for map to load
-        const mapLoadTimeout = new Promise<void>((resolve) => {
-          const checkMapLoaded = () => {
-            if (isMapLoaded) {
-              console.log('✅ Map confirmed loaded');
-              resolve();
-            } else {
-              setTimeout(checkMapLoaded, 200);
-            }
-          };
-          
-          // Start checking
-          checkMapLoaded();
-          
-          // Fallback timeout
-          setTimeout(() => {
-            console.log('⏰ Map load timeout - proceeding anyway');
-            resolve();
-          }, 10000);
-        });
-        
-        await mapLoadTimeout;
-      }
-      
-      // Additional wait to ensure everything is rendered
-      console.log('⏳ Final rendering wait...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('📷 Capturing image with html2canvas...');
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
-        scale: 1,
+        scale: 1, // Ajustado para o tamanho do Instagram Stories
         useCORS: true,
         allowTaint: true,
         width: 1080,
@@ -66,21 +31,15 @@ export const useWorkoutImageShare = () => {
         windowWidth: 1080,
         windowHeight: 1920,
         logging: false,
-        onclone: (clonedDoc) => {
-          console.log('🔄 Canvas cloned document for capture');
-        }
       });
 
-      console.log('✅ Image captured successfully');
-      
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
-          console.log('💾 Image blob created');
           resolve(blob);
         }, 'image/png', 1.0);
       });
     } catch (error) {
-      console.error('❌ Error generating image:', error);
+      console.error('Erro ao gerar imagem:', error);
       toast({
         title: "Erro",
         description: "Não foi possível gerar a imagem do treino.",
@@ -88,11 +47,6 @@ export const useWorkoutImageShare = () => {
       });
       return null;
     }
-  }, [isMapLoaded]);
-
-  const handleMapLoaded = useCallback(() => {
-    console.log('🗺️ Map loaded callback triggered');
-    setIsMapLoaded(true);
   }, []);
 
   const shareWorkoutImage = useCallback(async (platform: string, workoutData: any) => {
@@ -126,7 +80,7 @@ export const useWorkoutImageShare = () => {
           description: "Treino compartilhado com sucesso.",
         });
       } catch (error) {
-        console.error('❌ Error sharing:', error);
+        console.error('Erro ao compartilhar:', error);
         // Fallback para download
         downloadImage(imageBlob);
       }
@@ -179,7 +133,5 @@ export const useWorkoutImageShare = () => {
     generateWorkoutImage,
     shareWorkoutImage,
     downloadImage,
-    handleMapLoaded,
-    isMapLoaded,
   };
 };

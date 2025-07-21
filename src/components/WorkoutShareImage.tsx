@@ -1,3 +1,4 @@
+
 import { WorkoutMap } from './WorkoutMap';
 
 interface WorkoutShareImageProps {
@@ -12,10 +13,9 @@ interface WorkoutShareImageProps {
     start_time_in_seconds: number | null;
     coordinates?: Array<{ latitude: number; longitude: number }>;
   };
-  onMapLoaded?: () => void;
 }
 
-export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImageProps) => {
+export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   // Helper functions
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '--:--';
@@ -74,7 +74,6 @@ export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImag
             coordinates={workoutData.coordinates} 
             width={864} 
             height={480}
-            onMapLoaded={onMapLoaded}
           />
         </div>
       )}
