@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
-import { WebhookSyncStatus } from '@/components/WebhookSyncStatus';
+import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { EmergencySyncButton } from '@/components/EmergencySyncButton';
 import { 
   Watch, 
@@ -19,9 +19,7 @@ import {
   Heart,
   Timer,
   MapPin,
-  Database,
-  Calendar,
-  Webhook
+  TrendingUp
 } from 'lucide-react';
 
 export function GarminSync() {
@@ -92,16 +90,16 @@ export function GarminSync() {
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-4">
                 <span className="bg-gradient-primary bg-clip-text text-transparent">
-                  Sincronização Garmin
+                  Conectar Garmin
                 </span>
               </h1>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Conecte seus dispositivos Garmin para análise inteligente de performance
+                Conecte seu dispositivo Garmin para análise automática de performance
               </p>
             </div>
           </ScrollReveal>
 
-          {/* Status Card */}
+          {/* Main Connection Card */}
           <ScrollReveal delay={100}>
             <Card className="glass-card mb-8">
               <CardHeader>
@@ -112,7 +110,7 @@ export function GarminSync() {
                       Status da Conexão
                     </CardTitle>
                     <CardDescription>
-                      Monitore o status da sua conexão com Garmin Connect
+                      Conecte sua conta Garmin Connect para sincronização automática
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-3">
@@ -142,21 +140,20 @@ export function GarminSync() {
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    {syncStats.syncStatus === 'disconnected' && (
-                      <Alert className="border-yellow-500/50 bg-yellow-500/10">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-yellow-400">
-                          Conecte sua conta Garmin para ativar a sincronização automática via webhooks
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    <div className="space-y-4">
-                      {syncStats.syncStatus === 'disconnected' ? (
+                    {syncStats.syncStatus === 'disconnected' ? (
+                      <>
+                        <Alert className="border-blue-500/50 bg-blue-500/10">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-blue-400">
+                            Conecte sua conta Garmin Connect para começar a receber insights automáticos de suas atividades
+                          </AlertDescription>
+                        </Alert>
+                        
                         <Button 
                           onClick={handleConnectGarmin}
                           disabled={isConnecting}
                           className="w-full"
+                          size="lg"
                         >
                           {isConnecting ? (
                             <>
@@ -166,27 +163,27 @@ export function GarminSync() {
                           ) : (
                             <>
                               <Zap className="h-4 w-4 mr-2" />
-                              Conectar Garmin
+                              Conectar Garmin Connect
                             </>
                           )}
                         </Button>
-                       ) : (
-                        <div className="space-y-2">
-                          <Alert className="border-green-500/50 bg-green-500/10">
-                            <Webhook className="h-4 w-4" />
-                            <AlertDescription className="text-green-400">
-                              <strong>🎉 Sincronização Automática Ativa!</strong><br />
-                              Suas atividades são sincronizadas automaticamente via webhooks. 
-                              Não é necessário fazer sync manual.
-                            </AlertDescription>
-                          </Alert>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <Alert className="border-green-500/50 bg-green-500/10">
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription className="text-green-400">
+                            <strong>🎉 Conectado com Sucesso!</strong><br />
+                            Suas atividades são sincronizadas automaticamente. 
+                            Continue treinando para ver insights detalhados!
+                          </AlertDescription>
+                        </Alert>
 
-                          <div className="flex justify-end">
-                            <EmergencySyncButton />
-                          </div>
+                        <div className="flex justify-end">
+                          <EmergencySyncButton />
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -205,11 +202,11 @@ export function GarminSync() {
             </Card>
           </ScrollReveal>
 
-          {/* Webhook Status Card - Only show when connected */}
+          {/* Connection Status - Only show when connected */}
           {isConnected && (
             <ScrollReveal delay={200}>
               <div className="mb-8">
-                <WebhookSyncStatus />
+                <GarminConnectionStatus />
               </div>
             </ScrollReveal>
           )}
@@ -225,19 +222,19 @@ export function GarminSync() {
                         <Watch className="h-6 w-6 text-primary" />
                         <div>
                           <CardTitle className="text-lg">{deviceName}</CardTitle>
-                          <CardDescription>Dispositivo</CardDescription>
+                          <CardDescription>Dispositivo Conectado</CardDescription>
                         </div>
                       </div>
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                         <CheckCircle className="h-4 w-4 mr-2" />
-                        Conectado
+                        Ativo
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Última sincronização:</span>
+                        <span className="text-muted-foreground">Última atividade:</span>
                         <span>{syncStats.lastSync}</span>
                       </div>
                     </div>
@@ -251,9 +248,9 @@ export function GarminSync() {
           <ScrollReveal delay={400}>
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle>Como Funciona a Sincronização</CardTitle>
+                <CardTitle>Como Funciona</CardTitle>
                 <CardDescription>
-                  Entenda o processo de integração com seus dispositivos Garmin
+                  Processo simples para começar a receber insights de suas atividades
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -264,17 +261,7 @@ export function GarminSync() {
                     </div>
                     <h3 className="font-semibold">1. Conectar</h3>
                     <p className="text-sm text-muted-foreground">
-                      Autorize o BioPeak a acessar seus dados do Garmin Connect
-                    </p>
-                  </div>
-                  
-                  <div className="text-center space-y-3">
-                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-                      <Webhook className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="font-semibold">2. Webhooks Automáticos</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Sistema detecta novas atividades automaticamente via webhooks
+                      Faça login com sua conta Garmin Connect em um clique
                     </p>
                   </div>
                   
@@ -282,9 +269,19 @@ export function GarminSync() {
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                       <Activity className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">3. Analisar</h3>
+                    <h3 className="font-semibold">2. Treinar</h3>
                     <p className="text-sm text-muted-foreground">
-                      Insights avançados com dados ricos e detalhados
+                      Continue suas atividades normalmente com seu dispositivo Garmin
+                    </p>
+                  </div>
+                  
+                  <div className="text-center space-y-3">
+                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+                      <TrendingUp className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">3. Insights</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Receba análises automáticas de performance e evolução
                     </p>
                   </div>
                 </div>

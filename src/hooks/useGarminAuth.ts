@@ -274,9 +274,29 @@ export const useGarminAuth = () => {
 
       console.log('[useGarminAuth] Authentication completed successfully');
 
+      // Automatically register webhooks after successful connection
+      try {
+        console.log('[useGarminAuth] Automatically registering webhooks...');
+        
+        const { data: webhookData, error: webhookError } = await supabase.functions.invoke('register-garmin-webhooks', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (webhookError) {
+          console.warn('[useGarminAuth] Webhook registration failed (non-critical):', webhookError);
+        } else {
+          console.log('[useGarminAuth] Webhooks registered successfully:', webhookData);
+        }
+      } catch (webhookError) {
+        console.warn('[useGarminAuth] Webhook registration failed (non-critical):', webhookError);
+        // Don't fail the whole flow if webhook registration fails
+      }
+
       toast({
         title: "Conectado com sucesso!",
-        description: "Sua conta Garmin Connect foi conectada.",
+        description: "Sua conta Garmin Connect foi conectada e a sincronização automática está ativa.",
       });
 
       // Clear URL parameters
