@@ -434,6 +434,33 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_user_permissions: {
+        Row: {
+          garmin_user_id: string
+          granted_at: string
+          id: string
+          permissions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          garmin_user_id: string
+          granted_at?: string
+          id?: string
+          permissions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          garmin_user_id?: string
+          granted_at?: string
+          id?: string
+          permissions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       garmin_webhook_logs: {
         Row: {
           created_at: string | null

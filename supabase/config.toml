@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.garmin-permissions]
 verify_jwt = false
+
+[functions.garmin-permissions-query]
+verify_jwt = false

@@ -316,6 +316,7 @@ serve(async (req) => {
       // Fetch Garmin User API ID for webhook association
       console.log('[garmin-oauth] Fetching Garmin User API ID...');
       let garminUserId = null;
+      let initialPermissions = [];
       
       try {
         const userIdResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/id', {
@@ -330,11 +331,29 @@ serve(async (req) => {
           const userIdData = await userIdResponse.json();
           garminUserId = userIdData.userId;
           console.log('[garmin-oauth] Garmin User API ID retrieved:', garminUserId);
+
+          // Fetch initial user permissions
+          console.log('[garmin-oauth] Fetching initial user permissions...');
+          const permissionsResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/permission', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (permissionsResponse.ok) {
+            const permissionsData = await permissionsResponse.json();
+            initialPermissions = permissionsData.permissions || [];
+            console.log('[garmin-oauth] Initial permissions retrieved:', initialPermissions);
+          } else {
+            console.warn('[garmin-oauth] Failed to fetch initial permissions:', permissionsResponse.status);
+          }
         } else {
           console.warn('[garmin-oauth] Failed to fetch Garmin User ID:', userIdResponse.status);
         }
       } catch (error) {
-        console.warn('[garmin-oauth] Error fetching Garmin User ID:', error);
+        console.warn('[garmin-oauth] Error fetching Garmin User ID or permissions:', error);
       }
 
       // Store tokens in database
@@ -356,6 +375,29 @@ serve(async (req) => {
       if (insertError) {
         console.error('[garmin-oauth] Error storing tokens:', insertError);
         throw insertError;
+      }
+
+      // Store initial permissions if we have them
+      if (garminUserId && initialPermissions.length > 0) {
+        console.log('[garmin-oauth] Storing initial permissions...');
+        const { error: permissionsError } = await supabase
+          .from('garmin_user_permissions')
+          .upsert({
+            user_id: user.id,
+            garmin_user_id: garminUserId,
+            permissions: initialPermissions,
+            granted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,garmin_user_id'
+          });
+
+        if (permissionsError) {
+          console.error('[garmin-oauth] Error storing initial permissions:', permissionsError);
+          // Don't throw here, just log the error
+        } else {
+          console.log('[garmin-oauth] Initial permissions stored successfully');
+        }
       }
 
       // Clean up temp PKCE data
