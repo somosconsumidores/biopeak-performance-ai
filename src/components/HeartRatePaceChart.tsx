@@ -19,6 +19,13 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  console.log('🔍 BUTTON DEBUG:', { 
+    hasRawData, 
+    activityStartTime, 
+    activityId,
+    shouldShowButton: !hasRawData && !!activityStartTime 
+  });
+
   if (loading) {
     return (
       <Card className="glass-card border-glass-border">
@@ -41,10 +48,51 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Heart className="h-5 w-5 text-primary" />
-            <span>Evolução do Ritmo e Frequência Cardíaca</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Heart className="h-5 w-5 text-primary" />
+              <span>Evolução do Ritmo e Frequência Cardíaca</span>
+            </CardTitle>
+            {!hasRawData && activityStartTime && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!activityStartTime) return;
+                  
+                  setIsRefreshing(true);
+                  try {
+                    // Calculate 24-hour window around the activity time
+                    const startTimeSeconds = activityStartTime - (12 * 60 * 60); // 12 hours before
+                    const endTimeSeconds = activityStartTime + (12 * 60 * 60);   // 12 hours after
+                    
+                    const success = await syncActivityDetails({
+                      uploadStartTimeInSeconds: startTimeSeconds,
+                      uploadEndTimeInSeconds: endTimeSeconds
+                    });
+                    
+                    if (success) {
+                      toast.success('Dados detalhados sincronizados com sucesso!');
+                      // Force a page refresh to reload the chart data
+                      window.location.reload();
+                    } else {
+                      toast.error('Erro ao sincronizar dados detalhados');
+                    }
+                  } catch (error) {
+                    console.error('Error syncing activity details:', error);
+                    toast.error('Erro ao sincronizar dados detalhados');
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                disabled={isSyncing || isRefreshing}
+                className="glass-card border-glass-border"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isRefreshing ? 'Sincronizando...' : 'Sincronizar Dados'}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center h-64 space-y-4">
