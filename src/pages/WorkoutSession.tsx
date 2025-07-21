@@ -166,8 +166,6 @@ export const WorkoutSession = () => {
     );
   }
 
-
-
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />

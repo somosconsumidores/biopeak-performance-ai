@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -25,7 +26,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
     activityStartTime, 
     activityDate,
     activityId,
-    shouldShowButton: !hasRawData && !!activityDate
+    shouldShowButton: !hasRawData && !!activityStartTime
   });
 
   if (loading) {
@@ -55,24 +56,29 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityDate && (
+            {!hasRawData && activityStartTime && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityDate) return;
+                  if (!activityStartTime) return;
                   
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window for the activity date
-                    // Parse the activity date and create a local date for the start of that day
-                    const activityDateTime = new Date(activityDate + 'T00:00:00');
-                    const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
+                    // Calculate 24-hour window using the activity's actual start time
+                    // Start from the beginning of the day when the activity occurred
+                    const activityDate = new Date(activityStartTime * 1000);
+                    const startOfDay = new Date(activityDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    
+                    // Calculate start and end times for the 24-hour window
+                    const startTimeSeconds = Math.floor(startOfDay.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
                     console.log('🔍 TIMESTAMP DEBUG:', {
-                      activityDate,
-                      activityDateTime: activityDateTime.toISOString(),
+                      activityStartTime,
+                      activityDate: activityDate.toISOString(),
+                      startOfDay: startOfDay.toISOString(),
                       startTimeSeconds,
                       endTimeSeconds,
                       startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
@@ -162,24 +168,29 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityDate && (
+            {!hasRawData && activityStartTime && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityDate) return;
+                  if (!activityStartTime) return;
                   
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window for the activity date
-                    // Parse the activity date and create a local date for the start of that day
-                    const activityDateTime = new Date(activityDate + 'T00:00:00');
-                    const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
+                    // Calculate 24-hour window using the activity's actual start time
+                    // Start from the beginning of the day when the activity occurred
+                    const activityDate = new Date(activityStartTime * 1000);
+                    const startOfDay = new Date(activityDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    
+                    // Calculate start and end times for the 24-hour window
+                    const startTimeSeconds = Math.floor(startOfDay.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
                     console.log('🔍 TIMESTAMP DEBUG:', {
-                      activityDate,
-                      activityDateTime: activityDateTime.toISOString(),
+                      activityStartTime,
+                      activityDate: activityDate.toISOString(),
+                      startOfDay: startOfDay.toISOString(),
                       startTimeSeconds,
                       endTimeSeconds,
                       startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
