@@ -18,7 +18,7 @@ export function BackfillActivitiesDialog() {
   const { backfillActivities, isLoading, lastBackfillResult } = useBackfillActivities();
 
   const handleBackfill = async () => {
-    let request = { timeRange };
+    let request: any = { timeRange };
 
     if (timeRange === 'custom') {
       if (!startDate || !endDate) {
@@ -28,7 +28,7 @@ export function BackfillActivitiesDialog() {
       const start = Math.floor(new Date(startDate).getTime() / 1000);
       const end = Math.floor(new Date(endDate + 'T23:59:59').getTime() / 1000);
       
-      request = { ...request, start, end };
+      request = { timeRange, start, end };
     }
 
     const success = await backfillActivities(request);
