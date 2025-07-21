@@ -288,7 +288,10 @@ export const WorkoutSession = () => {
 
           {/* Heart Rate vs Pace Chart */}
           <ScrollReveal delay={150}>
-            <HeartRatePaceChart activityId={currentActivity.activity_id} />
+            <HeartRatePaceChart 
+              activityId={currentActivity.activity_id} 
+              activityStartTime={currentActivity.start_time_in_seconds}
+            />
           </ScrollReveal>
 
           {/* Performance Indicators */}

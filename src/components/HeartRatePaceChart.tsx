@@ -1,16 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Heart, Timer, AlertCircle } from 'lucide-react';
+import { Heart, Timer, AlertCircle, Download } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { useScreenSize } from '@/hooks/use-mobile';
+import { useGarminActivityDetails } from '@/hooks/useGarminActivityDetails';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface HeartRatePaceChartProps {
   activityId: string | null;
+  activityStartTime?: number | null;
 }
 
-export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
+export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRatePaceChartProps) => {
   const { data, loading, error, hasData } = useActivityDetailsChart(activityId);
   const { isMobile, isTablet } = useScreenSize();
+  const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (loading) {
     return (
@@ -88,12 +95,53 @@ export const HeartRatePaceChart = ({ activityId }: HeartRatePaceChartProps) => {
 
   return (
     <Card className="glass-card border-glass-border">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Heart className="h-5 w-5 text-primary" />
-          <span>Evolução do Ritmo e Frequência Cardíaca</span>
-        </CardTitle>
-      </CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Heart className="h-5 w-5 text-primary" />
+              <span>Evolução do Ritmo e Frequência Cardíaca</span>
+            </CardTitle>
+            {(!hasData || error) && activityStartTime && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!activityStartTime) return;
+                  
+                  setIsRefreshing(true);
+                  try {
+                    // Calculate 24-hour window around the activity time
+                    const startTimeSeconds = activityStartTime - (12 * 60 * 60); // 12 hours before
+                    const endTimeSeconds = activityStartTime + (12 * 60 * 60);   // 12 hours after
+                    
+                    const success = await syncActivityDetails({
+                      uploadStartTimeInSeconds: startTimeSeconds,
+                      uploadEndTimeInSeconds: endTimeSeconds
+                    });
+                    
+                    if (success) {
+                      toast.success('Dados detalhados sincronizados com sucesso!');
+                      // Force a page refresh to reload the chart data
+                      window.location.reload();
+                    } else {
+                      toast.error('Erro ao sincronizar dados detalhados');
+                    }
+                  } catch (error) {
+                    console.error('Error syncing activity details:', error);
+                    toast.error('Erro ao sincronizar dados detalhados');
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                disabled={isSyncing || isRefreshing}
+                className="glass-card border-glass-border"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isRefreshing ? 'Sincronizando...' : 'Sincronizar Dados'}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
       <CardContent>
         <div className={`${isMobile ? 'h-64' : 'h-72 sm:h-80'}`}>
           <ResponsiveContainer width="100%" height="100%">
