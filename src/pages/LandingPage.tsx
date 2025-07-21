@@ -312,7 +312,7 @@ export const LandingPage = () => {
                 <li>Sobre</li>
                 <li>Blog</li>
                 <li>Carreiras</li>
-                <li>Privacidade</li>
+                <li><a href="/privacy-policy" className="hover:text-foreground transition-colors">Privacidade</a></li>
               </ul>
             </div>
           </div>
