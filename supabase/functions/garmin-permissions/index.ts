@@ -47,11 +47,11 @@ Deno.serve(async (req) => {
         console.log(`Processing permission change for Garmin user: ${garminUserId}`)
         console.log(`New permissions: ${permissions.join(', ')}`)
 
-        // Find user tokens
+        // Find user tokens by Garmin user ID
         const { data: tokens, error: tokenError } = await supabaseClient
           .from('garmin_tokens')
           .select('user_id, is_active')
-          .or(`token_secret.ilike.%${garminUserId}%,consumer_key.eq.${garminUserId}`)
+          .eq('garmin_user_id', garminUserId)
 
         if (tokenError) {
           console.error('Error finding tokens:', tokenError)

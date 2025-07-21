@@ -18,3 +18,6 @@ verify_jwt = false
 
 [functions.garmin-deregistration]
 verify_jwt = false
+
+[functions.garmin-permissions]
+verify_jwt = false
