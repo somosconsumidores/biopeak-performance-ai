@@ -81,28 +81,23 @@ Deno.serve(async (req) => {
               })
 
             // Trigger sync for this specific user's activities
-            // This is a webhook PING, so we initiate sync using callback URL if available
+            // Use Supabase function to sync, passing callbackURL as parameter
             try {
               console.log(`Triggering activity sync for user: ${token.user_id}`)
               
-              // Use callbackURL from webhook if available, otherwise standard endpoint
-              const apiUrl = activity.callbackURL || `${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-garmin-activities`;
-              
-              const syncResponse = await fetch(apiUrl, {
-                method: 'POST',
+              const syncResponse = await supabaseClient.functions.invoke('sync-garmin-activities', {
                 headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token.access_token}`,
+                  Authorization: `Bearer ${token.access_token}`,
                 },
-                body: JSON.stringify({
+                body: {
                   webhook_triggered: true,
                   callback_url: activity.callbackURL,
                   webhook_payload: activity,
                   timeRange: 'last_24_hours'
-                })
+                }
               })
 
-              if (syncResponse.ok) {
+              if (!syncResponse.error) {
                 console.log(`Successfully triggered sync for user: ${token.user_id}`)
                 
                 // Update webhook log status
@@ -116,7 +111,7 @@ Deno.serve(async (req) => {
                   .limit(1)
 
               } else {
-                console.error(`Failed to trigger sync for user: ${token.user_id}`, await syncResponse.text())
+                console.error(`Failed to trigger sync for user: ${token.user_id}`, syncResponse.error)
               }
             } catch (syncError) {
               console.error(`Error triggering sync for user ${token.user_id}:`, syncError)
