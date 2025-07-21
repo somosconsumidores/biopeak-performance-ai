@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,15 +35,14 @@ export const useGarminSync = () => {
         return false;
       }
 
-      console.log('[useGarminSync] Starting activities sync...');
+      console.log('[useGarminSync] Starting manual activities sync...');
       
       const { data, error } = await supabase.functions.invoke('sync-garmin-activities', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: {
-          webhook_triggered: false,
-          force_sync: true // Force manual sync for UI
+          manual_sync: true
         }
       });
 
@@ -91,7 +91,7 @@ export const useGarminSync = () => {
         variant: "default",
       });
 
-      console.log('[useGarminSync] Sync completed:', result);
+      console.log('[useGarminSync] Manual sync completed:', result);
       return true;
 
     } catch (error) {

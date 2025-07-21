@@ -19,7 +19,9 @@ import {
   Heart,
   Timer,
   MapPin,
-  TrendingUp
+  TrendingUp,
+  Settings,
+  ExternalLink
 } from 'lucide-react';
 
 export function GarminSync() {
@@ -78,6 +80,8 @@ export function GarminSync() {
     { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
+
+  const webhookEndpoint = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-activities-webhook';
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -174,8 +178,8 @@ export function GarminSync() {
                           <CheckCircle className="h-4 w-4" />
                           <AlertDescription className="text-green-400">
                             <strong>🎉 Conectado com Sucesso!</strong><br />
-                            Suas atividades são sincronizadas automaticamente. 
-                            Continue treinando para ver insights detalhados!
+                            Sua conta Garmin Connect foi conectada. Para sincronização automática,
+                            configure os webhooks no painel da Garmin.
                           </AlertDescription>
                         </Alert>
 
@@ -201,6 +205,67 @@ export function GarminSync() {
               </CardContent>
             </Card>
           </ScrollReveal>
+
+          {/* Webhook Configuration Card - Only show when connected */}
+          {isConnected && (
+            <ScrollReveal delay={150}>
+              <Card className="glass-card mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3">
+                    <Settings className="h-6 w-6 text-primary" />
+                    Configuração de Webhooks
+                  </CardTitle>
+                  <CardDescription>
+                    Configure webhooks no painel da Garmin para sincronização automática
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Alert className="border-orange-500/50 bg-orange-500/10">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-orange-400">
+                      <strong>⚠️ Configuração Manual Necessária</strong><br />
+                      Para que as atividades sejam sincronizadas automaticamente, você precisa configurar 
+                      o webhook no painel do desenvolvedor da Garmin.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                    <h4 className="font-semibold text-sm">Passos para Configuração:</h4>
+                    <ol className="text-sm space-y-2 text-muted-foreground">
+                      <li>1. Acesse o <strong>Garmin Connect Developer Panel</strong></li>
+                      <li>2. Vá para a seção de <strong>Webhooks</strong></li>
+                      <li>3. Adicione o seguinte endpoint:</li>
+                    </ol>
+                    
+                    <div className="bg-background border rounded p-3">
+                      <div className="flex items-center justify-between">
+                        <code className="text-sm font-mono break-all">{webhookEndpoint}</code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigator.clipboard.writeText(webhookEndpoint)}
+                        >
+                          Copiar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+                        onClick={() => window.open('https://developer.garmin.com', '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir Painel Garmin
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
 
           {/* Connection Status - Only show when connected */}
           {isConnected && (
@@ -250,18 +315,28 @@ export function GarminSync() {
               <CardHeader>
                 <CardTitle>Como Funciona</CardTitle>
                 <CardDescription>
-                  Processo simples para começar a receber insights de suas atividades
+                  Processo para começar a receber insights de suas atividades
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-4 gap-6">
                   <div className="text-center space-y-3">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                       <Zap className="h-6 w-6 text-primary" />
                     </div>
                     <h3 className="font-semibold">1. Conectar</h3>
                     <p className="text-sm text-muted-foreground">
-                      Faça login com sua conta Garmin Connect em um clique
+                      Faça login com sua conta Garmin Connect
+                    </p>
+                  </div>
+                  
+                  <div className="text-center space-y-3">
+                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+                      <Settings className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">2. Configurar</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Configure webhooks no painel da Garmin (manual)
                     </p>
                   </div>
                   
@@ -269,9 +344,9 @@ export function GarminSync() {
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                       <Activity className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">2. Treinar</h3>
+                    <h3 className="font-semibold">3. Treinar</h3>
                     <p className="text-sm text-muted-foreground">
-                      Continue suas atividades normalmente com seu dispositivo Garmin
+                      Continue suas atividades com seu dispositivo Garmin
                     </p>
                   </div>
                   
@@ -279,9 +354,9 @@ export function GarminSync() {
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                       <TrendingUp className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">3. Insights</h3>
+                    <h3 className="font-semibold">4. Insights</h3>
                     <p className="text-sm text-muted-foreground">
-                      Receba análises automáticas de performance e evolução
+                      Receba análises automáticas de performance
                     </p>
                   </div>
                 </div>

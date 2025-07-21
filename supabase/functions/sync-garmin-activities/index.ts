@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 
@@ -56,27 +57,27 @@ serve(async (req) => {
     // Parse request body to check for webhook trigger and parameters
     let requestBody: any = {};
     let isWebhookTriggered = false;
-    let isAdminOverride = false;
+    let isManualSync = false;
     let callbackURL: string | null = null;
     let webhookPayload: any = null;
 
     try {
       requestBody = await req.json();
       isWebhookTriggered = requestBody.webhook_triggered || false;
-      isAdminOverride = requestBody.admin_override || false;
+      isManualSync = requestBody.manual_sync || requestBody.force_sync || false;
       callbackURL = requestBody.callback_url || null;
       webhookPayload = requestBody.webhook_payload || null;
     } catch (e) {
       console.log('[sync-garmin-activities] No request body provided');
     }
 
-    // REJECT non-webhook calls unless admin override
-    if (!isWebhookTriggered && !isAdminOverride) {
-      console.log('[sync-garmin-activities] REJECTED: Call not from webhook or admin override');
+    // Allow webhook-triggered calls or manual sync calls
+    if (!isWebhookTriggered && !isManualSync) {
+      console.log('[sync-garmin-activities] REJECTED: Call not from webhook or manual sync');
       return new Response(JSON.stringify({ 
-        error: 'Sync rejected: Only webhook-triggered syncs are allowed',
-        details: 'This endpoint only accepts calls from Garmin webhooks. Manual syncing has been disabled to prevent unprompted notifications.',
-        code: 'WEBHOOK_ONLY'
+        error: 'Sync rejected: Only webhook-triggered or manual syncs are allowed',
+        details: 'This endpoint accepts calls from Garmin webhooks or manual sync requests.',
+        code: 'WEBHOOK_OR_MANUAL_ONLY'
       }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -105,22 +106,23 @@ serve(async (req) => {
       });
     }
 
-    const triggeredBy = isWebhookTriggered ? 'webhook' : (isAdminOverride ? 'admin_override' : 'unknown');
+    const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual_sync';
     console.log(`[sync-garmin-activities] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
 
-    // Check rate limiting for this user and sync type
+    // Check rate limiting for this user and sync type (more lenient for manual sync)
+    const minInterval = isManualSync ? 1 : 5; // 1 minute for manual, 5 for webhook
     const { data: canSync } = await supabase.rpc('can_sync_user', {
       user_id_param: user.id,
       sync_type_param: 'activities',
-      min_interval_minutes: 5
+      min_interval_minutes: minInterval
     });
 
-    if (!canSync && !isAdminOverride) {
+    if (!canSync && !isManualSync) {
       console.log('[sync-garmin-activities] Rate limit exceeded, sync skipped');
       return new Response(JSON.stringify({ 
         error: 'Sync rate limit exceeded',
-        message: 'Please wait 5 minutes between sync requests',
-        canRetryAfter: 5 * 60 * 1000 // 5 minutes in milliseconds
+        message: `Please wait ${minInterval} minutes between sync requests`,
+        canRetryAfter: minInterval * 60 * 1000
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
