@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.backfill-activities]
 verify_jwt = true
+
+[functions.garmin-activities-webhook]
+verify_jwt = false
