@@ -7,7 +7,7 @@ export interface WebhookSyncStats {
   lastWebhookSync: string | null;
   activitiesCount: number;
   webhookStatus: 'active' | 'inactive' | 'unknown';
-  lastSyncMethod: 'webhook' | 'admin_override' | 'unknown';
+  lastSyncMethod: string; // Changed to accept any string value
 }
 
 export const useWebhookOnlyGarminSync = () => {

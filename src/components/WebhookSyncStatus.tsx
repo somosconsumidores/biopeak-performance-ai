@@ -55,6 +55,15 @@ export function WebhookSyncStatus() {
     }
   };
 
+  const getSyncMethodLabel = (method: string) => {
+    switch (method) {
+      case 'webhook': return 'Webhook';
+      case 'admin_override': return 'Override Admin';
+      case 'manual': return 'Manual';
+      default: return 'Desconhecido';
+    }
+  };
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -90,8 +99,7 @@ export function WebhookSyncStatus() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Último Método de Sync:</span>
               <Badge className={getSyncMethodColor(stats.lastSyncMethod)}>
-                {stats.lastSyncMethod === 'webhook' ? 'Webhook' : 
-                 stats.lastSyncMethod === 'admin_override' ? 'Override Admin' : 'Desconhecido'}
+                {getSyncMethodLabel(stats.lastSyncMethod)}
               </Badge>
             </div>
           </div>
