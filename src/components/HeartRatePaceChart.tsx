@@ -69,6 +69,15 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                     const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
+                    console.log('🔍 TIMESTAMP DEBUG:', {
+                      activityDate,
+                      activityDateTime: activityDateTime.toISOString(),
+                      startTimeSeconds,
+                      endTimeSeconds,
+                      startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
+                      endTimeDate: new Date(endTimeSeconds * 1000).toISOString()
+                    });
+                    
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
                       uploadEndTimeInSeconds: endTimeSeconds
@@ -165,6 +174,15 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                     const activityDateTime = new Date(activityDate + 'T00:00:00Z');
                     const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
                     const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
+                    
+                    console.log('🔍 TIMESTAMP DEBUG:', {
+                      activityDate,
+                      activityDateTime: activityDateTime.toISOString(),
+                      startTimeSeconds,
+                      endTimeSeconds,
+                      startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
+                      endTimeDate: new Date(endTimeSeconds * 1000).toISOString()
+                    });
                     
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
