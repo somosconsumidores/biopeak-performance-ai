@@ -360,6 +360,7 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          is_active: boolean | null
           oauth_verifier: string | null
           token_secret: string | null
           updated_at: string
@@ -371,6 +372,7 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          is_active?: boolean | null
           oauth_verifier?: string | null
           token_secret?: string | null
           updated_at?: string
@@ -382,10 +384,47 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          is_active?: boolean | null
           oauth_verifier?: string | null
           token_secret?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      garmin_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          garmin_user_id: string | null
+          id: string
+          payload: Json
+          processed_at: string | null
+          status: string | null
+          user_id: string | null
+          webhook_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          garmin_user_id?: string | null
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string | null
+          webhook_type: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          garmin_user_id?: string | null
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string | null
+          webhook_type?: string
         }
         Relationships: []
       }
@@ -591,6 +630,10 @@ export type Database = {
       }
       cleanup_expired_oauth_data: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      deactivate_garmin_user: {
+        Args: { garmin_user_id_param: string }
         Returns: undefined
       }
       sync_all_users_dailies: {
