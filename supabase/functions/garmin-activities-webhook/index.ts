@@ -81,19 +81,18 @@ Deno.serve(async (req) => {
               })
 
             // Trigger sync for this specific user's activities
-            // Use Supabase function to sync, passing callbackURL as parameter
+            // Use Supabase function to sync, passing user context in body
             try {
               console.log(`Triggering activity sync for user: ${token.user_id}`)
               
               const syncResponse = await supabaseClient.functions.invoke('sync-garmin-activities', {
-                headers: {
-                  Authorization: `Bearer ${token.access_token}`,
-                },
                 body: {
                   webhook_triggered: true,
                   callback_url: activity.callbackURL,
                   webhook_payload: activity,
-                  timeRange: 'last_24_hours'
+                  timeRange: 'last_24_hours',
+                  user_id: token.user_id, // Pass user_id directly since we're using service role
+                  garmin_access_token: token.access_token // Pass Garmin token separately
                 }
               })
 

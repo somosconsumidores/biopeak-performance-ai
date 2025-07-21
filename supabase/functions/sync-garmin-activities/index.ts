@@ -60,6 +60,8 @@ serve(async (req) => {
     let isManualSync = false;
     let callbackURL: string | null = null;
     let webhookPayload: any = null;
+    let webhookUserId: string | null = null;
+    let garminAccessToken: string | null = null;
 
     try {
       requestBody = await req.json();
@@ -67,6 +69,8 @@ serve(async (req) => {
       isManualSync = requestBody.manual_sync || requestBody.force_sync || false;
       callbackURL = requestBody.callback_url || null;
       webhookPayload = requestBody.webhook_payload || null;
+      webhookUserId = requestBody.user_id || null;
+      garminAccessToken = requestBody.garmin_access_token || null;
     } catch (e) {
       console.log('[sync-garmin-activities] No request body provided');
     }
@@ -84,26 +88,52 @@ serve(async (req) => {
       });
     }
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    let user: any = null;
 
-    // Verify the user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    // For webhook calls, we use service role and get user from request body
+    if (isWebhookTriggered && webhookUserId) {
+      console.log(`[sync-garmin-activities] Webhook call for user: ${webhookUserId}`);
+      
+      // Verify user exists in database
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', webhookUserId)
+        .maybeSingle();
 
-    if (authError || !user) {
-      console.error('[sync-garmin-activities] Auth error:', authError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (userError || !userData) {
+        console.error('[sync-garmin-activities] User not found:', userError);
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      user = { id: webhookUserId };
+    } else {
+      // For manual sync, require proper JWT authentication
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'No authorization header' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Verify the user with JWT
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(
+        authHeader.replace('Bearer ', '')
+      );
+
+      if (authError || !authUser) {
+        console.error('[sync-garmin-activities] Auth error:', authError);
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      user = authUser;
     }
 
     const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual_sync';
@@ -140,27 +170,37 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Syncing activities for user:', user.id);
 
-    // Get user's Garmin tokens
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('garmin_tokens')
-      .select('access_token, expires_at')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    // Get user's Garmin tokens (use webhook token if provided)
+    let accessToken: string;
+    
+    if (isWebhookTriggered && garminAccessToken) {
+      console.log('[sync-garmin-activities] Using Garmin token from webhook');
+      accessToken = garminAccessToken;
+    } else {
+      // Get token from database for manual sync
+      const { data: tokenData, error: tokenError } = await supabase
+        .from('garmin_tokens')
+        .select('access_token, expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (tokenError || !tokenData) {
-      console.error('[sync-garmin-activities] Token error:', tokenError);
-      return new Response(JSON.stringify({ error: 'No Garmin token found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+      if (tokenError || !tokenData) {
+        console.error('[sync-garmin-activities] Token error:', tokenError);
+        return new Response(JSON.stringify({ error: 'No Garmin token found' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-    // Check if token is expired
-    if (tokenData.expires_at && new Date(tokenData.expires_at) <= new Date()) {
-      return new Response(JSON.stringify({ error: 'Garmin token expired' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Check if token is expired
+      if (tokenData.expires_at && new Date(tokenData.expires_at) <= new Date()) {
+        return new Response(JSON.stringify({ error: 'Garmin token expired' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      accessToken = tokenData.access_token;
     }
 
     console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
@@ -195,7 +235,7 @@ serve(async (req) => {
         const garminResponse = await fetch(apiUrl.toString(), {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/json',
           },
         });
