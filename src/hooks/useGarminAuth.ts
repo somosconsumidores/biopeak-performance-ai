@@ -273,12 +273,40 @@ export const useGarminAuth = () => {
       // Clear PKCE data
       localStorage.removeItem('garmin_pkce');
 
-      console.log('[useGarminAuth] Authentication completed successfully');
+      console.log('[useGarminAuth] OAuth completed successfully, user is now connected');
+      
+      // Register webhook automatically after successful OAuth
+      try {
+        console.log('[useGarminAuth] Registering Garmin webhook...');
+        const { data: webhookData, error: webhookError } = await supabase.functions.invoke('register-garmin-webhooks', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          }
+        });
 
-      toast({
-        title: "Conectado com sucesso!",
-        description: "Sua conta Garmin Connect foi conectada. Os webhooks devem estar configurados manualmente no painel da Garmin para sincronização automática.",
-      });
+        if (webhookError) {
+          console.error('[useGarminAuth] Webhook registration failed:', webhookError);
+          toast({
+            title: "Conectado com sucesso!",
+            description: "Sua conta Garmin foi conectada, mas a configuração automática de webhooks falhou. As atividades podem não sincronizar automaticamente.",
+            variant: "default",
+          });
+        } else {
+          console.log('[useGarminAuth] Webhook registered successfully:', webhookData);
+          toast({
+            title: "Conectado com sucesso!",
+            description: "Sua conta Garmin foi conectada e configurada para sincronização automática de atividades.",
+            variant: "default",
+          });
+        }
+      } catch (webhookErr) {
+        console.error('[useGarminAuth] Webhook registration error:', webhookErr);
+        toast({
+          title: "Conectado com sucesso!",
+          description: "Sua conta Garmin foi conectada, mas a configuração de webhooks pode ter falhado. Use a sincronização manual se necessário.",
+          variant: "default",
+        });
+      }
 
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
