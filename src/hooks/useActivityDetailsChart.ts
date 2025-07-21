@@ -13,6 +13,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
   const [data, setData] = useState<HeartRatePaceData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasRawData, setHasRawData] = useState(false);
 
   const fetchData = async (id: string) => {
     setLoading(true);
@@ -30,6 +31,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
 
       if (countError) throw countError;
       console.log('🔍 DEBUG: Total records count:', count);
+      setHasRawData((count || 0) > 0);
 
       // Fetch all data in chunks if needed
       const allDetails = [];
@@ -155,6 +157,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     } else {
       setData([]);
       setError(null);
+      setHasRawData(false);
     }
   }, [activityId]);
 
@@ -162,6 +165,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     data,
     loading,
     error,
-    hasData: data.length > 0
+    hasData: data.length > 0,
+    hasRawData
   };
 };

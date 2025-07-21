@@ -14,7 +14,7 @@ interface HeartRatePaceChartProps {
 }
 
 export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRatePaceChartProps) => {
-  const { data, loading, error, hasData } = useActivityDetailsChart(activityId);
+  const { data, loading, error, hasData, hasRawData } = useActivityDetailsChart(activityId);
   const { isMobile, isTablet } = useScreenSize();
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,7 +101,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {(!hasData || error) && activityStartTime && (
+            {!hasRawData && activityStartTime && (
               <Button
                 variant="outline"
                 size="sm"
