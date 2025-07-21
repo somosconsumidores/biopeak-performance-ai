@@ -21,12 +21,68 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Helper function to calculate proper timestamp range
+  const calculateTimestampRange = (startTime: number | null, dateString: string | null) => {
+    console.log('🔍 TIMESTAMP INPUT:', { startTime, dateString });
+    
+    let baseDate: Date;
+    
+    // If we have activity_date, use it as the primary reference
+    if (dateString) {
+      // Parse the date string (YYYY-MM-DD format) and create a date in local timezone
+      const [year, month, day] = dateString.split('-').map(Number);
+      baseDate = new Date(year, month - 1, day); // month is 0-indexed
+      console.log('🔍 Using activity_date as base:', baseDate.toISOString());
+    } 
+    // Fallback to start_time_in_seconds if it's reasonable (not in the future)
+    else if (startTime) {
+      const currentTime = Date.now() / 1000;
+      const oneYearFromNow = currentTime + (365 * 24 * 60 * 60); // 1 year in the future
+      
+      if (startTime > oneYearFromNow) {
+        console.warn('🔍 start_time_in_seconds is too far in the future, using current date as fallback');
+        baseDate = new Date();
+      } else {
+        baseDate = new Date(startTime * 1000);
+        console.log('🔍 Using start_time_in_seconds as base:', baseDate.toISOString());
+      }
+    } 
+    // Ultimate fallback to current date
+    else {
+      baseDate = new Date();
+      console.log('🔍 Using current date as fallback:', baseDate.toISOString());
+    }
+    
+    // Calculate start of day in local timezone
+    const startOfDay = new Date(baseDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Calculate end of day in local timezone  
+    const endOfDay = new Date(baseDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const startTimeSeconds = Math.floor(startOfDay.getTime() / 1000);
+    const endTimeSeconds = Math.floor(endOfDay.getTime() / 1000);
+    
+    console.log('🔍 CALCULATED RANGE:', {
+      baseDate: baseDate.toISOString(),
+      startOfDay: startOfDay.toISOString(),
+      endOfDay: endOfDay.toISOString(),
+      startTimeSeconds,
+      endTimeSeconds,
+      startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
+      endTimeDate: new Date(endTimeSeconds * 1000).toISOString()
+    });
+    
+    return { startTimeSeconds, endTimeSeconds };
+  };
+
   console.log('🔍 BUTTON DEBUG:', { 
     hasRawData, 
     activityStartTime, 
     activityDate,
     activityId,
-    shouldShowButton: !hasRawData && !!activityStartTime
+    shouldShowButton: !hasRawData && (!!activityStartTime || !!activityDate)
   });
 
   if (loading) {
@@ -56,34 +112,14 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityStartTime && (
+            {!hasRawData && (activityStartTime || activityDate) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityStartTime) return;
-                  
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window using the activity's actual start time
-                    // Start from the beginning of the day when the activity occurred
-                    const activityDate = new Date(activityStartTime * 1000);
-                    const startOfDay = new Date(activityDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    
-                    // Calculate start and end times for the 24-hour window
-                    const startTimeSeconds = Math.floor(startOfDay.getTime() / 1000);
-                    const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
-                    
-                    console.log('🔍 TIMESTAMP DEBUG:', {
-                      activityStartTime,
-                      activityDate: activityDate.toISOString(),
-                      startOfDay: startOfDay.toISOString(),
-                      startTimeSeconds,
-                      endTimeSeconds,
-                      startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
-                      endTimeDate: new Date(endTimeSeconds * 1000).toISOString()
-                    });
+                    const { startTimeSeconds, endTimeSeconds } = calculateTimestampRange(activityStartTime, activityDate);
                     
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
@@ -168,34 +204,14 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityStartTime && (
+            {!hasRawData && (activityStartTime || activityDate) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityStartTime) return;
-                  
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window using the activity's actual start time
-                    // Start from the beginning of the day when the activity occurred
-                    const activityDate = new Date(activityStartTime * 1000);
-                    const startOfDay = new Date(activityDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    
-                    // Calculate start and end times for the 24-hour window
-                    const startTimeSeconds = Math.floor(startOfDay.getTime() / 1000);
-                    const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
-                    
-                    console.log('🔍 TIMESTAMP DEBUG:', {
-                      activityStartTime,
-                      activityDate: activityDate.toISOString(),
-                      startOfDay: startOfDay.toISOString(),
-                      startTimeSeconds,
-                      endTimeSeconds,
-                      startTimeDate: new Date(startTimeSeconds * 1000).toISOString(),
-                      endTimeDate: new Date(endTimeSeconds * 1000).toISOString()
-                    });
+                    const { startTimeSeconds, endTimeSeconds } = calculateTimestampRange(activityStartTime, activityDate);
                     
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
