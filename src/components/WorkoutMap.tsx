@@ -15,8 +15,8 @@ export const WorkoutMap = ({ coordinates, width = 400, height = 300 }: WorkoutMa
   useEffect(() => {
     if (!mapContainer.current || !coordinates.length) return;
 
-    // Get Mapbox token from environment or use demo token
-    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+    // Use demo token for now - in production, fetch from Supabase secrets
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
     
     // Calculate bounds
     const bounds = new mapboxgl.LngLatBounds();
