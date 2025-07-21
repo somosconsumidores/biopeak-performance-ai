@@ -142,10 +142,30 @@ Deno.serve(async (req) => {
       console.log('[sync-activity-details] Token refreshed successfully');
     }
 
-    // Always use last 24 hours from current time
-    const now = Math.floor(Date.now() / 1000);
-    const startTime = now - 86400; // 24 hours ago
-    const endTime = now;
+    // Parse request body to get custom time range if provided
+    let startTime: number;
+    let endTime: number;
+    
+    try {
+      const body = await req.json();
+      if (body.uploadStartTimeInSeconds && body.uploadEndTimeInSeconds) {
+        startTime = body.uploadStartTimeInSeconds;
+        endTime = body.uploadEndTimeInSeconds;
+        console.log(`[sync-activity-details] Using custom time range from ${startTime} to ${endTime}`);
+      } else {
+        // Fallback to last 24 hours from current time
+        const now = Math.floor(Date.now() / 1000);
+        startTime = now - 86400; // 24 hours ago
+        endTime = now;
+        console.log(`[sync-activity-details] Using default 24h range from ${startTime} to ${endTime}`);
+      }
+    } catch (jsonError) {
+      // If no body or invalid JSON, use default range
+      const now = Math.floor(Date.now() / 1000);
+      startTime = now - 86400; // 24 hours ago
+      endTime = now;
+      console.log(`[sync-activity-details] No valid body, using default range from ${startTime} to ${endTime}`);
+    }
 
     console.log(`[sync-activity-details] Fetching activity details from ${startTime} to ${endTime}`);
 
