@@ -1,6 +1,4 @@
 
-import { WorkoutMap } from './WorkoutMap';
-
 interface WorkoutShareImageProps {
   workoutData: {
     activity_type: string | null;
@@ -61,26 +59,9 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Map Section */}
-      {workoutData.coordinates && workoutData.coordinates.length > 0 && (
-        <div className="absolute" style={{ 
-          top: '15%', 
-          left: '50%', 
-          transform: 'translateX(-50%)',
-          width: '80%',
-          height: '25%'
-        }}>
-          <WorkoutMap 
-            coordinates={workoutData.coordinates} 
-            width={864} 
-            height={480}
-          />
-        </div>
-      )}
-
       {/* Activity Name */}
       <div className="absolute" style={{ 
-        top: workoutData.coordinates?.length ? '42%' : '30%', 
+        top: '30%',
         left: '50%', 
         transform: 'translate(-50%, -50%)',
         textAlign: 'center'
