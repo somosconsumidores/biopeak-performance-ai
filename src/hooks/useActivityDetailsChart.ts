@@ -111,11 +111,12 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       console.log('🔍 DEBUG: Valid pace records:', validPaceRecords.length);
       console.log('🔍 DEBUG: Valid both HR+pace records:', validBothRecords.length);
 
-      // Apply final filter
+      // Apply final filter - include all records with valid heart rate
+      // Pace can be null for some segments, we'll handle that in the chart
       const chartData = processedData
         .filter(item => {
-          // Only include records where heart rate is valid and pace is greater than zero
-          return item.heart_rate > 0 && item.pace_min_per_km !== null && item.pace_min_per_km > 0;
+          // Include all records with valid heart rate
+          return item.heart_rate > 0;
         })
         .sort((a, b) => a.distance_km - b.distance_km);
 
