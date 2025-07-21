@@ -1,5 +1,5 @@
 
-import newSocialShareBg from '@/assets/social-share-bg.png';
+import { WorkoutMap } from './WorkoutMap';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -11,6 +11,7 @@ interface WorkoutShareImageProps {
     average_heart_rate_in_beats_per_minute: number | null;
     total_elevation_gain_in_meters: number | null;
     start_time_in_seconds: number | null;
+    coordinates?: Array<{ latitude: number; longitude: number }>;
   };
 }
 
@@ -60,9 +61,26 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Activity Name - Top position */}
+      {/* Map Section */}
+      {workoutData.coordinates && workoutData.coordinates.length > 0 && (
+        <div className="absolute" style={{ 
+          top: '15%', 
+          left: '50%', 
+          transform: 'translateX(-50%)',
+          width: '80%',
+          height: '25%'
+        }}>
+          <WorkoutMap 
+            coordinates={workoutData.coordinates} 
+            width={864} 
+            height={480}
+          />
+        </div>
+      )}
+
+      {/* Activity Name */}
       <div className="absolute" style={{ 
-        top: '30%', 
+        top: workoutData.coordinates?.length ? '42%' : '30%', 
         left: '50%', 
         transform: 'translate(-50%, -50%)',
         textAlign: 'center'

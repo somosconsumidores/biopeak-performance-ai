@@ -18,6 +18,7 @@ interface GarminActivity {
   total_elevation_gain_in_meters: number | null;
   start_time_in_seconds: number | null;
   device_name: string | null;
+  coordinates?: Array<{ latitude: number; longitude: number }>;
 }
 
 export const useLatestActivity = () => {
