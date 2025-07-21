@@ -38,7 +38,8 @@ export const useLatestActivity = () => {
         setLoading(true);
         setError(null);
 
-        const { data, error: fetchError } = await supabase
+        // First get the latest activity
+        const { data: activityData, error: activityError } = await supabase
           .from('garmin_activities')
           .select(`
             id,
@@ -62,11 +63,42 @@ export const useLatestActivity = () => {
           .limit(1)
           .maybeSingle();
 
-        if (fetchError) {
-          throw fetchError;
+        if (activityError) {
+          throw activityError;
         }
 
-        setActivity(data);
+        if (!activityData) {
+          setActivity(null);
+          return;
+        }
+
+        // Get GPS coordinates for this activity
+        const { data: coordinatesData, error: coordinatesError } = await supabase
+          .from('garmin_activity_details')
+          .select('latitude_in_degree, longitude_in_degree')
+          .eq('user_id', user.id)
+          .eq('activity_id', activityData.activity_id)
+          .not('latitude_in_degree', 'is', null)
+          .not('longitude_in_degree', 'is', null)
+          .order('sample_timestamp', { ascending: true });
+
+        if (coordinatesError) {
+          console.error('Error fetching coordinates:', coordinatesError);
+        }
+
+        // Process coordinates - sample every 10th point for performance
+        const coordinates = coordinatesData?.filter((_, index) => index % 10 === 0).map(coord => ({
+          latitude: coord.latitude_in_degree!,
+          longitude: coord.longitude_in_degree!
+        })) || [];
+
+        // Combine activity data with coordinates
+        const activityWithCoordinates: GarminActivity = {
+          ...activityData,
+          coordinates
+        };
+
+        setActivity(activityWithCoordinates);
       } catch (err) {
         console.error('Error fetching latest activity:', err);
         setError('Erro ao carregar a última atividade');
