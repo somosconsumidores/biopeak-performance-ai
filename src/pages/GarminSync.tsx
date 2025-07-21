@@ -10,6 +10,7 @@ import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { EmergencySyncButton } from '@/components/EmergencySyncButton';
+import { BackfillActivitiesDialog } from '@/components/BackfillActivitiesDialog';
 import { 
   Watch, 
   Zap, 
@@ -183,8 +184,9 @@ export function GarminSync() {
                           </AlertDescription>
                         </Alert>
 
-                        <div className="flex justify-end">
+                        <div className="grid gap-2">
                           <EmergencySyncButton />
+                          <BackfillActivitiesDialog />
                         </div>
                       </div>
                     )}
@@ -205,7 +207,6 @@ export function GarminSync() {
               </CardContent>
             </Card>
           </ScrollReveal>
-
 
           {/* Connection Status - Only show when connected */}
           {isConnected && (

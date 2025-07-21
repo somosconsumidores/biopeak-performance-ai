@@ -1,3 +1,4 @@
+
 project_id = "grcwlmltlcltmwbhdpky"
 
 [functions.garmin-oauth]
@@ -8,3 +9,6 @@ verify_jwt = true
 
 [functions.send-error-notification]
 verify_jwt = false
+
+[functions.backfill-activities]
+verify_jwt = true
