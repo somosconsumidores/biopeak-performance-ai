@@ -139,8 +139,6 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  }, {
-    requestData: { activity_id, user_id }
   });
 });
 
