@@ -56,17 +56,31 @@ serve(async (req) => {
     // Parse request body to check for webhook trigger and parameters
     let requestBody: any = {};
     let isWebhookTriggered = false;
+    let isAdminOverride = false;
     let callbackURL: string | null = null;
     let webhookPayload: any = null;
 
     try {
       requestBody = await req.json();
       isWebhookTriggered = requestBody.webhook_triggered || false;
+      isAdminOverride = requestBody.admin_override || false;
       callbackURL = requestBody.callback_url || null;
       webhookPayload = requestBody.webhook_payload || null;
     } catch (e) {
-      // If no body or invalid JSON, treat as manual
-      console.log('[sync-garmin-activities] No request body, treating as manual sync');
+      console.log('[sync-garmin-activities] No request body provided');
+    }
+
+    // REJECT non-webhook calls unless admin override
+    if (!isWebhookTriggered && !isAdminOverride) {
+      console.log('[sync-garmin-activities] REJECTED: Call not from webhook or admin override');
+      return new Response(JSON.stringify({ 
+        error: 'Sync rejected: Only webhook-triggered syncs are allowed',
+        details: 'This endpoint only accepts calls from Garmin webhooks. Manual syncing has been disabled to prevent unprompted notifications.',
+        code: 'WEBHOOK_ONLY'
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get the authorization header
@@ -91,8 +105,8 @@ serve(async (req) => {
       });
     }
 
-    const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual';
-    console.log(`[sync-garmin-activities] Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
+    const triggeredBy = isWebhookTriggered ? 'webhook' : (isAdminOverride ? 'admin_override' : 'unknown');
+    console.log(`[sync-garmin-activities] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
 
     // Check rate limiting for this user and sync type
     const { data: canSync } = await supabase.rpc('can_sync_user', {
@@ -101,7 +115,7 @@ serve(async (req) => {
       min_interval_minutes: 5
     });
 
-    if (!canSync && !requestBody.force_sync) {
+    if (!canSync && !isAdminOverride) {
       console.log('[sync-garmin-activities] Rate limit exceeded, sync skipped');
       return new Response(JSON.stringify({ 
         error: 'Sync rate limit exceeded',

@@ -1,3 +1,4 @@
+
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
@@ -6,35 +7,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
-import { useUnifiedGarminSync } from '@/hooks/useUnifiedGarminSync';
 import { useGarminStats } from '@/hooks/useGarminStats';
+import { WebhookSyncStatus } from '@/components/WebhookSyncStatus';
+import { EmergencySyncButton } from '@/components/EmergencySyncButton';
 import { 
   Watch, 
-  Smartphone, 
-  Activity, 
+  Zap, 
+  AlertCircle, 
+  CheckCircle,
+  Activity,
   Heart,
   Timer,
   MapPin,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  Download,
-  Zap,
   Database,
-  ArrowRight,
-  Calendar
+  Calendar,
+  Webhook
 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-
-interface SyncStats {
-  lastSync: string;
-  activitiesCount: number;
-  syncStatus: 'connected' | 'disconnected';
-}
 
 export function GarminSync() {
   const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
-  const { syncUnified, isLoading: isSyncing, stages, currentStage, lastSyncResult } = useUnifiedGarminSync();
   const { activitiesCount, lastSyncAt, deviceName, loading: statsLoading } = useGarminStats();
 
   const formatLastSync = (syncAt: string | null) => {
@@ -67,15 +58,9 @@ export function GarminSync() {
     startOAuthFlow();
   };
 
-  const handleSyncActivities = async () => {
-    console.log('[GarminSync] Starting unified sync...');
-    await syncUnified();
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'connected': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'syncing': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       case 'disconnected': return 'bg-red-500/20 text-red-400 border-red-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
@@ -84,7 +69,6 @@ export function GarminSync() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'connected': return 'Conectado';
-      case 'syncing': return 'Sincronizando...';
       case 'disconnected': return 'Desconectado';
       default: return 'Desconhecido';
     }
@@ -96,24 +80,6 @@ export function GarminSync() {
     { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
-
-  const getStageIcon = (stageName: 'activities' | 'details' | 'dailies') => {
-    if (stageName === 'activities') return Activity;
-    if (stageName === 'details') return Database;
-    return Calendar;
-  };
-
-  const getStageLabel = (stageName: 'activities' | 'details' | 'dailies') => {
-    if (stageName === 'activities') return 'Atividades Básicas';
-    if (stageName === 'details') return 'Detalhes Recentes';
-    return 'Resumos Diários';
-  };
-
-  const getStageDescription = (stageName: 'activities' | 'details' | 'dailies') => {
-    if (stageName === 'activities') return 'Sincronizando informações básicas das atividades';
-    if (stageName === 'details') return 'Sincronizando detalhes das atividades das últimas 24h';
-    return 'Sincronizando resumos diários de wellness';
-  };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -180,7 +146,7 @@ export function GarminSync() {
                       <Alert className="border-yellow-500/50 bg-yellow-500/10">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription className="text-yellow-400">
-                          Conecte sua conta Garmin para sincronizar suas atividades
+                          Conecte sua conta Garmin para ativar a sincronização automática via webhooks
                         </AlertDescription>
                       </Alert>
                     )}
@@ -194,7 +160,7 @@ export function GarminSync() {
                         >
                           {isConnecting ? (
                             <>
-                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
                               Conectando...
                             </>
                           ) : (
@@ -205,100 +171,20 @@ export function GarminSync() {
                           )}
                         </Button>
                        ) : (
-                        <>
-                          <Button 
-                            onClick={handleSyncActivities}
-                            disabled={isSyncing}
-                            className="w-full"
-                          >
-                            {isSyncing ? (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                Sincronização Inteligente...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4 mr-2" />
-                                Sincronização Inteligente
-                              </>
-                            )}
-                          </Button>
+                        <div className="space-y-2">
+                          <Alert className="border-green-500/50 bg-green-500/10">
+                            <Webhook className="h-4 w-4" />
+                            <AlertDescription className="text-green-400">
+                              <strong>🎉 Sincronização Automática Ativa!</strong><br />
+                              Suas atividades são sincronizadas automaticamente via webhooks. 
+                              Não é necessário fazer sync manual.
+                            </AlertDescription>
+                          </Alert>
 
-                          {/* Progress Section */}
-                          {isSyncing && (
-                            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
-                              <div className="text-sm font-medium text-center">
-                                Progresso da Sincronização
-                              </div>
-                              
-                              {stages.map((stage, index) => {
-                                const StageIcon = getStageIcon(stage.name);
-                                const isActive = currentStage.name === stage.name;
-                                const isCompleted = stage.status === 'completed';
-                                const isError = stage.status === 'error';
-                                
-                                return (
-                                  <div key={stage.name} className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-2">
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                          isCompleted ? 'bg-green-500/20 text-green-400' :
-                                          isError ? 'bg-red-500/20 text-red-400' :
-                                          isActive ? 'bg-primary/20 text-primary animate-pulse' :
-                                          'bg-muted/50 text-muted-foreground'
-                                        }`}>
-                                          {isCompleted ? (
-                                            <CheckCircle className="h-3 w-3" />
-                                          ) : isError ? (
-                                            <AlertCircle className="h-3 w-3" />
-                                          ) : (
-                                            <StageIcon className="h-3 w-3" />
-                                          )}
-                                        </div>
-                                        <span className={`text-sm font-medium ${
-                                          isActive ? 'text-primary' : 
-                                          isCompleted ? 'text-green-400' :
-                                          isError ? 'text-red-400' :
-                                          'text-muted-foreground'
-                                        }`}>
-                                          {getStageLabel(stage.name)}
-                                        </span>
-                                      </div>
-                                      {stage.status === 'running' && index < stages.length - 1 && (
-                                        <ArrowRight className="h-4 w-4 text-primary animate-pulse" />
-                                      )}
-                                    </div>
-                                    
-                                    <div className="text-xs text-muted-foreground pl-8">
-                                      {stage.message || getStageDescription(stage.name)}
-                                    </div>
-                                    
-                                    {stage.status === 'running' && stage.progress !== undefined && (
-                                      <div className="pl-8">
-                                        <Progress value={stage.progress} className="h-1.5" />
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Results Summary */}
-                          {!isSyncing && lastSyncResult && (
-                            <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
-                              <div className="text-sm font-medium text-center text-green-400">
-                                ✓ Última Sincronização Completa
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                <span>Atividades: {lastSyncResult.activities.synced}</span>
-                                <span>Detalhes: {lastSyncResult.details.synced}</span>
-                                <span>Resumos: {lastSyncResult.dailies.synced}</span>
-                                <span>Tempo: {Math.round(lastSyncResult.totalDuration / 1000)}s</span>
-                              </div>
-                            </div>
-                          )}
-                        </>
+                          <div className="flex justify-end">
+                            <EmergencySyncButton />
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -319,10 +205,19 @@ export function GarminSync() {
             </Card>
           </ScrollReveal>
 
+          {/* Webhook Status Card - Only show when connected */}
+          {isConnected && (
+            <ScrollReveal delay={200}>
+              <div className="mb-8">
+                <WebhookSyncStatus />
+              </div>
+            </ScrollReveal>
+          )}
+
           {/* Device Card */}
           {deviceName && isConnected && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <ScrollReveal delay={200}>
+              <ScrollReveal delay={300}>
                 <Card className="glass-card">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
@@ -375,11 +270,11 @@ export function GarminSync() {
                   
                   <div className="text-center space-y-3">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-                      <Database className="h-6 w-6 text-primary" />
+                      <Webhook className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">2. Sync Inteligente</h3>
+                    <h3 className="font-semibold">2. Webhooks Automáticos</h3>
                     <p className="text-sm text-muted-foreground">
-                      Atividades básicas + detalhes automáticos das últimas 24h
+                      Sistema detecta novas atividades automaticamente via webhooks
                     </p>
                   </div>
                   
