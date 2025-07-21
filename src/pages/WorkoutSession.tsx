@@ -291,6 +291,7 @@ export const WorkoutSession = () => {
             <HeartRatePaceChart 
               activityId={currentActivity.activity_id} 
               activityStartTime={currentActivity.start_time_in_seconds}
+              activityDate={currentActivity.activity_date}
             />
           </ScrollReveal>
 

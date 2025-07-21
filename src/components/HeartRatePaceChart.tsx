@@ -11,9 +11,10 @@ import { toast } from 'sonner';
 interface HeartRatePaceChartProps {
   activityId: string | null;
   activityStartTime?: number | null;
+  activityDate?: string | null;
 }
 
-export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRatePaceChartProps) => {
+export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate }: HeartRatePaceChartProps) => {
   const { data, loading, error, hasData, hasRawData } = useActivityDetailsChart(activityId);
   const { isMobile, isTablet } = useScreenSize();
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
@@ -22,8 +23,9 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
   console.log('🔍 BUTTON DEBUG:', { 
     hasRawData, 
     activityStartTime, 
+    activityDate,
     activityId,
-    shouldShowButton: !hasRawData && !!activityStartTime 
+    shouldShowButton: !hasRawData && !!activityDate
   });
 
   if (loading) {
@@ -53,18 +55,19 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityStartTime && (
+            {!hasRawData && activityDate && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityStartTime) return;
+                  if (!activityDate) return;
                   
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window around the activity time
-                    const startTimeSeconds = activityStartTime - (12 * 60 * 60); // 12 hours before
-                    const endTimeSeconds = activityStartTime + (12 * 60 * 60);   // 12 hours after
+                    // Calculate 24-hour window for the activity date
+                    const activityDateTime = new Date(activityDate + 'T00:00:00Z');
+                    const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
+                    const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
@@ -149,18 +152,19 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime }: HeartRateP
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && activityStartTime && (
+            {!hasRawData && activityDate && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!activityStartTime) return;
+                  if (!activityDate) return;
                   
                   setIsRefreshing(true);
                   try {
-                    // Calculate 24-hour window around the activity time
-                    const startTimeSeconds = activityStartTime - (12 * 60 * 60); // 12 hours before
-                    const endTimeSeconds = activityStartTime + (12 * 60 * 60);   // 12 hours after
+                    // Calculate 24-hour window for the activity date
+                    const activityDateTime = new Date(activityDate + 'T00:00:00Z');
+                    const startTimeSeconds = Math.floor(activityDateTime.getTime() / 1000);
+                    const endTimeSeconds = startTimeSeconds + (24 * 60 * 60); // Full day
                     
                     const success = await syncActivityDetails({
                       uploadStartTimeInSeconds: startTimeSeconds,
