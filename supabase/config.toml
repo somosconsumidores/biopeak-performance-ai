@@ -27,3 +27,6 @@ verify_jwt = false
 
 [functions.garmin-permissions-query]
 verify_jwt = false
+
+[functions.garmin-ping-webhook]
+verify_jwt = false
