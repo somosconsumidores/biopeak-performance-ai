@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -74,7 +73,7 @@ Deno.serve(async (req) => {
       console.log('[sync-activity-details] No request body provided');
     }
 
-    // REJECT non-webhook calls unless admin override
+    // ACCEPT webhook calls and admin override
     if (!isWebhookTriggered && !isAdminOverride) {
       console.log('[sync-activity-details] REJECTED: Call not from webhook or admin override');
       return new Response(JSON.stringify({ 
@@ -87,49 +86,93 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('[sync-activity-details] No authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401 
-        }
-      );
-    }
+    // For webhook calls, extract user from token (similar to other webhook functions)
+    let user: any = null;
+    
+    if (isWebhookTriggered) {
+      // Get user from authorization token (passed by webhook)
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        console.error('[sync-activity-details] No authorization header in webhook call');
+        return new Response(
+          JSON.stringify({ error: 'Authorization header required' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+      const token = authHeader.replace('Bearer ', '');
+      
+      // For webhook calls, we need to extract the user from the Garmin token
+      const { data: tokenData, error: tokenError } = await supabaseClient
+        .from('garmin_tokens')
+        .select('user_id')
+        .eq('access_token', token)
+        .eq('is_active', true)
+        .maybeSingle();
 
-    if (authError || !user) {
-      console.error('[sync-activity-details] Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401 
-        }
-      );
+      if (tokenError || !tokenData) {
+        console.error('[sync-activity-details] Invalid token or user not found:', tokenError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid token or user not found' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
+
+      user = { id: tokenData.user_id };
+    } else {
+      // For admin override, use proper JWT authentication
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        console.error('[sync-activity-details] No authorization header');
+        return new Response(
+          JSON.stringify({ error: 'Authorization header required' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser(token);
+
+      if (authError || !authUser) {
+        console.error('[sync-activity-details] Auth error:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
+
+      user = authUser;
     }
 
     const triggeredBy = isWebhookTriggered ? 'webhook' : (isAdminOverride ? 'admin_override' : 'unknown');
     console.log(`[sync-activity-details] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}${specificActivityId ? `, activity: ${specificActivityId}` : ''}`);
 
-    // Check rate limiting for this user and sync type
+    // Check rate limiting for this user and sync type (more lenient for webhook)
+    const minInterval = isWebhookTriggered ? 1 : 5; // 1 minute for webhook, 5 for admin override
     const { data: canSync } = await supabaseClient.rpc('can_sync_user', {
       user_id_param: user.id,
       sync_type_param: 'details',
-      min_interval_minutes: 5
+      min_interval_minutes: minInterval
     });
 
     if (!canSync && !isAdminOverride) {
       console.log('[sync-activity-details] Rate limit exceeded, sync skipped');
       return new Response(JSON.stringify({ 
         error: 'Sync rate limit exceeded',
-        message: 'Please wait 5 minutes between sync requests',
-        canRetryAfter: 5 * 60 * 1000
+        message: `Please wait ${minInterval} minutes between sync requests`,
+        canRetryAfter: minInterval * 60 * 1000
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -184,7 +227,7 @@ Deno.serve(async (req) => {
       // Try to refresh the token by calling garmin-oauth function
       const { data: refreshData, error: refreshError } = await supabaseClient.functions.invoke('garmin-oauth', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
           'Content-Type': 'application/json'
         },
         body: {

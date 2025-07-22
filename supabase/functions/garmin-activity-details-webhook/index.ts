@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
           console.error('Error logging webhook notification:', logError);
         }
 
-        // Trigger activity details sync
+        // Trigger activity details sync using the user's access token
         console.log(`Triggering activity details sync for user: ${userTokens.user_id}`);
         
         const syncPayload = {
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
         const { data: syncData, error: syncError } = await supabaseClient.functions.invoke('sync-garmin-activity-details', {
           headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Authorization': `Bearer ${userTokens.access_token}`,
             'Content-Type': 'application/json'
           },
           body: syncPayload
