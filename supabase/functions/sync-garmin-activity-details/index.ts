@@ -38,6 +38,151 @@ interface GarminActivityDetail {
   }>
 }
 
+// Background task for processing large datasets
+async function processActivityDetailsInBackground(
+  supabaseClient: any,
+  userId: string,
+  activityDetails: GarminActivityDetail[],
+  syncId: string | null
+) {
+  console.log(`[bg-task] Starting background processing for ${activityDetails.length} activities`);
+  
+  let totalProcessed = 0;
+  const errors: string[] = [];
+  const BATCH_SIZE = 500; // Process samples in batches of 500
+  
+  for (const detail of activityDetails) {
+    try {
+      console.log(`[bg-task] Processing activity ${detail.activityId} with ${detail.samples?.length || 0} samples`);
+      
+      if (!detail.activityId || !detail.summaryId) {
+        console.error('[bg-task] Missing required fields for activity:', detail);
+        errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
+        continue;
+      }
+
+      const activitySummary = detail.activitySummary || {};
+      const samples = detail.samples || [];
+      const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
+
+      if (samples.length > 0) {
+        console.log(`[bg-task] Processing ${samples.length} samples for activity ${detail.activityId}`);
+        
+        // Process samples in batches to avoid memory issues and timeouts
+        for (let i = 0; i < samples.length; i += BATCH_SIZE) {
+          const batch = samples.slice(i, i + BATCH_SIZE);
+          console.log(`[bg-task] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(samples.length/BATCH_SIZE)} (${batch.length} samples)`);
+          
+          const batchData = batch.map(sample => {
+            const sampleTimestamp = sample.timestampInSeconds || activitySummary.startTimeInSeconds || null;
+            
+            return {
+              user_id: userId,
+              activity_id: detail.activityId,
+              summary_id: detail.summaryId,
+              activity_name: extractedActivityName,
+              upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+              start_time_in_seconds: sampleTimestamp,
+              duration_in_seconds: activitySummary.durationInSeconds || null,
+              activity_type: activitySummary.activityType || null,
+              device_name: activitySummary.deviceName || null,
+              sample_timestamp: sampleTimestamp,
+              samples: sample,
+              activity_summary: activitySummary,
+              heart_rate: sample.heartRate || null,
+              latitude_in_degree: sample.latitudeInDegree || null,
+              longitude_in_degree: sample.longitudeInDegree || null,
+              elevation_in_meters: sample.elevationInMeters || null,
+              speed_meters_per_second: sample.speedMetersPerSecond || null,
+              power_in_watts: sample.powerInWatts || null,
+              total_distance_in_meters: sample.totalDistanceInMeters || null,
+              steps_per_minute: sample.stepsPerMinute || null,
+              clock_duration_in_seconds: sample.clockDurationInSeconds || null,
+              moving_duration_in_seconds: sample.movingDurationInSeconds || null,
+              timer_duration_in_seconds: sample.timerDurationInSeconds || null,
+              updated_at: new Date().toISOString()
+            };
+          });
+
+          try {
+            const { error: batchError } = await supabaseClient
+              .from('garmin_activity_details')
+              .upsert(batchData, {
+                onConflict: 'user_id,summary_id,sample_timestamp'
+              });
+
+            if (batchError) {
+              console.error(`[bg-task] Error upserting batch for activity ${detail.activityId}:`, batchError);
+              errors.push(`Failed to store batch for activity ${detail.activityId}: ${batchError.message}`);
+            } else {
+              console.log(`[bg-task] Successfully processed batch of ${batch.length} samples`);
+            }
+          } catch (batchErr) {
+            console.error(`[bg-task] Unexpected error processing batch:`, batchErr);
+            errors.push(`Unexpected error processing batch for activity ${detail.activityId}`);
+          }
+        }
+      } else {
+        // Activity without samples - store summary only
+        const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
+        
+        const { error: summaryError } = await supabaseClient
+          .from('garmin_activity_details')
+          .upsert({
+            user_id: userId,
+            activity_id: detail.activityId,
+            summary_id: detail.summaryId,
+            activity_name: extractedActivityName,
+            upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+            start_time_in_seconds: defaultTimestamp,
+            duration_in_seconds: activitySummary.durationInSeconds || null,
+            activity_type: activitySummary.activityType || null,
+            device_name: activitySummary.deviceName || null,
+            sample_timestamp: defaultTimestamp,
+            samples: null,
+            activity_summary: activitySummary,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,summary_id,sample_timestamp'
+          });
+
+        if (summaryError) {
+          console.error(`[bg-task] Error upserting activity summary:`, summaryError);
+          errors.push(`Failed to store activity ${detail.activityId}: ${summaryError.message}`);
+        }
+      }
+      
+      totalProcessed++;
+      
+      // Log progress every 10 activities
+      if (totalProcessed % 10 === 0) {
+        console.log(`[bg-task] Progress: ${totalProcessed}/${activityDetails.length} activities processed`);
+      }
+      
+    } catch (error) {
+      console.error(`[bg-task] Unexpected error processing activity detail:`, error);
+      errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
+    }
+  }
+
+  console.log(`[bg-task] Background processing completed: ${totalProcessed}/${activityDetails.length} processed, ${errors.length} errors`);
+  
+  // Update sync status
+  if (syncId) {
+    try {
+      await supabaseClient.rpc('update_sync_status', {
+        sync_id_param: syncId,
+        status_param: 'completed'
+      });
+      console.log(`[bg-task] Updated sync status for sync_id: ${syncId}`);
+    } catch (statusError) {
+      console.error(`[bg-task] Failed to update sync status:`, statusError);
+    }
+  }
+  
+  return { processed: totalProcessed, total: activityDetails.length, errors };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -372,7 +517,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Process and store activity details
+    // Calculate total samples to determine processing approach
+    const totalSamples = filteredDetails.reduce((sum, detail) => sum + (detail.samples?.length || 0), 0);
+    console.log(`[sync-activity-details] Total samples to process: ${totalSamples}`);
+
+    // Use background processing for large datasets (>1000 samples) or multiple activities
+    const useBackgroundProcessing = totalSamples > 1000 || filteredDetails.length > 5;
+    
+    if (useBackgroundProcessing) {
+      console.log(`[sync-activity-details] Using background processing for ${totalSamples} samples`);
+      
+      // Return immediate response to prevent timeout
+      const immediateResponse = new Response(
+        JSON.stringify({ 
+          message: `Started background processing of ${filteredDetails.length} activity details with ${totalSamples} samples`, 
+          synced: 0, 
+          total: filteredDetails.length,
+          triggeredBy: triggeredBy,
+          background_processing: true
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 202 // Accepted - processing in background
+        }
+      );
+
+      // Start background processing
+      // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+      EdgeRuntime.waitUntil(
+        processActivityDetailsInBackground(supabaseClient, user.id, filteredDetails, syncId)
+      );
+
+      return immediateResponse;
+    }
+
+    // For smaller datasets, process synchronously (existing logic)
     let syncedCount = 0;
     const errors: string[] = [];
 
