@@ -56,13 +56,13 @@ Deno.serve(async (req) => {
       console.log(`Processing activity details notification for Garmin user: ${garminUserId}, activity: ${activityId}`);
 
       try {
-        // Find the user by garmin_user_id
-        const { data: userTokens, error: tokenError } = await supabaseClient
+        // Find the user by garmin_user_id (handle multiple records)
+        const { data: userTokensList, error: tokenError } = await supabaseClient
           .from('garmin_tokens')
-          .select('user_id, access_token, is_active')
+          .select('user_id, access_token, is_active, updated_at')
           .eq('garmin_user_id', garminUserId)
           .eq('is_active', true)
-          .maybeSingle();
+          .order('updated_at', { ascending: false });
 
         if (tokenError) {
           console.error(`Error finding user tokens for ${garminUserId}:`, tokenError);
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        if (!userTokens) {
+        if (!userTokensList || userTokensList.length === 0) {
           console.warn(`No active tokens found for Garmin user: ${garminUserId}`);
           results.push({
             userId: garminUserId,
@@ -87,6 +87,13 @@ Deno.serve(async (req) => {
           });
           continue;
         }
+
+        // Use the most recent token if multiple exist
+        const userTokens = userTokensList[0];
+        if (userTokensList.length > 1) {
+          console.warn(`Multiple active tokens found for Garmin user ${garminUserId}, using most recent from user ${userTokens.user_id}`);
+        }
+
 
         // Log the webhook notification
         const { error: logError } = await supabaseClient
