@@ -96,10 +96,10 @@ serve(async (req) => {
       });
     }
 
-    // Get user's Garmin tokens
+    // Get user's Garmin tokens including garmin_user_id
     const { data: tokenData, error: tokenError } = await supabase
       .from('garmin_tokens')
-      .select('access_token, expires_at')
+      .select('access_token, expires_at, garmin_user_id')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -144,11 +144,12 @@ serve(async (req) => {
 
     console.log(`[backfill-activities] Fetching activities from ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
 
-    // Log backfill attempt
+    // Log backfill attempt with garmin_user_id
     const { data: logData } = await supabase
       .from('garmin_webhook_logs')
       .insert({
         user_id: user.id,
+        garmin_user_id: tokenData.garmin_user_id,
         webhook_type: 'backfill',
         payload: {
           timeRange: requestBody.timeRange,
