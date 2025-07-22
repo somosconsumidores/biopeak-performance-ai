@@ -334,7 +334,7 @@ serve(async (req) => {
 
           // Fetch initial user permissions
           console.log('[garmin-oauth] Fetching initial user permissions...');
-          const permissionsResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/permission', {
+          const permissionsResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/permissions', {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${tokenData.access_token}`,
