@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -60,6 +61,8 @@ Deno.serve(async (req) => {
     let webhookPayload: any = null;
     let specificActivityId: string | null = null;
     let specificSummaryId: string | null = null;
+    let webhookUserId: string | null = null;
+    let garminAccessToken: string | null = null;
 
     try {
       requestBody = await req.json();
@@ -69,6 +72,8 @@ Deno.serve(async (req) => {
       webhookPayload = requestBody.webhook_payload || null;
       specificActivityId = requestBody.activity_id || null;
       specificSummaryId = requestBody.summary_id || null;
+      webhookUserId = requestBody.user_id || null;
+      garminAccessToken = requestBody.garmin_access_token || null;
     } catch (e) {
       console.log('[sync-activity-details] No request body provided');
     }
@@ -86,45 +91,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For webhook calls, extract user from token (similar to other webhook functions)
     let user: any = null;
-    
-    if (isWebhookTriggered) {
-      // Get user from authorization token (passed by webhook)
-      const authHeader = req.headers.get('Authorization');
-      if (!authHeader) {
-        console.error('[sync-activity-details] No authorization header in webhook call');
-        return new Response(
-          JSON.stringify({ error: 'Authorization header required' }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401 
-          }
-        );
-      }
 
-      const token = authHeader.replace('Bearer ', '');
+    // For webhook calls, we use service role and get user from request body
+    if (isWebhookTriggered && webhookUserId) {
+      console.log(`[sync-activity-details] Webhook call for user: ${webhookUserId}`);
       
-      // For webhook calls, we need to extract the user from the Garmin token
-      const { data: tokenData, error: tokenError } = await supabaseClient
-        .from('garmin_tokens')
+      // Verify user exists in database
+      const { data: userData, error: userError } = await supabaseClient
+        .from('profiles')
         .select('user_id')
-        .eq('access_token', token)
-        .eq('is_active', true)
+        .eq('user_id', webhookUserId)
         .maybeSingle();
 
-      if (tokenError || !tokenData) {
-        console.error('[sync-activity-details] Invalid token or user not found:', tokenError);
-        return new Response(
-          JSON.stringify({ error: 'Invalid token or user not found' }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401 
-          }
-        );
+      if (userError || !userData) {
+        console.error('[sync-activity-details] User not found:', userError);
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      user = { id: tokenData.user_id };
+      user = { id: webhookUserId };
     } else {
       // For admin override, use proper JWT authentication
       const authHeader = req.headers.get('Authorization');
@@ -160,7 +148,7 @@ Deno.serve(async (req) => {
     console.log(`[sync-activity-details] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}${specificActivityId ? `, activity: ${specificActivityId}` : ''}`);
 
     // Check rate limiting for this user and sync type (more lenient for webhook)
-    const minInterval = isWebhookTriggered ? 1 : 5; // 1 minute for webhook, 5 for admin override
+    const minInterval = isWebhookTriggered ? 1 : (isAdminOverride ? 1 : 5); // 1 minute for webhook and admin override, 5 for other
     const { data: canSync } = await supabaseClient.rpc('can_sync_user', {
       user_id_param: user.id,
       sync_type_param: 'details',
@@ -192,52 +180,23 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-activity-details] Processing request for user: ${user.id}`);
 
-    // Get user's Garmin tokens
-    const { data: tokenData, error: tokenError } = await supabaseClient
-      .from('garmin_tokens')
-      .select('access_token, token_secret, consumer_key, expires_at')
-      .eq('user_id', user.id)
-      .single();
+    // Get user's Garmin tokens (use webhook token if provided)
+    let accessToken: string;
+    let tokenData: any = null;
+    
+    if (isWebhookTriggered && garminAccessToken) {
+      console.log('[sync-activity-details] Using Garmin token from webhook');
+      accessToken = garminAccessToken;
+    } else {
+      // Get token from database for admin override
+      const { data: dbTokenData, error: tokenError } = await supabaseClient
+        .from('garmin_tokens')
+        .select('access_token, token_secret, consumer_key, expires_at')
+        .eq('user_id', user.id)
+        .single();
 
-    if (tokenError || !tokenData) {
-      console.error('[sync-activity-details] No Garmin token found:', tokenError);
-      
-      if (syncId) {
-        await supabaseClient.rpc('update_sync_status', {
-          sync_id_param: syncId,
-          status_param: 'failed'
-        });
-      }
-      
-      return new Response(
-        JSON.stringify({ error: 'No Garmin token found. Please connect your Garmin account.' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      );
-    }
-
-    // Check if token is expired
-    const currentTime = new Date();
-    const expiresAt = new Date(tokenData.expires_at);
-    if (currentTime >= expiresAt) {
-      console.log('[sync-activity-details] Token expired, attempting refresh...');
-      
-      // Try to refresh the token by calling garmin-oauth function
-      const { data: refreshData, error: refreshError } = await supabaseClient.functions.invoke('garmin-oauth', {
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          refresh_token: tokenData.token_secret,
-          grant_type: 'refresh_token'
-        }
-      });
-
-      if (refreshError || !refreshData?.success) {
-        console.error('[sync-activity-details] Token refresh failed:', refreshError);
+      if (tokenError || !dbTokenData) {
+        console.error('[sync-activity-details] No Garmin token found:', tokenError);
         
         if (syncId) {
           await supabaseClient.rpc('update_sync_status', {
@@ -247,17 +206,58 @@ Deno.serve(async (req) => {
         }
         
         return new Response(
-          JSON.stringify({ error: 'Garmin token expired and refresh failed. Please reconnect your Garmin account.' }),
+          JSON.stringify({ error: 'No Garmin token found. Please connect your Garmin account.' }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401 
+            status: 400 
           }
         );
       }
 
-      // Update token data with refreshed token
-      tokenData.access_token = refreshData.access_token;
-      console.log('[sync-activity-details] Token refreshed successfully');
+      tokenData = dbTokenData;
+      accessToken = tokenData.access_token;
+
+      // Check if token is expired
+      const currentTime = new Date();
+      const expiresAt = new Date(tokenData.expires_at);
+      if (currentTime >= expiresAt) {
+        console.log('[sync-activity-details] Token expired, attempting refresh...');
+        
+        // Try to refresh the token by calling garmin-oauth function
+        const { data: refreshData, error: refreshError } = await supabaseClient.functions.invoke('garmin-oauth', {
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            refresh_token: tokenData.token_secret,
+            grant_type: 'refresh_token'
+          }
+        });
+
+        if (refreshError || !refreshData?.success) {
+          console.error('[sync-activity-details] Token refresh failed:', refreshError);
+          
+          if (syncId) {
+            await supabaseClient.rpc('update_sync_status', {
+              sync_id_param: syncId,
+              status_param: 'failed'
+            });
+          }
+          
+          return new Response(
+            JSON.stringify({ error: 'Garmin token expired and refresh failed. Please reconnect your Garmin account.' }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 401 
+            }
+          );
+        }
+
+        // Update token data with refreshed token
+        accessToken = refreshData.access_token;
+        console.log('[sync-activity-details] Token refreshed successfully');
+      }
     }
 
     // Parse request body to get custom time range if provided
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json'
       }
     });
