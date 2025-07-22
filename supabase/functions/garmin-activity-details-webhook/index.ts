@@ -117,11 +117,8 @@ Deno.serve(async (req) => {
           webhook_payload: notification
         };
 
+        // Call sync-garmin-activity-details without Authorization header
         const { data: syncData, error: syncError } = await supabaseClient.functions.invoke('sync-garmin-activity-details', {
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            'Content-Type': 'application/json'
-          },
           body: syncPayload
         });
 
