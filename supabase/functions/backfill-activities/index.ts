@@ -343,13 +343,99 @@ serve(async (req) => {
 
     console.log('[backfill-activities] Successfully saved', savedActivities, 'activities');
 
-    // Activity details backfill requires PUSH Service configuration
-    // For now, we'll skip this and only process regular activities
+    // Activity details backfill
     let savedActivityDetails = 0;
     let activityDetailsFailedChunks = 0;
     
-    console.log('[backfill-activities] Activity details backfill skipped - requires PUSH Service configuration in Garmin Developer Portal');
-    console.log('[backfill-activities] To enable activity details, configure PUSH Service at https://developer.garmin.com/');
+    console.log('[backfill-activities] Starting activity details backfill...');
+    
+    if (activities.length > 0) {
+      // Process activity details in chunks for the same time range
+      for (let currentEndTime = endTime; currentEndTime > startTime; currentEndTime -= MAX_TIME_RANGE) {
+        const currentStartTime = Math.max(currentEndTime - MAX_TIME_RANGE, startTime);
+        
+        console.log(`[backfill-activities] Processing activity details chunk...`);
+        
+        try {
+          // Build URL for activity details with time range
+          const detailsUrl = new URL('https://apis.garmin.com/wellness-api/rest/backfill/activityDetails');
+          detailsUrl.searchParams.append('summaryStartTimeInSeconds', currentStartTime.toString());
+          detailsUrl.searchParams.append('summaryEndTimeInSeconds', currentEndTime.toString());
+
+          console.log(`[backfill-activities] Fetching activity details from ${new Date(currentStartTime * 1000).toISOString()} to ${new Date(currentEndTime * 1000).toISOString()}`);
+
+          // Fetch activity details for this time period
+          const detailsResponse = await fetch(detailsUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Accept': 'application/json',
+            },
+          });
+
+          if (!detailsResponse.ok) {
+            const errorText = await detailsResponse.text();
+            console.error(`[backfill-activities] Activity details API error:`, detailsResponse.status, errorText);
+            activityDetailsFailedChunks++;
+            
+            // Add delay before next request
+            if (currentStartTime > startTime) {
+              await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+            }
+            continue;
+          }
+
+          const chunkActivityDetails: GarminActivityDetail[] = await detailsResponse.json();
+          console.log(`[backfill-activities] Fetched ${chunkActivityDetails.length} activity details`);
+          
+          if (chunkActivityDetails.length > 0) {
+            // Transform and insert activity details
+            const activityDetailsToInsert = chunkActivityDetails.map(detail => ({
+              user_id: user.id,
+              summary_id: detail.summaryId,
+              activity_id: detail.activityId,
+              activity_name: detail.activityName,
+              samples: detail.samples,
+              activity_summary: detail.activitySummary,
+            }));
+
+            // Use upsert to handle duplicates
+            const { data: insertedDetailsData, error: insertDetailsError } = await supabase
+              .from('garmin_activity_details')
+              .upsert(activityDetailsToInsert, { 
+                onConflict: 'user_id,summary_id',
+                ignoreDuplicates: false 
+              })
+              .select('id');
+
+            if (insertDetailsError) {
+              console.error('[backfill-activities] Activity details insert error:', insertDetailsError);
+              activityDetailsFailedChunks++;
+            } else {
+              const detailsCount = insertedDetailsData?.length || 0;
+              savedActivityDetails += detailsCount;
+              console.log(`[backfill-activities] Saved ${detailsCount} activity details`);
+            }
+          }
+
+          // Add delay between requests
+          if (currentStartTime > startTime) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+          }
+
+        } catch (error) {
+          console.error(`[backfill-activities] Error processing activity details:`, error);
+          activityDetailsFailedChunks++;
+          
+          // Add delay before next request even on error
+          if (currentStartTime > startTime) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+          }
+        }
+      }
+    }
+    
+    console.log(`[backfill-activities] Activity details backfill completed: ${savedActivityDetails} details saved, ${activityDetailsFailedChunks} chunks failed`);
 
     // Update log status to completed
     if (logId) {
