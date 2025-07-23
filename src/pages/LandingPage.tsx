@@ -20,7 +20,10 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
-// Logo imports
+// New hero logo
+const heroLogo = 'https://static.wixstatic.com/media/a025ad_99ddbb70268549389f3eb76283601c41~mv2.png';
+
+// Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png';
 import heroAnimation from '@/assets/hero-animation-new.gif';
@@ -29,7 +32,7 @@ export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const { theme } = useTheme();
 
-  // Get current logo based on theme
+  // Get current logo for footer (keeping theme-based system for footer)
   const getEffectiveTheme = () => {
     if (theme === 'system') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -37,7 +40,7 @@ export const LandingPage = () => {
     return theme;
   };
   
-  const currentLogo = getEffectiveTheme() === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
+  const footerLogo = getEffectiveTheme() === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
 
   const features = [
     {
@@ -88,7 +91,7 @@ export const LandingPage = () => {
         <div className="container mx-auto text-center">
           <ScrollReveal>
             <div className="flex justify-center mb-8">
-              <img src={`${currentLogo}?v=${Date.now()}`} alt="BioPeak" className="h-28 w-28 data-glow" />
+              <img src={heroLogo} alt="BioPeak" className="h-28 w-28 data-glow" />
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
@@ -279,7 +282,7 @@ export const LandingPage = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-3 mb-4">
-                <img src={`${currentLogo}?v=${Date.now()}`} alt="BioPeak" className="h-8 w-8" />
+                <img src={`${footerLogo}?v=${Date.now()}`} alt="BioPeak" className="h-8 w-8" />
                 <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                   BioPeak
                 </span>
