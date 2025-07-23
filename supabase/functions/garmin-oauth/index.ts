@@ -400,30 +400,6 @@ serve(async (req) => {
         }
       }
 
-      // Trigger initial sync in the background
-      console.log('[garmin-oauth] Triggering initial sync...');
-      try {
-        const { error: syncError } = await supabase.functions.invoke('sync-garmin-activities', {
-          body: {
-            userId: garminUserId,
-            userAccessToken: tokenData.access_token,
-            webhookUserId: user.id,
-            manualSync: true,
-            initialSync: true
-          }
-        });
-
-        if (syncError) {
-          console.error('[garmin-oauth] Error triggering initial sync:', syncError);
-          // Don't throw here, just log the error
-        } else {
-          console.log('[garmin-oauth] Initial sync triggered successfully');
-        }
-      } catch (error) {
-        console.error('[garmin-oauth] Failed to trigger initial sync:', error);
-        // Don't throw here, just log the error
-      }
-
       // Clean up temp PKCE data
       await supabase
         .from('oauth_temp_tokens')
