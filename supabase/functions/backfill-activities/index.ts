@@ -375,8 +375,14 @@ serve(async (req) => {
 
           if (!detailsResponse.ok) {
             const errorText = await detailsResponse.text();
-            console.error(`[backfill-activities] Activity details API error:`, detailsResponse.status, errorText);
-            activityDetailsFailedChunks++;
+            
+            // Handle 409 (duplicate backfill) as expected behavior, not an error
+            if (detailsResponse.status === 409) {
+              console.log(`[backfill-activities] Activity details already processed for this time range:`, errorText);
+            } else {
+              console.error(`[backfill-activities] Activity details API error:`, detailsResponse.status, errorText);
+              activityDetailsFailedChunks++;
+            }
             
             // Add delay before next request
             if (currentStartTime > startTime) {
