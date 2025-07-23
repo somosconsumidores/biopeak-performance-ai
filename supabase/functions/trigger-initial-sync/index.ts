@@ -12,31 +12,52 @@ serve(async (req) => {
   }
 
   try {
+    console.log('[trigger-initial-sync] Function started');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    console.log('[trigger-initial-sync] Supabase client created');
+
     // Get user from JWT
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    console.log('[trigger-initial-sync] Extracting user from token...');
+    
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+
+    if (userError) {
+      console.error('[trigger-initial-sync] Error getting user:', userError);
+      throw new Error(`Auth error: ${userError.message}`);
+    }
 
     if (!user) {
       throw new Error('Not authenticated');
     }
 
-    console.log(`Starting initial sync for user: ${user.id}`);
+    console.log(`[trigger-initial-sync] Starting initial sync for user: ${user.id}`);
 
     // Check if user already has initial sync completed
     const { data: tokenData, error: tokenError } = await supabaseClient
       .from('garmin_tokens')
       .select('initial_sync_completed, garmin_user_id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
+
+    console.log('[trigger-initial-sync] Token data:', { tokenData, tokenError });
 
     if (tokenError) {
       throw new Error(`Failed to get token data: ${tokenError.message}`);
+    }
+
+    if (!tokenData) {
+      throw new Error('No Garmin tokens found for user');
     }
 
     if (tokenData.initial_sync_completed) {
