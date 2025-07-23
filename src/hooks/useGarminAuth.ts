@@ -169,59 +169,52 @@ export const useGarminAuth = () => {
     }
   }, [toast]);
 
-  const triggerAutoBackfill = useCallback(async () => {
+  // Auto-trigger initial sync for new connections (30 days)
+  const triggerInitialSync = useCallback(async () => {
     try {
-      console.log('[useGarminAuth] Starting automatic 90-day backfill...');
+      console.log('[useGarminAuth] Starting automatic initial sync...');
       
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error('[useGarminAuth] No session for backfill');
+        console.error('[useGarminAuth] No session for initial sync');
         return;
       }
 
-      // Calculate 90 days ago
-      const endTime = Math.floor(Date.now() / 1000);
-      const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago
+      console.log('[useGarminAuth] Triggering initial sync for 30 days');
 
-      const backfillRequest = {
-        timeRange: 'custom' as const,
-        start: startTime,
-        end: endTime
-      };
-
-      console.log('[useGarminAuth] Triggering backfill for 90 days:', {
-        startDate: new Date(startTime * 1000).toISOString(),
-        endDate: new Date(endTime * 1000).toISOString()
-      });
-
-      const { data, error } = await supabase.functions.invoke('backfill-activities', {
+      const { data, error } = await supabase.functions.invoke('trigger-initial-sync', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: backfillRequest
+        body: {}
       });
 
       if (error) {
-        console.error('[useGarminAuth] Auto backfill error:', error);
+        console.error('[useGarminAuth] Initial sync error:', error);
         return;
       }
 
-      if (data.error) {
-        console.error('[useGarminAuth] Auto backfill API error:', data);
+      if (data?.error) {
+        console.error('[useGarminAuth] Initial sync API error:', data);
         return;
       }
 
-      console.log('[useGarminAuth] Auto backfill completed successfully:', data);
+      if (data?.skipped) {
+        console.log('[useGarminAuth] Initial sync was skipped (already completed)');
+        return;
+      }
+
+      console.log('[useGarminAuth] Initial sync completed successfully:', data);
       
-      // Show a subtle notification about the background process
+      // Show a notification about the background process
       toast({
-        title: "Importação iniciada",
-        description: "Suas atividades dos últimos 90 dias estão sendo importadas em segundo plano.",
+        title: "Sincronização inicial",
+        description: "Suas atividades dos últimos 30 dias estão sendo sincronizadas automaticamente.",
         variant: "default",
       });
 
     } catch (error) {
-      console.error('[useGarminAuth] Auto backfill unexpected error:', error);
+      console.error('[useGarminAuth] Initial sync unexpected error:', error);
     }
   }, [toast]);
 
@@ -349,19 +342,19 @@ export const useGarminAuth = () => {
         } else {
           console.log('[useGarminAuth] Webhook registered successfully:', webhookData);
           
-          // If this is the first connection, trigger automatic backfill
+          // If this is the first connection, trigger automatic initial sync
           if (isFirstConnection) {
-            console.log('[useGarminAuth] First connection detected, triggering auto backfill');
-            // Delay the backfill slightly to ensure webhook registration is complete
+            console.log('[useGarminAuth] First connection detected, triggering initial sync');
+            // Delay the sync slightly to ensure webhook registration is complete
             setTimeout(() => {
-              triggerAutoBackfill();
+              triggerInitialSync();
             }, 2000);
           }
           
           toast({
             title: "Conectado com sucesso!",
             description: isFirstConnection 
-              ? "Sua conta Garmin foi conectada e configurada. Suas atividades dos últimos 90 dias estão sendo importadas automaticamente."
+              ? "Sua conta Garmin foi conectada e configurada. Suas atividades dos últimos 30 dias estão sendo sincronizadas automaticamente."
               : "Sua conta Garmin foi conectada e configurada para sincronização automática de atividades.",
             variant: "default",
           });
@@ -396,7 +389,7 @@ export const useGarminAuth = () => {
       // Clear URL parameters even on error
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast, triggerAutoBackfill]);
+  }, [toast, triggerInitialSync]);
 
   const disconnect = useCallback(async () => {
     try {

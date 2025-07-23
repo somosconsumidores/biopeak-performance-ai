@@ -454,6 +454,7 @@ export type Database = {
           expires_at: string | null
           garmin_user_id: string | null
           id: string
+          initial_sync_completed: boolean | null
           is_active: boolean | null
           oauth_verifier: string | null
           token_secret: string | null
@@ -467,6 +468,7 @@ export type Database = {
           expires_at?: string | null
           garmin_user_id?: string | null
           id?: string
+          initial_sync_completed?: boolean | null
           is_active?: boolean | null
           oauth_verifier?: string | null
           token_secret?: string | null
@@ -480,6 +482,7 @@ export type Database = {
           expires_at?: string | null
           garmin_user_id?: string | null
           id?: string
+          initial_sync_completed?: boolean | null
           is_active?: boolean | null
           oauth_verifier?: string | null
           token_secret?: string | null

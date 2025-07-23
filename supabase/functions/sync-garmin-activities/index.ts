@@ -64,11 +64,11 @@ serve(async (req) => {
 
     try {
       requestBody = await req.json();
-      isWebhookTriggered = requestBody.webhook_triggered || false;
+      isWebhookTriggered = requestBody.webhook_triggered || requestBody.initialSync || false;
       isManualSync = requestBody.manual_sync || requestBody.force_sync || false;
       callbackURL = requestBody.callback_url || null;
-      webhookPayload = requestBody.webhook_payload || null;
-      webhookUserId = requestBody.user_id || null;
+      webhookPayload = requestBody.webhook_payload || requestBody;
+      webhookUserId = requestBody.user_id || requestBody.userAccessToken || null;
       garminAccessToken = requestBody.garmin_access_token || null;
     } catch (e) {
       console.log('[sync-garmin-activities] No request body provided');
@@ -206,8 +206,13 @@ serve(async (req) => {
 
     // Garmin API limits time range to 86400 seconds (24 hours)
     const MAX_TIME_RANGE = 86400; // 24 hours in seconds
-    const DAYS_TO_SYNC = 30; // Sync last 30 days
+    
+    // Check if this is an initial sync request
+    const isInitialSync = requestBody.initialSync || false;
+    const DAYS_TO_SYNC = isInitialSync ? 30 : 1; // Initial sync: 30 days, regular: 1 day
     const DELAY_BETWEEN_REQUESTS = 100; // 100ms delay between requests
+    
+    console.log(`[sync-garmin-activities] ${isInitialSync ? 'Initial' : 'Regular'} sync - processing ${DAYS_TO_SYNC} days`);
 
     const endTime = Math.floor(Date.now() / 1000);
     const totalStartTime = endTime - (DAYS_TO_SYNC * 24 * 60 * 60);
