@@ -357,8 +357,8 @@ serve(async (req) => {
         console.log(`[backfill-activities] Processing activity details chunk...`);
         
         try {
-          // Build URL for activity details with time range
-          const detailsUrl = new URL('https://apis.garmin.com/wellness-api/rest/backfill/activityDetails');
+          // Build URL for activity details with time range - using push endpoint since push is configured
+          const detailsUrl = new URL('https://apis.garmin.com/wellness-api/rest/push/activityDetails');
           detailsUrl.searchParams.append('summaryStartTimeInSeconds', currentStartTime.toString());
           detailsUrl.searchParams.append('summaryEndTimeInSeconds', currentEndTime.toString());
 
