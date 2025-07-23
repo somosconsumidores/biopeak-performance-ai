@@ -91,7 +91,7 @@ export const LandingPage = () => {
         <div className="container mx-auto text-center">
           <ScrollReveal>
             <div className="flex justify-center mb-8">
-              <img src={heroLogo} alt="BioPeak" className="h-28 w-28 data-glow" />
+              <img src={heroLogo} alt="BioPeak" className="h-28 w-auto data-glow" />
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
