@@ -358,6 +358,16 @@ serve(async (req) => {
 
       // Store tokens in database
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+      
+      // Check if this is a new user connection
+      const { data: existingToken } = await supabase
+        .from('garmin_tokens')
+        .select('initial_sync_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      const isFirstConnection = !existingToken;
+      
       const { error: insertError } = await supabase
         .from('garmin_tokens')
         .upsert({
@@ -367,6 +377,7 @@ serve(async (req) => {
           consumer_key: cleanClientId,
           garmin_user_id: garminUserId,
           expires_at: expiresAt,
+          initial_sync_completed: false, // Always false for new connections
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'

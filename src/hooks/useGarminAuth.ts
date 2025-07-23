@@ -247,15 +247,18 @@ export const useGarminAuth = () => {
 
       console.log('[useGarminAuth] State verified, exchanging code for tokens...');
 
-      // Check if this is a first-time connection
+      // Check if this is a first-time connection by looking at initial_sync_completed
       const { data: existingTokens } = await supabase
         .from('garmin_tokens')
-        .select('id, expires_at')
+        .select('id, expires_at, initial_sync_completed')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      const isFirstConnection = !existingTokens;
-      console.log('[useGarminAuth] Is first connection:', isFirstConnection);
+      const isFirstConnection = !existingTokens || existingTokens.initial_sync_completed === false;
+      console.log('[useGarminAuth] Is first connection:', isFirstConnection, { 
+        hasTokens: !!existingTokens, 
+        syncCompleted: existingTokens?.initial_sync_completed 
+      });
 
       // Clear any existing connection first if user already has tokens
       if (existingTokens) {
@@ -353,8 +356,19 @@ export const useGarminAuth = () => {
           if (isFirstConnection) {
             console.log('[useGarminAuth] First connection detected, triggering auto backfill');
             // Delay the backfill slightly to ensure webhook registration is complete
-            setTimeout(() => {
-              triggerAutoBackfill();
+            setTimeout(async () => {
+              await triggerAutoBackfill();
+              
+              // Mark initial sync as completed after backfill is triggered
+              try {
+                await supabase
+                  .from('garmin_tokens')
+                  .update({ initial_sync_completed: true })
+                  .eq('user_id', session.user.id);
+                console.log('[useGarminAuth] Marked initial sync as completed');
+              } catch (error) {
+                console.error('[useGarminAuth] Error marking sync completed:', error);
+              }
             }, 2000);
           }
           
