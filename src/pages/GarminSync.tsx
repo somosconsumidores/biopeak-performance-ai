@@ -1,4 +1,3 @@
-
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
@@ -10,7 +9,6 @@ import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 
-import { BackfillActivitiesDialog } from '@/components/BackfillActivitiesDialog';
 import { 
   Watch, 
   Zap, 
@@ -180,11 +178,9 @@ export function GarminSync() {
                           <AlertDescription className="text-green-400">
                             <strong>🎉 Conectado com Sucesso!</strong><br />
                             Sua conta Garmin Connect foi conectada e configurada para sincronização automática.
-                            Novas atividades serão sincronizadas automaticamente.
+                            Novas atividades serão sincronizadas automaticamente e o histórico dos últimos 30 dias será importado em breve.
                           </AlertDescription>
                         </Alert>
-
-                        <BackfillActivitiesDialog />
                       </div>
                     )}
                   </div>
