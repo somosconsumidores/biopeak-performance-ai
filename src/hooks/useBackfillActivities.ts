@@ -127,8 +127,67 @@ export const useBackfillActivities = () => {
     }
   };
 
+  // Silent backfill function for automatic processes (no toast notifications)
+  const backfillActivitiesSilent = async (request: BackfillRequest): Promise<boolean> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('[useBackfillActivities] No session for silent backfill');
+        return false;
+      }
+
+      console.log('[useBackfillActivities] Starting silent backfill request:', request);
+      
+      const { data, error } = await supabase.functions.invoke('backfill-activities', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: request
+      });
+
+      if (error) {
+        console.error('[useBackfillActivities] Silent backfill function error:', error);
+        return false;
+      }
+
+      if (data.error) {
+        console.error('[useBackfillActivities] Silent backfill API error:', data);
+        return false;
+      }
+
+      console.log('[useBackfillActivities] Silent backfill completed:', data);
+      return true;
+
+    } catch (error) {
+      console.error('[useBackfillActivities] Silent backfill unexpected error:', error);
+      return false;
+    }
+  };
+
+  // Function to trigger automatic 90-day backfill for new users
+  const triggerAutoBackfill90Days = async (): Promise<boolean> => {
+    const endTime = Math.floor(Date.now() / 1000);
+    const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago
+
+    const request: BackfillRequest = {
+      timeRange: 'custom',
+      start: startTime,
+      end: endTime
+    };
+
+    console.log('[useBackfillActivities] Triggering auto 90-day backfill:', {
+      startDate: new Date(startTime * 1000).toISOString(),
+      endDate: new Date(endTime * 1000).toISOString()
+    });
+
+    return backfillActivitiesSilent(request);
+  };
+
   return {
     backfillActivities,
+    backfillActivitiesSilent,
+    triggerAutoBackfill90Days,
     isLoading,
     lastBackfillResult,
   };
