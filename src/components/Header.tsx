@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useTheme } from '@/components/providers/ThemeProvider';
 // Logo imports
 const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
-const bioPeakLogoLight = '/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png';
+const bioPeakLogoLight = '/lovable-uploads/biopeak-logo-light-new.png';
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
