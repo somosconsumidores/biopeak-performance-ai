@@ -12,13 +12,16 @@ interface BackfillRequest {
 interface BackfillResult {
   success: boolean;
   activities: number;
+  activityDetails: number;
   timeRange: string;
   startDate: string;
   endDate: string;
   activitiesFound: number;
   activitiesSaved: number;
+  activityDetailsSaved: number;
   chunksProcessed: number;
   chunksFailed: number;
+  activityDetailsFailedChunks: number;
 }
 
 interface BackfillError {
@@ -97,10 +100,11 @@ export const useBackfillActivities = () => {
       
       const timeRangeText = result.timeRange === 'last_30_days' ? 'últimos 30 dias' : 'período personalizado';
       const chunkInfo = result.chunksFailed > 0 ? ` (${result.chunksFailed} períodos falharam)` : '';
+      const detailsInfo = result.activityDetailsSaved > 0 ? ` e ${result.activityDetailsSaved} detalhes` : '';
       
       toast({
         title: "Busca concluída",
-        description: `${result.activitiesSaved} atividades encontradas para ${timeRangeText}${chunkInfo}.`,
+        description: `${result.activitiesSaved} atividades${detailsInfo} encontradas para ${timeRangeText}${chunkInfo}.`,
         variant: "default",
       });
 

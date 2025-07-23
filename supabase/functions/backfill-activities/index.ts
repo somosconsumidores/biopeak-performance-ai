@@ -42,6 +42,14 @@ interface GarminActivity {
   isWebUpload?: boolean;
 }
 
+interface GarminActivityDetail {
+  activityId: string;
+  summaryId: string;
+  activityName?: string;
+  samples?: any[];
+  activitySummary?: any;
+}
+
 interface BackfillRequest {
   timeRange: 'last_30_days' | 'custom';
   start?: number;
@@ -335,6 +343,157 @@ serve(async (req) => {
 
     console.log('[backfill-activities] Successfully saved', savedActivities, 'activities');
 
+    // Now fetch activity details for the activities
+    let savedActivityDetails = 0;
+    let activityDetailsFailedChunks = 0;
+
+    if (activities.length > 0) {
+      console.log('[backfill-activities] Starting activity details backfill...');
+      
+      // Process activity details in chunks to avoid rate limits
+      const detailsChunkSize = 20; // Process 20 activities at a time
+      const activityChunks = [];
+      
+      for (let i = 0; i < activities.length; i += detailsChunkSize) {
+        activityChunks.push(activities.slice(i, i + detailsChunkSize));
+      }
+
+      for (let chunkIndex = 0; chunkIndex < activityChunks.length; chunkIndex++) {
+        const activityChunk = activityChunks[chunkIndex];
+        console.log(`[backfill-activities] Processing activity details chunk ${chunkIndex + 1}/${activityChunks.length} (${activityChunk.length} activities)`);
+        
+        try {
+          // Build URL for activity details
+          const detailsApiUrl = new URL('https://apis.garmin.com/wellness-api/rest/backfill/activityDetails');
+          detailsApiUrl.searchParams.append('uploadStartTimeInSeconds', startTime.toString());
+          detailsApiUrl.searchParams.append('uploadEndTimeInSeconds', endTime.toString());
+          
+          // Add summaryIds as query parameters
+          activityChunk.forEach(activity => {
+            detailsApiUrl.searchParams.append('summaryId', activity.summaryId);
+          });
+
+          console.log(`[backfill-activities] Fetching details for ${activityChunk.length} activities`);
+
+          // Fetch activity details
+          const detailsResponse = await fetch(detailsApiUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Accept': 'application/json',
+            },
+          });
+
+          if (!detailsResponse.ok) {
+            const errorText = await detailsResponse.text();
+            console.error(`[backfill-activities] Activity details API error for chunk ${chunkIndex + 1}:`, detailsResponse.status, errorText);
+            activityDetailsFailedChunks++;
+            continue;
+          }
+
+          const activityDetails: GarminActivityDetail[] = await detailsResponse.json();
+          console.log(`[backfill-activities] Received ${activityDetails.length} activity details for chunk ${chunkIndex + 1}`);
+
+          // Process and save activity details
+          if (activityDetails.length > 0) {
+            for (const detail of activityDetails) {
+              try {
+                // Find the corresponding activity to get additional info
+                const correspondingActivity = activities.find(a => a.summaryId === detail.summaryId);
+                
+                if (detail.samples && detail.samples.length > 0) {
+                  // Process each sample as a separate record
+                  const samplesToInsert = detail.samples.map((sample: any) => ({
+                    user_id: user.id,
+                    activity_id: detail.activityId,
+                    summary_id: detail.summaryId,
+                    activity_name: detail.activityName,
+                    upload_time_in_seconds: correspondingActivity?.startTimeInSeconds,
+                    start_time_in_seconds: correspondingActivity?.startTimeInSeconds,
+                    duration_in_seconds: correspondingActivity?.durationInSeconds,
+                    activity_type: correspondingActivity?.activityType,
+                    device_name: correspondingActivity?.deviceName,
+                    activity_summary: detail.activitySummary,
+                    samples: detail.samples, // Store all samples for reference
+                    sample_timestamp: sample.sampleTimeInSeconds,
+                    heart_rate: sample.heartRateInBeatsPerMinute,
+                    latitude_in_degree: sample.latitudeInDegree,
+                    longitude_in_degree: sample.longitudeInDegree,
+                    elevation_in_meters: sample.elevationInMeters,
+                    speed_meters_per_second: sample.speedMetersPerSecond,
+                    power_in_watts: sample.powerInWatts,
+                    total_distance_in_meters: sample.totalDistanceInMeters,
+                    steps_per_minute: sample.stepsPerMinute,
+                    clock_duration_in_seconds: sample.clockDurationInSeconds,
+                    moving_duration_in_seconds: sample.movingDurationInSeconds,
+                    timer_duration_in_seconds: sample.timerDurationInSeconds,
+                  }));
+
+                  // Insert activity details with samples
+                  const { data: insertedDetails, error: detailsInsertError } = await supabase
+                    .from('garmin_activity_details')
+                    .upsert(samplesToInsert, { 
+                      onConflict: 'user_id,summary_id,sample_timestamp',
+                      ignoreDuplicates: false 
+                    })
+                    .select('id');
+
+                  if (detailsInsertError) {
+                    console.error(`[backfill-activities] Error inserting activity details for ${detail.summaryId}:`, detailsInsertError);
+                  } else {
+                    savedActivityDetails += insertedDetails?.length || 0;
+                    console.log(`[backfill-activities] Saved ${insertedDetails?.length || 0} samples for activity ${detail.summaryId}`);
+                  }
+                } else {
+                  // Save activity summary even if no samples
+                  const activityDetailRecord = {
+                    user_id: user.id,
+                    activity_id: detail.activityId,
+                    summary_id: detail.summaryId,
+                    activity_name: detail.activityName,
+                    upload_time_in_seconds: correspondingActivity?.startTimeInSeconds,
+                    start_time_in_seconds: correspondingActivity?.startTimeInSeconds,
+                    duration_in_seconds: correspondingActivity?.durationInSeconds,
+                    activity_type: correspondingActivity?.activityType,
+                    device_name: correspondingActivity?.deviceName,
+                    activity_summary: detail.activitySummary,
+                    samples: detail.samples,
+                  };
+
+                  const { error: detailsInsertError } = await supabase
+                    .from('garmin_activity_details')
+                    .upsert(activityDetailRecord, { 
+                      onConflict: 'user_id,summary_id,sample_timestamp',
+                      ignoreDuplicates: false 
+                    });
+
+                  if (detailsInsertError) {
+                    console.error(`[backfill-activities] Error inserting activity summary for ${detail.summaryId}:`, detailsInsertError);
+                  } else {
+                    savedActivityDetails += 1;
+                    console.log(`[backfill-activities] Saved activity summary for ${detail.summaryId}`);
+                  }
+                }
+              } catch (detailError) {
+                console.error(`[backfill-activities] Error processing detail for ${detail.summaryId}:`, detailError);
+              }
+            }
+          }
+
+          // Add delay between chunks
+          if (chunkIndex < activityChunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS * 2));
+          }
+
+        } catch (error) {
+          console.error(`[backfill-activities] Error processing activity details chunk ${chunkIndex + 1}:`, error);
+          activityDetailsFailedChunks++;
+        }
+      }
+
+      console.log(`[backfill-activities] Activity details backfill completed: ${savedActivityDetails} details saved, ${activityDetailsFailedChunks} chunks failed`);
+    }
+
     // Update log status to completed
     if (logId) {
       await supabase
@@ -345,8 +504,10 @@ serve(async (req) => {
             ...logData?.payload,
             activitiesFound: activities.length,
             activitiesSaved: savedActivities,
+            activityDetailsSaved: savedActivityDetails,
             chunksProcessed: processedChunks,
-            chunksFailed: failedChunks
+            chunksFailed: failedChunks,
+            activityDetailsFailedChunks: activityDetailsFailedChunks
           }
         })
         .eq('id', logId);
@@ -355,13 +516,16 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       activities: savedActivities,
+      activityDetails: savedActivityDetails,
       timeRange: requestBody.timeRange,
       startDate: new Date(startTime * 1000).toISOString(),
       endDate: new Date(endTime * 1000).toISOString(),
       activitiesFound: activities.length,
       activitiesSaved: savedActivities,
+      activityDetailsSaved: savedActivityDetails,
       chunksProcessed: processedChunks,
-      chunksFailed: failedChunks
+      chunksFailed: failedChunks,
+      activityDetailsFailedChunks: activityDetailsFailedChunks
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

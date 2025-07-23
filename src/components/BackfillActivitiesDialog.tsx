@@ -125,6 +125,12 @@ export function BackfillActivitiesDialog() {
                   <span>Atividades encontradas:</span>
                   <Badge variant="secondary">{lastBackfillResult.activitiesSaved}</Badge>
                 </div>
+                {lastBackfillResult.activityDetailsSaved > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Detalhes encontrados:</span>
+                    <Badge variant="secondary">{lastBackfillResult.activityDetailsSaved}</Badge>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span>Período:</span>
                   <span className="text-xs text-muted-foreground">
@@ -135,6 +141,12 @@ export function BackfillActivitiesDialog() {
                   <div className="flex justify-between text-sm">
                     <span>Períodos com falha:</span>
                     <Badge variant="destructive" className="text-xs">{lastBackfillResult.chunksFailed}</Badge>
+                  </div>
+                )}
+                {lastBackfillResult.activityDetailsFailedChunks > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Detalhes com falha:</span>
+                    <Badge variant="destructive" className="text-xs">{lastBackfillResult.activityDetailsFailedChunks}</Badge>
                   </div>
                 )}
               </CardContent>
