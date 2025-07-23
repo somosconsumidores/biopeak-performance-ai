@@ -365,8 +365,8 @@ serve(async (req) => {
         try {
           // Build URL for activity details
           const detailsApiUrl = new URL('https://apis.garmin.com/wellness-api/rest/backfill/activityDetails');
-          detailsApiUrl.searchParams.append('uploadStartTimeInSeconds', startTime.toString());
-          detailsApiUrl.searchParams.append('uploadEndTimeInSeconds', endTime.toString());
+          detailsApiUrl.searchParams.append('summaryStartTimeInSeconds', startTime.toString());
+          detailsApiUrl.searchParams.append('summaryEndTimeInSeconds', endTime.toString());
           
           // Add summaryIds as query parameters
           activityChunk.forEach(activity => {
