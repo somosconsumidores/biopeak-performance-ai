@@ -7,74 +7,90 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Always return success to Garmin - this is critical for webhook health
+  const successResponse = () => new Response(JSON.stringify({ 
+    success: true, 
+    message: 'Ping received successfully',
+    timestamp: new Date().toISOString(),
+    processingTime: Date.now() - startTime
+  }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
-
-    console.log(`Received ping webhook: ${req.method} from ${req.headers.get('user-agent')}`)
-
-    // Log the ping for monitoring
+    console.log(`[garmin-ping-webhook] ${req.method} from ${req.headers.get('user-agent') || 'unknown'}`);
+    
+    // Get basic request info
     const pingData = {
       timestamp: new Date().toISOString(),
       method: req.method,
       userAgent: req.headers.get('user-agent'),
       ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
-    }
+      contentLength: req.headers.get('content-length')
+    };
 
-    // Try to get request body if present (some pings might include data)
-    let payload = null
+    console.log(`[garmin-ping-webhook] Ping data:`, pingData);
+
+    // Try to initialize Supabase client (but don't fail if it doesn't work)
+    let supabaseClient = null;
     try {
-      if (req.headers.get('content-length') && parseInt(req.headers.get('content-length') || '0') > 0) {
-        payload = await req.json()
-        console.log('Ping payload received:', payload)
-      }
-    } catch (error) {
-      // Ignore JSON parsing errors for ping requests
-      console.log('No JSON payload in ping request')
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      );
+    } catch (supabaseError) {
+      console.warn('[garmin-ping-webhook] Failed to initialize Supabase client:', supabaseError);
     }
 
-    // Log the ping to webhook_logs for monitoring
-    await supabaseClient
-      .from('garmin_webhook_logs')
-      .insert({
-        user_id: null, // Pings are not user-specific
-        webhook_type: 'ping',
-        payload: { ...pingData, requestPayload: payload },
-        status: 'received',
-        garmin_user_id: null
-      })
+    // Try to get request payload if present (optional)
+    let payload = null;
+    try {
+      const contentLength = parseInt(req.headers.get('content-length') || '0');
+      if (contentLength > 0) {
+        const text = await req.text();
+        if (text) {
+          payload = JSON.parse(text);
+          console.log('[garmin-ping-webhook] Payload received:', payload);
+        }
+      }
+    } catch (payloadError) {
+      console.log('[garmin-ping-webhook] No valid JSON payload (this is normal for pings)');
+    }
 
-    console.log('Ping webhook processed successfully')
+    // Try to log to database (but don't fail if it doesn't work)
+    if (supabaseClient) {
+      try {
+        await supabaseClient
+          .from('garmin_webhook_logs')
+          .insert({
+            user_id: null,
+            webhook_type: 'ping',
+            payload: { ...pingData, requestPayload: payload },
+            status: 'received',
+            garmin_user_id: null
+          });
+        console.log('[garmin-ping-webhook] Successfully logged to database');
+      } catch (dbError) {
+        console.warn('[garmin-ping-webhook] Failed to log to database (non-critical):', dbError);
+      }
+    }
 
-    // Return immediate success response to Garmin
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Ping received successfully',
-      timestamp: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.log('[garmin-ping-webhook] Ping processed successfully');
+    return successResponse();
 
   } catch (error) {
-    console.error('Error in ping webhook:', error)
+    console.error('[garmin-ping-webhook] Error processing ping:', error);
     
-    // Still return success to Garmin to avoid unanswered pings
-    // The error is logged but we don't want to fail the ping
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Ping acknowledged',
-      timestamp: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    // CRITICAL: Still return success to Garmin to maintain webhook health
+    // The error is logged but we don't want Garmin to think the endpoint is down
+    return successResponse();
   }
-})
+});

@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -22,82 +23,101 @@ interface ActivitiesPayload {
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Always return success to Garmin - this is critical for webhook health
+  const successResponse = (results: any[] = []) => new Response(JSON.stringify({ 
+    success: true, 
+    results,
+    timestamp: new Date().toISOString(),
+    processingTime: Date.now() - startTime
+  }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
   try {
+    console.log(`[garmin-activities-webhook] ${req.method} ${req.url}`);
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
+    );
 
-    const payload: ActivitiesPayload = await req.json()
-    console.log('Received activities webhook payload:', payload)
-
-    // Handle both PING and PUSH webhook formats
-    const activities = payload.activities || []
-    
-    if (!Array.isArray(activities)) {
-      console.error('Invalid payload structure - activities should be an array')
-      return new Response('Invalid payload', { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+    // Parse payload
+    let payload: ActivitiesPayload;
+    try {
+      payload = await req.json();
+      console.log('[garmin-activities-webhook] Received payload:', JSON.stringify(payload, null, 2));
+    } catch (parseError) {
+      console.error('[garmin-activities-webhook] Failed to parse JSON payload:', parseError);
+      return successResponse([{ error: 'Invalid JSON payload', status: 'error' }]);
     }
 
-    const results = []
+    // Handle both PING and PUSH webhook formats
+    const activities = payload.activities || [];
+    
+    if (!Array.isArray(activities)) {
+      console.error('[garmin-activities-webhook] Invalid payload structure - activities should be an array');
+      return successResponse([{ error: 'Invalid payload structure', status: 'error' }]);
+    }
+
+    const results = [];
 
     for (const activity of activities) {
-      const { userId: garminUserId, summaryId, startTimeInSeconds, activityType } = activity
+      const { userId: garminUserId, summaryId, startTimeInSeconds, activityType } = activity;
       
       try {
-        console.log(`Processing activity notification for Garmin user: ${garminUserId}, activity: ${summaryId}`)
+        console.log(`[garmin-activities-webhook] Processing activity for Garmin user: ${garminUserId}, activity: ${summaryId}`);
 
         // Find user tokens using the official Garmin User API ID
         const { data: tokens, error: tokenError } = await supabaseClient
           .from('garmin_tokens')
           .select('user_id, access_token, is_active')
           .eq('garmin_user_id', garminUserId)
-          .eq('is_active', true)
+          .eq('is_active', true);
 
         if (tokenError) {
-          console.error('Error finding tokens:', tokenError)
-          throw tokenError
+          console.error('[garmin-activities-webhook] Error finding tokens:', tokenError);
+          throw tokenError;
         }
 
         if (tokens && tokens.length > 0) {
           // Log the webhook for each active user
           for (const token of tokens) {
-            await supabaseClient
-              .from('garmin_webhook_logs')
-              .insert({
-                user_id: token.user_id,
-                webhook_type: 'activity_notification',
-                payload: activity,
-                status: 'received',
-                garmin_user_id: garminUserId
-              })
-
-            // Trigger sync for this specific user's activities
-            // Use Supabase function to sync, passing user context in body
             try {
-              console.log(`Triggering activity sync for user: ${token.user_id}`)
+              await supabaseClient
+                .from('garmin_webhook_logs')
+                .insert({
+                  user_id: token.user_id,
+                  webhook_type: 'activity_notification',
+                  payload: activity,
+                  status: 'received',
+                  garmin_user_id: garminUserId
+                });
+
+              // Trigger sync for this specific user's activities
+              console.log(`[garmin-activities-webhook] Triggering activity sync for user: ${token.user_id}`);
               
-              const syncResponse = await supabaseClient.functions.invoke('sync-garmin-activities', {
+              const { data: syncData, error: syncError } = await supabaseClient.functions.invoke('sync-garmin-activities', {
                 body: {
                   webhook_triggered: true,
                   callback_url: activity.callbackURL,
                   webhook_payload: activity,
                   timeRange: 'last_24_hours',
-                  user_id: token.user_id, // Pass user_id directly since we're using service role
-                  garmin_access_token: token.access_token // Pass Garmin token separately
+                  user_id: token.user_id,
+                  garmin_access_token: token.access_token
                 }
-              })
+              });
 
-              if (!syncResponse.error) {
-                console.log(`Successfully triggered sync for user: ${token.user_id}`)
+              if (!syncError) {
+                console.log(`[garmin-activities-webhook] Successfully triggered sync for user: ${token.user_id}`);
                 
                 // Update webhook log status
                 await supabaseClient
@@ -107,75 +127,79 @@ Deno.serve(async (req) => {
                   .eq('webhook_type', 'activity_notification')
                   .eq('garmin_user_id', garminUserId)
                   .order('created_at', { ascending: false })
-                  .limit(1)
+                  .limit(1);
 
               } else {
-                console.error(`Failed to trigger sync for user: ${token.user_id}`, syncResponse.error)
+                console.error(`[garmin-activities-webhook] Failed to trigger sync for user: ${token.user_id}`, syncError);
               }
-            } catch (syncError) {
-              console.error(`Error triggering sync for user ${token.user_id}:`, syncError)
+            } catch (userError) {
+              console.error(`[garmin-activities-webhook] Error processing user ${token.user_id}:`, userError);
             }
           }
 
-          console.log(`Successfully processed activity notification for user: ${garminUserId}`)
+          console.log(`[garmin-activities-webhook] Successfully processed activity for user: ${garminUserId}`);
           results.push({ 
             userId: garminUserId, 
             summaryId,
             status: 'success',
             activityType,
             usersNotified: tokens.length
-          })
+          });
         } else {
-          console.log(`No active tokens found for Garmin user: ${garminUserId}`)
+          console.log(`[garmin-activities-webhook] No active tokens found for Garmin user: ${garminUserId}`);
           
           // Still log the webhook attempt
+          try {
+            await supabaseClient
+              .from('garmin_webhook_logs')
+              .insert({
+                user_id: null,
+                webhook_type: 'activity_notification',
+                payload: activity,
+                status: 'no_active_user',
+                garmin_user_id: garminUserId
+              });
+          } catch (logError) {
+            console.warn('[garmin-activities-webhook] Failed to log webhook attempt:', logError);
+          }
+
+          results.push({ userId: garminUserId, summaryId, status: 'no_active_user' });
+        }
+      } catch (error) {
+        console.error(`[garmin-activities-webhook] Error processing activity for ${garminUserId}:`, error);
+        
+        // Log the error
+        try {
           await supabaseClient
             .from('garmin_webhook_logs')
             .insert({
               user_id: null,
               webhook_type: 'activity_notification',
               payload: activity,
-              status: 'no_active_user',
+              status: 'error',
+              error_message: error.message,
               garmin_user_id: garminUserId
-            })
-
-          results.push({ userId: garminUserId, summaryId, status: 'no_active_user' })
+            });
+        } catch (logError) {
+          console.warn('[garmin-activities-webhook] Failed to log error:', logError);
         }
-      } catch (error) {
-        console.error(`Error processing activity notification for ${garminUserId}:`, error)
-        
-        // Log the error
-        await supabaseClient
-          .from('garmin_webhook_logs')
-          .insert({
-            user_id: null,
-            webhook_type: 'activity_notification',
-            payload: activity,
-            status: 'error',
-            error_message: error.message,
-            garmin_user_id: garminUserId
-          })
 
         results.push({ 
           userId: garminUserId, 
           summaryId: activity.summaryId, 
           status: 'error', 
           error: error.message 
-        })
+        });
       }
     }
 
-    console.log('Activity webhook processing complete:', results)
-
-    return new Response(JSON.stringify({ success: true, results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.log('[garmin-activities-webhook] Processing complete:', JSON.stringify(results, null, 2));
+    return successResponse(results);
 
   } catch (error) {
-    console.error('Error in activities webhook:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('[garmin-activities-webhook] Fatal error:', error);
+    
+    // CRITICAL: Still return success to Garmin to maintain webhook health
+    return successResponse([{ error: error.message, status: 'fatal_error' }]);
   }
-})
+});
