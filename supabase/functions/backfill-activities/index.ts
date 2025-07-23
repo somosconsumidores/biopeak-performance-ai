@@ -385,7 +385,31 @@ serve(async (req) => {
             continue;
           }
 
-          const chunkActivityDetails: GarminActivityDetail[] = await detailsResponse.json();
+          // Check if response has content before parsing JSON
+          const responseText = await detailsResponse.text();
+          if (!responseText || responseText.trim() === '') {
+            console.log(`[backfill-activities] Empty response for activity details chunk, skipping...`);
+            // Add delay before next request
+            if (currentStartTime > startTime) {
+              await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+            }
+            continue;
+          }
+
+          let chunkActivityDetails: GarminActivityDetail[];
+          try {
+            chunkActivityDetails = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error(`[backfill-activities] Failed to parse activity details JSON:`, parseError);
+            console.error(`[backfill-activities] Response text:`, responseText);
+            activityDetailsFailedChunks++;
+            
+            // Add delay before next request
+            if (currentStartTime > startTime) {
+              await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+            }
+            continue;
+          }
           console.log(`[backfill-activities] Fetched ${chunkActivityDetails.length} activity details`);
           
           if (chunkActivityDetails.length > 0) {
