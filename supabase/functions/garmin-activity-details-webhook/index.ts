@@ -67,12 +67,12 @@ Deno.serve(async (req) => {
 
     // Process each activity details notification
     for (const notification of payload.activityDetails) {
-      const { userId: garminUserId, summaryId, activityId, callbackURL } = notification;
+      const { userId: garminUserId, summaryId, activityId, callbackURL, uploadStartTimeInSeconds, uploadEndTimeInSeconds } = notification;
       
       console.log(`[garmin-activity-details-webhook] Processing activity details for Garmin user: ${garminUserId}, activity: ${activityId}`);
 
       try {
-        // Find the user by garmin_user_id (handle multiple records)
+        // Find the user by garmin_user_id
         const { data: userTokensList, error: tokenError } = await supabaseClient
           .from('garmin_tokens')
           .select('user_id, access_token, is_active, updated_at')
@@ -103,10 +103,14 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Use the most recent token if multiple exist
         const userTokens = userTokensList[0];
         if (userTokensList.length > 1) {
           console.warn(`[garmin-activity-details-webhook] Multiple active tokens found for Garmin user ${garminUserId}, using most recent from user ${userTokens.user_id}`);
+        }
+
+        // Update backfill request status if this is from a backfill
+        if (uploadStartTimeInSeconds && uploadEndTimeInSeconds) {
+          await updateBackfillRequestStatus(supabaseClient, userTokens.user_id, uploadStartTimeInSeconds, uploadEndTimeInSeconds, notification);
         }
 
         // Log the webhook notification
@@ -135,6 +139,8 @@ Deno.serve(async (req) => {
           ...(callbackURL && { callback_url: callbackURL }),
           ...(summaryId && { summary_id: summaryId }),
           ...(activityId && { activity_id: activityId }),
+          ...(uploadStartTimeInSeconds && { uploadStartTimeInSeconds }),
+          ...(uploadEndTimeInSeconds && { uploadEndTimeInSeconds }),
           webhook_payload: notification
         };
 
@@ -199,3 +205,63 @@ Deno.serve(async (req) => {
     return successResponse([{ error: error.message, status: 'fatal_error' }]);
   }
 });
+
+async function updateBackfillRequestStatus(
+  supabaseClient: any, 
+  userId: string, 
+  uploadStartTimeInSeconds: number, 
+  uploadEndTimeInSeconds: number, 
+  notification: any
+) {
+  try {
+    console.log(`[garmin-activity-details-webhook] Updating backfill request status for user ${userId}, time range ${uploadStartTimeInSeconds}-${uploadEndTimeInSeconds}`);
+    
+    // Find matching backfill request
+    const { data: backfillRequests, error: findError } = await supabaseClient
+      .from('garmin_backfill_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('request_type', 'activity_details')
+      .lte('time_range_start', uploadStartTimeInSeconds)
+      .gte('time_range_end', uploadEndTimeInSeconds)
+      .in('status', ['triggered', 'in_progress'])
+      .order('triggered_at', { ascending: false });
+
+    if (findError) {
+      console.error('[garmin-activity-details-webhook] Error finding backfill requests:', findError);
+      return;
+    }
+
+    if (!backfillRequests || backfillRequests.length === 0) {
+      console.log('[garmin-activity-details-webhook] No matching backfill request found');
+      return;
+    }
+
+    // Update the most recent matching request
+    const backfillRequest = backfillRequests[0];
+    const existingNotifications = backfillRequest.webhook_notifications || [];
+    const updatedNotifications = [...existingNotifications, {
+      timestamp: new Date().toISOString(),
+      notification: notification
+    }];
+
+    const { error: updateError } = await supabaseClient
+      .from('garmin_backfill_requests')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        activity_details_received: (backfillRequest.activity_details_received || 0) + 1,
+        webhook_notifications: updatedNotifications
+      })
+      .eq('id', backfillRequest.id);
+
+    if (updateError) {
+      console.error('[garmin-activity-details-webhook] Error updating backfill request:', updateError);
+    } else {
+      console.log(`[garmin-activity-details-webhook] Updated backfill request ${backfillRequest.id} status to completed`);
+    }
+
+  } catch (error) {
+    console.error('[garmin-activity-details-webhook] Error in updateBackfillRequestStatus:', error);
+  }
+}

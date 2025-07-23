@@ -1,32 +1,31 @@
 
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface BackfillResult {
+  success: boolean;
+  activities?: {
+    found: number;
+    saved: number;
+    chunksProcessed: number;
+    chunksFailed: number;
+  };
+  activityDetails?: {
+    triggered: number;
+    failed: number;
+    backfillRequestIds: string[];
+    message: string;
+  };
+  message?: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 interface BackfillRequest {
   timeRange: 'last_30_days' | 'custom';
   start?: number;
   end?: number;
-}
-
-interface BackfillResult {
-  success: boolean;
-  activities: number;
-  activityDetails: number;
-  timeRange: string;
-  startDate: string;
-  endDate: string;
-  activitiesFound: number;
-  activitiesSaved: number;
-  activityDetailsSaved: number;
-  chunksProcessed: number;
-  chunksFailed: number;
-  activityDetailsFailedChunks: number;
-}
-
-interface BackfillError {
-  error: string;
-  details?: string;
 }
 
 export const useBackfillActivities = () => {
@@ -44,7 +43,7 @@ export const useBackfillActivities = () => {
       if (!session) {
         toast({
           title: "Erro de autenticação",
-          description: "Você precisa estar logado para buscar atividades.",
+          description: "Você precisa estar logado para fazer backfill de atividades.",
           variant: "destructive",
         });
         return false;
@@ -62,24 +61,23 @@ export const useBackfillActivities = () => {
       if (error) {
         console.error('[useBackfillActivities] Function error:', error);
         toast({
-          title: "Erro na busca",
-          description: "Falha ao buscar atividades históricas. Tente novamente.",
+          title: "Erro no backfill",
+          description: "Falha ao iniciar o backfill de atividades. Tente novamente.",
           variant: "destructive",
         });
         return false;
       }
 
       if (data.error) {
-        const errorData = data as BackfillError;
-        console.error('[useBackfillActivities] API error:', errorData);
+        console.error('[useBackfillActivities] API error:', data);
         
-        if (errorData.error.includes('token expired')) {
+        if (data.error.includes('token expired')) {
           toast({
             title: "Token expirado",
             description: "Seu token Garmin expirou. Reconecte sua conta Garmin.",
             variant: "destructive",
           });
-        } else if (errorData.error.includes('No Garmin token')) {
+        } else if (data.error.includes('No Garmin token')) {
           toast({
             title: "Conta não conectada",
             description: "Conecte sua conta Garmin primeiro.",
@@ -87,8 +85,8 @@ export const useBackfillActivities = () => {
           });
         } else {
           toast({
-            title: "Erro na busca",
-            description: errorData.details || errorData.error,
+            title: "Erro no backfill",
+            description: data.details || data.error,
             variant: "destructive",
           });
         }
@@ -98,13 +96,18 @@ export const useBackfillActivities = () => {
       const result = data as BackfillResult;
       setLastBackfillResult(result);
       
-      const timeRangeText = result.timeRange === 'last_30_days' ? 'últimos 30 dias' : 'período personalizado';
-      const chunkInfo = result.chunksFailed > 0 ? ` (${result.chunksFailed} períodos falharam)` : '';
-      const detailsInfo = result.activityDetailsSaved > 0 ? ` e ${result.activityDetailsSaved} detalhes` : '';
+      // Show success message based on the results
+      const activitiesMsg = result.activities ? 
+        `${result.activities.saved} atividades importadas` : 
+        'Nenhuma atividade encontrada';
       
+      const detailsMsg = result.activityDetails ? 
+        `${result.activityDetails.triggered} períodos de detalhes acionados` : 
+        'Nenhum detalhe acionado';
+
       toast({
-        title: "Busca concluída",
-        description: `${result.activitiesSaved} atividades${detailsInfo} encontradas para ${timeRangeText}${chunkInfo}.`,
+        title: "Backfill iniciado com sucesso",
+        description: `${activitiesMsg}. ${detailsMsg}. Os detalhes chegarão via webhook em alguns minutos.`,
         variant: "default",
       });
 
@@ -115,7 +118,7 @@ export const useBackfillActivities = () => {
       console.error('[useBackfillActivities] Unexpected error:', error);
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro inesperado durante a busca.",
+        description: "Ocorreu um erro inesperado durante o backfill.",
         variant: "destructive",
       });
       return false;
