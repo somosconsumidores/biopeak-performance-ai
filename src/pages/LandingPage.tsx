@@ -20,8 +20,9 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
-// New hero logo
-const heroLogo = 'https://static.wixstatic.com/media/a025ad_99ddbb70268549389f3eb76283601c41~mv2.png';
+// Hero logos for different themes
+const heroLogoDark = 'https://static.wixstatic.com/media/a025ad_99ddbb70268549389f3eb76283601c41~mv2.png';
+const heroLogoLight = '/lovable-uploads/biopeak-hero-light.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
@@ -32,7 +33,7 @@ export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const { theme } = useTheme();
 
-  // Get current logo for footer (keeping theme-based system for footer)
+  // Get current effective theme
   const getEffectiveTheme = () => {
     if (theme === 'system') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -40,7 +41,9 @@ export const LandingPage = () => {
     return theme;
   };
   
-  const footerLogo = getEffectiveTheme() === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
+  const currentTheme = getEffectiveTheme();
+  const heroLogo = currentTheme === 'light' ? heroLogoLight : heroLogoDark;
+  const footerLogo = currentTheme === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
 
   const features = [
     {
