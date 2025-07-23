@@ -26,7 +26,7 @@ export const useBackfillRequests = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('garmin_backfill_requests')
+        .from('garmin_backfill_requests' as any)
         .select('*')
         .order('triggered_at', { ascending: false })
         .limit(20);
@@ -41,7 +41,7 @@ export const useBackfillRequests = () => {
         return;
       }
 
-      setRequests(data || []);
+      setRequests((data as unknown as BackfillRequest[]) || []);
     } catch (error) {
       console.error('Unexpected error fetching backfill requests:', error);
     } finally {

@@ -230,6 +230,60 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_backfill_requests: {
+        Row: {
+          activities_received: number | null
+          activity_details_received: number | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          garmin_user_id: string | null
+          id: string
+          request_type: string
+          status: string
+          time_range_end: number
+          time_range_start: number
+          triggered_at: string
+          updated_at: string
+          user_id: string
+          webhook_notifications: Json | null
+        }
+        Insert: {
+          activities_received?: number | null
+          activity_details_received?: number | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          garmin_user_id?: string | null
+          id?: string
+          request_type: string
+          status?: string
+          time_range_end: number
+          time_range_start: number
+          triggered_at?: string
+          updated_at?: string
+          user_id: string
+          webhook_notifications?: Json | null
+        }
+        Update: {
+          activities_received?: number | null
+          activity_details_received?: number | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          garmin_user_id?: string | null
+          id?: string
+          request_type?: string
+          status?: string
+          time_range_end?: number
+          time_range_start?: number
+          triggered_at?: string
+          updated_at?: string
+          user_id?: string
+          webhook_notifications?: Json | null
+        }
+        Relationships: []
+      }
       garmin_daily_summaries: {
         Row: {
           active_kilocalories: number | null
