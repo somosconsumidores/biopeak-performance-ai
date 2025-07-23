@@ -52,7 +52,7 @@ serve(async (req) => {
     
     console.log(`[register-garmin-webhooks] Registering webhook URL: ${webhookUrl}`);
 
-    const registerResponse = await fetch('https://apis.garmin.com/wellness-api/rest/user/registration', {
+    const registerResponse = await fetch(`https://apis.garmin.com/wellness-api/rest/user/id/${tokenData.garmin_user_id}/registration`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
