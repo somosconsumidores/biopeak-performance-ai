@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WorkoutMapProps {
   coordinates: Array<{ latitude: number; longitude: number }>;
@@ -11,12 +12,36 @@ interface WorkoutMapProps {
 export const WorkoutMap = ({ coordinates, width = 400, height = 300 }: WorkoutMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!mapContainer.current || !coordinates.length) return;
+    const fetchMapboxToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        if (error) {
+          console.warn('Failed to fetch Mapbox token from secrets:', error);
+          setTokenError('Mapbox token not configured');
+          return;
+        }
+        if (data?.token) {
+          setMapboxToken(data.token);
+        } else {
+          setTokenError('Mapbox token not found in secrets');
+        }
+      } catch (err) {
+        console.warn('Error fetching Mapbox token:', err);
+        setTokenError('Failed to load map configuration');
+      }
+    };
 
-    // Use demo token for now - in production, fetch from Supabase secrets
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+    fetchMapboxToken();
+  }, []);
+
+  useEffect(() => {
+    if (!mapContainer.current || !coordinates.length || !mapboxToken) return;
+
+    mapboxgl.accessToken = mapboxToken;
     
     // Calculate bounds
     const bounds = new mapboxgl.LngLatBounds();
@@ -88,6 +113,28 @@ export const WorkoutMap = ({ coordinates, width = 400, height = 300 }: WorkoutMa
         style={{ width, height }}
       >
         Sem dados GPS
+      </div>
+    );
+  }
+
+  if (tokenError) {
+    return (
+      <div 
+        className="bg-muted/20 flex items-center justify-center text-muted-foreground"
+        style={{ width, height }}
+      >
+        {tokenError}
+      </div>
+    );
+  }
+
+  if (!mapboxToken) {
+    return (
+      <div 
+        className="bg-muted/20 flex items-center justify-center text-muted-foreground"
+        style={{ width, height }}
+      >
+        Carregando mapa...
       </div>
     );
   }
