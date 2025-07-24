@@ -11,6 +11,10 @@ interface BackfillRequest {
   timeRange: 'last_30_days' | 'custom';
   start?: number;
   end?: number;
+  activityDetailsTimeRange?: {
+    start: number;
+    end: number;
+  };
 }
 
 serve(async (req) => {
@@ -113,7 +117,17 @@ serve(async (req) => {
     const activitiesResult = await handleActivitiesBackfill(supabase, user.id, tokenData, startTime, endTime);
     
     // Then, trigger activity details backfill (asynchronous)
-    const detailsResult = await triggerActivityDetailsBackfill(supabase, user.id, tokenData, startTime, endTime);
+    // Use custom time range for details if provided, otherwise use the same range
+    let detailsStartTime = startTime;
+    let detailsEndTime = endTime;
+    
+    if (requestBody.activityDetailsTimeRange) {
+      detailsStartTime = requestBody.activityDetailsTimeRange.start;
+      detailsEndTime = requestBody.activityDetailsTimeRange.end;
+      console.log(`[backfill-activities] Using custom time range for activity details: ${new Date(detailsStartTime * 1000).toISOString()} to ${new Date(detailsEndTime * 1000).toISOString()}`);
+    }
+    
+    const detailsResult = await triggerActivityDetailsBackfill(supabase, user.id, tokenData, detailsStartTime, detailsEndTime);
 
     return new Response(JSON.stringify({
       success: true,

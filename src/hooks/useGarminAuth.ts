@@ -179,19 +179,35 @@ export const useGarminAuth = () => {
         return;
       }
 
-      // Calculate 90 days ago
+      // Calculate 90 days ago for activities
       const endTime = Math.floor(Date.now() / 1000);
       const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago
+      
+      // Calculate 15 days ago for activity details
+      const detailsEndTime = endTime;
+      const detailsStartTime = endTime - (15 * 24 * 60 * 60); // 15 days ago
 
       const backfillRequest = {
         timeRange: 'custom' as const,
         start: startTime,
-        end: endTime
+        end: endTime,
+        activityDetailsTimeRange: {
+          start: detailsStartTime,
+          end: detailsEndTime
+        }
       };
 
-      console.log('[useGarminAuth] Triggering backfill for 90 days:', {
-        startDate: new Date(startTime * 1000).toISOString(),
-        endDate: new Date(endTime * 1000).toISOString()
+      console.log('[useGarminAuth] Triggering backfill:', {
+        activitiesRange: {
+          startDate: new Date(startTime * 1000).toISOString(),
+          endDate: new Date(endTime * 1000).toISOString(),
+          days: 90
+        },
+        detailsRange: {
+          startDate: new Date(detailsStartTime * 1000).toISOString(),
+          endDate: new Date(detailsEndTime * 1000).toISOString(),
+          days: 15
+        }
       });
 
       const { data, error } = await supabase.functions.invoke('backfill-activities', {
@@ -216,7 +232,7 @@ export const useGarminAuth = () => {
       // Show a subtle notification about the background process
       toast({
         title: "Importação iniciada",
-        description: "Suas atividades dos últimos 90 dias estão sendo importadas em segundo plano.",
+        description: "Suas atividades dos últimos 90 dias e detalhes dos últimos 15 dias estão sendo importados em segundo plano.",
         variant: "default",
       });
 

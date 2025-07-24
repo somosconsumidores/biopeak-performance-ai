@@ -26,6 +26,10 @@ interface BackfillRequest {
   timeRange: 'last_30_days' | 'custom';
   start?: number;
   end?: number;
+  activityDetailsTimeRange?: {
+    start: number;
+    end: number;
+  };
 }
 
 export const useBackfillActivities = () => {
