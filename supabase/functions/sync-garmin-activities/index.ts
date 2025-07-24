@@ -138,24 +138,29 @@ serve(async (req) => {
     const triggeredBy = isWebhookTriggered ? 'webhook' : 'manual_sync';
     console.log(`[sync-garmin-activities] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}`);
 
-    // Check rate limiting for this user and sync type (more lenient for webhook)
-    const minInterval = isWebhookTriggered ? 1 : (isManualSync ? 1 : 5); // 1 minute for webhook and manual, 5 for other
-    const { data: canSync } = await supabase.rpc('can_sync_user', {
-      user_id_param: user.id,
-      sync_type_param: 'activities',
-      min_interval_minutes: minInterval
-    });
-
-    if (!canSync && !isManualSync) {
-      console.log('[sync-garmin-activities] Rate limit exceeded, sync skipped');
-      return new Response(JSON.stringify({ 
-        error: 'Sync rate limit exceeded',
-        message: `Please wait ${minInterval} minutes between sync requests`,
-        canRetryAfter: minInterval * 60 * 1000
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Check rate limiting - ONLY for manual syncs, webhooks have priority
+    if (!isWebhookTriggered) {
+      const minInterval = 5; // 5 minutes for manual syncs
+      const { data: canSync } = await supabase.rpc('can_sync_user', {
+        user_id_param: user.id,
+        sync_type_param: 'activities',
+        min_interval_minutes: minInterval
       });
+
+      if (!canSync) {
+        console.log('[sync-garmin-activities] Rate limit exceeded for manual sync, sync skipped');
+        return new Response(JSON.stringify({ 
+          error: 'Sync rate limit exceeded',
+          message: `Please wait ${minInterval} minutes between manual sync requests`,
+          canRetryAfter: minInterval * 60 * 1000,
+          rateLimited: true
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.log('[sync-garmin-activities] WEBHOOK SYNC - Bypassing rate limits for real-time updates');
     }
 
     // Log sync attempt
