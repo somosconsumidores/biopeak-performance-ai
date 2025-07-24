@@ -101,7 +101,29 @@ export function useProfile() {
     if (!user) return null;
 
     try {
-      const fileExt = file.name.split('.').pop();
+      // Security: Validate file type and size
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Erro',
+          description: 'Tipo de arquivo não permitido. Use apenas JPG, PNG, WebP ou GIF.',
+          variant: 'destructive'
+        });
+        return null;
+      }
+
+      if (file.size > maxSize) {
+        toast({
+          title: 'Erro',
+          description: 'Arquivo muito grande. Máximo 5MB.',
+          variant: 'destructive'
+        });
+        return null;
+      }
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
