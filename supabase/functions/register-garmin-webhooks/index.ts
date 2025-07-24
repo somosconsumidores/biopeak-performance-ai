@@ -101,10 +101,6 @@ Deno.serve(async (req) => {
       try {
         console.log(`[register-garmin-webhooks] Registering ${webhook.type} webhook`)
         
-        // Create authorization header for Garmin API
-        const authString = `${GARMIN_CLIENT_ID}:${GARMIN_CLIENT_SECRET}`
-        const authBase64 = btoa(authString)
-        
         const webhookPayload = {
           webhookType: webhook.type.toUpperCase(),
           callbackUrl: webhook.callbackUrl,
@@ -113,13 +109,14 @@ Deno.serve(async (req) => {
 
         console.log(`[register-garmin-webhooks] Webhook payload:`, webhookPayload)
 
+        // Create OAuth 1.0 authorization header
+        const oauthHeader = `OAuth oauth_consumer_key="${GARMIN_CLIENT_ID}", oauth_token="${garminTokens.access_token}", oauth_signature_method="PLAINTEXT", oauth_signature="${GARMIN_CLIENT_SECRET}&${garminTokens.token_secret || ''}", oauth_timestamp="${Math.floor(Date.now() / 1000)}", oauth_nonce="${Math.random().toString(36).substring(7)}"`
+
         const response = await fetch('https://apis.garmin.com/wellness-api/rest/webhooks', {
           method: 'POST',
           headers: {
-            'Authorization': `Basic ${authBase64}`,
-            'Content-Type': 'application/json',
-            'oauth_token': garminTokens.access_token,
-            'oauth_token_secret': garminTokens.token_secret || ''
+            'Authorization': oauthHeader,
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(webhookPayload)
         })
