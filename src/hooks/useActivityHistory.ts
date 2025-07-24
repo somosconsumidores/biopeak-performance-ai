@@ -25,7 +25,7 @@ interface Activity {
   synced_at: string;
 }
 
-export function useActivityHistory(limit: number = 50) {
+export function useActivityHistory(limit?: number) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +48,17 @@ export function useActivityHistory(limit: number = 50) {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('garmin_activities')
         .select('*')
         .eq('user_id', user.id)
-        .order('activity_date', { ascending: false })
-        .limit(limit);
+        .order('activity_date', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         throw fetchError;
