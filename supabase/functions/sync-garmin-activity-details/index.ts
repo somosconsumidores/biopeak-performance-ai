@@ -49,7 +49,7 @@ async function processActivityDetailsInBackground(
   
   let totalProcessed = 0;
   const errors: string[] = [];
-  const BATCH_SIZE = 500; // Process samples in batches of 500
+  const BATCH_SIZE = 1000; // Process samples in batches of 1000 (increased for better performance)
   
   for (const detail of activityDetails) {
     try {
@@ -292,24 +292,29 @@ Deno.serve(async (req) => {
     const triggeredBy = isWebhookTriggered ? 'webhook' : (isAdminOverride ? 'admin_override' : 'unknown');
     console.log(`[sync-activity-details] ACCEPTED: Sync request for user ${user.id} triggered by: ${triggeredBy}${callbackURL ? `, callback: ${callbackURL}` : ''}${specificActivityId ? `, activity: ${specificActivityId}` : ''}`);
 
-    // Check rate limiting for this user and sync type (more lenient for webhook)
-    const minInterval = isWebhookTriggered ? 1 : (isAdminOverride ? 1 : 5); // 1 minute for webhook and admin override, 5 for other
-    const { data: canSync } = await supabaseClient.rpc('can_sync_user', {
-      user_id_param: user.id,
-      sync_type_param: 'details',
-      min_interval_minutes: minInterval
-    });
-
-    if (!canSync && !isAdminOverride) {
-      console.log('[sync-activity-details] Rate limit exceeded, sync skipped');
-      return new Response(JSON.stringify({ 
-        error: 'Sync rate limit exceeded',
-        message: `Please wait ${minInterval} minutes between sync requests`,
-        canRetryAfter: minInterval * 60 * 1000
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Check rate limiting - ONLY for admin overrides, webhooks have absolute priority
+    if (!isWebhookTriggered) {
+      const minInterval = 30; // 30 minutes for admin override syncs
+      const { data: canSync } = await supabaseClient.rpc('can_sync_user', {
+        user_id_param: user.id,
+        sync_type_param: 'details',
+        min_interval_minutes: minInterval
       });
+
+      if (!canSync) {
+        console.log('[sync-activity-details] Rate limit exceeded for admin override sync, sync rejected');
+        return new Response(JSON.stringify({ 
+          error: 'Sync rate limit exceeded',
+          message: `Please wait ${minInterval} minutes between admin sync requests`,
+          canRetryAfter: minInterval * 60 * 1000,
+          rateLimited: true
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.log('[sync-activity-details] WEBHOOK SYNC - Bypassing all rate limits for real-time activity details');
     }
 
     // Log sync attempt
