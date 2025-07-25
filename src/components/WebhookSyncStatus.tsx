@@ -72,7 +72,7 @@ export function WebhookSyncStatus() {
           Status da Sincronização via Webhook
         </CardTitle>
         <CardDescription>
-          Monitoramento automático da sincronização Garmin
+          Monitor automático da sync Garmin
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

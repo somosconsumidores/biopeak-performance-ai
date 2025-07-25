@@ -406,6 +406,28 @@ All colors MUST be HSL.
       margin: 0;
     }
     
+    /* Stats cards mobile optimization */
+    .stats-card {
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+    }
+    
+    .stats-value {
+      font-size: 1.5rem;
+      line-height: 1.8rem;
+      font-weight: bold;
+      word-break: keep-all;
+      white-space: nowrap;
+    }
+    
+    .stats-label {
+      font-size: 0.75rem;
+      line-height: 1rem;
+      word-break: break-word;
+      hyphens: auto;
+      max-width: 100%;
+    }
+    
     /* Performance metrics cards */
     .performance-metric-card {
       padding: 0.75rem;

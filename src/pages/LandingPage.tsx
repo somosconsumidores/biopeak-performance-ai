@@ -78,10 +78,10 @@ export const LandingPage = () => {
   ];
 
   const stats = [
-    { value: '10,000+', label: 'Atletas Ativos' },
-    { value: '95%', label: 'Melhoria na Performance' },
-    { value: '24/7', label: 'Monitoramento' },
-    { value: '30%', label: 'Redução de Lesões' }
+    { value: '10K+', label: 'Atletas Ativos' },
+    { value: '95%', label: 'Melhoria Performance' },
+    { value: '24/7', label: 'Monitor' },
+    { value: '30%', label: 'Menos Lesões' }
   ];
 
   return (
@@ -145,13 +145,13 @@ export const LandingPage = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
           <ScrollReveal delay={200}>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
               {stats.map((stat, index) => (
-                <div key={index} className="text-center glass-card p-6">
-                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+                <div key={index} className="glass-card stats-card">
+                  <div className="stats-value bg-gradient-primary bg-clip-text text-transparent mb-1">
                     {stat.value}
                   </div>
-                  <div className="text-muted-foreground">{stat.label}</div>
+                  <div className="stats-label text-muted-foreground">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -264,14 +264,14 @@ export const LandingPage = () => {
                 inteligente. Comece sua jornada para a performance máxima hoje.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
+                <Button size="lg" className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-3 min-h-[3rem] max-w-[200px] sm:max-w-none" asChild>
                   <Link to="/auth">
-                    <span className="truncate">Começar Gratuitamente</span>
-                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                    <span className="truncate">Começar Grátis</span>
+                    <ArrowRight className="ml-1 h-4 w-4 flex-shrink-0" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="glass-card border-glass-border text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]">
-                  <span className="truncate">Falar com Especialista</span>
+                <Button size="lg" variant="outline" className="glass-card border-glass-border text-sm sm:text-base px-4 sm:px-6 py-3 min-h-[3rem] max-w-[200px] sm:max-w-none">
+                  <span className="truncate">Falar c/ Expert</span>
                 </Button>
               </div>
             </div>
