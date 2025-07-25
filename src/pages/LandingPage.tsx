@@ -111,16 +111,16 @@ export const LandingPage = () => {
               <img src={heroAnimation} alt="BioPeak Animation" className="h-56 sm:h-80 w-auto max-w-2xl" />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
+              <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
                 <Link to="/auth">
-                  Começar Agora
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <span className="truncate">Começar Agora</span>
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 </Link>
               </Button>
               <Dialog open={isVideoOpen} onOpenChange={setIsVideoOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
-                    Ver Demo
+                  <Button size="lg" variant="outline" className="glass-card border-glass-border text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]">
+                    <span className="truncate">Ver Demo</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-4xl p-0 bg-black/95 border-glass-border">
@@ -178,12 +178,12 @@ export const LandingPage = () => {
             {features.map((feature, index) => (
               <ScrollReveal key={index} delay={index * 100}>
                 <Card className="glass-card border-glass-border h-full">
-                  <CardContent className="p-6 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-full mb-4">
-                      <feature.icon className="h-8 w-8 text-white" />
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-primary rounded-full mb-3 sm:mb-4">
+                      <feature.icon className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <h3 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3 leading-tight">{feature.title}</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
               </ScrollReveal>
@@ -264,14 +264,14 @@ export const LandingPage = () => {
                 inteligente. Comece sua jornada para a performance máxima hoje.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="btn-primary text-lg px-8 py-4" asChild>
+                <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
                   <Link to="/auth">
-                    Começar Gratuitamente
-                    <ArrowRight className="ml-2 h-5 w-5" />
+                    <span className="truncate">Começar Gratuitamente</span>
+                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="glass-card border-glass-border text-lg px-8 py-4">
-                  Falar com Especialista
+                <Button size="lg" variant="outline" className="glass-card border-glass-border text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]">
+                  <span className="truncate">Falar com Especialista</span>
                 </Button>
               </div>
             </div>

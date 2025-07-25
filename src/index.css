@@ -358,8 +358,78 @@ All colors MUST be HSL.
     }
   }
 
-  /* Performance indicators mobile spacing */
+  /* Mobile-specific optimizations */
   @media (max-width: 768px) {
+    /* Ensure proper text wrapping in containers */
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    
+    /* Fix card padding and text alignment on mobile */
+    .glass-card {
+      padding: 0.75rem;
+    }
+    
+    .glass-card .card-content {
+      padding: 0.75rem;
+    }
+    
+    /* Ensure buttons don't overflow */
+    .button-mobile {
+      min-height: 2.5rem;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+      font-size: 0.875rem;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    /* Fix text overflow in cards */
+    .card-title-mobile {
+      font-size: 1rem;
+      line-height: 1.25rem;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    .card-description-mobile {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    /* Chart optimizations */
+    .chart-container {
+      padding: 0.5rem;
+      margin: 0;
+    }
+    
+    /* Performance metrics cards */
+    .performance-metric-card {
+      padding: 0.75rem;
+      min-height: auto;
+    }
+    
+    .performance-metric-card .metric-value {
+      font-size: 1.25rem;
+      line-height: 1.5rem;
+    }
+    
+    .performance-metric-card .metric-label {
+      font-size: 0.75rem;
+      line-height: 1rem;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    .performance-metric-card .metric-change {
+      font-size: 0.75rem;
+      line-height: 1rem;
+    }
+    
+    /* Performance indicators mobile spacing */
     .performance-indicator-card {
       padding: 0.75rem;
     }
@@ -371,6 +441,58 @@ All colors MUST be HSL.
     .performance-badge {
       font-size: 0.75rem;
       padding: 0.25rem 0.5rem;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    /* Badge improvements for mobile */
+    .badge-mobile {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100px;
+    }
+    
+    /* Grid improvements */
+    .grid-mobile-1 {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    
+    .grid-mobile-2 {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+    
+    /* Spacing adjustments */
+    .space-mobile-compact > * + * {
+      margin-top: 0.5rem;
+    }
+    
+    /* Text size adjustments for better readability */
+    .text-mobile-xs {
+      font-size: 0.75rem;
+      line-height: 1rem;
+    }
+    
+    .text-mobile-sm {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    
+    .text-mobile-base {
+      font-size: 1rem;
+      line-height: 1.5rem;
+    }
+    
+    /* Prevent horizontal overflow */
+    .overflow-mobile-hidden {
+      overflow-x: hidden;
+      max-width: 100vw;
     }
   }
 

@@ -121,21 +121,21 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
   return (
     <div className="space-y-6">
       {/* Main AI Insights */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* What Worked */}
         <Card className="glass-card border-glass-border">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-green-400">
-              <ThumbsUp className="h-5 w-5" />
-              <span>O que Funcionou</span>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-green-400 text-base sm:text-lg">
+              <ThumbsUp className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">O que Funcionou</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="pt-0">
+            <div className="space-y-2 sm:space-y-3">
               {analysis.whatWorked.map((insight, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0" />
-                  <p className="text-sm">{insight}</p>
+                <div key={index} className="flex items-start space-x-2 sm:space-x-3">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-400 mt-2 flex-shrink-0" />
+                  <p className="text-xs sm:text-sm leading-relaxed">{insight}</p>
                 </div>
               ))}
             </div>
@@ -144,18 +144,18 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
 
         {/* To Improve */}
         <Card className="glass-card border-glass-border">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-yellow-400">
-              <ThumbsDown className="h-5 w-5" />
-              <span>Para Melhorar</span>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-yellow-400 text-base sm:text-lg">
+              <ThumbsDown className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Para Melhorar</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="pt-0">
+            <div className="space-y-2 sm:space-y-3">
               {analysis.toImprove.map((insight, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-yellow-400 mt-2 flex-shrink-0" />
-                  <p className="text-sm">{insight}</p>
+                <div key={index} className="flex items-start space-x-2 sm:space-x-3">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-yellow-400 mt-2 flex-shrink-0" />
+                  <p className="text-xs sm:text-sm leading-relaxed">{insight}</p>
                 </div>
               ))}
             </div>
@@ -163,19 +163,19 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
         </Card>
 
         {/* Recommendations */}
-        <Card className="glass-card border-glass-border">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-primary">
-              <Target className="h-5 w-5" />
-              <span>Recomendações</span>
+        <Card className="glass-card border-glass-border md:col-span-2 lg:col-span-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center space-x-2 text-primary text-base sm:text-lg">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Recomendações</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="pt-0">
+            <div className="space-y-2 sm:space-y-3">
               {analysis.recommendations.map((insight, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                  <p className="text-sm">{insight}</p>
+                <div key={index} className="flex items-start space-x-2 sm:space-x-3">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <p className="text-xs sm:text-sm leading-relaxed">{insight}</p>
                 </div>
               ))}
             </div>
@@ -188,9 +188,9 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
         <Button 
           variant="outline" 
           onClick={() => setShowDetailedAnalysis(!showDetailedAnalysis)}
-          className="w-full md:w-auto"
+          className="w-full sm:w-auto min-h-[2.5rem] px-6"
         >
-          {showDetailedAnalysis ? 'Ocultar' : 'Ver'} Análise Detalhada
+          <span className="truncate">{showDetailedAnalysis ? 'Ocultar' : 'Ver'} Análise Detalhada</span>
         </Button>
       </div>
 

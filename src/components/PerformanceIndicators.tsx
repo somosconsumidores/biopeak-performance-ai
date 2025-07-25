@@ -149,29 +149,29 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} ${isMobile ? 'gap-4' : 'gap-6'}`}>
+        <div className={`grid gap-3 sm:gap-4 md:gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
           {indicators.map((indicator, index) => (
-            <div key={`${activityId}-${index}`} className={`space-y-3 ${isMobile ? 'p-3 bg-muted/5 rounded-lg' : 'space-y-4'}`}>
-              <div className="flex items-center space-x-3">
-                <span className={`${isMobile ? 'text-xl' : 'text-2xl'}`}>{indicator.emoji}</span>
-                <div>
-                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{indicator.title}</h3>
+            <div key={`${activityId}-${index}`} className={`space-y-2 sm:space-y-3 p-3 sm:p-4 bg-muted/5 rounded-lg border border-muted/10`}>
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <span className={`${isMobile ? 'text-lg' : 'text-xl sm:text-2xl'} flex-shrink-0`}>{indicator.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className={`font-semibold truncate ${isMobile ? 'text-sm' : 'text-base sm:text-lg'}`}>{indicator.title}</h3>
                 </div>
               </div>
               
-              <div className={`space-y-2 ${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
+              <div className={`space-y-1.5 sm:space-y-2`}>
                 {indicator.metrics.map((metric, metricIndex) => (
-                  <div key={metricIndex} className={`flex justify-between items-center ${isMobile ? 'gap-2' : ''}`}>
-                    <span className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'} ${isMobile ? 'flex-1' : ''}`}>{metric.label}</span>
-                    <Badge variant="outline" className={`${indicator.color} font-mono ${isMobile ? 'text-xs px-2 py-1' : ''} flex-shrink-0`}>
+                  <div key={metricIndex} className="flex justify-between items-center gap-2">
+                    <span className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} flex-1 truncate`}>{metric.label}</span>
+                    <Badge variant="outline" className={`${indicator.color} font-mono ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} flex-shrink-0 max-w-[120px] truncate`}>
                       {metric.value}
                     </Badge>
                   </div>
                 ))}
               </div>
               
-              <div className={`bg-muted/10 rounded-lg ${isMobile ? 'p-2' : 'p-3'}`}>
-                <p className={`text-muted-foreground italic ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              <div className={`bg-muted/10 rounded-lg ${isMobile ? 'p-2' : 'p-2 sm:p-3'} border border-muted/5`}>
+                <p className={`text-muted-foreground italic ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} leading-relaxed`}>
                   {indicator.comment}
                 </p>
               </div>
