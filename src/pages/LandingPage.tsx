@@ -145,13 +145,13 @@ export const LandingPage = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
           <ScrollReveal delay={200}>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 max-w-4xl mx-auto">
               {stats.map((stat, index) => (
-                <div key={index} className="glass-card stats-card">
-                  <div className="stats-value bg-gradient-primary bg-clip-text text-transparent mb-1">
+                <div key={index} className="glass-card text-center p-4 lg:p-6 min-h-[120px] flex flex-col justify-center">
+                  <div className="text-2xl lg:text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
                     {stat.value}
                   </div>
-                  <div className="stats-label text-muted-foreground">{stat.label}</div>
+                  <div className="text-sm lg:text-base text-muted-foreground">{stat.label}</div>
                 </div>
               ))}
             </div>
