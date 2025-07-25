@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
+import { useTokenRefresh } from "./hooks/useTokenRefresh";
 import { LandingPage } from "./pages/LandingPage";
 import { Dashboard } from "./pages/Dashboard";
 import { WorkoutSession } from "./pages/WorkoutSession";
@@ -24,6 +25,9 @@ const queryClient = new QueryClient();
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  
+  // Initialize automatic token refresh for authenticated users
+  useTokenRefresh();
   
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">

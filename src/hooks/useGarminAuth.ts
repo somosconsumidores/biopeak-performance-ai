@@ -461,23 +461,6 @@ export const useGarminAuth = () => {
     }
   }, [toast]);
 
-  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!tokens || isTokenExpired(tokens)) {
-      // Try to refresh token
-      if (tokens?.refresh_token) {
-        try {
-          await refreshToken(tokens.refresh_token);
-          return tokens.access_token;
-        } catch (error) {
-          console.error('[useGarminAuth] Error refreshing token:', error);
-          return null;
-        }
-      }
-      return null;
-    }
-    return tokens.access_token;
-  }, [tokens]);
-
   const refreshToken = useCallback(async (refreshTokenValue: string) => {
     try {
       console.log('[useGarminAuth] Refreshing token...');
@@ -526,6 +509,25 @@ export const useGarminAuth = () => {
     }
   }, [disconnect]);
 
+  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
+    if (!tokens || isTokenExpired(tokens)) {
+      // Try to refresh token
+      if (tokens?.refresh_token) {
+        try {
+          console.log('[useGarminAuth] Token expired, refreshing...');
+          await refreshToken(tokens.refresh_token);
+          // After refresh, return the new token from state
+          return tokens.access_token;
+        } catch (error) {
+          console.error('[useGarminAuth] Error refreshing token:', error);
+          return null;
+        }
+      }
+      return null;
+    }
+    return tokens.access_token;
+  }, [tokens, refreshToken]);
+
   return {
     isConnected,
     isConnecting,
@@ -534,5 +536,6 @@ export const useGarminAuth = () => {
     disconnect,
     getValidAccessToken,
     handleOAuthCallback,
+    refreshToken,
   };
 };
