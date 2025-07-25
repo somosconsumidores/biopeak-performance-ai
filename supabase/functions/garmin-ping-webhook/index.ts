@@ -4,26 +4,37 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 Deno.serve(async (req) => {
   const startTime = Date.now();
   
+  console.log(`[garmin-ping-webhook] Request received: ${req.method} ${req.url}`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('[garmin-ping-webhook] Handling CORS preflight');
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Always return success to Garmin - this is critical for webhook health
-  const successResponse = () => new Response(JSON.stringify({ 
-    success: true, 
-    message: 'Ping received successfully',
-    timestamp: new Date().toISOString(),
-    processingTime: Date.now() - startTime
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  // Create response immediately for Garmin
+  const createSuccessResponse = (message: string = 'Ping received successfully') => {
+    const response = {
+      success: true,
+      message,
+      timestamp: new Date().toISOString(),
+      processingTime: Date.now() - startTime,
+      status: 'ok'
+    };
+    
+    console.log(`[garmin-ping-webhook] Sending response:`, response);
+    
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  };
 
   try {
     console.log(`[garmin-ping-webhook] ${req.method} from ${req.headers.get('user-agent') || 'unknown'}`);
@@ -84,13 +95,13 @@ Deno.serve(async (req) => {
     }
 
     console.log('[garmin-ping-webhook] Ping processed successfully');
-    return successResponse();
+    return createSuccessResponse('Ping processed successfully');
 
   } catch (error) {
     console.error('[garmin-ping-webhook] Error processing ping:', error);
     
     // CRITICAL: Still return success to Garmin to maintain webhook health
     // The error is logged but we don't want Garmin to think the endpoint is down
-    return successResponse();
+    return createSuccessResponse('Ping received with error (still successful)');
   }
 });
