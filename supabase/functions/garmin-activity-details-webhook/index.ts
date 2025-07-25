@@ -154,9 +154,10 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Log the webhook notification
+          // Log the webhook notification and get the ID for tracking
+          let webhookLogId: string | null = null;
           try {
-            await supabaseClient
+            const { data: logData, error: logError } = await supabaseClient
               .from('garmin_webhook_logs')
               .insert({
                 user_id: userTokens.user_id,
@@ -164,7 +165,15 @@ Deno.serve(async (req) => {
                 payload: notification,
                 garmin_user_id: garminUserId,
                 status: 'processing'
-              });
+              })
+              .select('id')
+              .single();
+
+            if (logError) {
+              console.warn('[garmin-activity-details-webhook] Failed to log webhook notification:', logError);
+            } else {
+              webhookLogId = logData.id;
+            }
           } catch (logError) {
             console.warn('[garmin-activity-details-webhook] Failed to log webhook notification (non-critical):', logError);
           }
@@ -188,26 +197,49 @@ Deno.serve(async (req) => {
           // Fire and forget - don't wait for sync completion
           supabaseClient.functions.invoke('sync-garmin-activity-details', {
             body: syncPayload
-          }).then((syncResult) => {
-            console.log(`[garmin-activity-details-webhook] Sync triggered for user: ${userTokens.user_id}`);
+          }).then(({ error: syncError }) => {
+            const status = syncError ? 'sync_failed' : 'success';
             
-            // Update webhook log status
-            supabaseClient
-              .from('garmin_webhook_logs')
-              .update({ status: 'success' })
-              .eq('user_id', userTokens.user_id)
-              .eq('webhook_type', 'activity_details_notification')
-              .eq('garmin_user_id', garminUserId)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .then(() => {
-                console.log(`[garmin-activity-details-webhook] Webhook log updated for user: ${userTokens.user_id}`);
-              })
-              .catch((updateError) => {
-                console.warn('[garmin-activity-details-webhook] Failed to update webhook log status:', updateError);
-              });
-          }).catch((syncError) => {
-            console.error(`[garmin-activity-details-webhook] Error triggering sync for user: ${userTokens.user_id}`, syncError);
+            console.log(`[garmin-activity-details-webhook] Sync result for user ${userTokens.user_id}: ${status}`);
+            
+            // Update webhook log status using specific ID if available
+            if (webhookLogId) {
+              supabaseClient
+                .from('garmin_webhook_logs')
+                .update({ 
+                  status,
+                  processed_at: new Date().toISOString(),
+                  error_message: syncError?.message || null
+                })
+                .eq('id', webhookLogId)
+                .then(() => {
+                  console.log(`[garmin-activity-details-webhook] Webhook log updated for user: ${userTokens.user_id}`);
+                })
+                .catch((updateError) => {
+                  console.warn('[garmin-activity-details-webhook] Failed to update webhook log status:', updateError);
+                });
+            }
+
+            if (syncError) {
+              console.error(`[garmin-activity-details-webhook] Sync error for user: ${userTokens.user_id}`, syncError);
+            }
+          }).catch((invokeError) => {
+            console.error(`[garmin-activity-details-webhook] Error invoking sync for user: ${userTokens.user_id}`, invokeError);
+            
+            // Update webhook log to failed if we have the ID
+            if (webhookLogId) {
+              supabaseClient
+                .from('garmin_webhook_logs')
+                .update({ 
+                  status: 'sync_failed',
+                  processed_at: new Date().toISOString(),
+                  error_message: `Sync invoke error: ${invokeError.message}`
+                })
+                .eq('id', webhookLogId)
+                .catch((updateError) => {
+                  console.warn('[garmin-activity-details-webhook] Failed to update webhook log status after invoke error:', updateError);
+                });
+            }
           });
 
           results.push({

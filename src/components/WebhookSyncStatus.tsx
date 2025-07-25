@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWebhookOnlyGarminSync } from '@/hooks/useWebhookOnlyGarminSync';
 import { 
@@ -10,11 +11,12 @@ import {
   AlertTriangle, 
   Clock,
   Activity,
-  Database
+  Database,
+  RefreshCcw
 } from 'lucide-react';
 
 export function WebhookSyncStatus() {
-  const { fetchStats, stats } = useWebhookOnlyGarminSync();
+  const { fetchStats, reprocessStuckWebhooks, stats, isLoading } = useWebhookOnlyGarminSync();
 
   useEffect(() => {
     fetchStats();
@@ -132,7 +134,26 @@ export function WebhookSyncStatus() {
           </Alert>
         )}
 
-        <div className="pt-4 border-t border-border/50">
+        <div className="pt-4 border-t border-border/50 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium">Manutenção de Webhooks</h4>
+              <p className="text-xs text-muted-foreground">
+                Reprocessar notificações travadas ou com falha
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={reprocessStuckWebhooks}
+              disabled={isLoading}
+              className="text-xs"
+            >
+              <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Reprocessando...' : 'Reprocessar'}
+            </Button>
+          </div>
+          
           <div className="text-xs text-muted-foreground space-y-1">
             <p>✅ <strong>Automático:</strong> Novas atividades sincronizam instantaneamente</p>
             <p>🛡️ <strong>Rate Limiting:</strong> Máximo 1 sync a cada 5 minutos por usuário</p>

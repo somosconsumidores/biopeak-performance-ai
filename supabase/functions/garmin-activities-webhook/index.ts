@@ -153,16 +153,23 @@ Deno.serve(async (req) => {
             // Process each active user
             for (const token of tokens) {
               try {
-                // Log webhook receipt
-                await supabaseClient
+                // Log webhook receipt and immediately mark as processing
+                const { data: webhookLog, error: logError } = await supabaseClient
                   .from('garmin_webhook_logs')
                   .insert({
                     user_id: token.user_id,
                     webhook_type: 'activity_notification',
                     payload: activity,
-                    status: 'received',
+                    status: 'processing',
                     garmin_user_id: garminUserId
-                  });
+                  })
+                  .select('id')
+                  .single();
+
+                if (logError) {
+                  console.error('[garmin-activities-webhook] Failed to log webhook:', logError);
+                  return;
+                }
 
                 // Trigger background sync (fire and forget)
                 supabaseClient.functions.invoke('sync-garmin-activities', {
@@ -177,15 +184,15 @@ Deno.serve(async (req) => {
                 }).then(({ error: syncError }) => {
                   const status = syncError ? 'sync_failed' : 'sync_triggered';
                   
-                  // Update webhook log
+                  // Update webhook log using the specific ID
                   supabaseClient
                     .from('garmin_webhook_logs')
-                    .update({ status })
-                    .eq('user_id', token.user_id)
-                    .eq('webhook_type', 'activity_notification')
-                    .eq('garmin_user_id', garminUserId)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
+                    .update({ 
+                      status,
+                      processed_at: new Date().toISOString(),
+                      error_message: syncError?.message || null
+                    })
+                    .eq('id', webhookLog.id)
                     .then(() => {
                       console.log(`[garmin-activities-webhook] Updated webhook log status to: ${status} for user: ${token.user_id}`);
                     })

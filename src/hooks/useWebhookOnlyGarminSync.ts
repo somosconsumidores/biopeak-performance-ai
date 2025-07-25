@@ -132,8 +132,67 @@ export const useWebhookOnlyGarminSync = () => {
     }
   };
 
+  // Function to reprocess stuck webhooks
+  const reprocessStuckWebhooks = async (): Promise<boolean> => {
+    setIsLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar logado para reprocessar webhooks.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('[useWebhookOnlyGarminSync] Starting stuck webhooks reprocessing...');
+      
+      // Call the reprocess stuck webhooks function
+      const { data: reprocessData, error: reprocessError } = await supabase.functions.invoke('reprocess-stuck-webhooks', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (reprocessError || reprocessData?.error) {
+        console.error('[useWebhookOnlyGarminSync] Reprocess failed:', reprocessError || reprocessData?.error);
+        toast({
+          title: "Falha no reprocessamento",
+          description: "Não foi possível reprocessar os webhooks travados.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      toast({
+        title: "Reprocessamento concluído",
+        description: `${reprocessData.reprocessed} webhooks reprocessados, ${reprocessData.failed} falharam.`,
+        variant: "default",
+      });
+
+      console.log('[useWebhookOnlyGarminSync] Reprocessing completed:', reprocessData);
+      await fetchStats(); // Update stats after reprocessing
+      return true;
+
+    } catch (error) {
+      console.error('[useWebhookOnlyGarminSync] Unexpected error:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro inesperado durante o reprocessamento.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     emergencySync,
+    reprocessStuckWebhooks,
     fetchStats,
     stats,
     isLoading,
