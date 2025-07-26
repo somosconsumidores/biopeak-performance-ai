@@ -161,7 +161,7 @@ export const useGarminAuth = () => {
 
   const triggerAutoBackfill = useCallback(async () => {
     try {
-      console.log('[useGarminAuth] Starting automatic 90-day backfill...');
+      console.log('[useGarminAuth] Starting automatic 30-day backfill...');
       
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -169,9 +169,9 @@ export const useGarminAuth = () => {
         return;
       }
 
-      // Calculate 90 days ago for activities
+      // Use 30 days for activities (as recommended by Garmin to avoid pull notifications)
       const endTime = Math.floor(Date.now() / 1000);
-      const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago
+      const startTime = endTime - (30 * 24 * 60 * 60); // 30 days ago
       
       // Calculate 15 days ago for activity details
       const detailsEndTime = endTime;
@@ -187,11 +187,11 @@ export const useGarminAuth = () => {
         }
       };
 
-      console.log('[useGarminAuth] Triggering backfill:', {
+      console.log('[useGarminAuth] Triggering async backfill (no pull notifications):', {
         activitiesRange: {
           startDate: new Date(startTime * 1000).toISOString(),
           endDate: new Date(endTime * 1000).toISOString(),
-          days: 90
+          days: 30
         },
         detailsRange: {
           startDate: new Date(detailsStartTime * 1000).toISOString(),
@@ -222,7 +222,7 @@ export const useGarminAuth = () => {
       // Show a subtle notification about the background process
       toast({
         title: "Importação iniciada",
-        description: "Suas atividades dos últimos 90 dias e detalhes dos últimos 15 dias estão sendo importados em segundo plano.",
+        description: "Suas atividades dos últimos 30 dias e detalhes dos últimos 15 dias estão sendo importados via webhook.",
         variant: "default",
       });
 
@@ -381,7 +381,7 @@ export const useGarminAuth = () => {
           toast({
             title: "Conectado com sucesso!",
             description: isFirstConnection 
-              ? "Sua conta Garmin foi conectada e configurada. Suas atividades dos últimos 90 dias estão sendo importadas automaticamente."
+              ? "Sua conta Garmin foi conectada e configurada. Suas atividades dos últimos 30 dias estão sendo importadas automaticamente via webhook."
               : "Sua conta Garmin foi conectada e configurada para sincronização automática de atividades.",
             variant: "default",
           });

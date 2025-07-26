@@ -113,18 +113,20 @@ serve(async (req) => {
 
     console.log(`[backfill-activities] Processing range from ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
 
-    // First, handle activities backfill (synchronous)
+    // Trigger activities backfill using Garmin's asynchronous endpoint (no pull notifications)
     const activitiesResult = await handleActivitiesBackfill(supabase, user.id, tokenData, startTime, endTime);
     
     // Then, trigger activity details backfill (asynchronous)
-    // Use custom time range for details if provided, otherwise use the same range
-    let detailsStartTime = startTime;
+    // Use custom time range for details if provided, otherwise use last 15 days for details
+    let detailsStartTime = endTime - (15 * 24 * 60 * 60); // Default to 15 days for details
     let detailsEndTime = endTime;
     
     if (requestBody.activityDetailsTimeRange) {
       detailsStartTime = requestBody.activityDetailsTimeRange.start;
       detailsEndTime = requestBody.activityDetailsTimeRange.end;
       console.log(`[backfill-activities] Using custom time range for activity details: ${new Date(detailsStartTime * 1000).toISOString()} to ${new Date(detailsEndTime * 1000).toISOString()}`);
+    } else {
+      console.log(`[backfill-activities] Using default 15-day range for activity details: ${new Date(detailsStartTime * 1000).toISOString()} to ${new Date(detailsEndTime * 1000).toISOString()}`);
     }
     
     const detailsResult = await triggerActivityDetailsBackfill(supabase, user.id, tokenData, detailsStartTime, detailsEndTime);
@@ -133,7 +135,7 @@ serve(async (req) => {
       success: true,
       activities: activitiesResult,
       activityDetails: detailsResult,
-      message: 'Backfill completed. Activity details will be delivered via webhook in a few minutes.'
+      message: 'Backfill triggered successfully. Activities and details will arrive via webhook in the next few minutes.'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -153,134 +155,106 @@ serve(async (req) => {
 });
 
 async function handleActivitiesBackfill(supabase: any, userId: string, tokenData: any, startTime: number, endTime: number) {
-  const MAX_TIME_RANGE = 86400; // 24 hours in seconds
-  const DELAY_BETWEEN_REQUESTS = 100; // 100ms delay between requests
-
-  let allActivities: any[] = [];
-  let processedChunks = 0;
-  let failedChunks = 0;
-
-  // Process in 24-hour chunks
-  for (let currentEndTime = endTime; currentEndTime > startTime; currentEndTime -= MAX_TIME_RANGE) {
-    const currentStartTime = Math.max(currentEndTime - MAX_TIME_RANGE, startTime);
-    
-    console.log(`[backfill-activities] Processing activities chunk ${processedChunks + 1}...`);
-    
-    try {
-      const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
-      apiUrl.searchParams.append('uploadStartTimeInSeconds', currentStartTime.toString());
-      apiUrl.searchParams.append('uploadEndTimeInSeconds', currentEndTime.toString());
-
-      const garminResponse = await fetch(apiUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!garminResponse.ok) {
-        const errorText = await garminResponse.text();
-        console.error(`[backfill-activities] Activities API error for chunk ${processedChunks + 1}:`, garminResponse.status, errorText);
-        failedChunks++;
-        processedChunks++;
-        
-        if (currentStartTime > startTime) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
-        }
-        continue;
-      }
-
-      const chunkActivities = await garminResponse.json();
-      console.log(`[backfill-activities] Fetched ${chunkActivities.length} activities for chunk ${processedChunks + 1}`);
-      
-      allActivities = allActivities.concat(chunkActivities);
-      processedChunks++;
-
-      if (currentStartTime > startTime) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
-      }
-
-    } catch (error) {
-      console.error(`[backfill-activities] Error processing activities chunk ${processedChunks + 1}:`, error);
-      failedChunks++;
-      processedChunks++;
-      
-      if (currentStartTime > startTime) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
-      }
-    }
-  }
-
-  // Deduplicate and save activities
-  const activityMap = new Map();
-  allActivities.forEach(activity => {
-    const existing = activityMap.get(activity.summaryId);
-    if (!existing || (activity.startTimeInSeconds || 0) > (existing.startTimeInSeconds || 0)) {
-      activityMap.set(activity.summaryId, activity);
-    }
-  });
+  console.log(`[handleActivitiesBackfill] Triggering async backfill for time range: ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
   
-  const uniqueActivities = Array.from(activityMap.values());
-  let savedActivities = 0;
-
-  if (uniqueActivities.length > 0) {
-    const activitiesToInsert = uniqueActivities.map(activity => ({
-      user_id: userId,
-      summary_id: activity.summaryId,
-      activity_id: activity.activityId,
-      activity_type: activity.activityType,
-      start_time_in_seconds: activity.startTimeInSeconds,
-      start_time_offset_in_seconds: activity.startTimeOffsetInSeconds,
-      duration_in_seconds: activity.durationInSeconds,
-      distance_in_meters: activity.distanceInMeters,
-      active_kilocalories: activity.activeKilocalories,
-      device_name: activity.deviceName,
-      average_heart_rate_in_beats_per_minute: activity.averageHeartRateInBeatsPerMinute,
-      max_heart_rate_in_beats_per_minute: activity.maxHeartRateInBeatsPerMinute,
-      average_speed_in_meters_per_second: activity.averageSpeedInMetersPerSecond,
-      max_speed_in_meters_per_second: activity.maxSpeedInMetersPerSecond,
-      average_pace_in_minutes_per_kilometer: activity.averagePaceInMinutesPerKilometer,
-      max_pace_in_minutes_per_kilometer: activity.maxPaceInMinutesPerKilometer,
-      average_bike_cadence_in_rounds_per_minute: activity.averageBikeCadenceInRoundsPerMinute,
-      max_bike_cadence_in_rounds_per_minute: activity.maxBikeCadenceInRoundsPerMinute,
-      average_run_cadence_in_steps_per_minute: activity.averageRunCadenceInStepsPerMinute,
-      max_run_cadence_in_steps_per_minute: activity.maxRunCadenceInStepsPerMinute,
-      average_push_cadence_in_pushes_per_minute: activity.averagePushCadenceInPushesPerMinute,
-      max_push_cadence_in_pushes_per_minute: activity.maxPushCadenceInPushesPerMinute,
-      average_swim_cadence_in_strokes_per_minute: activity.averageSwimCadenceInStrokesPerMinute,
-      starting_latitude_in_degree: activity.startingLatitudeInDegree,
-      starting_longitude_in_degree: activity.startingLongitudeInDegree,
-      total_elevation_gain_in_meters: activity.totalElevationGainInMeters,
-      total_elevation_loss_in_meters: activity.totalElevationLossInMeters,
-      steps: activity.steps,
-      pushes: activity.pushes,
-      number_of_active_lengths: activity.numberOfActiveLengths,
-      is_parent: activity.isParent,
-      parent_summary_id: activity.parentSummaryId,
-      manual: activity.manual,
-      is_web_upload: activity.isWebUpload,
-    }));
-
-    const { data: insertedData, error: insertError } = await supabase
-      .from('garmin_activities')
-      .upsert(activitiesToInsert, { 
-        onConflict: 'user_id,summary_id',
-        ignoreDuplicates: false 
+  try {
+    // Record the backfill request in the database first
+    const { data: backfillRecord, error: recordError } = await supabase
+      .from('garmin_backfill_requests')
+      .insert({
+        user_id: userId,
+        garmin_user_id: tokenData.garmin_user_id,
+        request_type: 'activities',
+        time_range_start: startTime,
+        time_range_end: endTime,
+        status: 'triggered'
       })
-      .select('id');
+      .select('id')
+      .single();
 
-    if (!insertError) {
-      savedActivities = insertedData?.length || 0;
+    if (recordError) {
+      console.error('[handleActivitiesBackfill] Error recording backfill request:', recordError);
+      throw new Error('Failed to record backfill request');
     }
-  }
 
-  return {
-    found: uniqueActivities.length,
-    saved: savedActivities,
-    chunksProcessed: processedChunks,
-    chunksFailed: failedChunks
-  };
+    // Use the correct Garmin asynchronous backfill endpoint
+    const backfillUrl = `https://apis.garmin.com/wellness-api/rest/backfill/activities?summaryStartTimeInSeconds=${startTime}&summaryEndTimeInSeconds=${endTime}`;
+    
+    console.log(`[handleActivitiesBackfill] Triggering backfill: ${backfillUrl}`);
+    
+    const response = await fetch(backfillUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log(`[handleActivitiesBackfill] Backfill response status: ${response.status}`);
+    
+    if (response.status === 202) {
+      // HTTP 202 Accepted - backfill process started successfully
+      console.log(`[handleActivitiesBackfill] Activities backfill triggered successfully. Data will arrive via webhook.`);
+      
+      // Update status to in_progress
+      await supabase
+        .from('garmin_backfill_requests')
+        .update({ status: 'in_progress' })
+        .eq('id', backfillRecord.id);
+      
+      return {
+        triggered: true,
+        message: `Activities backfill initiated for ${Math.ceil((endTime - startTime) / (24 * 60 * 60))} days. Data will arrive via webhook.`,
+        backfillRequestId: backfillRecord.id
+      };
+    } else if (response.status === 409) {
+      // HTTP 409 Conflict - duplicate request for same period
+      console.log(`[handleActivitiesBackfill] Duplicate backfill request detected (409)`);
+      
+      await supabase
+        .from('garmin_backfill_requests')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          error_message: 'Duplicate request - period already processed'
+        })
+        .eq('id', backfillRecord.id);
+      
+      return {
+        triggered: false,
+        message: 'Activities backfill already requested for this time period.',
+        backfillRequestId: backfillRecord.id
+      };
+    } else if (response.status === 401) {
+      await supabase
+        .from('garmin_backfill_requests')
+        .update({ 
+          status: 'failed',
+          error_message: 'Unauthorized - token expired'
+        })
+        .eq('id', backfillRecord.id);
+      
+      throw new Error('Unauthorized - token may be expired');
+    } else {
+      const errorText = await response.text();
+      console.error(`[handleActivitiesBackfill] Unexpected response status: ${response.status}`);
+      console.error(`[handleActivitiesBackfill] Error response: ${errorText}`);
+      
+      await supabase
+        .from('garmin_backfill_requests')
+        .update({ 
+          status: 'failed',
+          error_message: `API error: ${response.status} - ${errorText}`
+        })
+        .eq('id', backfillRecord.id);
+      
+      throw new Error(`Garmin API error: ${response.status} ${response.statusText}`);
+    }
+    
+  } catch (error) {
+    console.error(`[handleActivitiesBackfill] Error triggering backfill:`, error);
+    throw error;
+  }
 }
 
 async function triggerActivityDetailsBackfill(supabase: any, userId: string, tokenData: any, startTime: number, endTime: number) {
