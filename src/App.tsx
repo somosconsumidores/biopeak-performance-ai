@@ -26,9 +26,14 @@ const queryClient = new QueryClient();
 function TokenRefreshHandler() {
   const { user } = useAuth();
   
+  console.log('[TokenRefreshHandler] Component rendered - User:', user ? user.id.substring(0, 8) + '...' : 'null');
+  
   // Initialize automatic token refresh for any authenticated user, regardless of route
   if (user) {
+    console.log('[TokenRefreshHandler] User is authenticated, calling useTokenRefresh');
     useTokenRefresh();
+  } else {
+    console.log('[TokenRefreshHandler] User is NOT authenticated, skipping useTokenRefresh');
   }
   
   return null;
