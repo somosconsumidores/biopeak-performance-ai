@@ -8,6 +8,11 @@ export const useTokenRefresh = () => {
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
   console.log(`[useTokenRefresh] Hook initialized - Connected: ${isConnected}, Has tokens: ${!!tokens}`);
+  console.log(`[useTokenRefresh] Current time: ${new Date().toISOString()}`);
+  if (tokens) {
+    console.log(`[useTokenRefresh] Token expires at: ${new Date(tokens.expires_at).toISOString()}`);
+    console.log(`[useTokenRefresh] Token is expired: ${isTokenExpired(tokens)}`);
+  }
 
   const scheduleTokenRefresh = useCallback((tokens: GarminTokens) => {
     // Clear any existing interval
