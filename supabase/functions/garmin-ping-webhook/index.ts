@@ -18,21 +18,16 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Create response immediately for Garmin
-  const createSuccessResponse = (message: string = 'Ping received successfully') => {
-    const response = {
-      success: true,
-      message,
-      timestamp: new Date().toISOString(),
-      processingTime: Date.now() - startTime,
-      status: 'ok'
-    };
+  // Create simple success response for Garmin
+  const createSuccessResponse = () => {
+    console.log(`[garmin-ping-webhook] Sending 200 OK response`);
     
-    console.log(`[garmin-ping-webhook] Sending response:`, response);
-    
-    return new Response(JSON.stringify(response), {
+    return new Response('OK', {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/plain' 
+      },
     });
   };
 
@@ -95,13 +90,13 @@ Deno.serve(async (req) => {
     }
 
     console.log('[garmin-ping-webhook] Ping processed successfully');
-    return createSuccessResponse('Ping processed successfully');
+    return createSuccessResponse();
 
   } catch (error) {
     console.error('[garmin-ping-webhook] Error processing ping:', error);
     
     // CRITICAL: Still return success to Garmin to maintain webhook health
     // The error is logged but we don't want Garmin to think the endpoint is down
-    return createSuccessResponse('Ping received with error (still successful)');
+    return createSuccessResponse();
   }
 });
