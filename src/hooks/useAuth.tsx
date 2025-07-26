@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Initialize automatic token refresh for authenticated users
+  console.log('[AuthProvider] Initializing token refresh for user:', user?.id?.substring(0, 8) + '...', 'loading:', loading);
   useAuthTokenRefresh(user, loading);
 
   useEffect(() => {
