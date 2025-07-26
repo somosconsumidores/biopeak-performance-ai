@@ -22,12 +22,21 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
+// Component that handles token refresh for all authenticated users
+function TokenRefreshHandler() {
+  const { user } = useAuth();
+  
+  // Initialize automatic token refresh for any authenticated user, regardless of route
+  if (user) {
+    useTokenRefresh();
+  }
+  
+  return null;
+}
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
-  // Initialize automatic token refresh for authenticated users
-  useTokenRefresh();
   
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
@@ -66,6 +75,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AuthProvider>
+          <TokenRefreshHandler />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
