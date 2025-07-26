@@ -79,7 +79,9 @@ export const useTokenRefresh = () => {
   useEffect(() => {
     console.log(`[useTokenRefresh] Effect triggered - Connected: ${isConnected}, Tokens:`, tokens ? {
       expires_at: new Date(tokens.expires_at).toISOString(),
-      expires_in_minutes: Math.round((tokens.expires_at - Date.now()) / 1000 / 60)
+      expires_in_minutes: Math.round((tokens.expires_at - Date.now()) / 1000 / 60),
+      is_expired: isTokenExpired(tokens),
+      current_time: new Date().toISOString()
     } : 'null');
 
     if (!isConnected || !tokens) {
