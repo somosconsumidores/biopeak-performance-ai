@@ -7,6 +7,8 @@ export const useTokenRefresh = () => {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
+  console.log(`[useTokenRefresh] Hook initialized - Connected: ${isConnected}, Has tokens: ${!!tokens}`);
+
   const scheduleTokenRefresh = useCallback((tokens: GarminTokens) => {
     // Clear any existing interval
     if (refreshIntervalRef.current) {
@@ -46,7 +48,17 @@ export const useTokenRefresh = () => {
     
     refreshPromiseRef.current = (async () => {
       try {
-        await refreshTokenFn(tokens.refresh_token);
+        // The refresh_token from useGarminAuth is already the base64 encoded token_secret
+        // We need to decode it to get the actual refresh token value
+        const tokenData = JSON.parse(atob(tokens.refresh_token));
+        const refreshTokenValue = tokenData.refreshTokenValue;
+        
+        if (!refreshTokenValue) {
+          console.warn('[useTokenRefresh] No refresh token value found in token data');
+          return;
+        }
+        
+        await refreshTokenFn(refreshTokenValue);
         console.log('[useTokenRefresh] Automatic token refresh successful');
       } catch (error) {
         console.error('[useTokenRefresh] Automatic token refresh failed:', error);
@@ -60,7 +72,13 @@ export const useTokenRefresh = () => {
 
   // Set up automatic token refresh when tokens change
   useEffect(() => {
+    console.log(`[useTokenRefresh] Effect triggered - Connected: ${isConnected}, Tokens:`, tokens ? {
+      expires_at: new Date(tokens.expires_at).toISOString(),
+      expires_in_minutes: Math.round((tokens.expires_at - Date.now()) / 1000 / 60)
+    } : 'null');
+
     if (!isConnected || !tokens) {
+      console.log('[useTokenRefresh] Not connected or no tokens, clearing refresh interval');
       // Clear any existing refresh when disconnected
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
@@ -71,8 +89,10 @@ export const useTokenRefresh = () => {
 
     // If token is already expired, refresh immediately
     if (isTokenExpired(tokens)) {
+      console.log('[useTokenRefresh] Token is expired, refreshing immediately');
       refreshTokenSafely();
     } else {
+      console.log('[useTokenRefresh] Token is valid, scheduling refresh');
       // Schedule future refresh
       scheduleTokenRefresh(tokens);
     }
