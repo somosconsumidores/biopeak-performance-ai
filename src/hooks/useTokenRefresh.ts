@@ -1,11 +1,71 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { useGarminAuth } from './useGarminAuth';
+import { useEffect, useCallback, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { isTokenExpired, GarminTokens } from '@/lib/garmin-oauth';
 
 export const useTokenRefresh = () => {
-  const { tokens, refreshToken: refreshTokenFn, isConnected } = useGarminAuth();
+  const [tokens, setTokens] = useState<GarminTokens | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
+
+  // Load tokens from database
+  const loadTokens = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('[useTokenRefresh] No authenticated user');
+        setIsConnected(false);
+        setTokens(null);
+        return;
+      }
+
+      const { data: tokenData, error } = await supabase
+        .from('garmin_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.log('[useTokenRefresh] No Garmin tokens found:', error.message);
+        setIsConnected(false);
+        setTokens(null);
+        return;
+      }
+
+      if (tokenData?.access_token && tokenData?.expires_at) {
+        const expiresAtMs = new Date(tokenData.expires_at).getTime();
+        const garminTokens: GarminTokens = {
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.token_secret || '',
+          expires_in: Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000)),
+          token_type: 'Bearer',
+          expires_at: expiresAtMs,
+          scope: ''
+        };
+        
+        console.log('[useTokenRefresh] Tokens loaded from database:', {
+          expires_at: new Date(garminTokens.expires_at).toISOString(),
+          is_expired: isTokenExpired(garminTokens)
+        });
+        
+        setTokens(garminTokens);
+        setIsConnected(true);
+      } else {
+        console.log('[useTokenRefresh] Invalid token data in database');
+        setIsConnected(false);
+        setTokens(null);
+      }
+    } catch (error) {
+      console.error('[useTokenRefresh] Error loading tokens:', error);
+      setIsConnected(false);
+      setTokens(null);
+    }
+  }, []);
+
+  // Load tokens on mount
+  useEffect(() => {
+    loadTokens();
+  }, [loadTokens]);
 
   console.log(`[useTokenRefresh] Hook initialized - Connected: ${isConnected}, Has tokens: ${!!tokens}`);
   console.log(`[useTokenRefresh] Current time: ${new Date().toISOString()}`);
@@ -53,18 +113,23 @@ export const useTokenRefresh = () => {
     
     refreshPromiseRef.current = (async () => {
       try {
-        // The refresh_token from useGarminAuth is already the base64 encoded token_secret
-        // We need to decode it to get the actual refresh token value
-        const tokenData = JSON.parse(atob(tokens.refresh_token));
-        const refreshTokenValue = tokenData.refreshTokenValue;
-        
-        if (!refreshTokenValue) {
-          console.warn('[useTokenRefresh] No refresh token value found in token data');
+        // Call the garmin-oauth edge function to refresh the token
+        const { data, error } = await supabase.functions.invoke('garmin-oauth', {
+          body: {
+            refresh_token: tokens.refresh_token,
+            grant_type: 'refresh_token'
+          }
+        });
+
+        if (error) {
+          console.error('[useTokenRefresh] Token refresh failed:', error);
           return;
         }
-        
-        await refreshTokenFn(refreshTokenValue);
+
         console.log('[useTokenRefresh] Automatic token refresh successful');
+        
+        // Reload tokens from database
+        await loadTokens();
       } catch (error) {
         console.error('[useTokenRefresh] Automatic token refresh failed:', error);
       } finally {
@@ -73,7 +138,7 @@ export const useTokenRefresh = () => {
     })();
 
     return refreshPromiseRef.current;
-  }, [tokens, refreshTokenFn]);
+  }, [tokens, loadTokens]);
 
   // Set up automatic token refresh when tokens change
   useEffect(() => {
