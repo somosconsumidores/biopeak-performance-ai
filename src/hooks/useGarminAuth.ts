@@ -159,6 +159,77 @@ export const useGarminAuth = () => {
     }
   }, [toast]);
 
+  const triggerAutoBackfill = useCallback(async () => {
+    try {
+      console.log('[useGarminAuth] Starting automatic 90-day backfill...');
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('[useGarminAuth] No session for backfill');
+        return;
+      }
+
+      // Calculate 90 days ago for activities
+      const endTime = Math.floor(Date.now() / 1000);
+      const startTime = endTime - (90 * 24 * 60 * 60); // 90 days ago
+      
+      // Calculate 15 days ago for activity details
+      const detailsEndTime = endTime;
+      const detailsStartTime = endTime - (15 * 24 * 60 * 60); // 15 days ago
+
+      const backfillRequest = {
+        timeRange: 'custom' as const,
+        start: startTime,
+        end: endTime,
+        activityDetailsTimeRange: {
+          start: detailsStartTime,
+          end: detailsEndTime
+        }
+      };
+
+      console.log('[useGarminAuth] Triggering backfill:', {
+        activitiesRange: {
+          startDate: new Date(startTime * 1000).toISOString(),
+          endDate: new Date(endTime * 1000).toISOString(),
+          days: 90
+        },
+        detailsRange: {
+          startDate: new Date(detailsStartTime * 1000).toISOString(),
+          endDate: new Date(detailsEndTime * 1000).toISOString(),
+          days: 15
+        }
+      });
+
+      const { data, error } = await supabase.functions.invoke('backfill-activities', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: backfillRequest
+      });
+
+      if (error) {
+        console.error('[useGarminAuth] Auto backfill error:', error);
+        return;
+      }
+
+      if (data.error) {
+        console.error('[useGarminAuth] Auto backfill API error:', data);
+        return;
+      }
+
+      console.log('[useGarminAuth] Auto backfill completed successfully:', data);
+      
+      // Show a subtle notification about the background process
+      toast({
+        title: "Importação iniciada",
+        description: "Suas atividades dos últimos 90 dias e detalhes dos últimos 15 dias estão sendo importados em segundo plano.",
+        variant: "default",
+      });
+
+    } catch (error) {
+      console.error('[useGarminAuth] Auto backfill unexpected error:', error);
+    }
+  }, [toast]);
 
   const handleOAuthCallback = useCallback(async (code: string, state: string) => {
     try {
@@ -287,23 +358,31 @@ export const useGarminAuth = () => {
         } else {
           console.log('[useGarminAuth] Webhook registered successfully:', webhookData);
           
-          // Mark initial sync as completed (no automatic backfill to avoid unprompted pulls)
+          // If this is the first connection, trigger automatic backfill
           if (isFirstConnection) {
-            console.log('[useGarminAuth] First connection detected, marking as completed without auto backfill');
-            try {
-              await supabase
-                .from('garmin_tokens')
-                .update({ initial_sync_completed: true })
-                .eq('user_id', session.user.id);
-              console.log('[useGarminAuth] Marked initial sync as completed');
-            } catch (error) {
-              console.error('[useGarminAuth] Error marking sync completed:', error);
-            }
+            console.log('[useGarminAuth] First connection detected, triggering auto backfill');
+            // Delay the backfill slightly to ensure webhook registration is complete
+            setTimeout(async () => {
+              await triggerAutoBackfill();
+              
+              // Mark initial sync as completed after backfill is triggered
+              try {
+                await supabase
+                  .from('garmin_tokens')
+                  .update({ initial_sync_completed: true })
+                  .eq('user_id', session.user.id);
+                console.log('[useGarminAuth] Marked initial sync as completed');
+              } catch (error) {
+                console.error('[useGarminAuth] Error marking sync completed:', error);
+              }
+            }, 2000);
           }
           
           toast({
             title: "Conectado com sucesso!",
-            description: "Sua conta Garmin foi conectada e configurada para sincronização automática de atividades via webhooks.",
+            description: isFirstConnection 
+              ? "Sua conta Garmin foi conectada e configurada. Suas atividades dos últimos 90 dias estão sendo importadas automaticamente."
+              : "Sua conta Garmin foi conectada e configurada para sincronização automática de atividades.",
             variant: "default",
           });
         }
@@ -337,7 +416,7 @@ export const useGarminAuth = () => {
       // Clear URL parameters even on error
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast]);
+  }, [toast, triggerAutoBackfill]);
 
   const disconnect = useCallback(async () => {
     try {
