@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthTokenRefresh } from './useAuthTokenRefresh';
+import { useGarminTokenValidator } from './useGarminTokenValidator';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize automatic token refresh for authenticated users
   console.log('[AuthProvider] Initializing token refresh for user:', user?.id?.substring(0, 8) + '...', 'loading:', loading);
   useAuthTokenRefresh(user, loading);
+  
+  // Initialize Garmin token validation
+  useGarminTokenValidator();
 
   useEffect(() => {
     // Set up auth state listener FIRST

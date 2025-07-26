@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { GarminTokenManager } from '../_shared/garmin-token-manager.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -174,37 +175,30 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Syncing activities for user:', user.id);
 
-    // Get user's Garmin tokens (use webhook token if provided)
+    // Get user's Garmin tokens with proactive refresh
     let accessToken: string;
     
     if (isWebhookTriggered && garminAccessToken) {
       console.log('[sync-garmin-activities] Using Garmin token from webhook');
       accessToken = garminAccessToken;
     } else {
-      // Get token from database for manual sync
-      const { data: tokenData, error: tokenError } = await supabase
-        .from('garmin_tokens')
-        .select('access_token, expires_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Use token manager for proactive token management
+      const tokenManager = new GarminTokenManager(supabaseUrl, supabaseKey);
+      const validToken = await tokenManager.getValidAccessToken(user.id);
 
-      if (tokenError || !tokenData) {
-        console.error('[sync-garmin-activities] Token error:', tokenError);
-        return new Response(JSON.stringify({ error: 'No Garmin token found' }), {
+      if (!validToken) {
+        console.error('[sync-garmin-activities] Could not obtain valid Garmin token');
+        return new Response(JSON.stringify({ 
+          error: 'No valid Garmin token available',
+          details: 'Token may be expired or refresh failed. Please reconnect your Garmin account.'
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Check if token is expired
-      if (tokenData.expires_at && new Date(tokenData.expires_at) <= new Date()) {
-        return new Response(JSON.stringify({ error: 'Garmin token expired' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      accessToken = tokenData.access_token;
+      accessToken = validToken;
+      console.log('[sync-garmin-activities] Using valid Garmin token (proactively managed)');
     }
 
     console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
@@ -247,9 +241,42 @@ serve(async (req) => {
         if (!garminResponse.ok) {
           const errorText = await garminResponse.text();
           console.error(`[sync-garmin-activities] Garmin API error for day ${processedDays + 1}:`, garminResponse.status, errorText);
-          failedDays++;
           
-          // Continue with other days even if one fails
+          // If token error (401/403), try to refresh token once
+          if ((garminResponse.status === 401 || garminResponse.status === 403) && !isWebhookTriggered) {
+            console.log('[sync-garmin-activities] Token error detected, attempting token refresh...');
+            const tokenManager = new GarminTokenManager(supabaseUrl, supabaseKey);
+            const refreshedToken = await tokenManager.refreshTokenIfNeeded(user.id);
+            
+            if (refreshedToken) {
+              console.log('[sync-garmin-activities] Token refreshed, retrying API call...');
+              accessToken = refreshedToken;
+              // Retry the same request with new token
+              const retryResponse = await fetch(apiUrl.toString(), {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Accept': 'application/json',
+                },
+              });
+              
+              if (retryResponse.ok) {
+                const dayActivities: GarminActivity[] = await retryResponse.json();
+                console.log(`[sync-garmin-activities] Retry successful! Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
+                allActivities = allActivities.concat(dayActivities);
+                processedDays++;
+                
+                if (currentStartTime > totalStartTime) {
+                  await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+                }
+                continue;
+              } else {
+                console.error('[sync-garmin-activities] Retry also failed:', retryResponse.status);
+              }
+            }
+          }
+          
+          failedDays++;
           processedDays++;
           
           // Add delay before next request
