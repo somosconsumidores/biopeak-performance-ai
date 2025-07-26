@@ -38,13 +38,8 @@ export const useGarminAuth = () => {
           return;
         }
 
-        // Clean up expired tokens first
-        try {
-          await supabase.rpc('cleanup_expired_oauth_data');
-          console.log('[useGarminAuth] Expired tokens cleaned up');
-        } catch (cleanupError) {
-          console.warn('[useGarminAuth] Token cleanup failed:', cleanupError);
-        }
+        // Don't automatically clean up expired tokens here
+        // Let useTokenRefresh handle token renewal logic
 
         // Check database for tokens
         console.log('[useGarminAuth] Querying garmin_tokens for user:', user.id);
@@ -68,38 +63,33 @@ export const useGarminAuth = () => {
           const expiresAt = new Date(dbTokens.expires_at || 0).getTime();
           const isExpired = Date.now() >= expiresAt;
           
-          if (!isExpired) {
-            // Convert database tokens to GarminTokens format
-            const garminTokens: GarminTokens = {
-              access_token: dbTokens.access_token,
-              refresh_token: dbTokens.token_secret || '',
-              expires_in: Math.floor((expiresAt - Date.now()) / 1000),
-              token_type: 'Bearer',
-              expires_at: expiresAt,
-              scope: ''
-            };
-            
-            setTokens(garminTokens);
-            setIsConnected(true);
-            
-            // Also store in localStorage for backwards compatibility
-            storeTokens({
-              access_token: garminTokens.access_token,
-              refresh_token: garminTokens.refresh_token,
-              expires_in: garminTokens.expires_in,
-              token_type: garminTokens.token_type,
-              scope: garminTokens.scope
-            });
-            
-            console.log('[useGarminAuth] Tokens are valid, user is connected');
+          // Convert database tokens to GarminTokens format - even if expired
+          // Let useTokenRefresh handle the refresh logic
+          const garminTokens: GarminTokens = {
+            access_token: dbTokens.access_token,
+            refresh_token: dbTokens.token_secret || '',
+            expires_in: Math.floor((expiresAt - Date.now()) / 1000),
+            token_type: 'Bearer',
+            expires_at: expiresAt,
+            scope: ''
+          };
+          
+          setTokens(garminTokens);
+          setIsConnected(true);
+          
+          // Also store in localStorage for backwards compatibility
+          storeTokens({
+            access_token: garminTokens.access_token,
+            refresh_token: garminTokens.refresh_token,
+            expires_in: garminTokens.expires_in,
+            token_type: garminTokens.token_type,
+            scope: garminTokens.scope
+          });
+          
+          if (isExpired) {
+            console.log('[useGarminAuth] Tokens are expired, but letting useTokenRefresh handle renewal');
           } else {
-            console.log('[useGarminAuth] Tokens are expired');
-            // Clean up expired tokens
-            await supabase
-              .from('garmin_tokens')
-              .delete()
-              .eq('user_id', user.id);
-            clearStoredTokens();
+            console.log('[useGarminAuth] Tokens are valid, user is connected');
           }
         } else {
           console.log('[useGarminAuth] No tokens found in database');
