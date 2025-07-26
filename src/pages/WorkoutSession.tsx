@@ -35,6 +35,7 @@ import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
+import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
 export const WorkoutSession = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -201,6 +202,11 @@ export const WorkoutSession = () => {
                 </Select>
               </CardContent>
             </Card>
+          </ScrollReveal>
+
+          {/* Token Refresh Test Button */}
+          <ScrollReveal delay={50}>
+            <TokenRefreshTestButton />
           </ScrollReveal>
 
           {/* Header */}
