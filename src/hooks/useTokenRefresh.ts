@@ -74,6 +74,62 @@ export const useTokenRefresh = () => {
     console.log(`[useTokenRefresh] Token is expired: ${isTokenExpired(tokens)}`);
   }
 
+  const refreshTokenSafely = useCallback(async () => {
+    // Prevent concurrent refresh attempts
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    if (!tokens?.refresh_token) {
+      console.warn('[useTokenRefresh] No refresh token available');
+      return;
+    }
+
+    console.log('[useTokenRefresh] Starting automatic token refresh');
+    console.log('[useTokenRefresh] Current token expires at:', new Date(tokens.expires_at).toISOString());
+    console.log('[useTokenRefresh] Time until expiry (minutes):', Math.round((tokens.expires_at - Date.now()) / 1000 / 60));
+    
+    refreshPromiseRef.current = (async () => {
+      try {
+        // Call the garmin-oauth edge function to refresh the token
+        console.log('[useTokenRefresh] Invoking garmin-oauth function for token refresh');
+        const { data, error } = await supabase.functions.invoke('garmin-oauth', {
+          body: {
+            refresh_token: tokens.refresh_token,
+            grant_type: 'refresh_token'
+          }
+        });
+
+        if (error) {
+          console.error('[useTokenRefresh] Token refresh failed - Error object:', error);
+          console.error('[useTokenRefresh] Error details:', JSON.stringify(error, null, 2));
+          return;
+        }
+
+        if (!data || !data.success) {
+          console.error('[useTokenRefresh] Token refresh failed - Invalid response:', data);
+          return;
+        }
+
+        console.log('[useTokenRefresh] Automatic token refresh successful');
+        console.log('[useTokenRefresh] Refresh response:', data);
+        
+        // Wait a moment for the database to be updated
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Reload tokens from database
+        await loadTokens();
+      } catch (error) {
+        console.error('[useTokenRefresh] Automatic token refresh failed - Exception:', error);
+        console.error('[useTokenRefresh] Exception details:', error instanceof Error ? error.message : String(error));
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    return refreshPromiseRef.current;
+  }, [tokens, loadTokens]);
+
   const scheduleTokenRefresh = useCallback((tokens: GarminTokens) => {
     // Clear any existing interval
     if (refreshIntervalRef.current) {
@@ -96,49 +152,7 @@ export const useTokenRefresh = () => {
     refreshIntervalRef.current = setTimeout(() => {
       refreshTokenSafely();
     }, timeUntilExpiry);
-  }, []);
-
-  const refreshTokenSafely = useCallback(async () => {
-    // Prevent concurrent refresh attempts
-    if (refreshPromiseRef.current) {
-      return refreshPromiseRef.current;
-    }
-
-    if (!tokens?.refresh_token) {
-      console.warn('[useTokenRefresh] No refresh token available');
-      return;
-    }
-
-    console.log('[useTokenRefresh] Starting automatic token refresh');
-    
-    refreshPromiseRef.current = (async () => {
-      try {
-        // Call the garmin-oauth edge function to refresh the token
-        const { data, error } = await supabase.functions.invoke('garmin-oauth', {
-          body: {
-            refresh_token: tokens.refresh_token,
-            grant_type: 'refresh_token'
-          }
-        });
-
-        if (error) {
-          console.error('[useTokenRefresh] Token refresh failed:', error);
-          return;
-        }
-
-        console.log('[useTokenRefresh] Automatic token refresh successful');
-        
-        // Reload tokens from database
-        await loadTokens();
-      } catch (error) {
-        console.error('[useTokenRefresh] Automatic token refresh failed:', error);
-      } finally {
-        refreshPromiseRef.current = null;
-      }
-    })();
-
-    return refreshPromiseRef.current;
-  }, [tokens, loadTokens]);
+  }, [refreshTokenSafely]);
 
   // Set up automatic token refresh when tokens change
   useEffect(() => {

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
+import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
 import { 
   Watch, 
@@ -200,6 +201,15 @@ export function GarminSync() {
               </CardContent>
             </Card>
           </ScrollReveal>
+
+          {/* Token Refresh Test Button - Only show when connected */}
+          {isConnected && (
+            <ScrollReveal delay={150}>
+              <div className="mb-8">
+                <TokenRefreshTestButton />
+              </div>
+            </ScrollReveal>
+          )}
 
           {/* Connection Status - Only show when connected */}
           {isConnected && (
