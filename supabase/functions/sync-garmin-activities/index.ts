@@ -74,13 +74,13 @@ serve(async (req) => {
       console.log('[sync-garmin-activities] No request body provided');
     }
 
-    // Allow webhook-triggered calls or manual sync calls
-    if (!isWebhookTriggered && !isManualSync) {
-      console.log('[sync-garmin-activities] REJECTED: Call not from webhook or manual sync');
+    // ONLY allow webhook-triggered calls to prevent unprompted pull notifications
+    if (!isWebhookTriggered) {
+      console.log('[sync-garmin-activities] REJECTED: Only webhook-triggered syncs allowed to prevent unprompted pull notifications');
       return new Response(JSON.stringify({ 
-        error: 'Sync rejected: Only webhook-triggered or manual syncs are allowed',
-        details: 'This endpoint accepts calls from Garmin webhooks or manual sync requests.',
-        code: 'WEBHOOK_OR_MANUAL_ONLY'
+        error: 'Sync rejected: Only webhook-triggered syncs are allowed',
+        details: 'Manual syncing has been disabled to prevent Garmin unprompted pull notifications. This endpoint only accepts calls from Garmin webhooks.',
+        code: 'WEBHOOK_ONLY'
       }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

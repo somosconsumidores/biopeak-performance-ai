@@ -35,64 +35,15 @@ export const useGarminSync = () => {
         return false;
       }
 
-      console.log('[useGarminSync] Starting manual activities sync...');
-      
-      const { data, error } = await supabase.functions.invoke('sync-garmin-activities', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: {
-          manual_sync: true
-        }
-      });
-
-      if (error) {
-        console.error('[useGarminSync] Function error:', error);
-        toast({
-          title: "Erro na sincronização",
-          description: "Falha ao sincronizar atividades. Tente novamente.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      if (data.error) {
-        const errorData = data as SyncError;
-        console.error('[useGarminSync] API error:', errorData);
-        
-        if (errorData.error.includes('token expired')) {
-          toast({
-            title: "Token expirado",
-            description: "Seu token Garmin expirou. Reconecte sua conta Garmin.",
-            variant: "destructive",
-          });
-        } else if (errorData.error.includes('No Garmin token')) {
-          toast({
-            title: "Conta não conectada",
-            description: "Conecte sua conta Garmin primeiro.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Erro na sincronização",
-            description: errorData.details || errorData.error,
-            variant: "destructive",
-          });
-        }
-        return false;
-      }
-
-      const result = data as SyncResult;
-      setLastSyncResult(result);
+      console.log('[useGarminSync] Manual sync disabled to prevent unprompted pull notifications');
       
       toast({
-        title: "Sincronização concluída",
-        description: `${result.synced} de ${result.total} atividades sincronizadas com sucesso.`,
-        variant: "default",
+        title: "Sincronização manual desabilitada",
+        description: "Use apenas sincronização automática via webhooks para evitar notificações não solicitadas da Garmin.",
+        variant: "destructive",
       });
 
-      console.log('[useGarminSync] Manual sync completed:', result);
-      return true;
+      return false;
 
     } catch (error) {
       console.error('[useGarminSync] Unexpected error:', error);
