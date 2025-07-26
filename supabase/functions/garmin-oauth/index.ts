@@ -368,12 +368,18 @@ serve(async (req) => {
       
       const isFirstConnection = !existingToken;
       
+      // Create the token secret in the same format expected by refresh flow
+      const tokenSecret = btoa(JSON.stringify({
+        refreshTokenValue: tokenData.refresh_token,
+        garminGuid: garminUserId
+      }));
+
       const { error: insertError } = await supabase
         .from('garmin_tokens')
         .upsert({
           user_id: user.id,
           access_token: tokenData.access_token,
-          token_secret: tokenData.refresh_token || '',
+          token_secret: tokenSecret,
           consumer_key: cleanClientId,
           garmin_user_id: garminUserId,
           expires_at: expiresAt,
