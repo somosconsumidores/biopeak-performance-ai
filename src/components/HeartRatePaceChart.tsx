@@ -107,47 +107,10 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2">
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
             </CardTitle>
-            {!hasRawData && (activityStartTime || activityDate) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  setIsRefreshing(true);
-                  try {
-                    const { startTimeSeconds, endTimeSeconds } = calculateTimestampRange(activityStartTime, activityDate);
-                    
-                    const success = await syncActivityDetails({
-                      uploadStartTimeInSeconds: startTimeSeconds,
-                      uploadEndTimeInSeconds: endTimeSeconds
-                    });
-                    
-                    if (success) {
-                      toast.success('Dados detalhados sincronizados com sucesso!');
-                      // Force a page refresh to reload the chart data
-                      window.location.reload();
-                    } else {
-                      toast.error('Erro ao sincronizar dados detalhados');
-                    }
-                  } catch (error) {
-                    console.error('Error syncing activity details:', error);
-                    toast.error('Erro ao sincronizar dados detalhados');
-                  } finally {
-                    setIsRefreshing(false);
-                  }
-                }}
-                disabled={isSyncing || isRefreshing}
-                className="glass-card border-glass-border"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {isRefreshing ? 'Sincronizando...' : 'Sincronizar Dados'}
-              </Button>
-            )}
-          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -199,47 +162,10 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
   return (
     <Card className="glass-card border-glass-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Heart className="h-5 w-5 text-primary" />
-              <span>Evolução do Ritmo e Frequência Cardíaca</span>
-            </CardTitle>
-            {!hasRawData && (activityStartTime || activityDate) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  setIsRefreshing(true);
-                  try {
-                    const { startTimeSeconds, endTimeSeconds } = calculateTimestampRange(activityStartTime, activityDate);
-                    
-                    const success = await syncActivityDetails({
-                      uploadStartTimeInSeconds: startTimeSeconds,
-                      uploadEndTimeInSeconds: endTimeSeconds
-                    });
-                    
-                    if (success) {
-                      toast.success('Dados detalhados sincronizados com sucesso!');
-                      // Force a page refresh to reload the chart data
-                      window.location.reload();
-                    } else {
-                      toast.error('Erro ao sincronizar dados detalhados');
-                    }
-                  } catch (error) {
-                    console.error('Error syncing activity details:', error);
-                    toast.error('Erro ao sincronizar dados detalhados');
-                  } finally {
-                    setIsRefreshing(false);
-                  }
-                }}
-                disabled={isSyncing || isRefreshing}
-                className="glass-card border-glass-border"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {isRefreshing ? 'Sincronizando...' : 'Sincronizar Dados'}
-              </Button>
-            )}
-          </div>
+          <CardTitle className="flex items-center space-x-2">
+            <Heart className="h-5 w-5 text-primary" />
+            <span>Evolução do Ritmo e Frequência Cardíaca</span>
+          </CardTitle>
         </CardHeader>
       <CardContent>
         <div className={`${isMobile ? 'h-64' : 'h-72 sm:h-80'}`}>
