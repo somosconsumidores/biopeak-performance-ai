@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
-import { useTokenRefresh } from "./hooks/useTokenRefresh";
+
 import { LandingPage } from "./pages/LandingPage";
 import { Dashboard } from "./pages/Dashboard";
 import { WorkoutSession } from "./pages/WorkoutSession";
@@ -22,22 +22,6 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
-// Component that handles token refresh for all authenticated users
-function TokenRefreshHandler() {
-  const { user } = useAuth();
-  
-  console.log('[TokenRefreshHandler] Component rendered - User:', user ? user.id.substring(0, 8) + '...' : 'null');
-  
-  // Initialize automatic token refresh for any authenticated user, regardless of route
-  if (user) {
-    console.log('[TokenRefreshHandler] User is authenticated, calling useTokenRefresh');
-    useTokenRefresh();
-  } else {
-    console.log('[TokenRefreshHandler] User is NOT authenticated, skipping useTokenRefresh');
-  }
-  
-  return null;
-}
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -80,7 +64,6 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AuthProvider>
-          <TokenRefreshHandler />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
