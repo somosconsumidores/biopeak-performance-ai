@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import TrainingRecommendationsCard from '@/components/TrainingRecommendationsCard';
 import { 
   Brain, 
   TrendingUp, 
@@ -215,6 +216,13 @@ export const Insights = () => {
               </Card>
             </ScrollReveal>
           )}
+
+          {/* Training Recommendations */}
+          <ScrollReveal delay={150}>
+            <div className="mb-12">
+              <TrainingRecommendationsCard />
+            </div>
+          </ScrollReveal>
 
           {/* Weekly Insights */}
           <ScrollReveal delay={100}>
