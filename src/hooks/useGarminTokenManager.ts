@@ -42,8 +42,20 @@ export const useGarminTokenManager = (user: User | null) => {
       }
 
       // Handle legacy storage: extract refresh_token from token_secret if needed
-      const refreshToken = tokenData.refresh_token || 
-        (tokenData.token_secret ? JSON.parse(tokenData.token_secret).refreshTokenValue : null);
+      let refreshToken;
+      if (tokenData.refresh_token) {
+        refreshToken = tokenData.refresh_token;
+      } else if (tokenData.token_secret) {
+        try {
+          const secretData = JSON.parse(tokenData.token_secret);
+          refreshToken = secretData.refreshTokenValue;
+        } catch (error) {
+          console.error('[GarminTokenManager] Error parsing token_secret:', error);
+          refreshToken = null;
+        }
+      } else {
+        refreshToken = null;
+      }
 
       const tokens: GarminTokens = {
         access_token: tokenData.access_token,

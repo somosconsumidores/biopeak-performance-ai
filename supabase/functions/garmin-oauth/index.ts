@@ -131,15 +131,19 @@ serve(async (req) => {
           throw new Error('Missing refresh_token for refresh flow');
         }
 
-        // Decode the refresh token from base64
-        let refreshTokenValue;
-        try {
-          const decodedSecret = atob(refresh_token);
-          const secretData = JSON.parse(decodedSecret);
-          refreshTokenValue = secretData.refreshTokenValue;
-        } catch (error) {
-          console.error('[garmin-oauth] Error decoding refresh token:', error);
-          throw new Error('Invalid refresh token format');
+        // Handle the refresh token - it's passed directly now
+        let refreshTokenValue = refresh_token;
+        
+        // If it's base64 encoded (legacy format), decode it
+        if (refresh_token && refresh_token.length > 100) {
+          try {
+            const decodedSecret = atob(refresh_token);
+            const secretData = JSON.parse(decodedSecret);
+            refreshTokenValue = secretData.refreshTokenValue;
+          } catch (error) {
+            // If decoding fails, assume it's already the raw token
+            console.log('[garmin-oauth] Using refresh token as-is (not base64 encoded)');
+          }
         }
 
         const cleanClientId = clientId.replace(/^\+/, "");
@@ -179,7 +183,9 @@ serve(async (req) => {
         const refreshTokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
         const newTokenSecret = btoa(JSON.stringify({
           refreshTokenValue: tokenData.refresh_token || refreshTokenValue,
-          garminGuid: JSON.parse(atob(refresh_token)).garminGuid
+          garminGuid: refresh_token && refresh_token.length > 100 ? 
+            JSON.parse(atob(refresh_token)).garminGuid : 
+            'unknown'
         }));
 
         const { error: updateError } = await supabase
