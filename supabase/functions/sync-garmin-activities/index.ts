@@ -49,6 +49,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let syncId: any = null;
+  
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -165,13 +167,18 @@ serve(async (req) => {
     }
 
     // Log sync attempt
-    const { data: syncId } = await supabase.rpc('log_sync_attempt', {
-      user_id_param: user.id,
-      sync_type_param: 'activities',
-      triggered_by_param: triggeredBy,
-      webhook_payload_param: webhookPayload,
-      callback_url_param: callbackURL
-    });
+    try {
+      const { data } = await supabase.rpc('log_sync_attempt', {
+        user_id_param: user.id,
+        sync_type_param: 'activities',
+        triggered_by_param: triggeredBy,
+        webhook_payload_param: webhookPayload,
+        callback_url_param: callbackURL
+      });
+      syncId = data;
+    } catch (logError) {
+      console.error('[sync-garmin-activities] Failed to log sync attempt:', logError);
+    }
 
     console.log('[sync-garmin-activities] Syncing activities for user:', user.id);
 
@@ -180,17 +187,41 @@ serve(async (req) => {
     let failedDays = 0;
 
     // WEBHOOK MODE: Process activities from webhook payload directly
-    if (isWebhookTriggered && webhookPayload && webhookPayload.activities) {
-      console.log('[sync-garmin-activities] WEBHOOK MODE: Processing activities from webhook payload');
-      console.log(`[sync-garmin-activities] Found ${webhookPayload.activities.length} activities in webhook payload`);
+    if (isWebhookTriggered && webhookPayload) {
+      console.log('[sync-garmin-activities] WEBHOOK MODE: Processing activity from webhook payload');
+      console.log(`[sync-garmin-activities] Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
+      
+      // Handle both single activity (from webhook) and activities array (from backfill)
+      let activitiesToProcess = [];
+      
+      if (Array.isArray(webhookPayload.activities)) {
+        // Backfill format: { activities: [...] }
+        activitiesToProcess = webhookPayload.activities;
+        console.log(`[sync-garmin-activities] Processing backfill format with ${activitiesToProcess.length} activities`);
+      } else if (webhookPayload.summaryId || webhookPayload.activityId) {
+        // Single activity from webhook: activity object directly
+        activitiesToProcess = [webhookPayload];
+        console.log(`[sync-garmin-activities] Processing single activity from webhook: ${webhookPayload.summaryId}`);
+      } else {
+        console.error('[sync-garmin-activities] Invalid webhook payload format:', webhookPayload);
+        return new Response(JSON.stringify({ 
+          error: 'Invalid webhook payload format',
+          details: 'Expected either activities array or single activity object'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       
       // Transform webhook activities to our format
-      for (const webhookActivity of webhookPayload.activities) {
+      for (const webhookActivity of activitiesToProcess) {
         try {
+          console.log(`[sync-garmin-activities] Processing webhook activity:`, JSON.stringify(webhookActivity, null, 2));
+          
           // Convert webhook activity format to GarminActivity format
           const activity: GarminActivity = {
             summaryId: webhookActivity.summaryId || webhookActivity.activityId,
-            activityId: webhookActivity.activityId,
+            activityId: webhookActivity.activityId || webhookActivity.summaryId,
             activityType: webhookActivity.activityType,
             startTimeInSeconds: webhookActivity.startTimeInSeconds,
             startTimeOffsetInSeconds: webhookActivity.startTimeOffsetInSeconds,
@@ -225,7 +256,7 @@ serve(async (req) => {
           };
           
           allActivities.push(activity);
-          console.log(`[sync-garmin-activities] Processed webhook activity: ${activity.summaryId} (${activity.activityType})`);
+          console.log(`[sync-garmin-activities] Successfully processed webhook activity: ${activity.summaryId} (${activity.activityType})`);
         } catch (error) {
           console.error('[sync-garmin-activities] Error processing webhook activity:', error, webhookActivity);
           failedDays++;
