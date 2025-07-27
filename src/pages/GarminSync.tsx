@@ -117,7 +117,7 @@ export function GarminSync() {
                       Conecte sua conta Garmin Connect para sincronização automática
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <Badge className={getStatusColor(syncStats.syncStatus)}>
                       {syncStats.syncStatus === 'connected' && (
                         <CheckCircle className="h-4 w-4 mr-2" />
@@ -133,7 +133,7 @@ export function GarminSync() {
                         onClick={disconnect}
                         variant="outline"
                         size="sm"
-                        className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                        className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
                       >
                         Desconectar
                       </Button>
