@@ -38,8 +38,7 @@ export const useGarminAuth = () => {
           return;
         }
 
-        // Don't automatically clean up expired tokens here
-        // Let useTokenRefresh handle token renewal logic
+        // Token renewal is now handled by useGarminTokenManager
 
         // Check database for tokens
         console.log('[useGarminAuth] Querying garmin_tokens for user:', user.id);
@@ -64,7 +63,7 @@ export const useGarminAuth = () => {
           const isExpired = Date.now() >= expiresAt;
           
           // Convert database tokens to GarminTokens format - even if expired
-          // Let useTokenRefresh handle the refresh logic
+          // Token renewal is now handled by useGarminTokenManager
           const garminTokens: GarminTokens = {
             access_token: dbTokens.access_token,
             refresh_token: dbTokens.token_secret || '',
@@ -87,7 +86,7 @@ export const useGarminAuth = () => {
           });
           
           if (isExpired) {
-            console.log('[useGarminAuth] Tokens are expired, but letting useTokenRefresh handle renewal');
+            console.log('[useGarminAuth] Tokens are expired, but letting useGarminTokenManager handle renewal');
           } else {
             console.log('[useGarminAuth] Tokens are valid, user is connected');
           }

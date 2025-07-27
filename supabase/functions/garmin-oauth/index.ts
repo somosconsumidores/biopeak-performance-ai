@@ -174,8 +174,9 @@ serve(async (req) => {
         const tokenData = await response.json();
         console.log('[garmin-oauth] New tokens received');
 
-        // Update tokens in database
+        // Update tokens in database with proper refresh token handling
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+        const refreshTokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
         const newTokenSecret = btoa(JSON.stringify({
           refreshTokenValue: tokenData.refresh_token || refreshTokenValue,
           garminGuid: JSON.parse(atob(refresh_token)).garminGuid
@@ -185,8 +186,10 @@ serve(async (req) => {
           .from('garmin_tokens')
           .update({
             access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || refreshTokenValue,
             token_secret: newTokenSecret,
             expires_at: expiresAt,
+            refresh_token_expires_at: refreshTokenExpiresAt,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id);
@@ -374,15 +377,20 @@ serve(async (req) => {
         garminGuid: garminUserId
       }));
 
+      // Set refresh token expiration to 90 days
+      const refreshTokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
       const { error: insertError } = await supabase
         .from('garmin_tokens')
         .upsert({
           user_id: user.id,
           access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
           token_secret: tokenSecret,
           consumer_key: cleanClientId,
           garmin_user_id: garminUserId,
           expires_at: expiresAt,
+          refresh_token_expires_at: refreshTokenExpiresAt,
           initial_sync_completed: false, // Always false for new connections
           updated_at: new Date().toISOString()
         }, {

@@ -457,6 +457,8 @@ export type Database = {
           initial_sync_completed: boolean | null
           is_active: boolean | null
           oauth_verifier: string | null
+          refresh_token: string | null
+          refresh_token_expires_at: string | null
           token_secret: string | null
           updated_at: string
           user_id: string
@@ -471,6 +473,8 @@ export type Database = {
           initial_sync_completed?: boolean | null
           is_active?: boolean | null
           oauth_verifier?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           token_secret?: string | null
           updated_at?: string
           user_id: string
@@ -485,6 +489,8 @@ export type Database = {
           initial_sync_completed?: boolean | null
           is_active?: boolean | null
           oauth_verifier?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           token_secret?: string | null
           updated_at?: string
           user_id?: string
@@ -760,6 +766,10 @@ export type Database = {
           sync_type_param: string
           min_interval_minutes?: number
         }
+        Returns: boolean
+      }
+      check_refresh_token_expiration_warning: {
+        Args: { user_id_param: string }
         Returns: boolean
       }
       cleanup_expired_oauth_data: {
