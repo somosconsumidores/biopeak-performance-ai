@@ -2,6 +2,7 @@ import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { CommitmentsCard } from '@/components/CommitmentsCard';
+import { ManualTokenRefresh } from '@/components/ManualTokenRefresh';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -175,6 +176,13 @@ export const Dashboard = () => {
           <ScrollReveal delay={150}>
             <div className="mb-6 md:mb-8">
               <CommitmentsCard />
+            </div>
+          </ScrollReveal>
+
+          {/* Manual Token Refresh - Admin Tool */}
+          <ScrollReveal delay={160}>
+            <div className="mb-6 md:mb-8">
+              <ManualTokenRefresh />
             </div>
           </ScrollReveal>
 
