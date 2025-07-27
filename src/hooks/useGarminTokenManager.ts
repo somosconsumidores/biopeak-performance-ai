@@ -167,10 +167,10 @@ export const useGarminTokenManager = (user: User | null) => {
     if (user) {
       loadTokens();
 
-      // Check token expiration every 5 minutes (reduced from multiple intervals)
+      // Check token expiration more frequently - every minute for better responsiveness
       const interval = setInterval(() => {
         checkTokenExpiration();
-      }, 5 * 60 * 1000);
+      }, 60 * 1000); // 1 minute
 
       return () => clearInterval(interval);
     } else {
