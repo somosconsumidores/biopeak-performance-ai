@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { 
   Brain, 
   TrendingUp, 
@@ -24,12 +25,15 @@ import {
   Star,
   RefreshCw,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  Info
 } from 'lucide-react';
 
 export const Insights = () => {
   const { insights, loading, error, refreshInsights } = useInsights();
   const { applyRecommendation } = useCommitments();
+  const { overtrainingRisk, loading: dashboardLoading } = useDashboardMetrics();
 
   if (loading) {
     return (
@@ -108,6 +112,109 @@ export const Insights = () => {
               </div>
             </div>
           </ScrollReveal>
+
+          {/* Overtraining Risk Analysis */}
+          {overtrainingRisk && !dashboardLoading && (
+            <ScrollReveal delay={50}>
+              <Card className="glass-card border-glass-border mb-12">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <ShieldAlert className="h-5 w-5 text-primary" />
+                    <span>Análise de Risco de Overtraining</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Risk Level Indicator */}
+                    <div className="text-center space-y-4">
+                      <div className="relative w-32 h-32 mx-auto">
+                        <svg className="w-32 h-32 transform -rotate-90">
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="56"
+                            stroke="hsl(var(--muted))"
+                            strokeWidth="8"
+                            fill="transparent"
+                          />
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="56"
+                            stroke={
+                              overtrainingRisk.level === 'alto' ? '#ef4444' :
+                              overtrainingRisk.level === 'medio' ? '#f59e0b' :
+                              '#10b981'
+                            }
+                            strokeWidth="8"
+                            fill="transparent"
+                            strokeDasharray={`${2 * Math.PI * 56 * (overtrainingRisk.score / 100)} ${2 * Math.PI * 56}`}
+                            className="transition-all duration-500"
+                            style={{
+                              filter: `drop-shadow(0 0 4px ${
+                                overtrainingRisk.level === 'alto' ? '#ef4444' :
+                                overtrainingRisk.level === 'medio' ? '#f59e0b' :
+                                '#10b981'
+                              }30)`
+                            }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold">{overtrainingRisk.score}</div>
+                            <div className="text-xs text-muted-foreground">Score</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className={`text-lg font-semibold capitalize ${
+                          overtrainingRisk.level === 'alto' ? 'text-red-400' :
+                          overtrainingRisk.level === 'medio' ? 'text-yellow-400' :
+                          'text-green-400'
+                        }`}>
+                          Risco {overtrainingRisk.level}
+                        </div>
+                        <Badge 
+                          variant={
+                            overtrainingRisk.level === 'alto' ? 'destructive' :
+                            overtrainingRisk.level === 'medio' ? 'outline' : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {overtrainingRisk.level === 'alto' ? 'Atenção Necessária' :
+                           overtrainingRisk.level === 'medio' ? 'Monitorar' : 'Seguro'}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Factors and Recommendations */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center space-x-2">
+                          <Info className="h-4 w-4" />
+                          <span>Fatores Identificados</span>
+                        </h4>
+                        <div className="space-y-2">
+                          {overtrainingRisk.factors.map((factor, index) => (
+                            <div key={index} className="flex items-start space-x-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground">{factor}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg bg-muted/20 border border-muted">
+                        <h4 className="font-semibold mb-2 text-primary">Recomendação</h4>
+                        <p className="text-sm text-muted-foreground">{overtrainingRisk.recommendation}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
 
           {/* Weekly Insights */}
           <ScrollReveal delay={100}>
