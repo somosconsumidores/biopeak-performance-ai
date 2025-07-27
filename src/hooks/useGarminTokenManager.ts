@@ -191,8 +191,10 @@ export const useGarminTokenManager = (user: User | null) => {
       loadTokens();
 
       // Check token expiration more frequently - every minute for better responsiveness
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         console.log('[GarminTokenManager] Interval check triggered');
+        // Always reload tokens first to ensure we have the latest data from database
+        await loadTokens();
         checkTokenExpiration();
       }, 60 * 1000); // 1 minute
 
