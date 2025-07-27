@@ -175,14 +175,71 @@ serve(async (req) => {
 
     console.log('[sync-garmin-activities] Syncing activities for user:', user.id);
 
-    // Get user's Garmin tokens with proactive refresh
-    let accessToken: string;
-    
-    if (isWebhookTriggered && garminAccessToken) {
-      console.log('[sync-garmin-activities] Using Garmin token from webhook');
-      accessToken = garminAccessToken;
-    } else {
-      // Use token manager for proactive token management
+    let allActivities: GarminActivity[] = [];
+    let processedDays = 0;
+    let failedDays = 0;
+
+    // WEBHOOK MODE: Process activities from webhook payload directly
+    if (isWebhookTriggered && webhookPayload && webhookPayload.activities) {
+      console.log('[sync-garmin-activities] WEBHOOK MODE: Processing activities from webhook payload');
+      console.log(`[sync-garmin-activities] Found ${webhookPayload.activities.length} activities in webhook payload`);
+      
+      // Transform webhook activities to our format
+      for (const webhookActivity of webhookPayload.activities) {
+        try {
+          // Convert webhook activity format to GarminActivity format
+          const activity: GarminActivity = {
+            summaryId: webhookActivity.summaryId || webhookActivity.activityId,
+            activityId: webhookActivity.activityId,
+            activityType: webhookActivity.activityType,
+            startTimeInSeconds: webhookActivity.startTimeInSeconds,
+            startTimeOffsetInSeconds: webhookActivity.startTimeOffsetInSeconds,
+            durationInSeconds: webhookActivity.durationInSeconds,
+            distanceInMeters: webhookActivity.distanceInMeters,
+            activeKilocalories: webhookActivity.activeKilocalories,
+            deviceName: webhookActivity.deviceName,
+            averageHeartRateInBeatsPerMinute: webhookActivity.averageHeartRateInBeatsPerMinute,
+            maxHeartRateInBeatsPerMinute: webhookActivity.maxHeartRateInBeatsPerMinute,
+            averageSpeedInMetersPerSecond: webhookActivity.averageSpeedInMetersPerSecond,
+            maxSpeedInMetersPerSecond: webhookActivity.maxSpeedInMetersPerSecond,
+            averagePaceInMinutesPerKilometer: webhookActivity.averagePaceInMinutesPerKilometer,
+            maxPaceInMinutesPerKilometer: webhookActivity.maxPaceInMinutesPerKilometer,
+            averageBikeCadenceInRoundsPerMinute: webhookActivity.averageBikeCadenceInRoundsPerMinute,
+            maxBikeCadenceInRoundsPerMinute: webhookActivity.maxBikeCadenceInRoundsPerMinute,
+            averageRunCadenceInStepsPerMinute: webhookActivity.averageRunCadenceInStepsPerMinute,
+            maxRunCadenceInStepsPerMinute: webhookActivity.maxRunCadenceInStepsPerMinute,
+            averagePushCadenceInPushesPerMinute: webhookActivity.averagePushCadenceInPushesPerMinute,
+            maxPushCadenceInPushesPerMinute: webhookActivity.maxPushCadenceInPushesPerMinute,
+            averageSwimCadenceInStrokesPerMinute: webhookActivity.averageSwimCadenceInStrokesPerMinute,
+            startingLatitudeInDegree: webhookActivity.startingLatitudeInDegree,
+            startingLongitudeInDegree: webhookActivity.startingLongitudeInDegree,
+            totalElevationGainInMeters: webhookActivity.totalElevationGainInMeters,
+            totalElevationLossInMeters: webhookActivity.totalElevationLossInMeters,
+            steps: webhookActivity.steps,
+            pushes: webhookActivity.pushes,
+            numberOfActiveLengths: webhookActivity.numberOfActiveLengths,
+            isParent: webhookActivity.isParent,
+            parentSummaryId: webhookActivity.parentSummaryId,
+            manual: webhookActivity.manual,
+            isWebUpload: webhookActivity.isWebUpload,
+          };
+          
+          allActivities.push(activity);
+          console.log(`[sync-garmin-activities] Processed webhook activity: ${activity.summaryId} (${activity.activityType})`);
+        } catch (error) {
+          console.error('[sync-garmin-activities] Error processing webhook activity:', error, webhookActivity);
+          failedDays++;
+        }
+      }
+      
+      processedDays = 1; // Mark as processed from webhook
+      console.log(`[sync-garmin-activities] WEBHOOK MODE COMPLETE: Processed ${allActivities.length} activities from webhook payload`);
+      
+    } else if (!isWebhookTriggered) {
+      // MANUAL SYNC MODE: Fetch from Garmin API (only for manual syncs)
+      console.log('[sync-garmin-activities] MANUAL SYNC MODE: Fetching activities from Garmin API...');
+      
+      // Get user's Garmin tokens with proactive refresh
       const tokenManager = new GarminTokenManager(supabaseUrl, supabaseKey);
       const validToken = await tokenManager.getValidAccessToken(user.id);
 
@@ -197,117 +254,119 @@ serve(async (req) => {
         });
       }
 
-      accessToken = validToken;
+      const accessToken = validToken;
       console.log('[sync-garmin-activities] Using valid Garmin token (proactively managed)');
-    }
 
-    console.log('[sync-garmin-activities] Fetching activities from Garmin API...');
+      // Garmin API limits time range to 86400 seconds (24 hours)
+      const MAX_TIME_RANGE = 86400; // 24 hours in seconds
+      const DAYS_TO_SYNC = 30; // Sync last 30 days
+      const DELAY_BETWEEN_REQUESTS = 100; // 100ms delay between requests
 
-    // Garmin API limits time range to 86400 seconds (24 hours)
-    const MAX_TIME_RANGE = 86400; // 24 hours in seconds
-    const DAYS_TO_SYNC = 30; // Sync last 30 days
-    const DELAY_BETWEEN_REQUESTS = 100; // 100ms delay between requests
+      const endTime = Math.floor(Date.now() / 1000);
+      const totalStartTime = endTime - (DAYS_TO_SYNC * 24 * 60 * 60);
 
-    const endTime = Math.floor(Date.now() / 1000);
-    const totalStartTime = endTime - (DAYS_TO_SYNC * 24 * 60 * 60);
+      // Process in 24-hour chunks, starting from most recent
+      for (let currentEndTime = endTime; currentEndTime > totalStartTime; currentEndTime -= MAX_TIME_RANGE) {
+        const currentStartTime = Math.max(currentEndTime - MAX_TIME_RANGE, totalStartTime);
+        
+        console.log(`[sync-garmin-activities] Processing day ${processedDays + 1}/${DAYS_TO_SYNC}...`);
+        
+        try {
+          // Build URL with 24-hour time range
+          const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
+          apiUrl.searchParams.append('uploadStartTimeInSeconds', currentStartTime.toString());
+          apiUrl.searchParams.append('uploadEndTimeInSeconds', currentEndTime.toString());
 
-    let allActivities: GarminActivity[] = [];
-    let processedDays = 0;
-    let failedDays = 0;
+          console.log(`[sync-garmin-activities] Fetching from ${new Date(currentStartTime * 1000).toISOString()} to ${new Date(currentEndTime * 1000).toISOString()}`);
 
-    // Process in 24-hour chunks, starting from most recent
-    for (let currentEndTime = endTime; currentEndTime > totalStartTime; currentEndTime -= MAX_TIME_RANGE) {
-      const currentStartTime = Math.max(currentEndTime - MAX_TIME_RANGE, totalStartTime);
-      
-      console.log(`[sync-garmin-activities] Processing day ${processedDays + 1}/${DAYS_TO_SYNC}...`);
-      
-      try {
-        // Build URL with 24-hour time range
-        const apiUrl = new URL('https://apis.garmin.com/wellness-api/rest/activities');
-        apiUrl.searchParams.append('uploadStartTimeInSeconds', currentStartTime.toString());
-        apiUrl.searchParams.append('uploadEndTimeInSeconds', currentEndTime.toString());
+          // Fetch activities for this 24-hour period
+          const garminResponse = await fetch(apiUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/json',
+            },
+          });
 
-        console.log(`[sync-garmin-activities] Fetching from ${new Date(currentStartTime * 1000).toISOString()} to ${new Date(currentEndTime * 1000).toISOString()}`);
-
-        // Fetch activities for this 24-hour period
-        const garminResponse = await fetch(apiUrl.toString(), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json',
-          },
-        });
-
-        if (!garminResponse.ok) {
-          const errorText = await garminResponse.text();
-          console.error(`[sync-garmin-activities] Garmin API error for day ${processedDays + 1}:`, garminResponse.status, errorText);
-          
-          // If token error (401/403), try to refresh token once
-          if ((garminResponse.status === 401 || garminResponse.status === 403) && !isWebhookTriggered) {
-            console.log('[sync-garmin-activities] Token error detected, attempting token refresh...');
-            const tokenManager = new GarminTokenManager(supabaseUrl, supabaseKey);
-            const refreshedToken = await tokenManager.refreshTokenIfNeeded(user.id);
+          if (!garminResponse.ok) {
+            const errorText = await garminResponse.text();
+            console.error(`[sync-garmin-activities] Garmin API error for day ${processedDays + 1}:`, garminResponse.status, errorText);
             
-            if (refreshedToken) {
-              console.log('[sync-garmin-activities] Token refreshed, retrying API call...');
-              accessToken = refreshedToken;
-              // Retry the same request with new token
-              const retryResponse = await fetch(apiUrl.toString(), {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Accept': 'application/json',
-                },
-              });
+            // If token error (401/403), try to refresh token once
+            if (garminResponse.status === 401 || garminResponse.status === 403) {
+              console.log('[sync-garmin-activities] Token error detected, attempting token refresh...');
+              const refreshedToken = await tokenManager.refreshTokenIfNeeded(user.id);
               
-              if (retryResponse.ok) {
-                const dayActivities: GarminActivity[] = await retryResponse.json();
-                console.log(`[sync-garmin-activities] Retry successful! Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
-                allActivities = allActivities.concat(dayActivities);
-                processedDays++;
+              if (refreshedToken) {
+                console.log('[sync-garmin-activities] Token refreshed, retrying API call...');
+                // Retry the same request with new token
+                const retryResponse = await fetch(apiUrl.toString(), {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${refreshedToken}`,
+                    'Accept': 'application/json',
+                  },
+                });
                 
-                if (currentStartTime > totalStartTime) {
-                  await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+                if (retryResponse.ok) {
+                  const dayActivities: GarminActivity[] = await retryResponse.json();
+                  console.log(`[sync-garmin-activities] Retry successful! Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
+                  allActivities = allActivities.concat(dayActivities);
+                  processedDays++;
+                  
+                  if (currentStartTime > totalStartTime) {
+                    await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+                  }
+                  continue;
+                } else {
+                  console.error('[sync-garmin-activities] Retry also failed:', retryResponse.status);
                 }
-                continue;
-              } else {
-                console.error('[sync-garmin-activities] Retry also failed:', retryResponse.status);
               }
             }
+            
+            failedDays++;
+            processedDays++;
+            
+            // Add delay before next request
+            if (currentStartTime > totalStartTime) {
+              await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+            }
+            continue;
           }
+
+          const dayActivities: GarminActivity[] = await garminResponse.json();
+          console.log(`[sync-garmin-activities] Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
           
-          failedDays++;
+          // Add activities to the total collection
+          allActivities = allActivities.concat(dayActivities);
           processedDays++;
-          
-          // Add delay before next request
+
+          // Add delay between requests to be respectful to the API
           if (currentStartTime > totalStartTime) {
             await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
           }
-          continue;
-        }
 
-        const dayActivities: GarminActivity[] = await garminResponse.json();
-        console.log(`[sync-garmin-activities] Fetched ${dayActivities.length} activities for day ${processedDays + 1}`);
-        
-        // Add activities to the total collection
-        allActivities = allActivities.concat(dayActivities);
-        processedDays++;
-
-        // Add delay between requests to be respectful to the API
-        if (currentStartTime > totalStartTime) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
-        }
-
-      } catch (error) {
-        console.error(`[sync-garmin-activities] Error processing day ${processedDays + 1}:`, error);
-        failedDays++;
-        processedDays++;
-        
-        // Add delay before next request even on error
-        if (currentStartTime > totalStartTime) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+        } catch (error) {
+          console.error(`[sync-garmin-activities] Error processing day ${processedDays + 1}:`, error);
+          failedDays++;
+          processedDays++;
+          
+          // Add delay before next request even on error
+          if (currentStartTime > totalStartTime) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+          }
         }
       }
+    } else {
+      // Webhook triggered but no payload - this shouldn't happen
+      console.error('[sync-garmin-activities] WEBHOOK ERROR: Triggered by webhook but no activities payload provided');
+      return new Response(JSON.stringify({ 
+        error: 'Webhook triggered but no activities payload provided',
+        details: 'Expected webhook payload with activities array'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`[sync-garmin-activities] Completed sync: ${processedDays} days processed, ${failedDays} failed, ${allActivities.length} total activities`);
