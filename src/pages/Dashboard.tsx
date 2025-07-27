@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
 
 import { 
@@ -39,7 +40,11 @@ export const Dashboard = () => {
     error 
   } = useDashboardMetrics();
   
+  const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
+
+  // Show debug component only for specific user
+  const isDebugUser = user?.id === 'fa155754-46c5-4f12-99e2-54a9673ff74f';
 
   if (loading) {
     return (
@@ -179,12 +184,14 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
-          {/* Manual Token Refresh - Admin Tool */}
-          <ScrollReveal delay={160}>
-            <div className="mb-6 md:mb-8">
-              <ManualTokenRefresh />
-            </div>
-          </ScrollReveal>
+          {/* Manual Token Refresh - Debug Tool (only for specific user) */}
+          {isDebugUser && (
+            <ScrollReveal delay={160}>
+              <div className="mb-6 md:mb-8">
+                <ManualTokenRefresh />
+              </div>
+            </ScrollReveal>
+          )}
 
           {/* Overtraining Risk Analysis */}
           {overtrainingRisk && (
