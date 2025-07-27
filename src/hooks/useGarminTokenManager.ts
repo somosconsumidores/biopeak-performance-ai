@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { useAuth } from './useAuth';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 
@@ -11,8 +11,7 @@ interface GarminTokens {
   is_active: boolean;
 }
 
-export const useGarminTokenManager = () => {
-  const { user } = useAuth();
+export const useGarminTokenManager = (user: User | null) => {
   const { toast } = useToast();
   const [tokens, setTokens] = useState<GarminTokens | null>(null);
   const [isConnected, setIsConnected] = useState(false);

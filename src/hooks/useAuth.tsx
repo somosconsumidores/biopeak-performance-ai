@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Initialize consolidated Garmin token management
-  useGarminTokenManager();
+  useGarminTokenManager(user);
 
   useEffect(() => {
     // Set up auth state listener FIRST
