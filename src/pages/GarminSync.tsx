@@ -186,14 +186,14 @@ export function GarminSync() {
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {syncMetrics.map((metric, index) => (
                       <div key={index} className="metric-card">
                         <div className="flex items-center gap-2 mb-2">
                           <metric.icon className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">{metric.label}</span>
+                          <span className="text-xs sm:text-sm text-muted-foreground">{metric.label}</span>
                         </div>
-                        <div className="font-semibold">{metric.value}</div>
+                        <div className="font-semibold text-sm sm:text-base">{metric.value}</div>
                       </div>
                     ))}
                   </div>
