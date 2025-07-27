@@ -22,8 +22,88 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
+// App component that includes the route protection logic
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
 
-// Protected Route Component
+// Routes component that has access to AuthProvider
+function AppRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        } />
+        <Route path="/auth" element={
+          <PublicRoute>
+            <Auth />
+          </PublicRoute>
+        } />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/garmin-callback" element={
+          <ProtectedRoute>
+            <GarminCallback />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/workouts" element={
+          <ProtectedRoute>
+            <WorkoutSession />
+          </ProtectedRoute>
+        } />
+        <Route path="/comparison" element={
+          <ProtectedRoute>
+            <WorkoutComparison />
+          </ProtectedRoute>
+        } />
+        <Route path="/insights" element={
+          <ProtectedRoute>
+            <Insights />
+          </ProtectedRoute>
+        } />
+        <Route path="/sync" element={
+          <ProtectedRoute>
+            <GarminSync />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile/edit" element={
+          <ProtectedRoute>
+            <ProfileEdit />
+          </ProtectedRoute>
+        } />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+// Protected Route Component - now inside AuthProvider context
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
@@ -40,7 +120,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Public Route Component (redirects to dashboard if logged in)
+// Public Route Component - now inside AuthProvider context
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
@@ -56,76 +136,5 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   
   return <>{children}</>;
 }
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={
-              <PublicRoute>
-                <LandingPage />
-              </PublicRoute>
-            } />
-            <Route path="/auth" element={
-              <PublicRoute>
-                <Auth />
-              </PublicRoute>
-            } />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/garmin-callback" element={
-              <ProtectedRoute>
-                <GarminCallback />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/workouts" element={
-              <ProtectedRoute>
-                <WorkoutSession />
-              </ProtectedRoute>
-            } />
-            <Route path="/comparison" element={
-              <ProtectedRoute>
-                <WorkoutComparison />
-              </ProtectedRoute>
-            } />
-            <Route path="/insights" element={
-              <ProtectedRoute>
-                <Insights />
-              </ProtectedRoute>
-            } />
-            <Route path="/sync" element={
-              <ProtectedRoute>
-                <GarminSync />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile/edit" element={
-              <ProtectedRoute>
-                <ProfileEdit />
-              </ProtectedRoute>
-            } />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </ThemeProvider>
-  </QueryClientProvider>
-);
 
 export default App;
