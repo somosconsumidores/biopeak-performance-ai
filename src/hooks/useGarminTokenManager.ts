@@ -17,6 +17,8 @@ export const useGarminTokenManager = (user: User | null) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  console.log('[GarminTokenManager] Hook initialized with user:', user ? user.id.substring(0, 8) + '...' : 'null');
+
   const loadTokens = useCallback(async () => {
     if (!user) return null;
 
@@ -76,8 +78,14 @@ export const useGarminTokenManager = (user: User | null) => {
   }, [user]);
 
   const refreshTokenSafely = useCallback(async (): Promise<boolean> => {
+    console.log('[GarminTokenManager] refreshTokenSafely called');
+    
     if (!user || !tokens || isRefreshing) {
-      console.log('[GarminTokenManager] Cannot refresh: no user, tokens, or already refreshing');
+      console.log('[GarminTokenManager] Cannot refresh: no user, tokens, or already refreshing', {
+        hasUser: !!user,
+        hasTokens: !!tokens,
+        isRefreshing
+      });
       return false;
     }
 
@@ -174,16 +182,25 @@ export const useGarminTokenManager = (user: User | null) => {
 
   // Initial load and periodic checks
   useEffect(() => {
+    console.log('[GarminTokenManager] useEffect triggered with user:', user ? user.id.substring(0, 8) + '...' : 'null');
+    
     if (user) {
+      console.log('[GarminTokenManager] Starting token management for user');
       loadTokens();
 
       // Check token expiration more frequently - every minute for better responsiveness
       const interval = setInterval(() => {
+        console.log('[GarminTokenManager] Interval check triggered');
         checkTokenExpiration();
       }, 60 * 1000); // 1 minute
 
-      return () => clearInterval(interval);
+      console.log('[GarminTokenManager] Interval set up');
+      return () => {
+        console.log('[GarminTokenManager] Cleaning up interval');
+        clearInterval(interval);
+      };
     } else {
+      console.log('[GarminTokenManager] No user, clearing tokens');
       setTokens(null);
       setIsConnected(false);
     }
