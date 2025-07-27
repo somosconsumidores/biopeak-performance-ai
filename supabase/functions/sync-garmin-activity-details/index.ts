@@ -183,6 +183,134 @@ async function processActivityDetailsInBackground(
   return { processed: totalProcessed, total: activityDetails.length, errors };
 }
 
+// Function to process activity details from webhook payload
+async function processWebhookActivityDetails(
+  supabaseClient: any,
+  userId: string,
+  activityDetails: GarminActivityDetail[],
+  syncId: string | null
+) {
+  console.log(`[webhook-process] Processing ${activityDetails.length} activity details from webhook`);
+  
+  let totalProcessed = 0;
+  const errors: string[] = [];
+  const BATCH_SIZE = 1000;
+  
+  for (const detail of activityDetails) {
+    try {
+      console.log(`[webhook-process] Processing activity ${detail.activityId} with ${detail.samples?.length || 0} samples`);
+      
+      if (!detail.activityId || !detail.summaryId) {
+        console.error('[webhook-process] Missing required fields for activity:', detail);
+        errors.push(`Activity missing required fields: ${detail.activityId || 'unknown'}`);
+        continue;
+      }
+
+      const activitySummary = detail.activitySummary || {};
+      const samples = detail.samples || [];
+      const extractedActivityName = detail.activityName || activitySummary.activityName || null;
+
+      if (samples.length > 0) {
+        console.log(`[webhook-process] Processing ${samples.length} samples for activity ${detail.activityId}`);
+        
+        // Process samples in batches
+        for (let i = 0; i < samples.length; i += BATCH_SIZE) {
+          const batch = samples.slice(i, i + BATCH_SIZE);
+          console.log(`[webhook-process] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(samples.length/BATCH_SIZE)} (${batch.length} samples)`);
+          
+          const batchData = batch.map(sample => {
+            // Use startTimeInSeconds from sample or fallback to summary
+            const sampleTimestamp = sample.startTimeInSeconds || activitySummary.startTimeInSeconds || null;
+            
+            return {
+              user_id: userId,
+              activity_id: detail.activityId,
+              summary_id: detail.summaryId,
+              activity_name: extractedActivityName,
+              upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+              start_time_in_seconds: sampleTimestamp,
+              duration_in_seconds: activitySummary.durationInSeconds || null,
+              activity_type: activitySummary.activityType || null,
+              device_name: activitySummary.deviceName || null,
+              sample_timestamp: sampleTimestamp,
+              samples: sample,
+              activity_summary: activitySummary,
+              heart_rate: sample.heartRate || null,
+              latitude_in_degree: sample.latitudeInDegree || null,
+              longitude_in_degree: sample.longitudeInDegree || null,
+              elevation_in_meters: sample.elevationInMeters || null,
+              speed_meters_per_second: sample.speedMetersPerSecond || null,
+              power_in_watts: sample.powerInWatts || null,
+              total_distance_in_meters: sample.totalDistanceInMeters || null,
+              steps_per_minute: sample.stepsPerMinute || null,
+              clock_duration_in_seconds: sample.clockDurationInSeconds || null,
+              moving_duration_in_seconds: sample.movingDurationInSeconds || null,
+              timer_duration_in_seconds: sample.timerDurationInSeconds || null,
+              updated_at: new Date().toISOString()
+            };
+          });
+
+          try {
+            const { error: batchError } = await supabaseClient
+              .from('garmin_activity_details')
+              .upsert(batchData, {
+                onConflict: 'user_id,summary_id,sample_timestamp'
+              });
+
+            if (batchError) {
+              console.error(`[webhook-process] Error upserting batch for activity ${detail.activityId}:`, batchError);
+              errors.push(`Failed to store batch for activity ${detail.activityId}: ${batchError.message}`);
+            } else {
+              console.log(`[webhook-process] Successfully processed batch of ${batch.length} samples`);
+            }
+          } catch (batchErr) {
+            console.error(`[webhook-process] Unexpected error processing batch:`, batchErr);
+            errors.push(`Unexpected error processing batch for activity ${detail.activityId}`);
+          }
+        }
+      } else {
+        // Activity without samples - store summary only
+        const defaultTimestamp = activitySummary.startTimeInSeconds || activitySummary.uploadTimeInSeconds || null;
+        
+        const { error: summaryError } = await supabaseClient
+          .from('garmin_activity_details')
+          .upsert({
+            user_id: userId,
+            activity_id: detail.activityId,
+            summary_id: detail.summaryId,
+            activity_name: extractedActivityName,
+            upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+            start_time_in_seconds: defaultTimestamp,
+            duration_in_seconds: activitySummary.durationInSeconds || null,
+            activity_type: activitySummary.activityType || null,
+            device_name: activitySummary.deviceName || null,
+            sample_timestamp: defaultTimestamp,
+            samples: null,
+            activity_summary: activitySummary,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,summary_id,sample_timestamp'
+          });
+
+        if (summaryError) {
+          console.error(`[webhook-process] Error upserting activity summary:`, summaryError);
+          errors.push(`Failed to store activity ${detail.activityId}: ${summaryError.message}`);
+        }
+      }
+      
+      totalProcessed++;
+      
+    } catch (error) {
+      console.error(`[webhook-process] Unexpected error processing activity detail:`, error);
+      errors.push(`Unexpected error processing activity ${detail.activityId || 'unknown'}`);
+    }
+  }
+
+  console.log(`[webhook-process] Webhook processing completed: ${totalProcessed}/${activityDetails.length} processed, ${errors.length} errors`);
+  
+  return { processed: totalProcessed, total: activityDetails.length, errors };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -445,8 +573,96 @@ Deno.serve(async (req) => {
       apiUrl = garminUrl.toString();
     }
 
-    // Make request to Garmin API
-    console.log('[sync-activity-details] Making request to Garmin API...');
+    // For webhooks, use the provided payload data instead of making API requests
+    // This prevents "unprompted pull notifications" from Garmin
+    if (isWebhookTriggered && webhookPayload) {
+      console.log('[sync-activity-details] WEBHOOK MODE: Using provided payload data, skipping API request to prevent unprompted notifications');
+      
+      // Process webhook payload directly
+      const activityDetails: GarminActivityDetail[] = [];
+      
+      // Handle both direct webhook format and activity details format
+      if (webhookPayload.summary && webhookPayload.samples) {
+        // Direct activity details format from webhook
+        activityDetails.push({
+          activityId: webhookPayload.activityId || webhookPayload.summaryId?.replace('-detail', ''),
+          summaryId: webhookPayload.summaryId,
+          activityName: webhookPayload.summary?.activityName,
+          activitySummary: webhookPayload.summary,
+          samples: webhookPayload.samples
+        });
+      } else if (webhookPayload.activityDetails && Array.isArray(webhookPayload.activityDetails)) {
+        // Multiple activity details format
+        for (const detail of webhookPayload.activityDetails) {
+          if (detail.summary && detail.samples) {
+            activityDetails.push({
+              activityId: detail.activityId || detail.summaryId?.replace('-detail', ''),
+              summaryId: detail.summaryId,
+              activityName: detail.summary?.activityName,
+              activitySummary: detail.summary,
+              samples: detail.samples
+            });
+          }
+        }
+      }
+      
+      console.log(`[sync-activity-details] Processed ${activityDetails.length} activity details from webhook payload`);
+      
+      if (activityDetails.length > 0) {
+        // Process the webhook data directly without making API calls
+        await processWebhookActivityDetails(supabaseClient, user.id, activityDetails, syncId);
+        
+        console.log(`[sync-activity-details] Sync completed: {
+  message: "Successfully synced ${activityDetails.length} of ${activityDetails.length} activity details",
+  synced: ${activityDetails.length},
+  total: ${activityDetails.length},
+  triggeredBy: "${triggeredBy}",
+  errors: undefined
+}`);
+        
+        // Update sync status to completed
+        if (syncId) {
+          await supabaseClient.rpc('update_sync_status', {
+            sync_id_param: syncId,
+            status_param: 'completed'
+          });
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Successfully synced ${activityDetails.length} of ${activityDetails.length} activity details`,
+          synced: activityDetails.length,
+          total: activityDetails.length,
+          triggeredBy: triggeredBy
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else {
+        console.log('[sync-activity-details] No valid activity details found in webhook payload');
+        
+        if (syncId) {
+          await supabaseClient.rpc('update_sync_status', {
+            sync_id_param: syncId,
+            status_param: 'completed'
+          });
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'No activity details to process',
+          synced: 0,
+          total: 0,
+          triggeredBy: triggeredBy
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    
+    // For admin overrides or non-webhook calls, make request to Garmin API
+    console.log('[sync-activity-details] ADMIN MODE: Making request to Garmin API...');
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
