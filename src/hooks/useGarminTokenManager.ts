@@ -132,18 +132,28 @@ export const useGarminTokenManager = (user: User | null) => {
   }, [user, tokens, isRefreshing, loadTokens, toast]);
 
   const checkTokenExpiration = useCallback(async () => {
-    if (!tokens) return;
+    if (!tokens) {
+      console.log('[GarminTokenManager] No tokens to check');
+      return;
+    }
 
     const now = new Date();
     const expiresAt = new Date(tokens.expires_at);
     const minutesUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60));
+    const secondsUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
 
-    console.log('[GarminTokenManager] Token expires in:', minutesUntilExpiry, 'minutes');
+    console.log('[GarminTokenManager] Token status:', {
+      expiresAt: tokens.expires_at,
+      minutesUntilExpiry,
+      secondsUntilExpiry,
+      isExpired: secondsUntilExpiry <= 0
+    });
 
-    // Refresh if token expires in less than 10 minutes
-    if (minutesUntilExpiry < 10) {
-      console.log('[GarminTokenManager] Token expires soon, triggering refresh');
-      await refreshTokenSafely();
+    // Refresh if token expires in less than 10 minutes OR is already expired
+    if (minutesUntilExpiry < 10 || secondsUntilExpiry <= 0) {
+      console.log('[GarminTokenManager] Token needs refresh - triggering now');
+      const success = await refreshTokenSafely();
+      console.log('[GarminTokenManager] Refresh result:', success);
     }
 
     // Check refresh token expiration warning (7 days)
