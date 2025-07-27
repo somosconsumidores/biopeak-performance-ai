@@ -80,22 +80,23 @@ export const useGarminTokenManager = (user: User | null) => {
   const refreshTokenSafely = useCallback(async (): Promise<boolean> => {
     console.log('[GarminTokenManager] refreshTokenSafely called');
     
-    if (!user || !tokens || isRefreshing) {
+    const currentTokens = tokens;
+    if (!user || !currentTokens || isRefreshing) {
       console.log('[GarminTokenManager] Cannot refresh: no user, tokens, or already refreshing', {
         hasUser: !!user,
-        hasTokens: !!tokens,
+        hasTokens: !!currentTokens,
         isRefreshing
       });
       return false;
     }
 
-    if (!tokens.refresh_token) {
+    if (!currentTokens.refresh_token) {
       console.error('[GarminTokenManager] No refresh token available');
       return false;
     }
 
     // Check if refresh token is expired
-    const refreshExpiresAt = new Date(tokens.refresh_token_expires_at);
+    const refreshExpiresAt = new Date(currentTokens.refresh_token_expires_at);
     if (refreshExpiresAt <= new Date()) {
       console.error('[GarminTokenManager] Refresh token expired, need re-authorization');
       toast({
@@ -113,7 +114,7 @@ export const useGarminTokenManager = (user: User | null) => {
       
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
         body: {
-          refresh_token: tokens.refresh_token,
+          refresh_token: currentTokens.refresh_token,
           grant_type: 'refresh_token'
         }
       });
@@ -137,21 +138,22 @@ export const useGarminTokenManager = (user: User | null) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [user, tokens, isRefreshing, loadTokens, toast]);
+  }, [user, isRefreshing, loadTokens, toast]);
 
   const checkTokenExpiration = useCallback(async () => {
-    if (!tokens) {
+    const currentTokens = tokens;
+    if (!currentTokens) {
       console.log('[GarminTokenManager] No tokens to check');
       return;
     }
 
     const now = new Date();
-    const expiresAt = new Date(tokens.expires_at);
+    const expiresAt = new Date(currentTokens.expires_at);
     const minutesUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60));
     const secondsUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
 
     console.log('[GarminTokenManager] Token status:', {
-      expiresAt: tokens.expires_at,
+      expiresAt: currentTokens.expires_at,
       minutesUntilExpiry,
       secondsUntilExpiry,
       isExpired: secondsUntilExpiry <= 0
@@ -165,8 +167,8 @@ export const useGarminTokenManager = (user: User | null) => {
     }
 
     // Check refresh token expiration warning (7 days)
-    if (tokens.refresh_token_expires_at) {
-      const refreshExpiresAt = new Date(tokens.refresh_token_expires_at);
+    if (currentTokens.refresh_token_expires_at) {
+      const refreshExpiresAt = new Date(currentTokens.refresh_token_expires_at);
       const daysUntilRefreshExpiry = Math.floor((refreshExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysUntilRefreshExpiry <= 7 && daysUntilRefreshExpiry > 0) {
@@ -178,7 +180,7 @@ export const useGarminTokenManager = (user: User | null) => {
         });
       }
     }
-  }, [tokens, refreshTokenSafely, toast]);
+  }, [refreshTokenSafely, toast]);
 
   // Initial load and periodic checks
   useEffect(() => {
@@ -204,7 +206,7 @@ export const useGarminTokenManager = (user: User | null) => {
       setTokens(null);
       setIsConnected(false);
     }
-  }, [user, loadTokens, checkTokenExpiration]);
+  }, [user]); // REMOVED the problematic dependencies
 
   return {
     tokens,
