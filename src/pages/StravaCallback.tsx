@@ -15,11 +15,22 @@ export default function StravaCallback() {
 
   useEffect(() => {
     const processCallback = async () => {
+      console.log('[StravaCallback] Starting callback processing...');
+      
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
+      const currentUrl = window.location.href;
+
+      console.log('[StravaCallback] URL parameters:', { 
+        code: code ? `${code.substring(0, 10)}...` : null, 
+        state: state ? `${state.substring(0, 20)}...` : null, 
+        error,
+        currentUrl 
+      });
 
       if (error) {
+        console.error('[StravaCallback] OAuth error received:', error);
         setStatus('error');
         setMessage(`Erro na autorização: ${error}`);
         setTimeout(() => navigate('/sync'), 3000);
@@ -27,6 +38,7 @@ export default function StravaCallback() {
       }
 
       if (!code || !state) {
+        console.error('[StravaCallback] Missing parameters:', { code: !!code, state: !!state });
         setStatus('error');
         setMessage('Parâmetros de autorização ausentes');
         setTimeout(() => navigate('/sync'), 3000);
@@ -34,20 +46,26 @@ export default function StravaCallback() {
       }
 
       try {
+        console.log('[StravaCallback] Starting authentication with Strava...');
         setMessage('Autenticando com o Strava...');
+        
         const authSuccess = await handleCallback(code, state);
+        console.log('[StravaCallback] Authentication result:', authSuccess);
         
         if (!authSuccess) {
+          console.error('[StravaCallback] Authentication failed');
           setStatus('error');
           setMessage('Falha na autenticação');
           setTimeout(() => navigate('/sync'), 3000);
           return;
         }
 
+        console.log('[StravaCallback] Authentication successful, starting sync...');
         setMessage('Autenticação concluída! Iniciando sincronização...');
         
         // Start automatic sync after successful authentication
         const syncSuccess = await syncActivities();
+        console.log('[StravaCallback] Sync result:', syncSuccess);
         
         if (syncSuccess) {
           setStatus('success');
@@ -57,10 +75,11 @@ export default function StravaCallback() {
           setMessage('Strava conectado! A sincronização pode ser feita manualmente.');
         }
         
+        console.log('[StravaCallback] Process completed successfully, redirecting...');
         setTimeout(() => navigate('/sync'), 2000);
         
       } catch (error) {
-        console.error('Callback processing error:', error);
+        console.error('[StravaCallback] Callback processing error:', error);
         setStatus('error');
         setMessage('Erro inesperado durante o processamento');
         setTimeout(() => navigate('/sync'), 3000);
