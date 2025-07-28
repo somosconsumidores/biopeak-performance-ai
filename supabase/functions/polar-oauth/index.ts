@@ -115,6 +115,29 @@ serve(async (req) => {
 
     console.log('Polar tokens stored successfully for user:', user.id);
 
+    // Register user with Polar and configure webhooks
+    try {
+      const registerResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/register-polar-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: tokenData.access_token,
+        }),
+      });
+
+      if (!registerResponse.ok) {
+        console.error('Failed to register Polar user, but tokens were saved');
+      } else {
+        console.log('Polar user registered and webhook configured successfully');
+      }
+    } catch (registrationError) {
+      console.error('Registration error:', registrationError);
+      // Don't fail the whole process if registration fails
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
