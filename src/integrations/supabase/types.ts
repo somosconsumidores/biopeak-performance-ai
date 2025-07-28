@@ -560,6 +560,36 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          provider: string
+          redirect_uri: string
+          state_value: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider: string
+          redirect_uri: string
+          state_value: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider?: string
+          redirect_uri?: string
+          state_value?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       oauth_temp_tokens: {
         Row: {
           created_at: string
@@ -911,6 +941,168 @@ export type Database = {
         }
         Relationships: []
       }
+      strava_activities: {
+        Row: {
+          average_heartrate: number | null
+          average_speed: number | null
+          calories: number | null
+          created_at: string
+          distance: number | null
+          elapsed_time: number | null
+          id: string
+          max_heartrate: number | null
+          max_speed: number | null
+          moving_time: number | null
+          name: string
+          start_date: string
+          strava_activity_id: number
+          total_elevation_gain: number | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          average_heartrate?: number | null
+          average_speed?: number | null
+          calories?: number | null
+          created_at?: string
+          distance?: number | null
+          elapsed_time?: number | null
+          id?: string
+          max_heartrate?: number | null
+          max_speed?: number | null
+          moving_time?: number | null
+          name: string
+          start_date: string
+          strava_activity_id: number
+          total_elevation_gain?: number | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          average_heartrate?: number | null
+          average_speed?: number | null
+          calories?: number | null
+          created_at?: string
+          distance?: number | null
+          elapsed_time?: number | null
+          id?: string
+          max_heartrate?: number | null
+          max_speed?: number | null
+          moving_time?: number | null
+          name?: string
+          start_date?: string
+          strava_activity_id?: number
+          total_elevation_gain?: number | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      strava_activity_streams: {
+        Row: {
+          created_at: string
+          id: string
+          original_size: number | null
+          resolution: string | null
+          series_type: string | null
+          strava_activity_id: number
+          stream_data: Json | null
+          stream_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_size?: number | null
+          resolution?: string | null
+          series_type?: string | null
+          strava_activity_id: number
+          stream_data?: Json | null
+          stream_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_size?: number | null
+          resolution?: string | null
+          series_type?: string | null
+          strava_activity_id?: number
+          stream_data?: Json | null
+          stream_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      strava_sync_status: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          last_activity_date: string | null
+          last_sync_at: string | null
+          sync_status: string
+          total_activities_synced: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_activity_date?: string | null
+          last_sync_at?: string | null
+          sync_status?: string
+          total_activities_synced?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_activity_date?: string | null
+          last_sync_at?: string | null
+          sync_status?: string
+          total_activities_synced?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      strava_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_commitments: {
         Row: {
           applied_at: string
@@ -983,6 +1175,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_oauth_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_oauth_states: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

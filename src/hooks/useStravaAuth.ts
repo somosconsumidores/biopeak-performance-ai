@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface StravaConfig {
   clientId: string;
@@ -10,6 +11,7 @@ interface StravaConfig {
 export const useStravaAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleStravaConnect = async () => {
     setIsLoading(true);
@@ -51,27 +53,55 @@ export const useStravaAuth = () => {
       console.log('[StravaAuth] Authorization URL:', authUrl.toString());
       console.log('[StravaAuth] Redirect URI being used:', config.redirectUri);
       
-      // Store state and redirect URI in localStorage for validation on return
+      // Hybrid storage: localStorage + sessionStorage + database
+      if (!user?.id) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
+
       try {
+        // 1. Store in multiple places for redundancy
         localStorage.setItem('strava_oauth_state', stateWithTimestamp);
         localStorage.setItem('strava_oauth_redirect_uri', config.redirectUri);
         
+        sessionStorage.setItem('strava_oauth_state', stateWithTimestamp);
+        sessionStorage.setItem('strava_oauth_redirect_uri', config.redirectUri);
+        
+        // 2. Store in database for cross-domain/cross-session persistence
+        const { error: dbError } = await supabase
+          .from('oauth_states')
+          .upsert({
+            user_id: user.id,
+            provider: 'strava',
+            state_value: stateWithTimestamp,
+            redirect_uri: config.redirectUri
+          });
+
+        if (dbError) {
+          console.warn('[StravaAuth] Database storage failed:', dbError);
+          // Continue anyway, we have localStorage/sessionStorage
+        }
+        
         // Verify storage immediately
         const storedState = localStorage.getItem('strava_oauth_state');
-        const storedRedirectUri = localStorage.getItem('strava_oauth_redirect_uri');
+        const sessionState = sessionStorage.getItem('strava_oauth_state');
         
         console.log('[StravaAuth] Generated and stored state:', stateWithTimestamp);
-        console.log('[StravaAuth] Verification - stored state:', storedState);
-        console.log('[StravaAuth] Verification - stored redirect URI:', storedRedirectUri);
+        console.log('[StravaAuth] localStorage state:', storedState);
+        console.log('[StravaAuth] sessionStorage state:', sessionState);
         
-        if (!storedState || !storedRedirectUri) {
-          throw new Error('Failed to store OAuth state in localStorage');
+        if (!storedState && !sessionState) {
+          throw new Error('Failed to store OAuth state in any storage');
         }
       } catch (storageError) {
-        console.error('[StravaAuth] localStorage error:', storageError);
+        console.error('[StravaAuth] Storage error:', storageError);
         toast({
           title: "Erro de armazenamento",
-          description: "Não foi possível salvar o estado OAuth. Verifique se o localStorage está habilitado.",
+          description: "Não foi possível salvar o estado OAuth. Verifique se o armazenamento está habilitado.",
           variant: "destructive",
         });
         return;
@@ -96,29 +126,82 @@ export const useStravaAuth = () => {
     try {
       console.log('[StravaAuth] Callback received - state:', state);
       
-      // Validate state parameter with detailed debugging
-      let storedState;
-      try {
-        storedState = localStorage.getItem('strava_oauth_state');
-        console.log('[StravaAuth] Stored state from localStorage:', storedState);
-        console.log('[StravaAuth] Received state from URL:', state);
-        console.log('[StravaAuth] localStorage available:', typeof Storage !== 'undefined');
-        console.log('[StravaAuth] Current domain:', window.location.origin);
-        
-        // Check all localStorage items for debugging
-        const allItems = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          allItems.push({ key, value: localStorage.getItem(key) });
-        }
-        console.log('[StravaAuth] All localStorage items:', allItems);
-        
-      } catch (storageError) {
-        console.error('[StravaAuth] localStorage access error:', storageError);
+      if (!user?.id) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return false;
       }
       
-      if (!storedState) {
-        console.error('[StravaAuth] No stored state found!');
+      // Hybrid validation: try multiple storage sources
+      let storedState: string | null = null;
+      let storedRedirectUri: string | null = null;
+      let validationSource = '';
+
+      try {
+        // 1. Try localStorage first
+        storedState = localStorage.getItem('strava_oauth_state');
+        storedRedirectUri = localStorage.getItem('strava_oauth_redirect_uri');
+        
+        if (storedState && storedRedirectUri) {
+          validationSource = 'localStorage';
+          console.log('[StravaAuth] Using localStorage for validation');
+        } else {
+          // 2. Try sessionStorage
+          storedState = sessionStorage.getItem('strava_oauth_state');
+          storedRedirectUri = sessionStorage.getItem('strava_oauth_redirect_uri');
+          
+          if (storedState && storedRedirectUri) {
+            validationSource = 'sessionStorage';
+            console.log('[StravaAuth] Using sessionStorage for validation');
+          } else {
+            // 3. Try database as fallback
+            const { data: dbState } = await supabase
+              .from('oauth_states')
+              .select('state_value, redirect_uri')
+              .eq('user_id', user.id)
+              .eq('provider', 'strava')
+              .gte('expires_at', new Date().toISOString())
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (dbState) {
+              storedState = dbState.state_value;
+              storedRedirectUri = dbState.redirect_uri;
+              validationSource = 'database';
+              console.log('[StravaAuth] Using database for validation');
+            }
+          }
+        }
+        
+        console.log('[StravaAuth] Validation details:', {
+          source: validationSource,
+          storedState,
+          storedRedirectUri,
+          receivedState: state
+        });
+        
+      } catch (storageError) {
+        console.error('[StravaAuth] Storage access error:', storageError);
+      }
+      
+      if (!storedState || !storedRedirectUri) {
+        console.error('[StravaAuth] No stored state found in any storage!');
+        
+        // Cleanup any partial states
+        try {
+          await supabase
+            .from('oauth_states')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('provider', 'strava');
+        } catch (cleanupError) {
+          console.warn('[StravaAuth] Cleanup error:', cleanupError);
+        }
+        
         toast({
           title: "Erro de segurança",
           description: "Estado OAuth não encontrado. Tente conectar novamente.",
@@ -165,19 +248,22 @@ export const useStravaAuth = () => {
         return false;
       }
       
-      // Clear stored state
+      // Clear stored states from all sources
       localStorage.removeItem('strava_oauth_state');
+      localStorage.removeItem('strava_oauth_redirect_uri');
+      sessionStorage.removeItem('strava_oauth_state');
+      sessionStorage.removeItem('strava_oauth_redirect_uri');
       
-      // Get stored redirect URI
-      const storedRedirectUri = localStorage.getItem('strava_oauth_redirect_uri');
-      if (!storedRedirectUri) {
-        console.error('[StravaAuth] No redirect URI found!');
-        toast({
-          title: "Erro de configuração",
-          description: "Redirect URI não encontrado",
-          variant: "destructive",
-        });
-        return false;
+      // Cleanup database state
+      try {
+        await supabase
+          .from('oauth_states')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('provider', 'strava')
+          .eq('state_value', storedState);
+      } catch (cleanupError) {
+        console.warn('[StravaAuth] Database cleanup error:', cleanupError);
       }
 
       console.log('[StravaAuth] Using redirect URI for token exchange:', storedRedirectUri);
@@ -201,9 +287,6 @@ export const useStravaAuth = () => {
       }
 
       console.log('[StravaAuth] Authentication successful:', authData);
-      
-      // Clean up stored redirect URI
-      localStorage.removeItem('strava_oauth_redirect_uri');
 
       toast({
         title: "Conectado com sucesso!",
