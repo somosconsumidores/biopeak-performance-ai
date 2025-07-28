@@ -1,5 +1,6 @@
 import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-new.jpg';
+import stravaLogo from '@/assets/strava-logo.svg';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,15 @@ export function GarminSync() {
   } = useGarminAuth();
   const { activitiesCount: garminActivities, lastSyncAt: garminLastSync, deviceName: garminDevice, loading: garminLoading } = useGarminStats();
   
+  // Strava - temporary mock values until hooks are available
+  const stravaConnected = false;
+  const stravaConnecting = false;
+  const startStravaFlow = () => console.log('Strava connect coming soon');
+  const disconnectStrava = () => console.log('Strava disconnect');
+  const stravaActivities = 0;
+  const stravaLastSync = null;
+  const stravaLoading = false;
+  
 
   const formatLastSync = (syncAt: string | null) => {
     if (!syncAt) return 'Nunca sincronizado';
@@ -60,10 +70,21 @@ export function GarminSync() {
     syncStatus: garminConnected ? ('connected' as const) : ('disconnected' as const)
   };
 
+  const stravaSyncStats = {
+    lastSync: stravaLoading ? 'Carregando...' : formatLastSync(stravaLastSync),
+    activitiesCount: stravaLoading ? 0 : stravaActivities,
+    syncStatus: stravaConnected ? ('connected' as const) : ('disconnected' as const)
+  };
+
 
   const handleConnectGarmin = () => {
     console.log('[GarminSync] Connect button clicked');
     startGarminFlow();
+  };
+
+  const handleConnectStrava = () => {
+    console.log('[StravaSync] Connect button clicked');
+    startStravaFlow();
   };
 
 
@@ -90,6 +111,13 @@ export function GarminSync() {
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
+  const stravaMetrics = [
+    { label: 'Atividades Totais', value: stravaSyncStats.activitiesCount, icon: Activity },
+    { label: 'Última Sincronização', value: stravaSyncStats.lastSync, icon: Timer },
+    { label: 'Segmentos', value: 'Disponível', icon: TrendingUp },
+    { label: 'GPS', value: 'Ativo', icon: MapPin },
+  ];
+
 
   const webhookEndpoint = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-activities-webhook';
 
@@ -113,64 +141,65 @@ export function GarminSync() {
             </div>
           </ScrollReveal>
 
-          {/* Main Connection Card */}
-          <ScrollReveal delay={100}>
-            <Card className="glass-card mb-8">
-              <CardHeader>
-                <div className="flex flex-col space-y-4">
-                  {/* Garmin Logo */}
-                  <div className="flex justify-center">
-                    <img 
-                      src={garminLogo} 
-                      alt="Garmin" 
-                      className="h-12 w-auto opacity-90"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-3">
-                        <Watch className="h-6 w-6 text-primary" />
-                        Status da Conexão
-                      </CardTitle>
-                      <CardDescription>
-                        Conecte sua conta Garmin Connect para sincronização automática
-                      </CardDescription>
+          {/* Main Connection Cards */}
+          <div className="grid lg:grid-cols-2 gap-8 mb-8">
+            {/* Garmin Connection Card */}
+            <ScrollReveal delay={100}>
+              <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex flex-col space-y-4">
+                    {/* Garmin Logo */}
+                    <div className="flex justify-center">
+                      <img 
+                        src={garminLogo} 
+                        alt="Garmin" 
+                        className="h-12 w-auto opacity-90"
+                      />
                     </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                      <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
-                        {garminSyncStats.syncStatus === 'connected' && (
-                          <CheckCircle className="h-4 w-4 mr-2" />
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-3">
+                          <Watch className="h-6 w-6 text-primary" />
+                          Garmin Connect
+                        </CardTitle>
+                        <CardDescription>
+                          Conecte sua conta Garmin Connect
+                        </CardDescription>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
+                          {garminSyncStats.syncStatus === 'connected' && (
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {garminSyncStats.syncStatus === 'disconnected' && (
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {getStatusText(garminSyncStats.syncStatus)}
+                        </Badge>
+                        
+                        {garminConnected && (
+                          <Button 
+                            onClick={disconnectGarmin}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                          >
+                            Desconectar
+                          </Button>
                         )}
-                        {garminSyncStats.syncStatus === 'disconnected' && (
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                        )}
-                        {getStatusText(garminSyncStats.syncStatus)}
-                      </Badge>
-                      
-                      {garminConnected && (
-                        <Button 
-                          onClick={disconnectGarmin}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
-                        >
-                          Desconectar
-                        </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-6">
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-4">
                     {garminSyncStats.syncStatus === 'disconnected' ? (
                       <>
                         <Alert className="border-blue-500/50 bg-blue-500/10">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription className="text-blue-400">
-                            Conecte sua conta Garmin Connect para começar a receber insights automáticos de suas atividades
+                            Conecte sua conta Garmin Connect para receber insights automáticos
                           </AlertDescription>
                         </Alert>
                         
@@ -188,40 +217,144 @@ export function GarminSync() {
                           ) : (
                             <>
                               <Zap className="h-4 w-4 mr-2" />
-                              Conectar Garmin Connect
+                              Conectar Garmin
                             </>
                           )}
                         </Button>
                       </>
                     ) : (
-                      <div className="space-y-2">
+                      <>
                         <Alert className="border-green-500/50 bg-green-500/10">
                           <CheckCircle className="h-4 w-4" />
                           <AlertDescription className="text-green-400">
-                            <strong>🎉 Conectado com Sucesso!</strong><br />
-                            Sua conta Garmin Connect foi conectada e configurada para sincronização automática.
-                            Novas atividades serão sincronizadas automaticamente e o histórico dos últimos 30 dias será importado em breve.
+                            <strong>🎉 Conectado!</strong> Sincronização automática ativa.
                           </AlertDescription>
                         </Alert>
-                      </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          {garminMetrics.map((metric, index) => (
+                            <div key={index} className="metric-card">
+                              <div className="flex items-center gap-2 mb-1">
+                                <metric.icon className="h-3 w-3 text-primary" />
+                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                              </div>
+                              <div className="font-semibold text-sm">{metric.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {garminMetrics.map((metric, index) => (
-                      <div key={index} className="metric-card">
-                        <div className="flex items-center gap-2 mb-2">
-                          <metric.icon className="h-4 w-4 text-primary" />
-                          <span className="text-xs sm:text-sm text-muted-foreground">{metric.label}</span>
-                        </div>
-                        <div className="font-semibold text-sm sm:text-base">{metric.value}</div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+
+            {/* Strava Connection Card */}
+            <ScrollReveal delay={150}>
+              <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex flex-col space-y-4">
+                    {/* Strava Logo */}
+                    <div className="flex justify-center">
+                      <img 
+                        src={stravaLogo} 
+                        alt="Strava" 
+                        className="h-12 w-auto opacity-90"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-3">
+                          <Activity className="h-6 w-6 text-primary" />
+                          Strava
+                        </CardTitle>
+                        <CardDescription>
+                          Conecte sua conta Strava
+                        </CardDescription>
                       </div>
-                    ))}
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={getStatusColor(stravaSyncStats.syncStatus)}>
+                          {stravaSyncStats.syncStatus === 'connected' && (
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {stravaSyncStats.syncStatus === 'disconnected' && (
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {getStatusText(stravaSyncStats.syncStatus)}
+                        </Badge>
+                        
+                        {stravaConnected && (
+                          <Button 
+                            onClick={disconnectStrava}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                          >
+                            Desconectar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </ScrollReveal>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {stravaSyncStats.syncStatus === 'disconnected' ? (
+                      <>
+                        <Alert className="border-orange-500/50 bg-orange-500/10">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-orange-400">
+                            Conecte sua conta Strava para acessar seus dados de atividades
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <Button 
+                          onClick={handleConnectStrava}
+                          disabled={stravaConnecting}
+                          className="w-full bg-orange-600 hover:bg-orange-700"
+                          size="lg"
+                        >
+                          {stravaConnecting ? (
+                            <>
+                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                              Conectando...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Conectar Strava
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Alert className="border-green-500/50 bg-green-500/10">
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription className="text-green-400">
+                            <strong>🎉 Conectado!</strong> Dados do Strava disponíveis.
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          {stravaMetrics.map((metric, index) => (
+                            <div key={index} className="metric-card">
+                              <div className="flex items-center gap-2 mb-1">
+                                <metric.icon className="h-3 w-3 text-primary" />
+                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                              </div>
+                              <div className="font-semibold text-sm">{metric.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          </div>
 
 
           {/* Token Refresh Test Button - Only show when Garmin connected */}
@@ -234,13 +367,21 @@ export function GarminSync() {
           )}
 
           {/* Connection Status - Show for connected devices */}
-          {garminConnected && (
-            <ScrollReveal delay={250}>
-              <div className="mb-8">
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {garminConnected && (
+              <ScrollReveal delay={250}>
                 <GarminConnectionStatus />
-              </div>
-            </ScrollReveal>
-          )}
+              </ScrollReveal>
+            )}
+            
+            {stravaConnected && (
+              <ScrollReveal delay={275}>
+                <div className="text-center p-4 text-muted-foreground">
+                  Strava connection status coming soon
+                </div>
+              </ScrollReveal>
+            )}
+          </div>
 
 
           {/* Device Cards */}
