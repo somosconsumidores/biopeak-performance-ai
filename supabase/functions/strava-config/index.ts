@@ -33,13 +33,13 @@ Deno.serve(async (req) => {
 
     // Use dynamic redirect URI based on request origin for flexibility
     const requestOrigin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/')
-    let redirectUri = 'https://preview--biopeak-performance-ai.lovable.app/strava-callback'
+    let redirectUri = 'https://preview--biopeak-performance-ai.lovable.app/sync'
     
     if (requestOrigin) {
       if (requestOrigin.includes('localhost')) {
-        redirectUri = `${requestOrigin}/strava-callback`
+        redirectUri = `${requestOrigin}/sync`
       } else if (requestOrigin.includes('lovable.app')) {
-        redirectUri = `${requestOrigin}/strava-callback`
+        redirectUri = `${requestOrigin}/sync`
       }
     }
     
