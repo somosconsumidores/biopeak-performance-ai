@@ -15,8 +15,12 @@ export const useStravaAuth = () => {
     setIsLoading(true);
     
     try {
+      console.log('[StravaAuth] Initiating Strava connection...');
+      
       // 1. Get Strava configuration
       const { data: configData, error: configError } = await supabase.functions.invoke('strava-config');
+      
+      console.log('[StravaAuth] Config response:', { configData, configError });
       
       if (configError || !configData) {
         toast({
