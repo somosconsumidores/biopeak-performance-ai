@@ -568,6 +568,7 @@ export type Database = {
           oauth_token: string
           oauth_token_secret: string | null
           provider: string
+          provider_type: string | null
           user_id: string | null
         }
         Insert: {
@@ -577,6 +578,7 @@ export type Database = {
           oauth_token: string
           oauth_token_secret?: string | null
           provider?: string
+          provider_type?: string | null
           user_id?: string | null
         }
         Update: {
@@ -586,6 +588,7 @@ export type Database = {
           oauth_token?: string
           oauth_token_secret?: string | null
           provider?: string
+          provider_type?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -656,6 +659,171 @@ export type Database = {
           relative_reserve?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      polar_activities: {
+        Row: {
+          activity_id: string
+          activity_type: string | null
+          calories: number | null
+          carbohydrate_percentage_of_calories: number | null
+          club_id: number | null
+          club_name: string | null
+          created_at: string
+          detailed_sport_info: string | null
+          device: string | null
+          device_id: string | null
+          distance: number | null
+          duration: string | null
+          fat_percentage_of_calories: number | null
+          has_route: boolean | null
+          id: string
+          polar_user: string | null
+          polar_user_id: number | null
+          protein_percentage_of_calories: number | null
+          sport: string | null
+          start_time: string | null
+          start_time_utc_offset: number | null
+          synced_at: string
+          training_load: number | null
+          transaction_id: number | null
+          updated_at: string
+          upload_time: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_type?: string | null
+          calories?: number | null
+          carbohydrate_percentage_of_calories?: number | null
+          club_id?: number | null
+          club_name?: string | null
+          created_at?: string
+          detailed_sport_info?: string | null
+          device?: string | null
+          device_id?: string | null
+          distance?: number | null
+          duration?: string | null
+          fat_percentage_of_calories?: number | null
+          has_route?: boolean | null
+          id?: string
+          polar_user?: string | null
+          polar_user_id?: number | null
+          protein_percentage_of_calories?: number | null
+          sport?: string | null
+          start_time?: string | null
+          start_time_utc_offset?: number | null
+          synced_at?: string
+          training_load?: number | null
+          transaction_id?: number | null
+          updated_at?: string
+          upload_time?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string | null
+          calories?: number | null
+          carbohydrate_percentage_of_calories?: number | null
+          club_id?: number | null
+          club_name?: string | null
+          created_at?: string
+          detailed_sport_info?: string | null
+          device?: string | null
+          device_id?: string | null
+          distance?: number | null
+          duration?: string | null
+          fat_percentage_of_calories?: number | null
+          has_route?: boolean | null
+          id?: string
+          polar_user?: string | null
+          polar_user_id?: number | null
+          protein_percentage_of_calories?: number | null
+          sport?: string | null
+          start_time?: string | null
+          start_time_utc_offset?: number | null
+          synced_at?: string
+          training_load?: number | null
+          transaction_id?: number | null
+          updated_at?: string
+          upload_time?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      polar_sync_control: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_sync_at: string
+          status: string | null
+          sync_type: string
+          triggered_by: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_sync_at?: string
+          status?: string | null
+          sync_type: string
+          triggered_by: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_sync_at?: string
+          status?: string | null
+          sync_type?: string
+          triggered_by?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      polar_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string | null
+          expires_in: number | null
+          id: string
+          is_active: boolean | null
+          polar_user_id: string | null
+          token_type: string | null
+          updated_at: string
+          user_id: string
+          x_user_id: number | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at?: string | null
+          expires_in?: number | null
+          id?: string
+          is_active?: boolean | null
+          polar_user_id?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id: string
+          x_user_id?: number | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string | null
+          expires_in?: number | null
+          id?: string
+          is_active?: boolean | null
+          polar_user_id?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id?: string
+          x_user_id?: number | null
         }
         Relationships: []
       }
