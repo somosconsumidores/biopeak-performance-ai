@@ -47,6 +47,7 @@ export const useStravaAuth = () => {
       
       // Store state in localStorage for validation on return
       localStorage.setItem('strava_oauth_state', state);
+      console.log('[StravaAuth] Generated and stored state:', state);
       
       // 3. Redirect to Strava authorization
       window.location.href = authUrl.toString();
@@ -65,9 +66,16 @@ export const useStravaAuth = () => {
 
   const handleCallback = async (code: string, state: string): Promise<boolean> => {
     try {
+      console.log('[StravaAuth] Callback received - state:', state);
+      
       // Validate state parameter
       const storedState = localStorage.getItem('strava_oauth_state');
+      console.log('[StravaAuth] Stored state:', storedState);
+      console.log('[StravaAuth] Received state:', state);
+      console.log('[StravaAuth] States match:', state === storedState);
+      
       if (state !== storedState) {
+        console.error('[StravaAuth] State validation failed!');
         toast({
           title: "Erro de segurança",
           description: "Estado OAuth inválido",
