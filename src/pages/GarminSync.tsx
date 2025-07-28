@@ -1,5 +1,5 @@
 import { Header } from '@/components/Header';
-import garminLogo from '@/assets/garmin-logo.png';
+import garminLogo from '@/assets/garmin-logo-new.jpg';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
