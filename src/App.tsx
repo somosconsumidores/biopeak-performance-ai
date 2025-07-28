@@ -67,7 +67,7 @@ function AppRoutes() {
             <PolarCallback />
           </ProtectedRoute>
         } />
-        <Route path="/strava" element={
+        <Route path="/strava-callback" element={
           <ProtectedRoute>
             <StravaCallback />
           </ProtectedRoute>
