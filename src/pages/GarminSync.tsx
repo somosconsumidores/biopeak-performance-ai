@@ -1,4 +1,5 @@
 import { Header } from '@/components/Header';
+import garminLogo from '@/assets/garmin-logo.png';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
@@ -116,37 +117,48 @@ export function GarminSync() {
           <ScrollReveal delay={100}>
             <Card className="glass-card mb-8">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-3">
-                      <Watch className="h-6 w-6 text-primary" />
-                      Status da Conexão
-                    </CardTitle>
-                    <CardDescription>
-                      Conecte sua conta Garmin Connect para sincronização automática
-                    </CardDescription>
+                <div className="flex flex-col space-y-4">
+                  {/* Garmin Logo */}
+                  <div className="flex justify-center">
+                    <img 
+                      src={garminLogo} 
+                      alt="Garmin" 
+                      className="h-12 w-auto opacity-90"
+                    />
                   </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
-                      {garminSyncStats.syncStatus === 'connected' && (
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-3">
+                        <Watch className="h-6 w-6 text-primary" />
+                        Status da Conexão
+                      </CardTitle>
+                      <CardDescription>
+                        Conecte sua conta Garmin Connect para sincronização automática
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
+                        {garminSyncStats.syncStatus === 'connected' && (
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                        )}
+                        {garminSyncStats.syncStatus === 'disconnected' && (
+                          <AlertCircle className="h-4 w-4 mr-2" />
+                        )}
+                        {getStatusText(garminSyncStats.syncStatus)}
+                      </Badge>
+                      
+                      {garminConnected && (
+                        <Button 
+                          onClick={disconnectGarmin}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
+                        >
+                          Desconectar
+                        </Button>
                       )}
-                      {garminSyncStats.syncStatus === 'disconnected' && (
-                        <AlertCircle className="h-4 w-4 mr-2" />
-                      )}
-                      {getStatusText(garminSyncStats.syncStatus)}
-                    </Badge>
-                    
-                    {garminConnected && (
-                      <Button 
-                        onClick={disconnectGarmin}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
-                      >
-                        Desconectar
-                      </Button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
