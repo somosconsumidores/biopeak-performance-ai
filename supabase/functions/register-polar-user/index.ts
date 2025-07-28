@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     // Configure webhook for this user
-    const webhookUrl = `${Deno.env.get('SUPABASE_URL')?.replace('/supabase.co', '/supabase.co')}/functions/v1/polar-activities-webhook`;
+    const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/polar-activities-webhook`;
     
     const webhookResponse = await fetch('https://www.polaraccesslink.com/v3/notifications', {
       method: 'POST',
