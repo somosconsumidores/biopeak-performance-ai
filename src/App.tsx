@@ -17,6 +17,7 @@ import { Auth } from "./pages/Auth";
 import { ResetPassword } from "./pages/ResetPassword";
 import { GarminSync } from "./pages/GarminSync";
 import { GarminCallback } from "./pages/GarminCallback";
+import PolarCallback from "./pages/PolarCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 
@@ -58,6 +59,11 @@ function AppRoutes() {
         <Route path="/garmin-callback" element={
           <ProtectedRoute>
             <GarminCallback />
+          </ProtectedRoute>
+        } />
+        <Route path="/polar-callback" element={
+          <ProtectedRoute>
+            <PolarCallback />
           </ProtectedRoute>
         } />
         <Route path="/dashboard" element={

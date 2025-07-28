@@ -7,7 +7,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
+import { usePolarAuth } from '@/hooks/usePolarAuth';
+import { usePolarStats } from '@/hooks/usePolarStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
+import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
 import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
 import { 
@@ -25,8 +28,21 @@ import {
 } from 'lucide-react';
 
 export function GarminSync() {
-  const { isConnected, isConnecting, startOAuthFlow, disconnect } = useGarminAuth();
-  const { activitiesCount, lastSyncAt, deviceName, loading: statsLoading } = useGarminStats();
+  const { 
+    isConnected: garminConnected, 
+    isConnecting: garminConnecting, 
+    startOAuthFlow: startGarminFlow, 
+    disconnect: disconnectGarmin 
+  } = useGarminAuth();
+  const { activitiesCount: garminActivities, lastSyncAt: garminLastSync, deviceName: garminDevice, loading: garminLoading } = useGarminStats();
+  
+  const { 
+    isConnected: polarConnected, 
+    isConnecting: polarConnecting, 
+    startOAuthFlow: startPolarFlow, 
+    disconnect: disconnectPolar 
+  } = usePolarAuth();
+  const { stats: polarStats, isLoading: polarLoading } = usePolarStats();
 
   const formatLastSync = (syncAt: string | null) => {
     if (!syncAt) return 'Nunca sincronizado';
@@ -47,15 +63,26 @@ export function GarminSync() {
     });
   };
 
-  const syncStats = {
-    lastSync: statsLoading ? 'Carregando...' : formatLastSync(lastSyncAt),
-    activitiesCount: statsLoading ? 0 : activitiesCount,
-    syncStatus: isConnected ? ('connected' as const) : ('disconnected' as const)
+  const garminSyncStats = {
+    lastSync: garminLoading ? 'Carregando...' : formatLastSync(garminLastSync),
+    activitiesCount: garminLoading ? 0 : garminActivities,
+    syncStatus: garminConnected ? ('connected' as const) : ('disconnected' as const)
+  };
+
+  const polarSyncStats = {
+    lastSync: polarLoading ? 'Carregando...' : formatLastSync(polarStats.lastSyncAt),
+    activitiesCount: polarLoading ? 0 : polarStats.activitiesCount,
+    syncStatus: polarConnected ? ('connected' as const) : ('disconnected' as const)
   };
 
   const handleConnectGarmin = () => {
     console.log('[GarminSync] Connect button clicked');
-    startOAuthFlow();
+    startGarminFlow();
+  };
+
+  const handleConnectPolar = () => {
+    console.log('[PolarSync] Connect button clicked');
+    startPolarFlow();
   };
 
   const getStatusColor = (status: string) => {
@@ -74,9 +101,16 @@ export function GarminSync() {
     }
   };
 
-  const syncMetrics = [
-    { label: 'Atividades Totais', value: syncStats.activitiesCount, icon: Activity },
-    { label: 'Última Sincronização', value: syncStats.lastSync, icon: Timer },
+  const garminMetrics = [
+    { label: 'Atividades Totais', value: garminSyncStats.activitiesCount, icon: Activity },
+    { label: 'Última Sincronização', value: garminSyncStats.lastSync, icon: Timer },
+    { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
+    { label: 'GPS', value: 'Ativo', icon: MapPin },
+  ];
+
+  const polarMetrics = [
+    { label: 'Atividades Totais', value: polarSyncStats.activitiesCount, icon: Activity },
+    { label: 'Última Sincronização', value: polarSyncStats.lastSync, icon: Timer },
     { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
@@ -94,11 +128,11 @@ export function GarminSync() {
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-4">
                 <span className="bg-gradient-primary bg-clip-text text-transparent">
-                  Conectar Garmin
+                  Sincronização de Dispositivos
                 </span>
               </h1>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Conecte seu dispositivo Garmin para análise automática de performance
+                Conecte seus dispositivos de fitness para análise automática de performance
               </p>
             </div>
           </ScrollReveal>
@@ -118,19 +152,19 @@ export function GarminSync() {
                     </CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <Badge className={getStatusColor(syncStats.syncStatus)}>
-                      {syncStats.syncStatus === 'connected' && (
+                    <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
+                      {garminSyncStats.syncStatus === 'connected' && (
                         <CheckCircle className="h-4 w-4 mr-2" />
                       )}
-                      {syncStats.syncStatus === 'disconnected' && (
+                      {garminSyncStats.syncStatus === 'disconnected' && (
                         <AlertCircle className="h-4 w-4 mr-2" />
                       )}
-                      {getStatusText(syncStats.syncStatus)}
+                      {getStatusText(garminSyncStats.syncStatus)}
                     </Badge>
                     
-                    {isConnected && (
+                    {garminConnected && (
                       <Button 
-                        onClick={disconnect}
+                        onClick={disconnectGarmin}
                         variant="outline"
                         size="sm"
                         className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
@@ -144,7 +178,7 @@ export function GarminSync() {
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    {syncStats.syncStatus === 'disconnected' ? (
+                    {garminSyncStats.syncStatus === 'disconnected' ? (
                       <>
                         <Alert className="border-blue-500/50 bg-blue-500/10">
                           <AlertCircle className="h-4 w-4" />
@@ -155,11 +189,11 @@ export function GarminSync() {
                         
                         <Button 
                           onClick={handleConnectGarmin}
-                          disabled={isConnecting}
+                          disabled={garminConnecting}
                           className="w-full"
                           size="lg"
                         >
-                          {isConnecting ? (
+                          {garminConnecting ? (
                             <>
                               <Zap className="h-4 w-4 mr-2 animate-pulse" />
                               Conectando...
@@ -187,7 +221,7 @@ export function GarminSync() {
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {syncMetrics.map((metric, index) => (
+                    {garminMetrics.map((metric, index) => (
                       <div key={index} className="metric-card">
                         <div className="flex items-center gap-2 mb-2">
                           <metric.icon className="h-4 w-4 text-primary" />
@@ -202,36 +236,143 @@ export function GarminSync() {
             </Card>
           </ScrollReveal>
 
-          {/* Token Refresh Test Button - Only show when connected */}
-          {isConnected && (
-            <ScrollReveal delay={150}>
+          {/* Polar Connection Card */}
+          <ScrollReveal delay={150}>
+            <Card className="glass-card mb-8">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-3">
+                      <Watch className="h-6 w-6 text-accent" />
+                      Conexão Polar
+                    </CardTitle>
+                    <CardDescription>
+                      Conecte sua conta Polar Flow para sincronização automática
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <Badge className={getStatusColor(polarSyncStats.syncStatus)}>
+                      {polarSyncStats.syncStatus === 'connected' && (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {polarSyncStats.syncStatus === 'disconnected' && (
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {getStatusText(polarSyncStats.syncStatus)}
+                    </Badge>
+                    
+                    {polarConnected && (
+                      <Button 
+                        onClick={disconnectPolar}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-400 border-red-500/30 hover:bg-red-500/10 w-full sm:w-auto"
+                      >
+                        Desconectar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    {polarSyncStats.syncStatus === 'disconnected' ? (
+                      <>
+                        <Alert className="border-blue-500/50 bg-blue-500/10">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-blue-400">
+                            Conecte sua conta Polar Flow para começar a receber insights automáticos de suas atividades
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <Button 
+                          onClick={handleConnectPolar}
+                          disabled={polarConnecting}
+                          className="w-full bg-accent hover:bg-accent/90"
+                          size="lg"
+                        >
+                          {polarConnecting ? (
+                            <>
+                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                              Conectando...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Conectar Polar Flow
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <Alert className="border-green-500/50 bg-green-500/10">
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription className="text-green-400">
+                            <strong>🎉 Conectado com Sucesso!</strong><br />
+                            Sua conta Polar Flow foi conectada e configurada para sincronização automática.
+                            Novas atividades serão sincronizadas automaticamente.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {polarMetrics.map((metric, index) => (
+                      <div key={index} className="metric-card">
+                        <div className="flex items-center gap-2 mb-2">
+                          <metric.icon className="h-4 w-4 text-accent" />
+                          <span className="text-xs sm:text-sm text-muted-foreground">{metric.label}</span>
+                        </div>
+                        <div className="font-semibold text-sm sm:text-base">{metric.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+
+          {/* Token Refresh Test Button - Only show when Garmin connected */}
+          {garminConnected && (
+            <ScrollReveal delay={200}>
               <div className="mb-8">
                 <TokenRefreshTestButton />
               </div>
             </ScrollReveal>
           )}
 
-          {/* Connection Status - Only show when connected */}
-          {isConnected && (
-            <ScrollReveal delay={200}>
+          {/* Connection Status - Show for connected devices */}
+          {garminConnected && (
+            <ScrollReveal delay={250}>
               <div className="mb-8">
                 <GarminConnectionStatus />
               </div>
             </ScrollReveal>
           )}
 
-          {/* Device Card */}
-          {deviceName && isConnected && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <ScrollReveal delay={300}>
+          {polarConnected && (
+            <ScrollReveal delay={300}>
+              <div className="mb-8">
+                <PolarConnectionStatus />
+              </div>
+            </ScrollReveal>
+          )}
+
+          {/* Device Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {garminDevice && garminConnected && (
+              <ScrollReveal delay={350}>
                 <Card className="glass-card">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Watch className="h-6 w-6 text-primary" />
                         <div>
-                          <CardTitle className="text-lg">{deviceName}</CardTitle>
-                          <CardDescription>Dispositivo Conectado</CardDescription>
+                          <CardTitle className="text-lg">{garminDevice}</CardTitle>
+                          <CardDescription>Dispositivo Garmin</CardDescription>
                         </div>
                       </div>
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
@@ -244,17 +385,47 @@ export function GarminSync() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Última atividade:</span>
-                        <span>{syncStats.lastSync}</span>
+                        <span>{garminSyncStats.lastSync}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </ScrollReveal>
-            </div>
-          )}
+            )}
+
+            {polarStats.deviceName && polarConnected && (
+              <ScrollReveal delay={400}>
+                <Card className="glass-card">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Watch className="h-6 w-6 text-accent" />
+                        <div>
+                          <CardTitle className="text-lg">{polarStats.deviceName}</CardTitle>
+                          <CardDescription>Dispositivo Polar</CardDescription>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Ativo
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Última atividade:</span>
+                        <span>{polarSyncStats.lastSync}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
+            )}
+          </div>
 
           {/* How it Works */}
-          <ScrollReveal delay={400}>
+          <ScrollReveal delay={450}>
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Como Funciona</CardTitle>
