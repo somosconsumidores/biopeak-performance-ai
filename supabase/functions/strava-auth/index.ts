@@ -17,8 +17,15 @@ interface StravaTokenResponse {
 }
 
 Deno.serve(async (req) => {
+  console.log('🔵 Strava Auth - Received request:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('🔵 Strava Auth - Handling CORS preflight')
     return new Response(null, { headers: corsHeaders })
   }
 
@@ -30,7 +37,10 @@ Deno.serve(async (req) => {
 
     // Authenticate user
     const authHeader = req.headers.get('Authorization')
+    console.log('🔵 Strava Auth - Auth header present:', !!authHeader)
+    
     if (!authHeader) {
+      console.log('❌ Strava Auth - No authorization header')
       return new Response(JSON.stringify({ error: 'Authorization header required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -38,20 +48,31 @@ Deno.serve(async (req) => {
     }
     
     const token = authHeader.replace('Bearer ', '')
+    console.log('🔵 Strava Auth - Getting user from token')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     
     if (authError || !user) {
+      console.log('❌ Strava Auth - Authentication failed:', { authError, hasUser: !!user })
       return new Response(JSON.stringify({ error: 'Authentication failed' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
     
+    console.log('✅ Strava Auth - User authenticated:', { userId: user.id, email: user.email })
+    
     // Parse request body
+    console.log('🔵 Strava Auth - Parsing request body')
     const requestBody = await req.json()
     const { code, redirect_uri } = requestBody
+    console.log('🔵 Strava Auth - Request data:', { 
+      hasCode: !!code, 
+      codeLength: code?.length, 
+      redirectUri: redirect_uri 
+    })
     
     if (!code || !redirect_uri) {
+      console.log('❌ Strava Auth - Missing required parameters:', { hasCode: !!code, hasRedirectUri: !!redirect_uri })
       return new Response(JSON.stringify({ error: 'Authorization code and redirect_uri required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -61,8 +82,13 @@ Deno.serve(async (req) => {
     // Exchange authorization code for access token
     const clientId = Deno.env.get('STRAVA_CLIENT_ID')
     const clientSecret = Deno.env.get('STRAVA_CLIENT_SECRET')
+    console.log('🔵 Strava Auth - Credentials check:', { 
+      hasClientId: !!clientId, 
+      hasClientSecret: !!clientSecret 
+    })
     
     if (!clientId || !clientSecret) {
+      console.log('❌ Strava Auth - Missing Strava credentials')
       return new Response(JSON.stringify({ 
         error: 'Strava credentials not configured'
       }), {
@@ -71,23 +97,37 @@ Deno.serve(async (req) => {
       })
     }
     
+    console.log('🔵 Strava Auth - Exchanging code for tokens')
+    const tokenPayload = {
+      client_id: clientId,
+      client_secret: clientSecret,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirect_uri
+    }
+    console.log('🔵 Strava Auth - Token request payload:', { 
+      ...tokenPayload, 
+      client_secret: '[REDACTED]' 
+    })
+
     const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code: code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirect_uri
-      }),
+      body: JSON.stringify(tokenPayload),
     })
 
+    console.log('🔵 Strava Auth - Token response status:', tokenResponse.status)
+    
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
+      console.log('❌ Strava Auth - Token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorText
+      })
       return new Response(JSON.stringify({ 
         error: 'Failed to exchange authorization code',
         details: errorText
@@ -98,23 +138,43 @@ Deno.serve(async (req) => {
     }
 
     const tokenData: StravaTokenResponse = await tokenResponse.json()
+    console.log('✅ Strava Auth - Tokens received:', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresAt: tokenData.expires_at,
+      athleteId: tokenData.athlete?.id
+    })
     
     // Store tokens in database using SERVICE_ROLE_KEY
+    console.log('🔵 Strava Auth - Storing tokens in database')
     const serviceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
     
+    const tokenRecord = {
+      user_id: user.id,
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
+    }
+    console.log('🔵 Strava Auth - Token record:', {
+      userId: tokenRecord.user_id,
+      hasAccessToken: !!tokenRecord.access_token,
+      hasRefreshToken: !!tokenRecord.refresh_token,
+      expiresAt: tokenRecord.expires_at
+    })
+    
     const { error: upsertError } = await serviceRoleClient
       .from('strava_tokens')
-      .upsert({
-        user_id: user.id,
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
-      })
+      .upsert(tokenRecord)
 
     if (upsertError) {
+      console.log('❌ Strava Auth - Failed to store tokens:', {
+        error: upsertError.message,
+        code: upsertError.code,
+        details: upsertError.details
+      })
       return new Response(JSON.stringify({ 
         error: 'Failed to store tokens', 
         details: upsertError.message
@@ -124,6 +184,7 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('✅ Strava Auth - Tokens stored successfully')
     return new Response(JSON.stringify({ 
       success: true,
       athlete: tokenData.athlete 
@@ -132,6 +193,11 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
+    console.log('❌ Strava Auth - Unexpected error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
     return new Response(JSON.stringify({ 
       error: 'Internal server error', 
       details: error.message
