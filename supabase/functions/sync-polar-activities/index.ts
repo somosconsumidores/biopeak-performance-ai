@@ -54,8 +54,40 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Fetch available activities from Polar
-    const activitiesResponse = await fetch('https://www.polaraccesslink.com/v3/exercises', {
+    // Create transaction to get available activities
+    const transactionResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!transactionResponse.ok) {
+      if (transactionResponse.status === 204) {
+        console.log('[sync-polar-activities] No activities to sync (204 response)');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            synced_activities: 0,
+            total_available: 0,
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+      throw new Error(`Failed to create transaction: ${transactionResponse.statusText}`);
+    }
+
+    const transactionData = await transactionResponse.json();
+    const transactionId = transactionData['transaction-id'];
+    console.log('[sync-polar-activities] Created transaction:', transactionId);
+
+    // Get activities from transaction
+    const activitiesResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions/${transactionId}`, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
@@ -136,21 +168,21 @@ serve(async (req) => {
           console.log('[sync-polar-activities] Synced activity:', activityData.id);
         }
 
-        // Delete activity from Polar (commit transaction)
-        const deleteResponse = await fetch(activityUrl, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${access_token}`,
-          },
-        });
-
-        if (!deleteResponse.ok) {
-          console.error('[sync-polar-activities] Failed to delete activity from Polar:', activityUrl);
-        }
-
       } catch (activityError) {
         console.error('[sync-polar-activities] Error processing activity:', activityError);
       }
+    }
+
+    // Commit transaction to confirm processing
+    const commitResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions/${transactionId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+      },
+    });
+
+    if (!commitResponse.ok) {
+      console.error('[sync-polar-activities] Failed to commit transaction:', commitResponse.statusText);
     }
 
     console.log('[sync-polar-activities] Sync completed. Synced', syncedCount, 'activities');

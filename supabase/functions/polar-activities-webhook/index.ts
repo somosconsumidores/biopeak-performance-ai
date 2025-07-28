@@ -8,9 +8,8 @@ const corsHeaders = {
 
 interface PolarWebhookPayload {
   event: string;
-  user_id: number;
+  userId: number;
   timestamp: string;
-  url?: string;
 }
 
 serve(async (req) => {
@@ -33,12 +32,12 @@ serve(async (req) => {
     const { data: tokenData, error: tokenError } = await supabase
       .from('polar_tokens')
       .select('user_id, access_token, x_user_id')
-      .eq('x_user_id', payload.user_id)
+      .eq('x_user_id', payload.userId)
       .eq('is_active', true)
       .single();
 
     if (tokenError || !tokenData) {
-      console.error('[polar-activities-webhook] No active token found for Polar user:', payload.user_id);
+      console.error('[polar-activities-webhook] No active token found for Polar user:', payload.userId);
       return new Response('User not found', { status: 404 });
     }
 
