@@ -12,9 +12,17 @@ export default function StravaCallback() {
   const { syncActivities } = useStravaSync();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
+    // Prevent multiple simultaneous executions
+    if (isProcessing) {
+      console.log('[StravaCallback] Already processing, skipping...');
+      return;
+    }
+
     const processCallback = async () => {
+      setIsProcessing(true);
       console.log('[StravaCallback] Starting callback processing...');
       
       const code = searchParams.get('code');
@@ -49,13 +57,16 @@ export default function StravaCallback() {
         console.log('[StravaCallback] Starting authentication with Strava...');
         setMessage('Autenticando com o Strava...');
         
+        // Add delay to prevent visual flicker
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const authSuccess = await handleCallback(code, state);
         console.log('[StravaCallback] Authentication result:', authSuccess);
         
         if (!authSuccess) {
           console.error('[StravaCallback] Authentication failed');
           setStatus('error');
-          setMessage('Falha na autenticação');
+          setMessage('Falha na autenticação com o Strava');
           setTimeout(() => navigate('/sync'), 3000);
           return;
         }
@@ -83,11 +94,13 @@ export default function StravaCallback() {
         setStatus('error');
         setMessage('Erro inesperado durante o processamento');
         setTimeout(() => navigate('/sync'), 3000);
+      } finally {
+        setIsProcessing(false);
       }
     };
 
     processCallback();
-  }, [searchParams, handleCallback, syncActivities, navigate]);
+  }, [searchParams, handleCallback, syncActivities, navigate, isProcessing]);
 
   const getIcon = () => {
     switch (status) {

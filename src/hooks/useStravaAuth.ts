@@ -153,9 +153,29 @@ export const useStravaAuth = () => {
       console.log('🚀 [StravaAuth] Callback received:', {
         hasCode: !!code,
         codeLength: code?.length,
-        state: state,
+        state: state?.substring(0, 20) + '...',
         url: window.location.href
       });
+
+      // Prevent code reuse by checking if we've already processed this exact code
+      const processedCodeKey = `strava_processed_code_${code}`;
+      if (localStorage.getItem(processedCodeKey)) {
+        console.warn('⚠️ [StravaAuth] Code already processed, skipping...');
+        toast({
+          title: "Código já processado",
+          description: "Esta autorização já foi processada",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Mark code as being processed
+      localStorage.setItem(processedCodeKey, Date.now().toString());
+      
+      // Set expiry for the processed code (1 hour)
+      setTimeout(() => {
+        localStorage.removeItem(processedCodeKey);
+      }, 60 * 60 * 1000);
       
       if (!user?.id) {
         console.error('❌ [StravaAuth] User not authenticated in callback');
@@ -353,9 +373,21 @@ export const useStravaAuth = () => {
       
       if (authError || !authData?.success) {
         console.error('❌ [StravaAuth] Token exchange error:', authError);
+        
+        // Clean up processed code flag on error
+        localStorage.removeItem(processedCodeKey);
+        
+        // Check for specific error types
+        let errorMessage = "Não foi possível autenticar com o Strava";
+        if (authError?.message?.includes('invalid')) {
+          errorMessage = "Código de autorização inválido ou expirado";
+        } else if (authError?.message?.includes('expired')) {
+          errorMessage = "Autorização expirada. Tente novamente.";
+        }
+        
         toast({
           title: "Falha na autenticação",
-          description: authError?.message || "Não foi possível autenticar com o Strava",
+          description: errorMessage,
           variant: "destructive",
         });
         return false;
