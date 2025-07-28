@@ -9,8 +9,10 @@ const testPolarWebhook = async () => {
   // Payload simulado baseado na documentação da Polar
   const testPayload = {
     event: 'EXERCISE',
-    userId: 17394, // Usando um dos IDs dos tokens no banco
-    timestamp: new Date().toISOString()
+    user_id: 17394, // Usando formato correto: user_id
+    entity_id: 'aQlC83',
+    timestamp: new Date().toISOString(),
+    url: 'https://www.polaraccesslink.com/v3/exercises/aQlC83'
   };
   
   console.log('📡 Enviando payload simulado:');
@@ -61,7 +63,7 @@ const testWithDifferentUser = async () => {
   
   const testPayload2 = {
     event: 'EXERCISE',
-    userId: 999999, // ID que certamente não existe
+    user_id: 999999, // ID que certamente não existe - formato correto
     timestamp: new Date().toISOString()
   };
   
@@ -86,8 +88,45 @@ const testWithDifferentUser = async () => {
   }
 };
 
+// Teste PING
+const testPingEvent = async () => {
+  console.log('\n🏓 TESTANDO EVENTO PING...');
+  
+  const pingPayload = {
+    event: 'PING',
+    timestamp: new Date().toISOString()
+  };
+  
+  try {
+    const response = await fetch('https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/polar-activities-webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Polar-Webhook-Event': 'PING',
+        'User-Agent': 'Polar-Webhook-Test/1.0'
+      },
+      body: JSON.stringify(pingPayload)
+    });
+    
+    console.log('Status para PING:', response.status);
+    const responseText = await response.text();
+    console.log('Resposta:', responseText);
+    
+    if (response.ok) {
+      console.log('✅ PING respondido corretamente');
+    } else {
+      console.log('❌ PING falhou');
+    }
+    
+  } catch (error) {
+    console.error('Erro no PING:', error.message);
+  }
+};
+
 // Executar os testes
 const runAllTests = async () => {
+  await testPingEvent();
+  await new Promise(resolve => setTimeout(resolve, 1000));
   await testPolarWebhook();
   await new Promise(resolve => setTimeout(resolve, 2000)); // Pausa entre testes
   await testWithDifferentUser();

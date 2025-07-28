@@ -3,13 +3,39 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, polar-webhook-event, polar-webhook-signature',
 }
 
 interface PolarWebhookPayload {
   event: string;
-  userId: number;
+  user_id: number;
+  entity_id?: string;
   timestamp: string;
+  url?: string;
+}
+
+// Function to verify HMAC SHA-256 signature
+async function verifySignature(payload: string, signature: string, secretKey: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secretKey),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const calculatedSignature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+    const calculatedHex = Array.from(new Uint8Array(calculatedSignature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    return calculatedHex === signature;
+  } catch (error) {
+    console.error('[polar-activities-webhook] Error verifying signature:', error);
+    return false;
+  }
 }
 
 serve(async (req) => {
@@ -19,22 +45,53 @@ serve(async (req) => {
 
   try {
     console.log('[polar-activities-webhook] Received webhook:', req.method);
+    
+    // Get headers for verification
+    const polarEvent = req.headers.get('polar-webhook-event');
+    const polarSignature = req.headers.get('polar-webhook-signature');
+    
+    console.log('[polar-activities-webhook] Event type:', polarEvent);
+    console.log('[polar-activities-webhook] Signature present:', !!polarSignature);
 
-    const payload: PolarWebhookPayload = await req.json();
+    const payloadText = await req.text();
+    const payload: PolarWebhookPayload = JSON.parse(payloadText);
     console.log('[polar-activities-webhook] Payload:', JSON.stringify(payload, null, 2));
+    
+    // Handle PING events immediately
+    if (payload.event === 'PING') {
+      console.log('[polar-activities-webhook] Received PING event, responding OK');
+      return new Response('OK', { 
+        status: 200,
+        headers: corsHeaders 
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Find user by polar user ID
+    // Find user by polar user ID and get signature key for verification
     const { data: tokenData, error: tokenError } = await supabase
       .from('polar_tokens')
-      .select('user_id, access_token, x_user_id')
-      .eq('x_user_id', payload.userId)
+      .select('user_id, access_token, x_user_id, signature_secret_key')
+      .eq('x_user_id', payload.user_id)
       .eq('is_active', true)
       .single();
+    
+    // Verify signature if both signature and secret key are available
+    let signatureValid = true;
+    if (polarSignature && tokenData?.signature_secret_key) {
+      signatureValid = await verifySignature(payloadText, polarSignature, tokenData.signature_secret_key);
+      console.log('[polar-activities-webhook] Signature verification:', signatureValid ? 'VALID' : 'INVALID');
+      
+      if (!signatureValid) {
+        console.error('[polar-activities-webhook] Invalid signature, rejecting webhook');
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+      }
+    } else if (polarSignature) {
+      console.warn('[polar-activities-webhook] Signature provided but no secret key found for user');
+    }
 
     let logId: string | null = null;
 
@@ -44,8 +101,8 @@ serve(async (req) => {
         .from('polar_webhook_logs')
         .insert({
           user_id: tokenData?.user_id || null,
-          polar_user_id: payload.userId,
-          webhook_type: 'activities',
+          polar_user_id: payload.user_id,
+          webhook_type: payload.event?.toLowerCase() || 'activities',
           payload: payload,
           status: 'received',
         })
@@ -61,7 +118,7 @@ serve(async (req) => {
     }
 
     if (tokenError || !tokenData) {
-      console.error('[polar-activities-webhook] No active token found for Polar user:', payload.userId);
+      console.error('[polar-activities-webhook] No active token found for Polar user:', payload.user_id);
       
       // Update log status to failed
       if (logId) {

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, action = 'register' } = await req.json();
+    const { accessToken, action = 'register', userId } = await req.json();
 
     if (!accessToken) {
       return new Response(
@@ -23,6 +24,11 @@ serve(async (req) => {
         }
       );
     }
+    
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
 
     const webhookUrl = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/polar-activities-webhook';
 
@@ -71,13 +77,44 @@ serve(async (req) => {
     console.log('[register-polar-webhook] Resultado do registro:', registerResponse.status, registerResult);
 
     if (registerResponse.ok) {
+      let resultData;
+      try {
+        resultData = JSON.parse(registerResult);
+      } catch {
+        resultData = { data: registerResult };
+      }
+
+      // If we have a signature_secret_key in the response and userId, store it in polar_tokens
+      if (resultData.data?.signature_secret_key && userId) {
+        console.log('[register-polar-webhook] Storing signature secret key for user:', userId);
+        
+        try {
+          const { error: updateError } = await supabase
+            .from('polar_tokens')
+            .update({ 
+              signature_secret_key: resultData.data.signature_secret_key 
+            })
+            .eq('user_id', userId)
+            .eq('is_active', true);
+
+          if (updateError) {
+            console.error('[register-polar-webhook] Error storing signature key:', updateError);
+          } else {
+            console.log('[register-polar-webhook] Signature key stored successfully');
+          }
+        } catch (storeError) {
+          console.error('[register-polar-webhook] Exception storing signature key:', storeError);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           message: 'Webhook registrado com sucesso!',
           webhookUrl,
           status: registerResponse.status,
-          data: registerResult
+          data: resultData,
+          signature_key_stored: !!(resultData.data?.signature_secret_key && userId)
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

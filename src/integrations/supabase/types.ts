@@ -794,6 +794,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           polar_user_id: string | null
+          signature_secret_key: string | null
           token_type: string | null
           updated_at: string
           user_id: string
@@ -807,6 +808,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           polar_user_id?: string | null
+          signature_secret_key?: string | null
           token_type?: string | null
           updated_at?: string
           user_id: string
@@ -820,6 +822,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           polar_user_id?: string | null
+          signature_secret_key?: string | null
           token_type?: string | null
           updated_at?: string
           user_id?: string
