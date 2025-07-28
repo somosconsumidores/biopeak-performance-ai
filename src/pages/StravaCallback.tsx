@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
-import { useStravaSync } from '@/hooks/useStravaSync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -9,7 +8,6 @@ export default function StravaCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { handleCallback } = useStravaAuth();
-  const { syncActivities } = useStravaSync();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -57,8 +55,8 @@ export default function StravaCallback() {
         console.log('[StravaCallback] Starting authentication with Strava...');
         setMessage('Autenticando com o Strava...');
         
-        // Add delay to prevent visual flicker
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Small delay to prevent visual flicker
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         const authSuccess = await handleCallback(code, state);
         console.log('[StravaCallback] Authentication result:', authSuccess);
@@ -71,23 +69,12 @@ export default function StravaCallback() {
           return;
         }
 
-        console.log('[StravaCallback] Authentication successful, starting sync...');
-        setMessage('Autenticação concluída! Iniciando sincronização...');
+        console.log('[StravaCallback] Authentication successful!');
+        setStatus('success');
+        setMessage('Strava conectado com sucesso!');
         
-        // Start automatic sync after successful authentication
-        const syncSuccess = await syncActivities();
-        console.log('[StravaCallback] Sync result:', syncSuccess);
-        
-        if (syncSuccess) {
-          setStatus('success');
-          setMessage('Strava conectado e sincronizado com sucesso!');
-        } else {
-          setStatus('success');
-          setMessage('Strava conectado! A sincronização pode ser feita manualmente.');
-        }
-        
-        console.log('[StravaCallback] Process completed successfully, redirecting...');
-        setTimeout(() => navigate('/sync'), 2000);
+        console.log('[StravaCallback] Redirecting to sync page...');
+        setTimeout(() => navigate('/sync'), 1500);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
@@ -100,7 +87,7 @@ export default function StravaCallback() {
     };
 
     processCallback();
-  }, [searchParams, handleCallback, syncActivities, navigate, isProcessing]);
+  }, [searchParams, handleCallback, navigate, isProcessing]);
 
   const getIcon = () => {
     switch (status) {
