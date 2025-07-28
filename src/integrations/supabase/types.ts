@@ -827,6 +827,45 @@ export type Database = {
         }
         Relationships: []
       }
+      polar_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json
+          polar_user_id: number | null
+          processed_at: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+          webhook_type: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload: Json
+          polar_user_id?: number | null
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          webhook_type?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          webhook_type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

@@ -36,12 +36,60 @@ serve(async (req) => {
       .eq('is_active', true)
       .single();
 
+    let logId: string | null = null;
+
+    // Log the webhook reception (even if user not found)
+    try {
+      const { data: logData, error: logError } = await supabase
+        .from('polar_webhook_logs')
+        .insert({
+          user_id: tokenData?.user_id || null,
+          polar_user_id: payload.userId,
+          webhook_type: 'activities',
+          payload: payload,
+          status: 'received',
+        })
+        .select('id')
+        .single();
+
+      if (!logError && logData) {
+        logId = logData.id;
+        console.log('[polar-activities-webhook] Logged webhook with ID:', logId);
+      }
+    } catch (logError) {
+      console.error('[polar-activities-webhook] Failed to log webhook:', logError);
+    }
+
     if (tokenError || !tokenData) {
       console.error('[polar-activities-webhook] No active token found for Polar user:', payload.userId);
+      
+      // Update log status to failed
+      if (logId) {
+        await supabase
+          .from('polar_webhook_logs')
+          .update({
+            status: 'failed',
+            error_message: 'No active token found for Polar user',
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', logId);
+      }
+      
       return new Response('User not found', { status: 404 });
     }
 
     console.log('[polar-activities-webhook] Found user:', tokenData.user_id);
+
+    // Update log status to processing
+    if (logId) {
+      await supabase
+        .from('polar_webhook_logs')
+        .update({
+          status: 'processing',
+          processed_at: new Date().toISOString(),
+        })
+        .eq('id', logId);
+    }
 
     // Log the sync attempt
     const { data: syncData, error: syncError } = await supabase
@@ -91,6 +139,17 @@ serve(async (req) => {
           .eq('id', syncData.id);
       }
 
+      // Update webhook log status to success
+      if (logId) {
+        await supabase
+          .from('polar_webhook_logs')
+          .update({
+            status: 'success',
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', logId);
+      }
+
     } catch (syncError) {
       console.error('[polar-activities-webhook] Sync error:', syncError);
       
@@ -102,6 +161,18 @@ serve(async (req) => {
             status: 'failed',
           })
           .eq('id', syncData.id);
+      }
+
+      // Update webhook log status to failed
+      if (logId) {
+        await supabase
+          .from('polar_webhook_logs')
+          .update({
+            status: 'failed',
+            error_message: syncError.message,
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', logId);
       }
     }
 
