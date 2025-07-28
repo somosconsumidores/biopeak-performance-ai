@@ -11,6 +11,9 @@ import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaStats } from '@/hooks/useStravaStats';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
@@ -29,6 +32,8 @@ import {
 } from 'lucide-react';
 
 export function GarminSync() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { 
     isConnected: garminConnected, 
     isConnecting: garminConnecting, 
@@ -44,7 +49,43 @@ export function GarminSync() {
   const stravaConnected = stravaStats?.isConnected || false;
   const stravaActivities = stravaStats?.totalActivities || 0;
   const stravaLastSync = stravaStats?.lastSyncAt || null;
-  const disconnectStrava = () => console.log('Strava disconnect'); // TODO: Implement disconnect
+  const disconnectStrava = async () => {
+    console.log('Strava disconnect');
+    try {
+      if (!user) return;
+      
+      // Remove tokens from database
+      const { error } = await supabase
+        .from('strava_tokens')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (error) {
+        console.error('Error disconnecting Strava:', error);
+        toast({
+          title: "Erro ao desconectar",
+          description: "Não foi possível desconectar do Strava",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Desconectado com sucesso!",
+        description: "Sua conta do Strava foi desconectada",
+      });
+      
+      // Force refresh of stats
+      window.location.reload();
+    } catch (error) {
+      console.error('Error disconnecting Strava:', error);
+      toast({
+        title: "Erro ao desconectar",
+        description: "Erro inesperado ao desconectar do Strava",
+        variant: "destructive",
+      });
+    }
+  };
   
 
   const formatLastSync = (syncAt: string | null) => {
