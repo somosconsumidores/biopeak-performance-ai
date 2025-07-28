@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-new.jpg';
 import stravaLogo from '@/assets/strava-logo.svg';
@@ -13,7 +11,6 @@ import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaStats } from '@/hooks/useStravaStats';
-import { useStravaSync } from '@/hooks/useStravaSync';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
@@ -32,7 +29,6 @@ import {
 } from 'lucide-react';
 
 export function GarminSync() {
-  const [searchParams] = useSearchParams();
   const { 
     isConnected: garminConnected, 
     isConnecting: garminConnecting, 
@@ -42,47 +38,13 @@ export function GarminSync() {
   const { activitiesCount: garminActivities, lastSyncAt: garminLastSync, deviceName: garminDevice, loading: garminLoading } = useGarminStats();
   
   // Strava integration
-  const { handleStravaConnect, handleCallback, isLoading: stravaConnecting } = useStravaAuth();
+  const { handleStravaConnect, isLoading: stravaConnecting } = useStravaAuth();
   const { data: stravaStats, isLoading: stravaLoading } = useStravaStats();
-  const { syncActivities } = useStravaSync();
   
   const stravaConnected = stravaStats?.isConnected || false;
   const stravaActivities = stravaStats?.totalActivities || 0;
   const stravaLastSync = stravaStats?.lastSyncAt || null;
   const disconnectStrava = () => console.log('Strava disconnect'); // TODO: Implement disconnect
-
-  // Handle Strava OAuth callback
-  useEffect(() => {
-    const processStravaCallback = async () => {
-      const code = searchParams.get('code');
-      const state = searchParams.get('state');
-      const error = searchParams.get('error');
-
-      // Only process if this is a Strava callback
-      if (code && state && !error) {
-        console.log('[GarminSync] Processing Strava callback...');
-        
-        try {
-          const success = await handleCallback(code, state);
-          if (success) {
-            console.log('[GarminSync] Strava auth successful, starting sync...');
-            await syncActivities();
-            
-            // Clean up URL parameters after successful processing
-            window.history.replaceState({}, document.title, '/sync');
-          }
-        } catch (error) {
-          console.error('[GarminSync] Strava callback error:', error);
-        }
-      } else if (error) {
-        console.error('[GarminSync] Strava OAuth error:', error);
-        // Clean up URL on error
-        window.history.replaceState({}, document.title, '/sync');
-      }
-    };
-
-    processStravaCallback();
-  }, [searchParams, handleCallback, syncActivities]);
   
 
   const formatLastSync = (syncAt: string | null) => {
