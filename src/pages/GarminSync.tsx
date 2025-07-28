@@ -9,7 +9,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
+import { useStravaAuth } from '@/hooks/useStravaAuth';
+import { useStravaStats } from '@/hooks/useStravaStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
+import { StravaConnectionStatus } from '@/components/StravaConnectionStatus';
 import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
 import { 
@@ -35,14 +38,14 @@ export function GarminSync() {
   } = useGarminAuth();
   const { activitiesCount: garminActivities, lastSyncAt: garminLastSync, deviceName: garminDevice, loading: garminLoading } = useGarminStats();
   
-  // Strava - temporary mock values until hooks are available
-  const stravaConnected = false;
-  const stravaConnecting = false;
-  const startStravaFlow = () => console.log('Strava connect coming soon');
-  const disconnectStrava = () => console.log('Strava disconnect');
-  const stravaActivities = 0;
-  const stravaLastSync = null;
-  const stravaLoading = false;
+  // Strava integration
+  const { handleStravaConnect, isLoading: stravaConnecting } = useStravaAuth();
+  const { data: stravaStats, isLoading: stravaLoading } = useStravaStats();
+  
+  const stravaConnected = stravaStats?.isConnected || false;
+  const stravaActivities = stravaStats?.totalActivities || 0;
+  const stravaLastSync = stravaStats?.lastSyncAt || null;
+  const disconnectStrava = () => console.log('Strava disconnect'); // TODO: Implement disconnect
   
 
   const formatLastSync = (syncAt: string | null) => {
@@ -84,7 +87,7 @@ export function GarminSync() {
 
   const handleConnectStrava = () => {
     console.log('[StravaSync] Connect button clicked');
-    startStravaFlow();
+    handleStravaConnect();
   };
 
 
@@ -374,13 +377,10 @@ export function GarminSync() {
               </ScrollReveal>
             )}
             
-            {stravaConnected && (
-              <ScrollReveal delay={275}>
-                <div className="text-center p-4 text-muted-foreground">
-                  Strava connection status coming soon
-                </div>
-              </ScrollReveal>
-            )}
+            {/* Always show Strava connection status */}
+            <ScrollReveal delay={275}>
+              <StravaConnectionStatus />
+            </ScrollReveal>
           </div>
 
 
