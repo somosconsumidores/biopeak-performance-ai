@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.verify-polar-webhook]
 verify_jwt = false
+
+[functions.test-polar-webhook-now]
+verify_jwt = false
