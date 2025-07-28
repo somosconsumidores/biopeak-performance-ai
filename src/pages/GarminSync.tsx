@@ -12,7 +12,6 @@ import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaStats } from '@/hooks/useStravaStats';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
-import { StravaConnectionStatus } from '@/components/StravaConnectionStatus';
 import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
 
 import { 
@@ -376,11 +375,6 @@ export function GarminSync() {
                 <GarminConnectionStatus />
               </ScrollReveal>
             )}
-            
-            {/* Always show Strava connection status */}
-            <ScrollReveal delay={275}>
-              <StravaConnectionStatus />
-            </ScrollReveal>
           </div>
 
 
