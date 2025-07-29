@@ -170,7 +170,7 @@ export const useGarminTokenManager = (user: User | null) => {
     }
   }, [user, loadTokens]);
 
-  // Periodic token check effect
+  // Periodic token check effect - TEMPORARILY DISABLED TO STOP LOOP
   useEffect(() => {
     if (user && tokens) {
       // Clear any existing interval
@@ -178,11 +178,11 @@ export const useGarminTokenManager = (user: User | null) => {
         clearInterval(intervalRef.current);
       }
 
-      // Set up periodic check every 2 minutes
-      intervalRef.current = setInterval(async () => {
-        await loadTokens();
-        checkTokenExpiration();
-      }, 2 * 60 * 1000);
+      // DISABLED: Set up periodic check every 2 minutes
+      // intervalRef.current = setInterval(async () => {
+      //   await loadTokens();
+      //   checkTokenExpiration();
+      // }, 2 * 60 * 1000);
 
       return () => {
         if (intervalRef.current) {
