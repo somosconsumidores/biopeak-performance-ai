@@ -125,6 +125,23 @@ serve(async (req) => {
         grant_type: grant_type
       });
 
+      // IMMEDIATE BLOCK: Check for the specific problematic refresh token
+      if (refresh_token === 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==') {
+        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected');
+        return new Response(
+          JSON.stringify({ 
+            error: 'invalid_refresh_token',
+            message: 'This refresh token is permanently invalid. Please re-authenticate.',
+            requires_reauth: true,
+            blocked_token: true
+          }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
       // Handle refresh token flow
       if (grant_type === 'refresh_token') {
         if (!refresh_token) {
