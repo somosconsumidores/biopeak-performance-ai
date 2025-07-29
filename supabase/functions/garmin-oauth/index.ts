@@ -127,13 +127,30 @@ serve(async (req) => {
 
       // IMMEDIATE BLOCK: Check for the specific problematic refresh token
       if (refresh_token === 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==') {
-        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected');
+        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected - STOPPING PROCESSING');
+        
+        // Mark ALL tokens for this user as inactive to prevent future attempts
+        await supabase
+          .from('garmin_tokens')
+          .update({ 
+            is_active: false, 
+            updated_at: new Date().toISOString() 
+          })
+          .eq('user_id', user.id);
+        
+        // Clear any orphaned webhooks for this user
+        await supabase
+          .from('garmin_orphaned_webhooks')
+          .delete()
+          .eq('user_id', user.id);
+        
         return new Response(
           JSON.stringify({ 
             error: 'invalid_refresh_token',
-            message: 'This refresh token is permanently invalid. Please re-authenticate.',
+            message: 'This refresh token is permanently invalid. All tokens deactivated. Please re-authenticate.',
             requires_reauth: true,
-            blocked_token: true
+            blocked_token: true,
+            action_taken: 'tokens_deactivated'
           }),
           { 
             status: 401, 
