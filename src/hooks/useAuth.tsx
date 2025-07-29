@@ -20,8 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // TEMPORARILY DISABLED: useGarminTokenManager causing infinite loop
-  // useGarminTokenManager(user);
+  // Initialize consolidated Garmin token management
+  useGarminTokenManager(user);
 
   useEffect(() => {
     // Set up auth state listener FIRST
