@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
-import { TokenRefreshTestButton } from '@/components/TokenRefreshTestButton';
+
 
 import { 
   Watch, 
@@ -400,14 +400,6 @@ export function GarminSync() {
           </div>
 
 
-          {/* Token Refresh Test Button - Only show when Garmin connected */}
-          {garminConnected && (
-            <ScrollReveal delay={200}>
-              <div className="mb-8">
-                <TokenRefreshTestButton />
-              </div>
-            </ScrollReveal>
-          )}
 
           {/* Connection Status - Show for connected devices */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
