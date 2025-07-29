@@ -191,9 +191,24 @@ serve(async (req) => {
         // Update tokens in database with proper refresh token handling
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
         const refreshTokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
+        
+        // Safe garminGuid extraction
+        let finalGarminGuid = garminGuid;
+        if (finalGarminGuid === 'unknown') {
+          try {
+            const decoded = atob(refresh_token);
+            const parsed = JSON.parse(decoded);
+            if (parsed.garminGuid) {
+              finalGarminGuid = parsed.garminGuid;
+            }
+          } catch (_) {
+            // fallback: assume it's raw, keep 'unknown'
+          }
+        }
+        
         const newTokenSecret = btoa(JSON.stringify({
           refreshTokenValue: tokenData.refresh_token || refreshTokenValue,
-          garminGuid: garminGuid
+          garminGuid: finalGarminGuid
         }));
 
         const { error: updateError } = await supabase
