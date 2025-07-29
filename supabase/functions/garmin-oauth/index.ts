@@ -91,6 +91,9 @@ serve(async (req) => {
       let user;
       let isServiceRole = false;
 
+      console.log('[garmin-oauth] Token received (first 20 chars):', token.substring(0, 20));
+      console.log('[garmin-oauth] Service key (first 20 chars):', supabaseKey?.substring(0, 20));
+
       // Check if it's a service role call (for force renewal)
       if (token === supabaseKey) {
         isServiceRole = true;
