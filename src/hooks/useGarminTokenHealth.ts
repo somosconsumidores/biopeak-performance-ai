@@ -162,15 +162,15 @@ export const useGarminTokenHealth = () => {
     }
   };
 
-  // Auto-check health on mount and periodically
-  useEffect(() => {
-    checkHealth();
-    
-    // Check every 5 minutes
-    const interval = setInterval(checkHealth, 5 * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, []);
+  // TEMPORARIAMENTE DESABILITADO - Este hook estava causando chamadas periódicas ao garmin-token-health-monitor
+  // useEffect(() => {
+  //   checkHealth();
+  //   
+  //   // Check every 5 minutes
+  //   const interval = setInterval(checkHealth, 5 * 60 * 1000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, []);
 
   return {
     healthData,
