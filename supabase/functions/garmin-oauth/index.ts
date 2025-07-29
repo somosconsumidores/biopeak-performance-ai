@@ -173,18 +173,20 @@ serve(async (req) => {
           last_attempt: new Date().toISOString()
         });
 
-      // IMMEDIATE BLOCK: Check for the specific problematic refresh token
-      if (refresh_token === 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==') {
-        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected - PERMANENT BLOCK');
+      // EMERGENCY BLOCK: Immediately reject any refresh token requests to stop infinite loops
+      if (refresh_token) {
+        console.error('[garmin-oauth] EMERGENCY BLOCK: All refresh token requests temporarily blocked to stop infinite loop');
         console.log('[garmin-oauth] Request blocked from:', {
           userAgent,
           referer,
           xForwardedFor,
           userId: user.id,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          refreshTokenLength: refresh_token?.length,
+          refreshTokenStart: refresh_token?.substring(0, 20)
         });
         
-        // Mark ALL tokens for this user as inactive to prevent future attempts
+        // Mark ALL tokens for this user as inactive
         await supabase
           .from('garmin_tokens')
           .update({ 
@@ -193,32 +195,22 @@ serve(async (req) => {
           })
           .eq('user_id', user.id);
         
-        // Clear any orphaned webhooks for this user
+        // Clear any orphaned webhooks
         await supabase
           .from('garmin_orphaned_webhooks')
           .delete()
           .eq('user_id', user.id);
 
-        // FASE 3: Add to permanent blacklist
-        await supabase
-          .from('garmin_blocked_tokens')
-          .upsert({
-            token_hash: 'fdbb553c-f18c-4e68-a641-16911a8580ef',
-            user_id: user.id,
-            blocked_at: new Date().toISOString(),
-            reason: 'permanent_invalid_token'
-          });
-        
         return new Response(
           JSON.stringify({ 
-            error: 'invalid_refresh_token',
-            message: 'This refresh token is permanently blacklisted. All tokens deactivated. Please re-authenticate.',
+            error: 'refresh_tokens_temporarily_blocked',
+            message: 'All refresh token operations are temporarily blocked due to system maintenance. Please reconnect your Garmin account.',
             requires_reauth: true,
             blocked_token: true,
-            action_taken: 'tokens_deactivated_and_blacklisted'
+            action_taken: 'emergency_block_active'
           }),
           { 
-            status: 401, 
+            status: 503, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
