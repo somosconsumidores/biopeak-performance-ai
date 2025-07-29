@@ -31,14 +31,20 @@ const corsHeaders = {
 
 serve(async (req) => {
   console.log('[garmin-oauth] ===== FUNCTION STARTED =====');
-  console.log('[garmin-oauth] Method:', req.method);
   console.log('[garmin-oauth] URL:', req.url);
+  console.log('[garmin-oauth] Method:', req.method);
   
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('[garmin-oauth] Handling OPTIONS request');
-    return new Response(null, { headers: corsHeaders });
-  }
+  // FASE 2: Log origin information for investigation
+  const userAgent = req.headers.get('user-agent') || 'unknown';
+  const referer = req.headers.get('referer') || 'unknown';
+  const xForwardedFor = req.headers.get('x-forwarded-for') || 'unknown';
+  
+  console.log('[garmin-oauth] Request Origin Info:', {
+    userAgent,
+    referer,
+    xForwardedFor,
+    timestamp: new Date().toISOString()
+  });
 
   return await handleError('garmin-oauth', async () => {
     console.log('[garmin-oauth] Entering try block...');
