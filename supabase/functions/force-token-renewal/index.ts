@@ -83,12 +83,16 @@ Deno.serve(async (req) => {
 
         console.log(`[force-token-renewal] Renewing token for user: ${token.user_id}`);
 
-        // Call garmin-oauth function to renew the token
+        // Call garmin-oauth function to renew the token with service role auth
         const { data: renewalResponse, error: renewalError } = await supabase.functions.invoke('garmin-oauth', {
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`
+          },
           body: {
             refresh_token: token.refresh_token,
             grant_type: 'refresh_token',
-            force_renewal: true
+            force_renewal: true,
+            user_id: token.user_id
           }
         });
 
