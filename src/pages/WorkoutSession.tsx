@@ -217,14 +217,22 @@ export const WorkoutSession = () => {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-4xl font-bold">
+              <div className="flex-1">
+                <h1 className="text-3xl sm:text-4xl font-bold">
                   Análise da <span className="bg-gradient-primary bg-clip-text text-transparent">Sessão</span>
                 </h1>
-                <p className="text-muted-foreground flex items-center space-x-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>{formatDate(currentActivity.start_time_in_seconds)}</span>
-                  <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
+                <p className="text-muted-foreground flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 mt-2">
+                  <span className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>{formatDate(currentActivity.start_time_in_seconds)}</span>
+                    <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
+                  </span>
+                  <span className="text-xs sm:text-sm text-muted-foreground/80 italic">
+                    {currentActivity.device_name 
+                      ? `Estes dados foram fornecidos pelo Garmin ${currentActivity.device_name}`
+                      : 'Estes dados foram fornecidos por um dispositivo Garmin'
+                    }
+                  </span>
                 </p>
               </div>
             </div>
