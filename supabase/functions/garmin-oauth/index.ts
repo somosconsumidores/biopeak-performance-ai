@@ -131,7 +131,7 @@ serve(async (req) => {
           throw new Error('Missing refresh_token for refresh flow');
         }
 
-        // Handle the refresh token - it should now come as the raw value from useGarminTokenManager
+        // Handle the refresh token - detect and fix double encoding
         let refreshTokenValue = refresh_token;
         let garminGuid = 'unknown';
         
@@ -139,22 +139,40 @@ serve(async (req) => {
         console.log('[garmin-oauth] Refresh token length:', refresh_token?.length || 0);
         console.log('[garmin-oauth] Refresh token starts with:', refresh_token?.substring(0, 10) || 'N/A');
         
-        // Try to decode as base64 first, regardless of content or length
+        // Try to decode and handle potential double encoding
         try {
           const decoded = atob(refresh_token);
           const parsed = JSON.parse(decoded);
+          
           if (parsed.refreshTokenValue) {
-            refreshTokenValue = parsed.refreshTokenValue;
-            garminGuid = parsed.garminGuid || 'unknown';
-            console.log('[garmin-oauth] refresh_token was base64-encoded object, using extracted value.');
+            // This is our expected format: {refreshTokenValue: "uuid", garminGuid: "guid"}
+            let finalRefreshToken = parsed.refreshTokenValue;
+            
+            // Check if refreshTokenValue is itself base64 encoded (double encoding case)
+            try {
+              const doubleDecoded = atob(finalRefreshToken);
+              const doubleParsed = JSON.parse(doubleDecoded);
+              if (doubleParsed.refreshTokenValue) {
+                console.log('[garmin-oauth] Detected double encoding, extracting from nested object');
+                finalRefreshToken = doubleParsed.refreshTokenValue;
+                garminGuid = doubleParsed.garminGuid || parsed.garminGuid || 'unknown';
+              }
+            } catch (_) {
+              // Not double encoded, use the first level
+              console.log('[garmin-oauth] Single encoding detected');
+            }
+            
+            refreshTokenValue = finalRefreshToken;
+            garminGuid = garminGuid === 'unknown' ? (parsed.garminGuid || 'unknown') : garminGuid;
+            console.log(`[garmin-oauth] Final refresh token value length: ${refreshTokenValue.length}`);
+            console.log(`[garmin-oauth] Extracted garminGuid: ${garminGuid}`);
           } else {
             console.log('[garmin-oauth] refresh_token decoded but no refreshTokenValue found. Using as-is.');
           }
-        } catch (_) {
+        } catch (error) {
           console.log('[garmin-oauth] refresh_token is not base64-encoded JSON. Using as-is.');
+          console.log(`[garmin-oauth] Decode error: ${error.message}`);
         }
-        
-        console.log('[garmin-oauth] Final refresh token value length:', refreshTokenValue?.length || 0);
 
         const cleanClientId = clientId.replace(/^\+/, "");
         const refreshRequestData: TokenRequest = {
