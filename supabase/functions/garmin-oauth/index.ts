@@ -46,6 +46,12 @@ serve(async (req) => {
     timestamp: new Date().toISOString()
   });
 
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('[garmin-oauth] Handling OPTIONS request');
+    return new Response(null, { headers: corsHeaders });
+  }
+
   return await handleError('garmin-oauth', async () => {
     console.log('[garmin-oauth] Entering try block...');
     

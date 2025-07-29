@@ -476,6 +476,36 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_health_reports: {
+        Row: {
+          created_at: string
+          id: string
+          report_data: Json
+          status: string
+          suspicious_users: number
+          total_calls: number
+          unique_users: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_data: Json
+          status: string
+          suspicious_users?: number
+          total_calls?: number
+          unique_users?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_data?: Json
+          status?: string
+          suspicious_users?: number
+          total_calls?: number
+          unique_users?: number
+        }
+        Relationships: []
+      }
       garmin_orphaned_webhooks: {
         Row: {
           created_at: string

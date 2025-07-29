@@ -115,6 +115,27 @@ export const useGarminTokenManager = (user: User | null) => {
       return false;
     }
 
+    // FASE 3: Circuit breaker - se muitas falhas consecutivas, pare por 1 hora
+    if (refreshState.consecutiveFailures >= 5) {
+      const hoursSinceLastAttempt = (now - refreshState.lastAttempt) / (1000 * 60 * 60);
+      if (hoursSinceLastAttempt < 1) {
+        console.log('[GarminTokenManager] Circuit breaker: too many failures, waiting 1 hour');
+        return false;
+      }
+    }
+
+    // FASE 3: Blacklist check - não tente refresh do token problemático
+    const problematicToken = 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==';
+    if (currentTokens.refresh_token === problematicToken) {
+      console.error('[GarminTokenManager] BLOCKED: Attempted to refresh blacklisted token');
+      toast({
+        title: "Garmin Connection Invalid",
+        description: "Please reconnect your Garmin account.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     // Rate limiting: Check minimum interval between attempts
     if (now - refreshState.lastAttempt < MIN_REFRESH_INTERVAL) {
       console.log('[GarminTokenManager] Rate limited: too soon since last attempt');
@@ -146,7 +167,11 @@ export const useGarminTokenManager = (user: User | null) => {
     setIsRefreshing(true);
     
     try {
-      console.log('[GarminTokenManager] Refreshing access token...');
+      console.log('[GarminTokenManager] Refreshing access token...', {
+        userId: user.id,
+        tokenLength: currentTokens.refresh_token?.length,
+        timestamp: new Date().toISOString()
+      });
       
       const { data, error } = await supabase.functions.invoke('garmin-oauth', {
         body: {
@@ -160,8 +185,14 @@ export const useGarminTokenManager = (user: User | null) => {
         
         // Check if it's an invalid refresh token error
         if (error.message?.includes('invalid_refresh_token') || 
-            error.message?.includes('requires_reauth')) {
+            error.message?.includes('requires_reauth') ||
+            error.message?.includes('blocked_token')) {
           console.log('[GarminTokenManager] Invalid refresh token detected, clearing tokens and forcing re-auth');
+          
+          // FASE 1: Limpar localStorage quando token é inválido
+          localStorage.removeItem('garmin_tokens');
+          localStorage.removeItem('garmin_pkce');
+          localStorage.removeItem('garmin_auth_state');
           
           // Clear tokens from state
           setTokens(null);
@@ -245,11 +276,19 @@ export const useGarminTokenManager = (user: User | null) => {
   // Initial load and periodic checks with reduced frequency
   useEffect(() => {
     if (user) {
+      // FASE 1: Limpeza completa do localStorage na inicialização
+      console.log('[GarminTokenManager] Cleaning localStorage on initialization');
+      localStorage.removeItem('garmin_tokens');
+      localStorage.removeItem('garmin_pkce');
+      localStorage.removeItem('garmin_auth_state');
+      
       loadTokens();
 
       // Check token expiration every 5 minutes instead of 1 minute
       // This significantly reduces the load on the system
       const interval = setInterval(async () => {
+        console.log('[GarminTokenManager] Periodic token check initiated');
+        
         // Only reload tokens if they're about to expire or we haven't checked recently
         const currentTokens = tokens;
         if (currentTokens) {
@@ -259,10 +298,12 @@ export const useGarminTokenManager = (user: User | null) => {
           
           // Only reload from database if token expires soon
           if (minutesUntilExpiry < 15) {
+            console.log('[GarminTokenManager] Token expiring soon, reloading from database');
             await loadTokens();
           }
         } else {
           // If no tokens, try loading once
+          console.log('[GarminTokenManager] No tokens found, attempting to load');
           await loadTokens();
         }
         
@@ -270,11 +311,19 @@ export const useGarminTokenManager = (user: User | null) => {
       }, 5 * 60 * 1000); // 5 minutes instead of 1 minute
 
       return () => {
+        console.log('[GarminTokenManager] Cleaning up interval');
         clearInterval(interval);
       };
     } else {
+      // Clear tokens and localStorage when user logs out
+      console.log('[GarminTokenManager] User logged out, clearing all data');
       setTokens(null);
       setIsConnected(false);
+      
+      // FASE 1: Limpeza completa do localStorage no logout
+      localStorage.removeItem('garmin_tokens');
+      localStorage.removeItem('garmin_pkce');
+      localStorage.removeItem('garmin_auth_state');
     }
   }, [user]);
 
