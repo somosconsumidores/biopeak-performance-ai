@@ -273,58 +273,26 @@ export const useGarminTokenManager = (user: User | null) => {
     }
   }, [tokens, refreshTokenSafely, toast]);
 
-  // Initial load and periodic checks with reduced frequency
+  // DISABLED: useEffect causing infinite calls to garmin-oauth
+  // This useEffect was causing continuous calls to garmin-oauth function
+  // and needs to be completely refactored before re-enabling
   useEffect(() => {
-    if (user) {
-      // FASE 1: Limpeza completa do localStorage na inicialização
-      console.log('[GarminTokenManager] Cleaning localStorage on initialization');
-      localStorage.removeItem('garmin_tokens');
-      localStorage.removeItem('garmin_pkce');
-      localStorage.removeItem('garmin_auth_state');
-      
-      loadTokens();
-
-      // Check token expiration every 5 minutes instead of 1 minute
-      // This significantly reduces the load on the system
-      const interval = setInterval(async () => {
-        console.log('[GarminTokenManager] Periodic token check initiated');
-        
-        // Only reload tokens if they're about to expire or we haven't checked recently
-        const currentTokens = tokens;
-        if (currentTokens) {
-          const now = new Date();
-          const expiresAt = new Date(currentTokens.expires_at);
-          const minutesUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60));
-          
-          // Only reload from database if token expires soon
-          if (minutesUntilExpiry < 15) {
-            console.log('[GarminTokenManager] Token expiring soon, reloading from database');
-            await loadTokens();
-          }
-        } else {
-          // If no tokens, try loading once
-          console.log('[GarminTokenManager] No tokens found, attempting to load');
-          await loadTokens();
-        }
-        
-        checkTokenExpiration();
-      }, 5 * 60 * 1000); // 5 minutes instead of 1 minute
-
-      return () => {
-        console.log('[GarminTokenManager] Cleaning up interval');
-        clearInterval(interval);
-      };
-    } else {
-      // Clear tokens and localStorage when user logs out
-      console.log('[GarminTokenManager] User logged out, clearing all data');
+    console.log('[GarminTokenManager] Hook initialized with user:', user ? user.id : 'null');
+    console.log('[GarminTokenManager] useEffect triggered with user:', user ? user.id : 'null');
+    
+    if (!user) {
+      console.log('[GarminTokenManager] No user, clearing tokens');
       setTokens(null);
       setIsConnected(false);
-      
-      // FASE 1: Limpeza completa do localStorage no logout
       localStorage.removeItem('garmin_tokens');
       localStorage.removeItem('garmin_pkce');
       localStorage.removeItem('garmin_auth_state');
+      return;
     }
+    
+    // CRITICALLY DISABLED - this was causing the infinite loop
+    // DO NOT RE-ENABLE without fixing the dependency array and token refresh logic
+    console.log('[GarminTokenManager] User present but hook is DISABLED to prevent infinite calls');
   }, [user]);
 
   return {
