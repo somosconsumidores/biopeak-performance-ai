@@ -190,19 +190,19 @@ export const useGarminTokenManager = (user: User | null) => {
       console.log('[GarminTokenManager] Starting token management for user');
       loadTokens();
 
-      // Check token expiration more frequently - every minute for better responsiveness
-      const interval = setInterval(async () => {
-        console.log('[GarminTokenManager] Interval check triggered');
-        // Always reload tokens first to ensure we have the latest data from database
-        await loadTokens();
-        checkTokenExpiration();
-      }, 60 * 1000); // 1 minute
+      // TEMPORARIAMENTE DESABILITADO - Este intervalo estava causando chamadas infinitas
+      // const interval = setInterval(async () => {
+      //   console.log('[GarminTokenManager] Interval check triggered');
+      //   // Always reload tokens first to ensure we have the latest data from database
+      //   await loadTokens();
+      //   checkTokenExpiration();
+      // }, 60 * 1000); // 1 minute
 
       console.log('[GarminTokenManager] Interval set up');
-      return () => {
-        console.log('[GarminTokenManager] Cleaning up interval');
-        clearInterval(interval);
-      };
+      // return () => {
+      //   console.log('[GarminTokenManager] Cleaning up interval');
+      //   clearInterval(interval);
+      // };
     } else {
       console.log('[GarminTokenManager] No user, clearing tokens');
       setTokens(null);
