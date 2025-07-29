@@ -1,6 +1,9 @@
 
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.force-token-renewal]
+verify_jwt = true
+
 [functions.garmin-oauth]
 verify_jwt = false
 
