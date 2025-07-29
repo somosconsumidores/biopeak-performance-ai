@@ -87,14 +87,24 @@ serve(async (req) => {
         throw new Error('No authorization header');
       }
 
-      // Verify the JWT token
-      const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-      if (authError || !user) {
-        console.error('[garmin-oauth] Authentication error:', authError);
-        throw new Error('Invalid token');
-      }
+      const token = authHeader.replace('Bearer ', '');
+      let user;
+      let isServiceRole = false;
 
-      console.log('[garmin-oauth] User authenticated:', user.id);
+      // Check if it's a service role call (for force renewal)
+      if (token === supabaseKey) {
+        isServiceRole = true;
+        console.log('[garmin-oauth] Service role authentication detected');
+      } else {
+        // Verify the JWT token for regular user calls
+        const { data: userData, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !userData.user) {
+          console.error('[garmin-oauth] Authentication error:', authError);
+          throw new Error('Invalid token');
+        }
+        user = userData.user;
+        console.log('[garmin-oauth] User authenticated:', user.id);
+      }
 
       let body;
       try {
@@ -186,6 +196,13 @@ serve(async (req) => {
             'unknown'
         }));
 
+        // For service role calls, get user_id from request body
+        const targetUserId = isServiceRole ? body.user_id : user.id;
+        
+        if (!targetUserId) {
+          throw new Error('User ID is required for token renewal');
+        }
+
         const { error: updateError } = await supabase
           .from('garmin_tokens')
           .update({
@@ -196,7 +213,7 @@ serve(async (req) => {
             refresh_token_expires_at: refreshTokenExpiresAt,
             updated_at: new Date().toISOString()
           })
-          .eq('user_id', user.id);
+          .eq('user_id', targetUserId);
 
         if (updateError) {
           console.error('[garmin-oauth] Error updating tokens:', updateError);
@@ -215,7 +232,11 @@ serve(async (req) => {
         });
       }
 
-      // Handle authorization code flow
+      // Handle authorization code flow (only for regular user auth, not service role)
+      if (isServiceRole) {
+        throw new Error('Authorization code flow not available for service role calls');
+      }
+      
       if (!code || !codeVerifier || !redirectUri) {
         throw new Error('Missing required fields: code, codeVerifier, redirectUri');
       }
