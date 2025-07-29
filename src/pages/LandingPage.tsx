@@ -21,7 +21,7 @@ import {
 import { useTheme } from '@/components/providers/ThemeProvider';
 
 // Hero logos for different themes
-const heroLogoDark = 'https://static.wixstatic.com/media/a025ad_99ddbb70268549389f3eb76283601c41~mv2.png';
+import heroLogoDark from '@/assets/biopeak-logo-dark.png';
 const heroLogoLight = '/lovable-uploads/biopeak-hero-light-new.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
