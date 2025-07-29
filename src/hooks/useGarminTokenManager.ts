@@ -157,6 +157,25 @@ export const useGarminTokenManager = (user: User | null) => {
 
       if (error) {
         console.error('[GarminTokenManager] Token refresh failed:', error);
+        
+        // Check if it's an invalid refresh token error
+        if (error.message?.includes('invalid_refresh_token') || 
+            error.message?.includes('requires_reauth')) {
+          console.log('[GarminTokenManager] Invalid refresh token detected, clearing tokens and forcing re-auth');
+          
+          // Clear tokens from state
+          setTokens(null);
+          setIsConnected(false);
+          refreshState.consecutiveFailures = 0; // Reset failures
+          
+          toast({
+            title: "Garmin Connection Expired", 
+            description: "Please reconnect your Garmin account in settings.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        
         refreshState.consecutiveFailures++;
         return false;
       }

@@ -200,6 +200,42 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('[garmin-oauth] Token refresh failed:', errorText);
+          
+          // Check if it's an invalid_grant error (invalid refresh token)
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.error === 'invalid_grant') {
+              console.log('[garmin-oauth] Invalid refresh token detected, marking as inactive');
+              
+              // Mark all tokens for this user as inactive
+              const { error: deactivateError } = await supabase
+                .from('garmin_tokens')
+                .update({ 
+                  is_active: false, 
+                  updated_at: new Date().toISOString() 
+                })
+                .eq('user_id', user.id);
+              
+              if (deactivateError) {
+                console.error('[garmin-oauth] Error deactivating tokens:', deactivateError);
+              }
+              
+              return new Response(
+                JSON.stringify({ 
+                  error: 'invalid_refresh_token',
+                  message: 'Refresh token is invalid. Please re-authenticate.',
+                  requires_reauth: true
+                }),
+                { 
+                  status: 401, 
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+                }
+              );
+            }
+          } catch (parseError) {
+            console.error('[garmin-oauth] Error parsing error response:', parseError);
+          }
+          
           throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
         }
 
