@@ -125,9 +125,52 @@ serve(async (req) => {
         grant_type: grant_type
       });
 
+      // FASE 2: Rate limiting mais rigoroso - track attempts per user
+      const rateLimitKey = `garmin_oauth_${user.id}`;
+      const { data: rateLimitData } = await supabase
+        .from('garmin_rate_limits')
+        .select('attempts, last_attempt')
+        .eq('user_id', user.id)
+        .single();
+
+      const now = Date.now();
+      if (rateLimitData) {
+        const timeSinceLastAttempt = now - new Date(rateLimitData.last_attempt).getTime();
+        if (rateLimitData.attempts >= 10 && timeSinceLastAttempt < 300000) { // 10 attempts in 5 minutes
+          console.error('[garmin-oauth] RATE LIMITED: Too many attempts from user', user.id);
+          return new Response(
+            JSON.stringify({ 
+              error: 'rate_limited',
+              message: 'Too many requests. Please wait 5 minutes before trying again.',
+              retry_after: 300
+            }),
+            { 
+              status: 429, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+      }
+
+      // Update rate limit counter
+      await supabase
+        .from('garmin_rate_limits')
+        .upsert({
+          user_id: user.id,
+          attempts: (rateLimitData?.attempts || 0) + 1,
+          last_attempt: new Date().toISOString()
+        });
+
       // IMMEDIATE BLOCK: Check for the specific problematic refresh token
       if (refresh_token === 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==') {
-        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected - STOPPING PROCESSING');
+        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected - PERMANENT BLOCK');
+        console.log('[garmin-oauth] Request blocked from:', {
+          userAgent,
+          referer,
+          xForwardedFor,
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        });
         
         // Mark ALL tokens for this user as inactive to prevent future attempts
         await supabase
@@ -143,14 +186,24 @@ serve(async (req) => {
           .from('garmin_orphaned_webhooks')
           .delete()
           .eq('user_id', user.id);
+
+        // FASE 3: Add to permanent blacklist
+        await supabase
+          .from('garmin_blocked_tokens')
+          .upsert({
+            token_hash: 'fdbb553c-f18c-4e68-a641-16911a8580ef',
+            user_id: user.id,
+            blocked_at: new Date().toISOString(),
+            reason: 'permanent_invalid_token'
+          });
         
         return new Response(
           JSON.stringify({ 
             error: 'invalid_refresh_token',
-            message: 'This refresh token is permanently invalid. All tokens deactivated. Please re-authenticate.',
+            message: 'This refresh token is permanently blacklisted. All tokens deactivated. Please re-authenticate.',
             requires_reauth: true,
             blocked_token: true,
-            action_taken: 'tokens_deactivated'
+            action_taken: 'tokens_deactivated_and_blacklisted'
           }),
           { 
             status: 401, 
