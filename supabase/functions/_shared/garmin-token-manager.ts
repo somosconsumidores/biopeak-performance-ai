@@ -18,12 +18,25 @@ export class GarminTokenManager {
   async getTokenInfo(userId: string): Promise<GarminTokenInfo | null> {
     const { data: tokenData, error } = await this.supabase
       .from('garmin_tokens')
-      .select('access_token, expires_at, token_secret')
+      .select('access_token, expires_at, token_secret, is_active')
       .eq('user_id', userId)
+      .eq('is_active', true)
       .maybeSingle();
 
     if (error || !tokenData) {
-      console.log('[GarminTokenManager] No token found for user:', userId);
+      console.log('[GarminTokenManager] No active token found for user:', userId);
+      
+      // Check if user exists in mapping table (might need reauth)
+      const { data: mappingData } = await this.supabase
+        .from('garmin_user_mapping')
+        .select('garmin_user_id, is_active')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (mappingData && !mappingData.is_active) {
+        console.log('[GarminTokenManager] User mapping exists but inactive - needs reauth');
+      }
+      
       return null;
     }
 
@@ -77,6 +90,16 @@ export class GarminTokenManager {
       if (data && data.success) {
         console.log('[GarminTokenManager] Token refreshed successfully');
         
+        // Update mapping table to reflect successful renewal
+        await this.supabase
+          .from('garmin_user_mapping')
+          .update({
+            last_seen_at: new Date().toISOString(),
+            is_active: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+        
         // Wait a moment for the database to be updated
         await new Promise(resolve => setTimeout(resolve, 1000));
         
@@ -85,6 +108,16 @@ export class GarminTokenManager {
         return updatedTokenInfo?.access_token || null;
       } else {
         console.error('[GarminTokenManager] Token refresh response invalid:', data);
+        
+        // Mark mapping as inactive if refresh failed
+        await this.supabase
+          .from('garmin_user_mapping')
+          .update({
+            is_active: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+          
         return null;
       }
     } catch (refreshError) {
