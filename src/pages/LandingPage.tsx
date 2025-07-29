@@ -22,7 +22,7 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
-const heroLogoLight = '/lovable-uploads/biopeak-hero-light-new.png';
+import heroLogoLight from '@/assets/biopeak-logo-light.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
