@@ -30,37 +30,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('[garmin-oauth] ===== EMERGENCY BLOCK ACTIVATED =====');
-  console.log('[garmin-oauth] Method:', req.method);
-  console.log('[garmin-oauth] URL:', req.url);
-  console.log('[garmin-oauth] User-Agent:', req.headers.get('user-agent'));
-  console.log('[garmin-oauth] Referer:', req.headers.get('referer'));
-  console.log('[garmin-oauth] X-Forwarded-For:', req.headers.get('x-forwarded-for'));
-  console.log('[garmin-oauth] Origin:', req.headers.get('origin'));
-  console.log('[garmin-oauth] Timestamp:', new Date().toISOString());
-  
-  // EMERGENCY: Block ALL requests completely
-  return new Response(JSON.stringify({
-    success: false,
-    error: 'EMERGENCY_BLOCK_ACTIVE',
-    message: 'Todas as chamadas para garmin-oauth estão temporariamente bloqueadas para debug',
-    timestamp: new Date().toISOString(),
-    request_info: {
-      method: req.method,
-      url: req.url,
-      user_agent: req.headers.get('user-agent'),
-      referer: req.headers.get('referer'),
-      origin: req.headers.get('origin'),
-      x_forwarded_for: req.headers.get('x-forwarded-for')
-    }
-  }), {
-    status: 503,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      "Content-Type": "application/json"
-    }
-  });
+  console.log('[garmin-oauth] Function started - Method:', req.method);
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
