@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
+import { useStravaSync } from '@/hooks/useStravaSync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -8,6 +9,7 @@ export default function StravaCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { handleCallback } = useStravaAuth();
+  const { syncActivities, isLoading: isSyncing } = useStravaSync();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -73,8 +75,19 @@ export default function StravaCallback() {
         setStatus('success');
         setMessage('Strava conectado com sucesso!');
         
-        console.log('[StravaCallback] Redirecting to sync page...');
-        setTimeout(() => navigate('/sync'), 1500);
+        // Start automatic sync after successful authentication
+        console.log('[StravaCallback] Starting automatic activity sync...');
+        setMessage('Sincronizando atividades...');
+        
+        const syncSuccess = await syncActivities();
+        if (syncSuccess) {
+          setMessage('Atividades sincronizadas com sucesso!');
+        } else {
+          setMessage('Strava conectado, mas houve erro na sincronização');
+        }
+        
+        console.log('[StravaCallback] Redirecting to dashboard...');
+        setTimeout(() => navigate('/dashboard'), 2000);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
@@ -87,16 +100,16 @@ export default function StravaCallback() {
     };
 
     processCallback();
-  }, [searchParams, handleCallback, navigate, isProcessing]);
+  }, [searchParams, handleCallback, navigate, isProcessing, syncActivities]);
 
   const getIcon = () => {
     switch (status) {
       case 'processing':
-        return <Loader2 className="w-8 h-8 animate-spin text-blue-500" />;
+        return <Loader2 className="w-8 h-8 animate-spin text-primary" />;
       case 'success':
         return <CheckCircle className="w-8 h-8 text-green-500" />;
       case 'error':
-        return <XCircle className="w-8 h-8 text-red-500" />;
+        return <XCircle className="w-8 h-8 text-destructive" />;
     }
   };
 
@@ -119,12 +132,12 @@ export default function StravaCallback() {
         <CardContent className="text-center">
           {status === 'processing' && (
             <p className="text-sm text-muted-foreground">
-              Aguarde enquanto processamos sua autenticação...
+              {isSyncing ? 'Sincronizando suas atividades...' : 'Aguarde enquanto processamos sua autenticação...'}
             </p>
           )}
           {status === 'success' && (
             <p className="text-sm text-muted-foreground">
-              Redirecionando para a página de sincronização...
+              Redirecionando para o dashboard...
             </p>
           )}
           {status === 'error' && (
