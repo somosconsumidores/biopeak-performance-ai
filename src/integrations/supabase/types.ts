@@ -284,33 +284,6 @@ export type Database = {
         }
         Relationships: []
       }
-      garmin_blocked_tokens: {
-        Row: {
-          blocked_at: string
-          created_at: string
-          id: string
-          reason: string
-          token_hash: string
-          user_id: string | null
-        }
-        Insert: {
-          blocked_at?: string
-          created_at?: string
-          id?: string
-          reason: string
-          token_hash: string
-          user_id?: string | null
-        }
-        Update: {
-          blocked_at?: string
-          created_at?: string
-          id?: string
-          reason?: string
-          token_hash?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       garmin_daily_summaries: {
         Row: {
           active_kilocalories: number | null
@@ -434,144 +407,6 @@ export type Database = {
         }
         Relationships: []
       }
-      garmin_function_calls: {
-        Row: {
-          created_at: string
-          error_message: string | null
-          function_name: string
-          id: string
-          ip_address: string | null
-          referer: string | null
-          request_type: string | null
-          response_time_ms: number | null
-          success: boolean | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          error_message?: string | null
-          function_name: string
-          id?: string
-          ip_address?: string | null
-          referer?: string | null
-          request_type?: string | null
-          response_time_ms?: number | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          error_message?: string | null
-          function_name?: string
-          id?: string
-          ip_address?: string | null
-          referer?: string | null
-          request_type?: string | null
-          response_time_ms?: number | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      garmin_health_reports: {
-        Row: {
-          created_at: string
-          id: string
-          report_data: Json
-          status: string
-          suspicious_users: number
-          total_calls: number
-          unique_users: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          report_data: Json
-          status: string
-          suspicious_users?: number
-          total_calls?: number
-          unique_users?: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          report_data?: Json
-          status?: string
-          suspicious_users?: number
-          total_calls?: number
-          unique_users?: number
-        }
-        Relationships: []
-      }
-      garmin_orphaned_webhooks: {
-        Row: {
-          created_at: string
-          error_message: string | null
-          garmin_user_id: string
-          id: string
-          last_retry_at: string | null
-          processed_at: string | null
-          retry_count: number
-          status: string
-          user_id: string | null
-          webhook_payload: Json
-          webhook_type: string
-        }
-        Insert: {
-          created_at?: string
-          error_message?: string | null
-          garmin_user_id: string
-          id?: string
-          last_retry_at?: string | null
-          processed_at?: string | null
-          retry_count?: number
-          status?: string
-          user_id?: string | null
-          webhook_payload: Json
-          webhook_type: string
-        }
-        Update: {
-          created_at?: string
-          error_message?: string | null
-          garmin_user_id?: string
-          id?: string
-          last_retry_at?: string | null
-          processed_at?: string | null
-          retry_count?: number
-          status?: string
-          user_id?: string | null
-          webhook_payload?: Json
-          webhook_type?: string
-        }
-        Relationships: []
-      }
-      garmin_rate_limits: {
-        Row: {
-          attempts: number
-          created_at: string
-          id: string
-          last_attempt: string
-          user_id: string
-        }
-        Insert: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          last_attempt?: string
-          user_id: string
-        }
-        Update: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          last_attempt?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       garmin_sync_control: {
         Row: {
           callback_url: string | null
@@ -657,36 +492,6 @@ export type Database = {
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           token_secret?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      garmin_user_mapping: {
-        Row: {
-          created_at: string
-          garmin_user_id: string
-          id: string
-          is_active: boolean
-          last_seen_at: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          garmin_user_id: string
-          id?: string
-          is_active?: boolean
-          last_seen_at?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          garmin_user_id?: string
-          id?: string
-          is_active?: boolean
-          last_seen_at?: string
           updated_at?: string
           user_id?: string
         }
@@ -1377,37 +1182,9 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      cleanup_old_function_calls: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_rate_limits: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       deactivate_garmin_user: {
         Args: { garmin_user_id_param: string }
         Returns: undefined
-      }
-      find_user_by_garmin_id: {
-        Args: { garmin_user_id_param: string }
-        Returns: string
-      }
-      force_renew_expired_tokens: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          user_id: string
-          status: string
-          message: string
-        }[]
-      }
-      get_cron_job_status: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          jobname: string
-          schedule: string
-          active: boolean
-        }[]
       }
       log_sync_attempt: {
         Args: {
@@ -1418,14 +1195,6 @@ export type Database = {
           callback_url_param?: string
         }
         Returns: string
-      }
-      populate_garmin_user_mapping: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      smart_cleanup_expired_oauth_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       sync_all_users_dailies: {
         Args: Record<PropertyKey, never>

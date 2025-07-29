@@ -31,21 +31,9 @@ const corsHeaders = {
 
 serve(async (req) => {
   console.log('[garmin-oauth] ===== FUNCTION STARTED =====');
-  console.log('[garmin-oauth] URL:', req.url);
   console.log('[garmin-oauth] Method:', req.method);
+  console.log('[garmin-oauth] URL:', req.url);
   
-  // FASE 2: Log origin information for investigation
-  const userAgent = req.headers.get('user-agent') || 'unknown';
-  const referer = req.headers.get('referer') || 'unknown';
-  const xForwardedFor = req.headers.get('x-forwarded-for') || 'unknown';
-  
-  console.log('[garmin-oauth] Request Origin Info:', {
-    userAgent,
-    referer,
-    xForwardedFor,
-    timestamp: new Date().toISOString()
-  });
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('[garmin-oauth] Handling OPTIONS request');
@@ -137,140 +125,25 @@ serve(async (req) => {
         grant_type: grant_type
       });
 
-      // FASE 2: Rate limiting mais rigoroso - track attempts per user
-      const rateLimitKey = `garmin_oauth_${user.id}`;
-      const { data: rateLimitData } = await supabase
-        .from('garmin_rate_limits')
-        .select('attempts, last_attempt')
-        .eq('user_id', user.id)
-        .single();
-
-      const now = Date.now();
-      if (rateLimitData) {
-        const timeSinceLastAttempt = now - new Date(rateLimitData.last_attempt).getTime();
-        if (rateLimitData.attempts >= 10 && timeSinceLastAttempt < 300000) { // 10 attempts in 5 minutes
-          console.error('[garmin-oauth] RATE LIMITED: Too many attempts from user', user.id);
-          return new Response(
-            JSON.stringify({ 
-              error: 'rate_limited',
-              message: 'Too many requests. Please wait 5 minutes before trying again.',
-              retry_after: 300
-            }),
-            { 
-              status: 429, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-      }
-
-      // Update rate limit counter
-      await supabase
-        .from('garmin_rate_limits')
-        .upsert({
-          user_id: user.id,
-          attempts: (rateLimitData?.attempts || 0) + 1,
-          last_attempt: new Date().toISOString()
-        });
-
-      // IMMEDIATE BLOCK: Check for the specific problematic refresh token
-      if (refresh_token === 'eyJyZWZyZXNoVG9rZW5WYWx1ZSI6ImZkYmI1NTNjLWYxOGMtNGU2OC1hNjQxLTE2OTExYTg1ODBlZiIsImdhcm1pbkd1aWQiOiIzOTkzYWEyMy03MGFiLTRjMzQtYTY3YS1mMWVkNjJkNjc5OTAifQ==') {
-        console.error('[garmin-oauth] BLOCKED: Known invalid refresh token detected - PERMANENT BLOCK');
-        console.log('[garmin-oauth] Request blocked from:', {
-          userAgent,
-          referer,
-          xForwardedFor,
-          userId: user.id,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Mark ALL tokens for this user as inactive to prevent future attempts
-        await supabase
-          .from('garmin_tokens')
-          .update({ 
-            is_active: false, 
-            updated_at: new Date().toISOString() 
-          })
-          .eq('user_id', user.id);
-        
-        // Clear any orphaned webhooks for this user
-        await supabase
-          .from('garmin_orphaned_webhooks')
-          .delete()
-          .eq('user_id', user.id);
-
-        // FASE 3: Add to permanent blacklist
-        await supabase
-          .from('garmin_blocked_tokens')
-          .upsert({
-            token_hash: 'fdbb553c-f18c-4e68-a641-16911a8580ef',
-            user_id: user.id,
-            blocked_at: new Date().toISOString(),
-            reason: 'permanent_invalid_token'
-          });
-        
-        return new Response(
-          JSON.stringify({ 
-            error: 'invalid_refresh_token',
-            message: 'This refresh token is permanently blacklisted. All tokens deactivated. Please re-authenticate.',
-            requires_reauth: true,
-            blocked_token: true,
-            action_taken: 'tokens_deactivated_and_blacklisted'
-          }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
       // Handle refresh token flow
       if (grant_type === 'refresh_token') {
         if (!refresh_token) {
           throw new Error('Missing refresh_token for refresh flow');
         }
 
-        // Handle the refresh token - detect and fix double encoding
+        // Handle the refresh token - it's passed directly now
         let refreshTokenValue = refresh_token;
-        let garminGuid = 'unknown';
         
-        console.log('[garmin-oauth] Processing refresh token...');
-        console.log('[garmin-oauth] Refresh token length:', refresh_token?.length || 0);
-        console.log('[garmin-oauth] Refresh token starts with:', refresh_token?.substring(0, 10) || 'N/A');
-        
-        // Try to decode and handle potential double encoding
-        try {
-          const decoded = atob(refresh_token);
-          const parsed = JSON.parse(decoded);
-          
-          if (parsed.refreshTokenValue) {
-            // This is our expected format: {refreshTokenValue: "uuid", garminGuid: "guid"}
-            let finalRefreshToken = parsed.refreshTokenValue;
-            
-            // Check if refreshTokenValue is itself base64 encoded (double encoding case)
-            try {
-              const doubleDecoded = atob(finalRefreshToken);
-              const doubleParsed = JSON.parse(doubleDecoded);
-              if (doubleParsed.refreshTokenValue) {
-                console.log('[garmin-oauth] Detected double encoding, extracting from nested object');
-                finalRefreshToken = doubleParsed.refreshTokenValue;
-                garminGuid = doubleParsed.garminGuid || parsed.garminGuid || 'unknown';
-              }
-            } catch (_) {
-              // Not double encoded, use the first level
-              console.log('[garmin-oauth] Single encoding detected');
-            }
-            
-            refreshTokenValue = finalRefreshToken;
-            garminGuid = garminGuid === 'unknown' ? (parsed.garminGuid || 'unknown') : garminGuid;
-            console.log(`[garmin-oauth] Final refresh token value length: ${refreshTokenValue.length}`);
-            console.log(`[garmin-oauth] Extracted garminGuid: ${garminGuid}`);
-          } else {
-            console.log('[garmin-oauth] refresh_token decoded but no refreshTokenValue found. Using as-is.');
+        // If it's base64 encoded (legacy format), decode it
+        if (refresh_token && refresh_token.length > 100) {
+          try {
+            const decodedSecret = atob(refresh_token);
+            const secretData = JSON.parse(decodedSecret);
+            refreshTokenValue = secretData.refreshTokenValue;
+          } catch (error) {
+            // If decoding fails, assume it's already the raw token
+            console.log('[garmin-oauth] Using refresh token as-is (not base64 encoded)');
           }
-        } catch (error) {
-          console.log('[garmin-oauth] refresh_token is not base64-encoded JSON. Using as-is.');
-          console.log(`[garmin-oauth] Decode error: ${error.message}`);
         }
 
         const cleanClientId = clientId.replace(/^\+/, "");
@@ -299,42 +172,6 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('[garmin-oauth] Token refresh failed:', errorText);
-          
-          // Check if it's an invalid_grant error (invalid refresh token)
-          try {
-            const errorData = JSON.parse(errorText);
-            if (errorData.error === 'invalid_grant') {
-              console.log('[garmin-oauth] Invalid refresh token detected, marking as inactive');
-              
-              // Mark all tokens for this user as inactive
-              const { error: deactivateError } = await supabase
-                .from('garmin_tokens')
-                .update({ 
-                  is_active: false, 
-                  updated_at: new Date().toISOString() 
-                })
-                .eq('user_id', user.id);
-              
-              if (deactivateError) {
-                console.error('[garmin-oauth] Error deactivating tokens:', deactivateError);
-              }
-              
-              return new Response(
-                JSON.stringify({ 
-                  error: 'invalid_refresh_token',
-                  message: 'Refresh token is invalid. Please re-authenticate.',
-                  requires_reauth: true
-                }),
-                { 
-                  status: 401, 
-                  headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-                }
-              );
-            }
-          } catch (parseError) {
-            console.error('[garmin-oauth] Error parsing error response:', parseError);
-          }
-          
           throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
         }
 
@@ -344,24 +181,11 @@ serve(async (req) => {
         // Update tokens in database with proper refresh token handling
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
         const refreshTokenExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
-        
-        // Safe garminGuid extraction
-        let finalGarminGuid = garminGuid;
-        if (finalGarminGuid === 'unknown') {
-          try {
-            const decoded = atob(refresh_token);
-            const parsed = JSON.parse(decoded);
-            if (parsed.garminGuid) {
-              finalGarminGuid = parsed.garminGuid;
-            }
-          } catch (_) {
-            // fallback: assume it's raw, keep 'unknown'
-          }
-        }
-        
         const newTokenSecret = btoa(JSON.stringify({
           refreshTokenValue: tokenData.refresh_token || refreshTokenValue,
-          garminGuid: finalGarminGuid
+          garminGuid: refresh_token && refresh_token.length > 100 ? 
+            JSON.parse(atob(refresh_token)).garminGuid : 
+            'unknown'
         }));
 
         const { error: updateError } = await supabase
