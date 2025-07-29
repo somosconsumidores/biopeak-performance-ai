@@ -1262,6 +1262,22 @@ export type Database = {
         Args: { garmin_user_id_param: string }
         Returns: string
       }
+      force_renew_expired_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          status: string
+          message: string
+        }[]
+      }
+      get_cron_job_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          jobname: string
+          schedule: string
+          active: boolean
+        }[]
+      }
       log_sync_attempt: {
         Args: {
           user_id_param: string
