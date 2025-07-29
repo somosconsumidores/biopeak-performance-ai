@@ -46,7 +46,21 @@ export const useGarminTokenManager = (user: User | null) => {
       // Handle legacy storage: extract refresh_token from token_secret if needed
       let refreshToken;
       if (tokenData.refresh_token) {
-        refreshToken = tokenData.refresh_token;
+        // Check if refresh_token is base64 encoded
+        try {
+          const decodedToken = atob(tokenData.refresh_token);
+          const tokenObject = JSON.parse(decodedToken);
+          if (tokenObject.refreshTokenValue) {
+            // It's a base64 encoded object, extract the real token
+            refreshToken = tokenObject.refreshTokenValue;
+          } else {
+            // It's already the raw token
+            refreshToken = tokenData.refresh_token;
+          }
+        } catch (error) {
+          // If decoding fails, use as-is (probably already raw token)
+          refreshToken = tokenData.refresh_token;
+        }
       } else if (tokenData.token_secret) {
         try {
           const secretData = JSON.parse(tokenData.token_secret);

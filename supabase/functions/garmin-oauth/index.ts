@@ -131,29 +131,29 @@ serve(async (req) => {
           throw new Error('Missing refresh_token for refresh flow');
         }
 
-        // Handle the refresh token - decode if it's base64 encoded
+        // Handle the refresh token - it should now come as the raw value from useGarminTokenManager
         let refreshTokenValue = refresh_token;
         let garminGuid = 'unknown';
         
         console.log('[garmin-oauth] Processing refresh token...');
         console.log('[garmin-oauth] Refresh token length:', refresh_token?.length || 0);
+        console.log('[garmin-oauth] Refresh token starts with:', refresh_token?.substring(0, 10) || 'N/A');
         
-        // Check if it's base64 encoded (most likely case based on our storage format)
-        try {
-          const decodedSecret = atob(refresh_token);
-          const secretData = JSON.parse(decodedSecret);
-          
-          if (secretData.refreshTokenValue) {
-            refreshTokenValue = secretData.refreshTokenValue;
-            garminGuid = secretData.garminGuid || 'unknown';
-            console.log('[garmin-oauth] Successfully decoded base64 refresh token');
-          } else {
-            // If no refreshTokenValue field, assume the refresh_token is already the raw value
-            console.log('[garmin-oauth] Refresh token appears to be raw value');
+        // The refresh_token should now be the raw token value since useGarminTokenManager extracts it
+        // But let's be defensive and check if it's still base64 encoded
+        if (refresh_token && refresh_token.includes('eyJ')) {
+          try {
+            const decodedSecret = atob(refresh_token);
+            const secretData = JSON.parse(decodedSecret);
+            
+            if (secretData.refreshTokenValue) {
+              refreshTokenValue = secretData.refreshTokenValue;
+              garminGuid = secretData.garminGuid || 'unknown';
+              console.log('[garmin-oauth] Found base64 encoded token, extracted real value');
+            }
+          } catch (error) {
+            console.log('[garmin-oauth] Token is not base64 encoded, using as-is');
           }
-        } catch (error) {
-          // If decoding fails, assume it's already the raw token
-          console.log('[garmin-oauth] Failed to decode refresh token, using as-is:', error.message);
         }
         
         console.log('[garmin-oauth] Final refresh token value length:', refreshTokenValue?.length || 0);
