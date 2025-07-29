@@ -228,10 +228,7 @@ export const WorkoutSession = () => {
                     <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
                   </span>
                   <span className="text-xs sm:text-sm text-muted-foreground/80 italic">
-                    {currentActivity.device_name 
-                      ? `Estes dados foram fornecidos pelo Garmin ${currentActivity.device_name}`
-                      : 'Estes dados foram fornecidos por um dispositivo Garmin'
-                    }
+                    <span className="font-bold">GARMIN</span> [{currentActivity.device_name || 'dispositivo desconhecido'}]
                   </span>
                 </p>
               </div>
