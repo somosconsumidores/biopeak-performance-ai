@@ -1,6 +1,9 @@
 
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.direct-token-renewal]
+verify_jwt = true
+
 [functions.force-token-renewal]
 verify_jwt = true
 

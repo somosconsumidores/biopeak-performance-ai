@@ -9,7 +9,7 @@ export const useAdminActions = () => {
   const renewExpiredTokens = async (userId?: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('force-token-renewal', {
+      const { data, error } = await supabase.functions.invoke('direct-token-renewal', {
         body: userId ? { user_id: userId } : {}
       });
 
