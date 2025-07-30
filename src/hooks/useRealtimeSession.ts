@@ -80,7 +80,7 @@ export const useRealtimeSession = () => {
   const startLocationTracking = useCallback(() => {
     if (!navigator.geolocation) {
       console.error('Geolocation is not supported');
-      return Promise.resolve(false);
+      return Promise.reject(new Error('Geolocalização não é suportada neste dispositivo.'));
     }
 
     const options = {
@@ -89,11 +89,22 @@ export const useRealtimeSession = () => {
       maximumAge: 1000
     };
 
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean>((resolve, reject) => {
+      console.log('🎯 Iniciando GPS tracking...');
+      
       // First get current position to check permissions
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log('✅ GPS permission granted, starting tracking...');
+          
+          // Initialize location reference
+          lastLocationRef.current = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude || undefined,
+            speed: position.coords.speed || undefined
+          };
           
           // Now start watching position
           watchIdRef.current = navigator.geolocation.watchPosition(
@@ -120,6 +131,7 @@ export const useRealtimeSession = () => {
                 // Only add significant movements (accuracy filter)
                 if (distance > newLocation.accuracy / 2) {
                   distanceAccumulatorRef.current += distance;
+                  console.log(`📏 Distance updated: +${distance.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
                 }
               }
 
@@ -151,7 +163,7 @@ export const useRealtimeSession = () => {
           }
           
           console.error('GPS Error details:', errorMessage);
-          resolve(false);
+          reject(new Error(errorMessage));
         },
         options
       );
@@ -245,6 +257,13 @@ export const useRealtimeSession = () => {
     if (!user) return null;
 
     try {
+      console.log('🚀 Starting new training session...');
+      
+      // Reset distance accumulator for new session
+      distanceAccumulatorRef.current = 0;
+      lastSnapshotDistanceRef.current = 0;
+      lastLocationRef.current = null;
+      
       // Create session in database
       const { data: session, error } = await supabase
         .from('training_sessions')
@@ -275,11 +294,9 @@ export const useRealtimeSession = () => {
 
       setSessionData(newSessionData);
       
-      // Start GPS tracking
-      const gpsStarted = await startLocationTracking();
-      if (!gpsStarted) {
-        throw new Error('Falha ao iniciar o rastreamento GPS. Verifique as permissões de localização.');
-      }
+      // Start GPS tracking - this will throw an error if it fails
+      await startLocationTracking();
+      console.log('✅ GPS tracking started successfully');
 
       // Start interval for updating session data
       intervalRef.current = setInterval(() => {
@@ -312,12 +329,20 @@ export const useRealtimeSession = () => {
       }, 1000);
 
       setIsRecording(true);
+      console.log('🎯 Training session started with ID:', session.id);
       return session.id;
     } catch (error) {
-      console.error('Error starting session:', error);
-      return null;
+      console.error('❌ Error starting session:', error);
+      
+      // Clean up if session creation failed
+      setSessionData(null);
+      setIsRecording(false);
+      stopLocationTracking();
+      
+      // Re-throw the error so it can be caught by the UI
+      throw error;
     }
-  }, [user, startLocationTracking, calculateCalories, createSnapshot]);
+  }, [user, startLocationTracking, calculateCalories, createSnapshot, stopLocationTracking]);
 
   // Pause session
   const pauseSession = useCallback(async () => {
