@@ -201,7 +201,7 @@ const TrainingSession: React.FC = () => {
           {/* Header */}
           <div className="text-center space-y-4">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              AI Training Coach
+              BioPeak AI Coach
             </h1>
             <p className="text-xl text-muted-foreground">
               Seu personal trainer virtual te acompanha em tempo real
