@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 interface ProfileStats {
   totalActivities: number;
@@ -52,14 +53,26 @@ export function useProfileStats() {
       setLoading(true);
       setError(null);
 
-      // Buscar todas as atividades do usuário
-      const { data: activities, error: activitiesError } = await supabase
-        .from('garmin_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('activity_date', { ascending: false });
+      // Buscar atividades de todas as fontes
+      const [garminResult, stravaResult, polarResult] = await Promise.all([
+        supabase.from('garmin_activities').select('*').eq('user_id', user.id),
+        supabase.from('strava_activities').select('*').eq('user_id', user.id),
+        supabase.from('polar_activities').select('*').eq('user_id', user.id)
+      ]);
 
-      if (activitiesError) throw activitiesError;
+      if (garminResult.error) throw garminResult.error;
+      if (stravaResult.error) throw stravaResult.error;
+      if (polarResult.error) throw polarResult.error;
+
+      // Normalizar e unificar atividades
+      const unifiedActivities = unifyActivities(
+        garminResult.data || [],
+        stravaResult.data || [],
+        polarResult.data || []
+      );
+
+      // Remover duplicatas baseado em timestamp e duração
+      const activities = deduplicateActivities(unifiedActivities);
 
       if (!activities || activities.length === 0) {
         setStats({
@@ -197,7 +210,119 @@ export function useProfileStats() {
     return streak;
   };
 
-  const calculatePersonalBests = (activities: any[]): PersonalBest[] => {
+  // Função para unificar atividades de todas as fontes
+  const unifyActivities = (garminData: any[], stravaData: any[], polarData: any[]): UnifiedActivity[] => {
+    // Normalizar atividades do Garmin
+    const garminActivities: UnifiedActivity[] = garminData.map(activity => ({
+      ...activity,
+      source: 'GARMIN' as const,
+      device_name: activity.device_name || 'Garmin Device'
+    }));
+
+    // Normalizar atividades do Strava
+    const stravaActivities: UnifiedActivity[] = stravaData.map(activity => ({
+      id: activity.id,
+      activity_id: activity.strava_activity_id.toString(),
+      source: 'STRAVA' as const,
+      activity_type: activity.type,
+      activity_date: activity.start_date ? new Date(activity.start_date).toISOString().split('T')[0] : null,
+      duration_in_seconds: activity.elapsed_time || activity.moving_time,
+      distance_in_meters: activity.distance ? activity.distance * 1000 : null,
+      average_pace_in_minutes_per_kilometer: activity.average_speed ? 
+        (1000 / (activity.average_speed * 60)) : null,
+      average_heart_rate_in_beats_per_minute: activity.average_heartrate ? Math.round(activity.average_heartrate) : null,
+      max_heart_rate_in_beats_per_minute: activity.max_heartrate ? Math.round(activity.max_heartrate) : null,
+      active_kilocalories: activity.calories ? Math.round(activity.calories) : null,
+      total_elevation_gain_in_meters: activity.total_elevation_gain || null,
+      total_elevation_loss_in_meters: null,
+      device_name: 'STRAVA',
+      start_time_in_seconds: activity.start_date ? Math.floor(new Date(activity.start_date).getTime() / 1000) : null,
+      start_time_offset_in_seconds: null,
+      average_speed_in_meters_per_second: activity.average_speed || null,
+      max_speed_in_meters_per_second: activity.max_speed || null,
+      steps: null,
+      synced_at: activity.created_at,
+      strava_activity_id: activity.strava_activity_id,
+      name: activity.name
+    }));
+
+    // Normalizar atividades do Polar
+    const polarActivities: UnifiedActivity[] = polarData.map(activity => ({
+      id: activity.id,
+      activity_id: activity.activity_id,
+      source: 'POLAR' as const,
+      activity_type: activity.sport || activity.activity_type,
+      activity_date: activity.start_time ? new Date(activity.start_time).toISOString().split('T')[0] : null,
+      duration_in_seconds: activity.duration ? parsePolarDuration(activity.duration) : null,
+      distance_in_meters: activity.distance ? Number(activity.distance) * 1000 : null,
+      average_pace_in_minutes_per_kilometer: null,
+      average_heart_rate_in_beats_per_minute: null,
+      max_heart_rate_in_beats_per_minute: null,
+      active_kilocalories: activity.calories || null,
+      total_elevation_gain_in_meters: null,
+      total_elevation_loss_in_meters: null,
+      device_name: 'POLAR',
+      start_time_in_seconds: activity.start_time ? Math.floor(new Date(activity.start_time).getTime() / 1000) : null,
+      start_time_offset_in_seconds: activity.start_time_utc_offset || null,
+      average_speed_in_meters_per_second: null,
+      max_speed_in_meters_per_second: null,
+      steps: null,
+      synced_at: activity.synced_at,
+      polar_user: activity.polar_user,
+      detailed_sport_info: activity.detailed_sport_info
+    }));
+
+    return [...garminActivities, ...stravaActivities, ...polarActivities];
+  };
+
+  // Função para remover duplicatas
+  const deduplicateActivities = (activities: UnifiedActivity[]): UnifiedActivity[] => {
+    const duplicates: Set<string> = new Set();
+    
+    return activities.filter(activity => {
+      if (!activity.start_time_in_seconds || !activity.duration_in_seconds) {
+        return true; // Manter atividades sem timestamp
+      }
+
+      // Criar chave única baseada em timestamp (±5 min) e duração (±30 seg)
+      const timeWindow = 300; // 5 minutos
+      const durationWindow = 30; // 30 segundos
+      
+      for (const existing of duplicates) {
+        const [existingTime, existingDuration] = existing.split(':').map(Number);
+        
+        const timeDiff = Math.abs(activity.start_time_in_seconds - existingTime);
+        const durationDiff = Math.abs(activity.duration_in_seconds - existingDuration);
+        
+        if (timeDiff <= timeWindow && durationDiff <= durationWindow) {
+          console.log(`Atividade duplicada detectada: ${activity.source} vs existente, diff tempo: ${timeDiff}s, diff duração: ${durationDiff}s`);
+          return false; // É uma duplicata
+        }
+      }
+      
+      // Adicionar à lista de atividades únicas
+      duplicates.add(`${activity.start_time_in_seconds}:${activity.duration_in_seconds}`);
+      return true;
+    }).sort((a, b) => {
+      const timeA = a.start_time_in_seconds || 0;
+      const timeB = b.start_time_in_seconds || 0;
+      return timeB - timeA; // Mais recente primeiro
+    });
+  };
+
+  // Helper para parsear duração do Polar
+  const parsePolarDuration = (duration: string): number => {
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+    if (!match) return 0;
+    
+    const hours = parseInt(match[1] || '0');
+    const minutes = parseInt(match[2] || '0');
+    const seconds = parseFloat(match[3] || '0');
+    
+    return hours * 3600 + minutes * 60 + seconds;
+  };
+
+  const calculatePersonalBests = (activities: UnifiedActivity[]): PersonalBest[] => {
     const bests: PersonalBest[] = [];
 
     // Melhor distância
