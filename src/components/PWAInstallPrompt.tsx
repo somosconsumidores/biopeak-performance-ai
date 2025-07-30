@@ -61,7 +61,59 @@ export const PWAInstallPrompt = () => {
     }
   }, []);
 
+  // Show prompt for iOS devices or when deferredPrompt is available and not dismissed
   if (!showPrompt && !isIOS) return null;
+  if (isIOS && !showPrompt) {
+    // For iOS, only show if not dismissed and not already dismissed today
+    const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+    if (dismissed) {
+      const dismissedTime = parseInt(dismissed);
+      const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
+      if (hoursSinceDismissed < 24) return null;
+    }
+    // Show iOS prompt if not recently dismissed
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
+        <div className="glass-card border-2 border-primary/20 bg-gradient-to-br from-background/95 via-background/90 to-primary/5 backdrop-blur-xl shadow-2xl">
+          <div className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg">
+                <Download className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-lg mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                  📱 Instalar BioPeak
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                  Acesse rapidamente seus dados de performance. Toque no botão compartilhar ↗️ e selecione "Adicionar à Tela de Início"
+                </p>
+                
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    ⚡ Acesso rápido
+                  </span>
+                  <span className="flex items-center gap-1">
+                    📊 Dados offline
+                  </span>
+                  <span className="flex items-center gap-1">
+                    🔔 Notificações
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDismiss}
+                className="flex-shrink-0 h-10 w-10 p-0 rounded-full hover:bg-muted/50 transition-colors touch-manipulation"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
