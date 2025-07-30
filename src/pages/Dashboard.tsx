@@ -500,14 +500,8 @@ export const Dashboard = () => {
                         return typeMap[type.toUpperCase()] || typeMap.default;
                       };
 
-                      // Get performance badge  
-                      const getPerformanceBadge = () => {
-                        const badges = ['Excelente', 'Bom', 'Regular', 'Moderado'];
-                        return badges[Math.floor(Math.random() * badges.length)];
-                      };
-
                       const activityColor = getActivityColor(activity.type);
-                      const performanceBadge = getPerformanceBadge();
+                      const performanceBadge = activity.performance;
 
                       return (
                         <div 
