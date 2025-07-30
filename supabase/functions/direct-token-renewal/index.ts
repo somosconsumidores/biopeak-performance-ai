@@ -5,134 +5,155 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 
-function tryDecodeToken(rawToken) {
-  let decoded = rawToken;
-  try {
-    const once = JSON.parse(atob(decoded));
-    if (once.refreshTokenValue && typeof once.refreshTokenValue === 'string') {
-      decoded = once.refreshTokenValue;
-      try {
-        const twice = JSON.parse(atob(decoded));
-        if (twice.refreshTokenValue && typeof twice.refreshTokenValue === 'string') {
-          decoded = twice.refreshTokenValue;
-          console.log('[decode] Token decoded twice');
-        } else {
-          console.log('[decode] Token decoded once');
-        }
-      } catch {
-        console.log('[decode] Token decoded once (second decode failed)');
-      }
-    }
-  } catch {
-    console.log('[decode] Token not base64 encoded (using raw)');
-  }
-  return decoded;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL'),
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    );
-    const clientId = Deno.env.get('GARMIN_CLIENT_ID')?.replace(/^\+/, '') || '';
-    const clientSecret = Deno.env.get('GARMIN_CLIENT_SECRET') || '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
+    const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
 
-    console.log('[direct-token-renewal] Starting token renewal');
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: tokens, error: queryError } = await supabase
+    console.log('[direct-token-renewal] Starting direct token renewal process');
+
+    const { data: expiredTokens, error: queryError } = await supabase
       .from('garmin_tokens')
-      .select('user_id, refresh_token, refresh_token_expires_at, expires_at')
+      .select('user_id, garmin_user_id, refresh_token, expires_at, refresh_token_expires_at')
       .eq('is_active', true)
       .lt('expires_at', new Date().toISOString())
       .not('refresh_token', 'is', null);
 
     if (queryError) {
-      console.error('[direct-token-renewal] Query error:', queryError);
-      return new Response(JSON.stringify({ error: 'Failed to query tokens' }), {
+      console.error('[direct-token-renewal] Error querying expired tokens:', queryError);
+      return new Response(JSON.stringify({ error: 'Failed to query expired tokens' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
+    console.log(`[direct-token-renewal] Found ${expiredTokens?.length || 0} expired tokens to renew`);
+
     const results = [];
 
-    for (const token of tokens || []) {
-      const result = { user_id: token.user_id, status: 'failed', message: '' };
+    if (!expiredTokens || expiredTokens.length === 0) {
+      return new Response(JSON.stringify({ message: 'No expired tokens found', results: [] }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-      if (token.refresh_token_expires_at && new Date(token.refresh_token_expires_at) <= new Date()) {
-        result.status = 'skipped';
-        result.message = 'Refresh token expired';
-        results.push(result);
-        continue;
-      }
-
-      let refreshTokenValue = tryDecodeToken(token.refresh_token);
-      console.log(`[refresh] Using token: ${refreshTokenValue.substring(0, 8)}...`);
-
+    for (const token of expiredTokens) {
       try {
-        const body = new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
+        if (token.refresh_token_expires_at && new Date(token.refresh_token_expires_at) <= new Date()) {
+          results.push({
+            user_id: token.user_id,
+            status: 'skipped',
+            message: 'Refresh token expired'
+          });
+          continue;
+        }
+
+        const refreshTokenValue = token.refresh_token; // NUNCA decodificar
+        console.log(`[direct-token-renewal] Using refresh token: ${refreshTokenValue.substring(0, 8)}...`);
+
+        const tokenRequestBody = new URLSearchParams({
           grant_type: 'refresh_token',
+          client_id: garminClientId,
+          client_secret: garminClientSecret,
           refresh_token: refreshTokenValue
         });
 
-        const response = await fetch('https://connect.garmin.com/oauth2/token', {
+        const tokenResponse = await fetch('https://diauth.garmin.com/di-oauth2-service/oauth/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'
           },
-          body
+          body: tokenRequestBody
         });
 
-        if (!response.ok) {
-          const err = await response.text();
-          console.error(`[direct-token-renewal] Token refresh failed: ${response.status} ${err}`);
-          result.message = `Token refresh failed: ${response.status}`;
-          results.push(result);
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error(`[direct-token-renewal] Token refresh failed for user ${token.user_id}:`, errorText);
+          results.push({
+            user_id: token.user_id,
+            status: 'failed',
+            message: `Token refresh failed: ${tokenResponse.status} ${errorText}`
+          });
           continue;
         }
 
-        const tokenData = await response.json();
-        const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
-        const refreshExpiresAt = new Date(Date.now() + 89 * 24 * 60 * 60 * 1000);
+        const tokenData = await tokenResponse.json();
+        console.log(`[direct-token-renewal] Successfully refreshed token for user: ${token.user_id}`);
 
-        const { error: updateError } = await supabase.from('garmin_tokens').update({
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          expires_at: expiresAt.toISOString(),
-          refresh_token_expires_at: refreshExpiresAt.toISOString(),
-          updated_at: new Date().toISOString()
-        }).eq('user_id', token.user_id).eq('is_active', true);
+        const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+        const refreshExpiresAt = new Date(Date.now() + tokenData.refresh_token_expires_in * 1000);
+
+        const { error: updateError } = await supabase
+          .from('garmin_tokens')
+          .update({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            expires_at: expiresAt.toISOString(),
+            refresh_token_expires_at: refreshExpiresAt.toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', token.user_id)
+          .eq('is_active', true);
 
         if (updateError) {
-          console.error(`[direct-token-renewal] DB update failed:`, updateError);
-          result.message = 'Failed to update token';
+          console.error(`[direct-token-renewal] Error updating token for user ${token.user_id}:`, updateError);
+          results.push({
+            user_id: token.user_id,
+            status: 'failed',
+            message: 'Failed to update token in database'
+          });
         } else {
-          result.status = 'success';
-          result.message = 'Token updated';
+          results.push({
+            user_id: token.user_id,
+            status: 'success',
+            message: 'Token renewed successfully'
+          });
         }
-      } catch (err) {
-        console.error(`[direct-token-renewal] Exception:`, err);
-        result.message = err.message;
-      }
 
-      results.push(result);
+      } catch (error) {
+        console.error(`[direct-token-renewal] Exception processing user ${token.user_id}:`, error);
+        results.push({
+          user_id: token.user_id,
+          status: 'failed',
+          message: `Exception: ${error.message}`
+        });
+      }
     }
 
-    return new Response(JSON.stringify({ results }), {
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failedCount = results.filter(r => r.status === 'failed').length;
+    const skippedCount = results.filter(r => r.status === 'skipped').length;
+
+    return new Response(JSON.stringify({
+      message: `Direct token renewal complete: ${successCount} success, ${failedCount} failed, ${skippedCount} skipped`,
+      results,
+      summary: {
+        total: results.length,
+        success: successCount,
+        failed: failedCount,
+        skipped: skippedCount
+      }
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-  } catch (err) {
-    console.error('[direct-token-renewal] Fatal error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error', details: err.message }), {
+
+  } catch (error) {
+    console.error('[direct-token-renewal] Unexpected error:', error);
+    return new Response(JSON.stringify({
+      error: 'Internal server error',
+      details: error.message
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
