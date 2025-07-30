@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 import { LandingPage } from "./pages/LandingPage";
 import { Dashboard } from "./pages/Dashboard";
@@ -35,6 +36,7 @@ const App = () => {
           <Sonner />
           <AuthProvider>
             <AppRoutes />
+            <PWAInstallPrompt />
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
