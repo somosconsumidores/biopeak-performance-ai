@@ -301,7 +301,7 @@ const TrainingSession: React.FC = () => {
                   <h3 className="font-semibold">Suas estatísticas recentes:</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>Ritmo médio: {formatPace(stats.avgPace)}</div>
-                    <div>Distância máxima: {formatDistance(stats.longestDistance)}</div>
+                    <div>Distância média: {formatDistance(stats.avgDistance)}</div>
                   </div>
                 </div>
               )}

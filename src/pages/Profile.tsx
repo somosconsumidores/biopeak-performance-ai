@@ -91,7 +91,7 @@ export const Profile = () => {
       description: 'Completar 42.2km em uma atividade',
       icon: Target,
       color: 'text-purple-400',
-      completed: (stats?.longestDistance || 0) >= 42200,
+      completed: (stats?.totalDistance || 0) >= 42200,
       date: null
     },
     { 
@@ -107,7 +107,7 @@ export const Profile = () => {
       description: 'Completar 10km em uma corrida',
       icon: Target,
       color: 'text-orange-400',
-      completed: (stats?.longestDistance || 0) >= 10000,
+      completed: (stats?.avgDistance || 0) >= 10000,
       date: null
     }
   ];
