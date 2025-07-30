@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
           refresh_token: refreshTokenValue
         });
 
-        const tokenResponse = await fetch('https://connect.garmin.com/oauth2/token', {
+        const tokenResponse = await fetch('https://diauth.garmin.com/di-oauth2-service/oauth/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
