@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaSync } from '@/hooks/useStravaSync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export default function StravaCallback() {
   const [searchParams] = useSearchParams();
@@ -13,6 +14,29 @@ export default function StravaCallback() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [syncStartTime, setSyncStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [estimatedProgress, setEstimatedProgress] = useState(0);
+
+  // Timer effect for sync progress
+  useEffect(() => {
+    if (!syncStartTime || !isSyncing) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - syncStartTime) / 1000);
+      setElapsedTime(elapsed);
+      
+      // Simulate progress - faster at start, slower towards end
+      // Estimated 2-3 minutes for large syncs
+      const maxTime = 180; // 3 minutes
+      const rawProgress = Math.min((elapsed / maxTime) * 100, 95);
+      // Use exponential curve to slow down progress towards the end
+      const curvedProgress = 100 * (1 - Math.exp(-3 * (elapsed / maxTime)));
+      setEstimatedProgress(Math.min(curvedProgress, 95));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [syncStartTime, isSyncing]);
 
   useEffect(() => {
     // Prevent multiple simultaneous executions
@@ -77,7 +101,8 @@ export default function StravaCallback() {
         
         // Start automatic sync after successful authentication
         console.log('[StravaCallback] Starting automatic activity sync...');
-        setMessage('Sincronizando atividades...');
+        setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
+        setSyncStartTime(Date.now());
         
         const syncSuccess = await syncActivities();
         if (syncSuccess) {
@@ -129,17 +154,48 @@ export default function StravaCallback() {
             {message}
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center">
-          {status === 'processing' && (
+        <CardContent className="text-center space-y-4">
+          {status === 'processing' && isSyncing && syncStartTime && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Tempo decorrido: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+                </div>
+                <Progress value={estimatedProgress} className="w-full" />
+                <p className="text-xs text-muted-foreground">
+                  {estimatedProgress < 30 && "Iniciando sincronização..."}
+                  {estimatedProgress >= 30 && estimatedProgress < 60 && "Processando suas atividades..."}
+                  {estimatedProgress >= 60 && estimatedProgress < 90 && "Quase terminando..."}
+                  {estimatedProgress >= 90 && "Finalizando..."}
+                </p>
+              </div>
+              <div className="bg-muted/20 p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  💡 <strong>Dica:</strong> Quanto mais atividades você tiver, mais tempo levará. 
+                  Estamos importando todo seu histórico do Strava!
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {status === 'processing' && !isSyncing && (
             <p className="text-sm text-muted-foreground">
-              {isSyncing ? 'Sincronizando suas atividades...' : 'Aguarde enquanto processamos sua autenticação...'}
+              Aguarde enquanto processamos sua autenticação...
             </p>
           )}
-          {status === 'success' && (
-            <p className="text-sm text-muted-foreground">
-              Redirecionando para o dashboard...
-            </p>
+          
+          {status === 'success' && !isSyncing && (
+            <div className="space-y-2">
+              <p className="text-sm text-green-600 font-medium">
+                ✅ Todas as atividades foram sincronizadas!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Redirecionando para o dashboard...
+              </p>
+            </div>
           )}
+          
           {status === 'error' && (
             <p className="text-sm text-muted-foreground">
               Redirecionando de volta...
