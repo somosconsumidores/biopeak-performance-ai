@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminActions } from '@/hooks/useAdminActions';
 import { supabase } from '@/integrations/supabase/client';
-import { RefreshCw, Users, Key, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface TokenStats {
@@ -14,6 +14,14 @@ interface TokenStats {
   active: number;
   expired: number;
   expiringSoon: number;
+}
+
+interface UserStats {
+  totalUsers: number;
+  usersWithValidTokens: number;
+  usersWithActivities: number;
+  totalActivities: number;
+  usersWithCommitments: number;
 }
 
 export const AdminPanel = () => {
@@ -25,21 +33,29 @@ export const AdminPanel = () => {
     expired: 0,
     expiringSoon: 0
   });
+  const [userStats, setUserStats] = useState<UserStats>({
+    totalUsers: 0,
+    usersWithValidTokens: 0,
+    usersWithActivities: 0,
+    totalActivities: 0,
+    usersWithCommitments: 0
+  });
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTokenStats = async () => {
+  const fetchStats = async () => {
     setRefreshing(true);
     try {
-      const { data: tokens, error } = await supabase
+      // Fetch token stats
+      const { data: tokens, error: tokenError } = await supabase
         .from('garmin_tokens')
         .select('expires_at, is_active');
 
-      if (error) throw error;
+      if (tokenError) throw tokenError;
 
       const now = new Date();
       const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-      const stats = tokens.reduce((acc, token) => {
+      const tokenStats = tokens.reduce((acc, token) => {
         acc.total++;
         
         if (token.is_active) {
@@ -59,12 +75,40 @@ export const AdminPanel = () => {
         return acc;
       }, { total: 0, active: 0, expired: 0, expiringSoon: 0 });
 
-      setTokenStats(stats);
+      setTokenStats(tokenStats);
+
+      // Fetch user stats
+      const [
+        { count: totalUsers, error: usersError },
+        { count: usersWithValidTokens, error: validTokensError },
+        { count: usersWithActivities, error: activitiesUsersError },
+        { count: totalActivities, error: totalActivitiesError },
+        { count: usersWithCommitments, error: commitmentsError }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('garmin_tokens').select('user_id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('garmin_activities').select('user_id', { count: 'exact', head: true }),
+        supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
+        supabase.from('user_commitments').select('user_id', { count: 'exact', head: true })
+      ]);
+
+      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError) {
+        throw new Error('Erro ao buscar estatísticas dos usuários');
+      }
+
+      setUserStats({
+        totalUsers: totalUsers || 0,
+        usersWithValidTokens: usersWithValidTokens || 0,
+        usersWithActivities: usersWithActivities || 0,
+        totalActivities: totalActivities || 0,
+        usersWithCommitments: usersWithCommitments || 0
+      });
+
     } catch (error) {
-      console.error('Error fetching token stats:', error);
+      console.error('Error fetching stats:', error);
       toast({
         title: "Erro",
-        description: "Falha ao carregar estatísticas dos tokens",
+        description: "Falha ao carregar estatísticas",
         variant: "destructive",
       });
     } finally {
@@ -73,13 +117,13 @@ export const AdminPanel = () => {
   };
 
   useEffect(() => {
-    fetchTokenStats();
+    fetchStats();
   }, []);
 
   const handleRenewTokens = async () => {
     try {
       await renewExpiredTokens();
-      await fetchTokenStats(); // Refresh stats after renewal
+      await fetchStats(); // Refresh stats after renewal
     } catch (error) {
       // Error is already handled in useAdminActions
     }
@@ -93,7 +137,7 @@ export const AdminPanel = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
             <Button 
-              onClick={fetchTokenStats} 
+              onClick={fetchStats} 
               disabled={refreshing}
               variant="outline"
               size="sm"
@@ -103,47 +147,106 @@ export const AdminPanel = () => {
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Tokens</CardTitle>
-                <Key className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{tokenStats.total}</div>
-              </CardContent>
-            </Card>
+          {/* Token Stats Cards */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Estatísticas de Tokens</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Tokens</CardTitle>
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{tokenStats.total}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tokens Ativos</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{tokenStats.active}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tokens Ativos</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{tokenStats.active}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tokens Expirados</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{tokenStats.expired}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tokens Expirados</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">{tokenStats.expired}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Expirando em 7 dias</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{tokenStats.expiringSoon}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Expirando em 7 dias</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{tokenStats.expiringSoon}</div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* User Stats Cards */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Estatísticas de Usuários</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{userStats.totalUsers}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com Token Válido</CardTitle>
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{userStats.usersWithValidTokens}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com Atividades</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{userStats.usersWithActivities}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Atividades</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{userStats.totalActivities}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com Compromissos</CardTitle>
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">{userStats.usersWithCommitments}</div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Actions */}
