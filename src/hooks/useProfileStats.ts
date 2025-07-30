@@ -120,16 +120,23 @@ export function useProfileStats() {
       // FC máxima
       const maxHeartRate = Math.max(...activities.map(act => act.max_heart_rate_in_beats_per_minute || 0));
 
-      // Pace médio e melhor (apenas atividades de corrida com pace registrado)
+      // Pace médio e melhor (apenas atividades de corrida)
       const runningActivities = activities.filter(act => 
         act.activity_type?.toLowerCase().includes('running') || 
         act.activity_type?.toLowerCase().includes('corrida')
       );
       
-      const activitiesWithPace = runningActivities.filter(act => act.average_pace_in_minutes_per_kilometer);
-      const avgPace = activitiesWithPace.length > 0
-        ? activitiesWithPace.reduce((sum, act) => sum + (act.average_pace_in_minutes_per_kilometer || 0), 0) / activitiesWithPace.length
+      // Calcular pace médio baseado na distância total e tempo total das corridas
+      const runningActivitiesWithData = runningActivities.filter(act => 
+        act.distance_in_meters && act.duration_in_seconds && act.distance_in_meters > 0
+      );
+      const totalRunningDistance = runningActivitiesWithData.reduce((sum, act) => sum + (act.distance_in_meters || 0), 0);
+      const totalRunningTime = runningActivitiesWithData.reduce((sum, act) => sum + (act.duration_in_seconds || 0), 0);
+      const avgPace = totalRunningDistance > 0 && totalRunningTime > 0
+        ? (totalRunningTime / 60) / (totalRunningDistance / 1000) // min/km
         : 0;
+      
+      const activitiesWithPace = runningActivities.filter(act => act.average_pace_in_minutes_per_kilometer);
 
       const bestPace = activitiesWithPace.length > 0
         ? Math.min(...activitiesWithPace.map(act => act.average_pace_in_minutes_per_kilometer || Infinity))
