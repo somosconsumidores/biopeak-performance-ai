@@ -41,14 +41,18 @@ export const AdminPanel = () => {
 
       const stats = tokens.reduce((acc, token) => {
         acc.total++;
-        if (token.is_active) acc.active++;
         
-        if (token.expires_at) {
-          const expiresAt = new Date(token.expires_at);
-          if (expiresAt < now) {
-            acc.expired++;
-          } else if (expiresAt < soonThreshold) {
-            acc.expiringSoon++;
+        if (token.is_active) {
+          acc.active++;
+          
+          // Only check expiration for active tokens
+          if (token.expires_at) {
+            const expiresAt = new Date(token.expires_at);
+            if (expiresAt < now) {
+              acc.expired++;
+            } else if (expiresAt < soonThreshold) {
+              acc.expiringSoon++;
+            }
           }
         }
         
