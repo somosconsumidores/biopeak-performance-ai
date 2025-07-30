@@ -1425,6 +1425,15 @@ export type Database = {
           message: string
         }[]
       }
+      get_app_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_athletes: number
+          total_activities: number
+          total_insights: number
+          total_goals: number
+        }[]
+      }
       get_cron_job_status: {
         Args: Record<PropertyKey, never>
         Returns: {

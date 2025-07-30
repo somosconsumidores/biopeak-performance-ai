@@ -24,39 +24,23 @@ export function useAppStats() {
         setLoading(true);
         setError(null);
 
-        // Get total athletes (unique users in profiles table)
-        const { count: athletesCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
+        // Use the new database function to get public stats
+        const { data, error } = await supabase
+          .rpc('get_app_stats');
 
-        // Get total activities from all sources
-        const [garminActivities, stravaActivities, polarActivities] = await Promise.all([
-          supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
-          supabase.from('strava_activities').select('*', { count: 'exact', head: true }),
-          supabase.from('polar_activities').select('*', { count: 'exact', head: true })
-        ]);
+        if (error) {
+          throw error;
+        }
 
-        const totalActivities = 
-          (garminActivities.count || 0) + 
-          (stravaActivities.count || 0) + 
-          (polarActivities.count || 0);
-
-        // Get total insights (performance_metrics)
-        const { count: insightsCount } = await supabase
-          .from('performance_metrics')
-          .select('*', { count: 'exact', head: true });
-
-        // Get total goals (user_commitments)
-        const { count: goalsCount } = await supabase
-          .from('user_commitments')
-          .select('*', { count: 'exact', head: true });
-
-        setStats({
-          totalAthletes: athletesCount || 0,
-          totalActivities: totalActivities,
-          totalInsights: insightsCount || 0,
-          totalGoals: goalsCount || 0
-        });
+        if (data && data.length > 0) {
+          const stats = data[0];
+          setStats({
+            totalAthletes: stats.total_athletes || 0,
+            totalActivities: stats.total_activities || 0,
+            totalInsights: stats.total_insights || 0,
+            totalGoals: stats.total_goals || 0
+          });
+        }
 
       } catch (error) {
         console.error('Error fetching app stats:', error);
