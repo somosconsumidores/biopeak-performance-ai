@@ -145,17 +145,29 @@ serve(async (req) => {
         // Handle the refresh token - it's passed directly now
         let refreshTokenValue = refresh_token;
         
+        console.log('[garmin-oauth] Original refresh token length:', refresh_token?.length);
+        console.log('[garmin-oauth] Original refresh token start:', refresh_token?.substring(0, 20));
+        
         // If it's base64 encoded (legacy format), decode it
         if (refresh_token && refresh_token.length > 100) {
           try {
             const decodedSecret = atob(refresh_token);
             const secretData = JSON.parse(decodedSecret);
-            refreshTokenValue = secretData.refreshTokenValue;
+            if (secretData.refreshTokenValue) {
+              refreshTokenValue = secretData.refreshTokenValue;
+              console.log('[garmin-oauth] Using decoded refresh token from secret');
+            } else {
+              console.log('[garmin-oauth] No refreshTokenValue in decoded secret, using original');
+              refreshTokenValue = refresh_token;
+            }
           } catch (error) {
             // If decoding fails, assume it's already the raw token
-            console.log('[garmin-oauth] Using refresh token as-is (not base64 encoded)');
+            console.log('[garmin-oauth] Using refresh token as-is (decoding failed):', error.message);
+            refreshTokenValue = refresh_token;
           }
         }
+        
+        console.log('[garmin-oauth] Final refresh token to use length:', refreshTokenValue?.length);
 
         const cleanClientId = clientId.replace(/^\+/, "");
         const refreshRequestData: TokenRequest = {
