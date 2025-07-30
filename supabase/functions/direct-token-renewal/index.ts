@@ -13,10 +13,10 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
     const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('[direct-token-renewal] Starting direct token renewal process');
 
@@ -35,12 +35,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[direct-token-renewal] Found ${expiredTokens?.length || 0} expired tokens to renew`);
-
     const results = [];
-
     if (!expiredTokens || expiredTokens.length === 0) {
-      return new Response(JSON.stringify({ message: 'No expired tokens found', results: [] }), {
+      return new Response(JSON.stringify({
+        message: 'No expired tokens found',
+        results
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -57,13 +57,12 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const refreshTokenValue = token.refresh_token; // NUNCA decodificar
-        console.log(`[direct-token-renewal] Using refresh token: ${refreshTokenValue.substring(0, 8)}...`);
+        const refreshTokenValue = token.refresh_token;
 
         const tokenRequestBody = new URLSearchParams({
-          grant_type: 'refresh_token',
           client_id: garminClientId,
           client_secret: garminClientSecret,
+          grant_type: 'refresh_token',
           refresh_token: refreshTokenValue
         });
 
@@ -78,7 +77,7 @@ Deno.serve(async (req) => {
 
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
-          console.error(`[direct-token-renewal] Token refresh failed for user ${token.user_id}:`, errorText);
+          console.error(`[direct-token-renewal] Token refresh failed: ${tokenResponse.status} ${errorText}`);
           results.push({
             user_id: token.user_id,
             status: 'failed',
@@ -88,7 +87,6 @@ Deno.serve(async (req) => {
         }
 
         const tokenData = await tokenResponse.json();
-        console.log(`[direct-token-renewal] Successfully refreshed token for user: ${token.user_id}`);
 
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
         const refreshExpiresAt = new Date(Date.now() + tokenData.refresh_token_expires_in * 1000);
@@ -113,13 +111,13 @@ Deno.serve(async (req) => {
             message: 'Failed to update token in database'
           });
         } else {
+          console.log(`[direct-token-renewal] Token updated for user: ${token.user_id}`);
           results.push({
             user_id: token.user_id,
             status: 'success',
             message: 'Token renewed successfully'
           });
         }
-
       } catch (error) {
         console.error(`[direct-token-renewal] Exception processing user ${token.user_id}:`, error);
         results.push({
@@ -130,19 +128,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    const successCount = results.filter(r => r.status === 'success').length;
-    const failedCount = results.filter(r => r.status === 'failed').length;
-    const skippedCount = results.filter(r => r.status === 'skipped').length;
+    const summary = {
+      total: results.length,
+      success: results.filter(r => r.status === 'success').length,
+      failed: results.filter(r => r.status === 'failed').length,
+      skipped: results.filter(r => r.status === 'skipped').length
+    };
 
     return new Response(JSON.stringify({
-      message: `Direct token renewal complete: ${successCount} success, ${failedCount} failed, ${skippedCount} skipped`,
+      message: `Direct token renewal complete: ${summary.success} success, ${summary.failed} failed, ${summary.skipped} skipped`,
       results,
-      summary: {
-        total: results.length,
-        success: successCount,
-        failed: failedCount,
-        skipped: skippedCount
-      }
+      summary
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
