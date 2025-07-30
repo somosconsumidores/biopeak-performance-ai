@@ -224,7 +224,7 @@ export const WorkoutSession = () => {
                     <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
                   </span>
                   <span className="text-xs sm:text-sm text-muted-foreground/80 italic">
-                    <span className="font-bold">GARMIN</span> [{currentActivity.device_name || 'dispositivo desconhecido'}]
+                    <span className="font-bold">GARMIN</span> {currentActivity.device_name || 'dispositivo desconhecido'}
                   </span>
                 </p>
               </div>
