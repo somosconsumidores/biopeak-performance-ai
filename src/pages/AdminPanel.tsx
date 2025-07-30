@@ -77,31 +77,36 @@ export const AdminPanel = () => {
 
       setTokenStats(tokenStats);
 
-      // Fetch user stats
+      // Fetch user stats with proper distinct counts
       const [
         { count: totalUsers, error: usersError },
-        { count: usersWithValidTokens, error: validTokensError },
-        { count: usersWithActivities, error: activitiesUsersError },
+        { data: validTokensData, error: validTokensError },
+        { data: activitiesUsersData, error: activitiesUsersError },
         { count: totalActivities, error: totalActivitiesError },
-        { count: usersWithCommitments, error: commitmentsError }
+        { data: commitmentsData, error: commitmentsError }
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('garmin_tokens').select('user_id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('garmin_activities').select('user_id', { count: 'exact', head: true }),
+        supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
+        supabase.from('garmin_activities').select('user_id'),
         supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
-        supabase.from('user_commitments').select('user_id', { count: 'exact', head: true })
+        supabase.from('user_commitments').select('user_id')
       ]);
 
       if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError) {
         throw new Error('Erro ao buscar estatísticas dos usuários');
       }
 
+      // Calculate unique users from the data
+      const uniqueValidTokenUsers = validTokensData ? new Set(validTokensData.map(item => item.user_id)).size : 0;
+      const uniqueActivityUsers = activitiesUsersData ? new Set(activitiesUsersData.map(item => item.user_id)).size : 0;
+      const uniqueCommitmentUsers = commitmentsData ? new Set(commitmentsData.map(item => item.user_id)).size : 0;
+
       setUserStats({
         totalUsers: totalUsers || 0,
-        usersWithValidTokens: usersWithValidTokens || 0,
-        usersWithActivities: usersWithActivities || 0,
+        usersWithValidTokens: uniqueValidTokenUsers,
+        usersWithActivities: uniqueActivityUsers,
         totalActivities: totalActivities || 0,
-        usersWithCommitments: usersWithCommitments || 0
+        usersWithCommitments: uniqueCommitmentUsers
       });
 
     } catch (error) {
