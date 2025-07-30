@@ -80,7 +80,7 @@ export const useRealtimeSession = () => {
   const startLocationTracking = useCallback(() => {
     if (!navigator.geolocation) {
       console.error('Geolocation is not supported');
-      return false;
+      return Promise.resolve(false);
     }
 
     const options = {
@@ -89,41 +89,73 @@ export const useRealtimeSession = () => {
       maximumAge: 1000
     };
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const newLocation: LocationData = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          altitude: position.coords.altitude || undefined,
-          speed: position.coords.speed || undefined
-        };
-
-        // Calculate distance from last position
-        if (lastLocationRef.current) {
-          const distance = calculateDistance(
-            lastLocationRef.current.latitude,
-            lastLocationRef.current.longitude,
-            newLocation.latitude,
-            newLocation.longitude
-          );
+    return new Promise<boolean>((resolve) => {
+      // First get current position to check permissions
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('✅ GPS permission granted, starting tracking...');
           
-          // Only add significant movements (accuracy filter)
-          if (distance > newLocation.accuracy / 2) {
-            distanceAccumulatorRef.current += distance;
+          // Now start watching position
+          watchIdRef.current = navigator.geolocation.watchPosition(
+            (position) => {
+              const newLocation: LocationData = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude || undefined,
+                speed: position.coords.speed || undefined
+              };
+
+              console.log('📍 GPS Update:', newLocation);
+
+              // Calculate distance from last position
+              if (lastLocationRef.current) {
+                const distance = calculateDistance(
+                  lastLocationRef.current.latitude,
+                  lastLocationRef.current.longitude,
+                  newLocation.latitude,
+                  newLocation.longitude
+                );
+                
+                // Only add significant movements (accuracy filter)
+                if (distance > newLocation.accuracy / 2) {
+                  distanceAccumulatorRef.current += distance;
+                }
+              }
+
+              lastLocationRef.current = newLocation;
+            },
+            (error) => {
+              console.error('GPS Error during tracking:', error);
+            },
+            options
+          );
+
+          setIsWatchingLocation(true);
+          resolve(true);
+        },
+        (error) => {
+          console.error('GPS Permission Error:', error);
+          let errorMessage = 'Erro desconhecido';
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Permissão de localização negada. Por favor, habilite no navegador.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Localização indisponível. Verifique se o GPS está ativo.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Tempo limite para obter localização. Tente novamente.';
+              break;
           }
-        }
-
-        lastLocationRef.current = newLocation;
-      },
-      (error) => {
-        console.error('GPS Error:', error);
-      },
-      options
-    );
-
-    setIsWatchingLocation(true);
-    return true;
+          
+          console.error('GPS Error details:', errorMessage);
+          resolve(false);
+        },
+        options
+      );
+    });
   }, [calculateDistance]);
 
   // Stop GPS tracking
@@ -244,9 +276,9 @@ export const useRealtimeSession = () => {
       setSessionData(newSessionData);
       
       // Start GPS tracking
-      const gpsStarted = startLocationTracking();
+      const gpsStarted = await startLocationTracking();
       if (!gpsStarted) {
-        throw new Error('Failed to start GPS tracking');
+        throw new Error('Falha ao iniciar o rastreamento GPS. Verifique as permissões de localização.');
       }
 
       // Start interval for updating session data

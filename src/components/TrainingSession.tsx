@@ -143,17 +143,31 @@ const TrainingSession: React.FC = () => {
     const goal = createGoal();
     if (!goal) return;
 
-    const sessionId = await startSession(goal);
-    if (sessionId) {
-      setShowGoalSetup(false);
+    toast({
+      title: "Iniciando treino...",
+      description: "Aguarde enquanto configuramos o GPS",
+    });
+
+    try {
+      const sessionId = await startSession(goal);
+      if (sessionId) {
+        setShowGoalSetup(false);
+        toast({
+          title: "Treino iniciado!",
+          description: "Boa corrida! O AI Coach irá te acompanhar.",
+        });
+      } else {
+        toast({
+          title: "Erro ao iniciar treino",
+          description: "Houve um problema interno. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Error starting session:', error);
       toast({
-        title: "Treino iniciado!",
-        description: "Boa corrida! O AI Coach irá te acompanhar.",
-      });
-    } else {
-      toast({
-        title: "Erro ao iniciar treino",
-        description: "Verifique as permissões de localização.",
+        title: "Erro de localização",
+        description: error.message || "Verifique se as permissões de localização estão habilitadas.",
         variant: "destructive"
       });
     }
