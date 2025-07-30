@@ -24,6 +24,7 @@ import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AdminPanel } from "./pages/AdminPanel";
+import MobileBottomBar from "./components/MobileBottomBar";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +126,7 @@ function AppRoutes() {
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <MobileBottomBar />
     </BrowserRouter>
   );
 }
