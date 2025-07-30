@@ -83,13 +83,28 @@ Deno.serve(async (req) => {
 
         console.log(`[force-token-renewal] Renewing token for user: ${token.user_id}`);
 
+        // Decode refresh token if it's in base64 format (legacy)
+        let refreshTokenValue = token.refresh_token;
+        if (token.refresh_token && token.refresh_token.length > 100) {
+          try {
+            const decodedSecret = atob(token.refresh_token);
+            const secretData = JSON.parse(decodedSecret);
+            if (secretData.refreshTokenValue) {
+              refreshTokenValue = secretData.refreshTokenValue;
+              console.log(`[force-token-renewal] Decoded base64 refresh token for user: ${token.user_id}`);
+            }
+          } catch (error) {
+            console.log(`[force-token-renewal] Using refresh token as-is for user ${token.user_id} (not base64)`);
+          }
+        }
+
         // Call garmin-oauth function to renew the token with service role auth
         const { data: renewalResponse, error: renewalError } = await supabase.functions.invoke('garmin-oauth', {
           headers: {
             'Authorization': `Bearer ${supabaseKey}`
           },
           body: {
-            refresh_token: token.refresh_token,
+            refresh_token: refreshTokenValue,
             grant_type: 'refresh_token',
             force_renewal: true,
             user_id: token.user_id
