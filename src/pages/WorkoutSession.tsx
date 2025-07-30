@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
-import { useActivityHistory } from '@/hooks/useActivityHistory';
+import { useUnifiedActivityHistory } from '@/hooks/useUnifiedActivityHistory';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
@@ -35,6 +35,8 @@ import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
+import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
+import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
 export const WorkoutSession = () => {
@@ -45,10 +47,11 @@ export const WorkoutSession = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
-  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useActivityHistory();
+  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
   
-  // Determine which activity to show
-  const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : latestActivity;
+  // Determine which activity to show - prioritize unified activities
+  const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
+    (activities.length > 0 ? activities[0] : latestActivity);
   const loading = latestLoading || historyLoading;
   const error = latestError || historyError;
 
@@ -224,7 +227,7 @@ export const WorkoutSession = () => {
                     <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
                   </span>
                   <span className="text-xs sm:text-sm text-muted-foreground/80 italic">
-                    <span className="font-bold">GARMIN</span> {currentActivity.device_name || 'dispositivo desconhecido'}
+                    <span className="font-bold">{(currentActivity as any)?.source || 'GARMIN'}</span> {currentActivity.device_name || 'dispositivo desconhecido'}
                   </span>
                 </p>
               </div>
@@ -293,16 +296,26 @@ export const WorkoutSession = () => {
 
           {/* Heart Rate vs Pace Chart */}
           <ScrollReveal delay={150}>
-            <HeartRatePaceChart 
-              activityId={currentActivity.activity_id} 
-              activityStartTime={currentActivity.start_time_in_seconds}
-              activityDate={currentActivity.activity_date}
-            />
+            <div className="mb-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="heart_rate" 
+              />
+              <HeartRatePaceChart 
+                activityId={currentActivity.activity_id} 
+                activityStartTime={currentActivity.start_time_in_seconds}
+                activityDate={currentActivity.activity_date}
+              />
+            </div>
           </ScrollReveal>
 
           {/* Performance Indicators */}
           <ScrollReveal delay={175}>
             <div className="mb-8 mt-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="detailed_metrics" 
+              />
               <PerformanceIndicators activityId={currentActivity.activity_id} />
             </div>
           </ScrollReveal>
@@ -310,6 +323,10 @@ export const WorkoutSession = () => {
           {/* AI Analysis */}
           <ScrollReveal delay={200}>
             <div className="mb-8 mt-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="performance_analysis" 
+              />
               <AIInsightsCard activityId={currentActivity.activity_id} />
             </div>
           </ScrollReveal>
