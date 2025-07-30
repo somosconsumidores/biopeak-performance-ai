@@ -10,16 +10,22 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/lovable-uploads/biopeak-hero-light-new.png",
+      "src": "/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/lovable-uploads/biopeak-hero-light-new.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["fitness", "health", "sports"],
@@ -34,7 +40,7 @@
       "url": "/dashboard",
       "icons": [
         {
-          "src": "/lovable-uploads/biopeak-hero-light-new.png",
+          "src": "/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png",
           "sizes": "96x96",
           "type": "image/png"
         }
@@ -47,7 +53,7 @@
       "url": "/insights",
       "icons": [
         {
-          "src": "/lovable-uploads/biopeak-hero-light-new.png",
+          "src": "/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png",
           "sizes": "96x96",
           "type": "image/png"
         }
