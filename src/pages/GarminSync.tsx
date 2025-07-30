@@ -14,6 +14,8 @@ import { useStravaStats } from '@/hooks/useStravaStats';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 
 
@@ -32,8 +34,28 @@ import {
 } from 'lucide-react';
 
 export function GarminSync() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Detect Strava callback that might have landed on /sync instead of /strava-callback
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const scope = searchParams.get('scope');
+    
+    // Check if this looks like a Strava callback (has scope parameter with Strava-specific values)
+    if (code && state && scope && scope.includes('activity:read_all')) {
+      console.log('🔄 Detected Strava callback on /sync route, redirecting to /strava-callback');
+      console.log('🔄 Callback params:', { code: code.substring(0, 10) + '...', state: state.substring(0, 10) + '...', scope });
+      
+      // Redirect to the correct Strava callback page with all parameters
+      const newUrl = `/strava-callback?${searchParams.toString()}`;
+      navigate(newUrl, { replace: true });
+      return;
+    }
+  }, [searchParams, navigate]);
   const { 
     isConnected: garminConnected, 
     isConnecting: garminConnecting, 

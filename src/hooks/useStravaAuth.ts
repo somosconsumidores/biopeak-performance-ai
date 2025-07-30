@@ -32,6 +32,8 @@ export const useStravaAuth = () => {
         error: configError
       });
       
+      console.log('🚨 [DEBUG] Full config response for debugging:', configData);
+      
       if (configError || !configData) {
         console.error('❌ [StravaAuth] Config error:', configError);
         toast({
