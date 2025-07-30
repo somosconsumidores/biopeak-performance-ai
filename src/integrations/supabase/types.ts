@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_prescriptions: {
+        Row: {
+          actual_performance: Json
+          adjustments_made: Json
+          created_at: string
+          goal_feasibility_score: number | null
+          id: string
+          planned_strategy: Json
+          recommended_heart_rate_zone: string | null
+          recommended_pace_min_km: number | null
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_performance?: Json
+          adjustments_made?: Json
+          created_at?: string
+          goal_feasibility_score?: number | null
+          id?: string
+          planned_strategy?: Json
+          recommended_heart_rate_zone?: string | null
+          recommended_pace_min_km?: number | null
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_performance?: Json
+          adjustments_made?: Json
+          created_at?: string
+          goal_feasibility_score?: number | null
+          id?: string
+          planned_strategy?: Json
+          recommended_heart_rate_zone?: string | null
+          recommended_pace_min_km?: number | null
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prescriptions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       garmin_activities: {
         Row: {
           active_kilocalories: number | null
@@ -887,6 +934,62 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_snapshots: {
+        Row: {
+          calories_burned_so_far: number | null
+          created_at: string
+          current_heart_rate: number | null
+          current_pace_min_km: number | null
+          current_speed_ms: number | null
+          deviation_from_target: Json
+          elevation_meters: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          session_id: string
+          snapshot_at_distance_meters: number
+          snapshot_at_duration_seconds: number
+        }
+        Insert: {
+          calories_burned_so_far?: number | null
+          created_at?: string
+          current_heart_rate?: number | null
+          current_pace_min_km?: number | null
+          current_speed_ms?: number | null
+          deviation_from_target?: Json
+          elevation_meters?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          session_id: string
+          snapshot_at_distance_meters: number
+          snapshot_at_duration_seconds: number
+        }
+        Update: {
+          calories_burned_so_far?: number | null
+          created_at?: string
+          current_heart_rate?: number | null
+          current_pace_min_km?: number | null
+          current_speed_ms?: number | null
+          deviation_from_target?: Json
+          elevation_meters?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          session_id?: string
+          snapshot_at_distance_meters?: number
+          snapshot_at_duration_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_snapshots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       polar_activities: {
         Row: {
           activity_id: string
@@ -1136,6 +1239,50 @@ export type Database = {
         }
         Relationships: []
       }
+      realtime_feedbacks: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          feedback_text: string
+          feedback_type: string
+          id: string
+          performance_data: Json
+          session_id: string
+          triggered_at_distance_meters: number
+          triggered_at_duration_seconds: number
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          feedback_text: string
+          feedback_type: string
+          id?: string
+          performance_data?: Json
+          session_id: string
+          triggered_at_distance_meters: number
+          triggered_at_duration_seconds: number
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          feedback_text?: string
+          feedback_type?: string
+          id?: string
+          performance_data?: Json
+          session_id?: string
+          triggered_at_distance_meters?: number
+          triggered_at_duration_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realtime_feedbacks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strava_activities: {
         Row: {
           average_heartrate: number | null
@@ -1293,6 +1440,63 @@ export type Database = {
           expires_at?: string
           id?: string
           refresh_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      training_sessions: {
+        Row: {
+          average_heart_rate: number | null
+          average_pace_min_km: number | null
+          calories_burned: number | null
+          completed_at: string | null
+          created_at: string
+          goal_achieved: boolean | null
+          goal_data: Json
+          id: string
+          session_type: string
+          started_at: string
+          status: string
+          subjective_feedback: Json | null
+          total_distance_meters: number | null
+          total_duration_seconds: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          calories_burned?: number | null
+          completed_at?: string | null
+          created_at?: string
+          goal_achieved?: boolean | null
+          goal_data?: Json
+          id?: string
+          session_type: string
+          started_at?: string
+          status?: string
+          subjective_feedback?: Json | null
+          total_distance_meters?: number | null
+          total_duration_seconds?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          calories_burned?: number | null
+          completed_at?: string | null
+          created_at?: string
+          goal_achieved?: boolean | null
+          goal_data?: Json
+          id?: string
+          session_type?: string
+          started_at?: string
+          status?: string
+          subjective_feedback?: Json | null
+          total_distance_meters?: number | null
+          total_duration_seconds?: number | null
           updated_at?: string
           user_id?: string
         }

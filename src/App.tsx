@@ -14,6 +14,7 @@ import { WorkoutComparison } from "./pages/WorkoutComparison";
 import { Insights } from "./pages/Insights";
 import { Profile } from "./pages/Profile";
 import { ProfileEdit } from "./pages/ProfileEdit";
+import TrainingSession from "./components/TrainingSession";
 import { Auth } from "./pages/Auth";
 import { ResetPassword } from "./pages/ResetPassword";
 import { GarminSync } from "./pages/GarminSync";
@@ -111,6 +112,11 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/training" element={
+          <ProtectedRoute>
+            <TrainingSession />
+          </ProtectedRoute>
+        } />
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminPanel />
