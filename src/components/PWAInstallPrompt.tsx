@@ -64,42 +64,59 @@ export const PWAInstallPrompt = () => {
   if (!showPrompt && !isIOS) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96">
-      <Card className="bg-card border shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm mb-1">
-                {isIOS ? 'Instalar BioPeak' : 'Adicionar à tela inicial'}
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
+      <div className="glass-card border-2 border-primary/20 bg-gradient-to-br from-background/95 via-background/90 to-primary/5 backdrop-blur-xl shadow-2xl">
+        <div className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg">
+              <Download className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-lg mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {isIOS ? '📱 Instalar BioPeak' : '🚀 Instalar Aplicativo'}
               </h3>
-              <p className="text-xs text-muted-foreground mb-3">
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                 {isIOS 
-                  ? 'Toque no botão compartilhar e depois "Adicionar à Tela de Início"'
-                  : 'Instale o app para uma melhor experiência'
+                  ? 'Acesse rapidamente seus dados de performance. Toque no botão compartilhar ↗️ e selecione "Adicionar à Tela de Início"'
+                  : 'Experiência completa, notificações instantâneas e acesso offline aos seus dados de performance'
                 }
               </p>
-              {!isIOS && (
-                <Button
-                  onClick={handleInstall}
-                  size="sm"
-                  className="w-full"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Instalar App
-                </Button>
-              )}
+              
+              <div className="flex flex-col gap-3">
+                {!isIOS && (
+                  <Button
+                    onClick={handleInstall}
+                    className="w-full h-12 bg-gradient-to-r from-primary via-primary-glow to-primary text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Instalar Agora - É Grátis!
+                  </Button>
+                )}
+                
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    ⚡ Acesso rápido
+                  </span>
+                  <span className="flex items-center gap-1">
+                    📊 Dados offline
+                  </span>
+                  <span className="flex items-center gap-1">
+                    🔔 Notificações
+                  </span>
+                </div>
+              </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDismiss}
-              className="h-6 w-6 p-0"
+              className="flex-shrink-0 h-8 w-8 p-0 rounded-full hover:bg-muted/50 transition-colors"
             >
               <X className="w-4 h-4" />
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
