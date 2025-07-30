@@ -18,6 +18,7 @@ import {
   ArrowRight,
   CheckCircle
 } from 'lucide-react';
+import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
 // Hero logos for different themes
@@ -32,6 +33,7 @@ import heroAnimation from '@/assets/hero-animation-new.gif';
 export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const { theme } = useTheme();
+  const { stats: appStats, loading: statsLoading } = useAppStats();
 
   // Get current effective theme
   const getEffectiveTheme = () => {
@@ -77,11 +79,31 @@ export const LandingPage = () => {
     'Previsão de picos de performance'
   ];
 
-  const stats = [
-    { value: '10K+', label: 'Atletas Ativos' },
-    { value: '95%', label: 'Melhoria Performance' },
-    { value: '24/7', label: 'Monitor' },
-    { value: '30%', label: 'Menos Lesões' }
+  // Format number for display
+  const formatNumber = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace('.0', '') + 'K';
+    }
+    return num.toString();
+  };
+
+  const realStats = [
+    { 
+      value: statsLoading ? '...' : formatNumber(appStats.totalAthletes), 
+      label: 'Atletas Registrados' 
+    },
+    { 
+      value: statsLoading ? '...' : formatNumber(appStats.totalActivities), 
+      label: 'Atividades Registradas' 
+    },
+    { 
+      value: statsLoading ? '...' : formatNumber(appStats.totalInsights), 
+      label: 'Insights Fornecidos' 
+    },
+    { 
+      value: statsLoading ? '...' : formatNumber(appStats.totalGoals), 
+      label: 'Metas Atribuídas' 
+    }
   ];
 
   return (
@@ -146,7 +168,7 @@ export const LandingPage = () => {
         <div className="container mx-auto">
           <ScrollReveal delay={200}>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 max-w-4xl mx-auto">
-              {stats.map((stat, index) => (
+              {realStats.map((stat, index) => (
                 <div key={index} className="glass-card text-center p-4 lg:p-6 min-h-[120px] flex flex-col justify-center">
                   <div className="text-2xl lg:text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
                     {stat.value}
