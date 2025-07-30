@@ -68,32 +68,30 @@ export const useGarminTokenManager = (user: User | null) => {
       return false;
     }
 
-    if (!tokens.refresh_token) {
-      console.error('[GarminTokenManager] No refresh token available');
-      return false;
-    }
-
-    const refreshExpiresAt = new Date(tokens.refresh_token_expires_at);
-    if (refreshExpiresAt <= new Date()) {
-      toast({
-        title: 'Garmin Connection Expired',
-        description: 'Please reconnect your Garmin account in settings.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
     setIsRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('garmin-oauth', {
+      const { data, error } = await supabase.functions.invoke('renew-garmin-token', {
         body: {
-          refresh_token: tokens.refresh_token,
-          grant_type: 'refresh_token',
+          user_id: user.id,
         },
       });
 
-      if (error || !data.success) {
-        console.error('[GarminTokenManager] Token refresh failed:', error || data?.error);
+      if (error) {
+        console.error('[GarminTokenManager] Token refresh failed:', error);
+        return false;
+      }
+
+      if (!data.success) {
+        console.error('[GarminTokenManager] Token refresh failed:', data?.error);
+        
+        // Check for specific error cases
+        if (data?.error?.includes('refresh token expired')) {
+          toast({
+            title: 'Garmin Connection Expired',
+            description: 'Please reconnect your Garmin account in settings.',
+            variant: 'destructive',
+          });
+        }
         return false;
       }
 

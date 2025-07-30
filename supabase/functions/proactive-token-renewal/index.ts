@@ -21,24 +21,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const results = {
-      checked: 0,
-      renewed: 0,
-      failed: 0,
-      errors: [] as string[]
-    };
-
     // Find tokens that expire in the next 2 hours
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     
     const { data: expiring_tokens, error: tokenError } = await supabase
       .from('garmin_tokens')
-      .select('id, user_id, garmin_user_id, access_token, token_secret, expires_at, refresh_token_expires_at')
+      .select('user_id')
       .eq('is_active', true)
       .not('token_secret', 'is', null) // Must have refresh token
       .lt('expires_at', twoHoursFromNow)
-      .gt('refresh_token_expires_at', new Date().toISOString()) // Refresh token not expired
-      .limit(20); // Process in batches
+      .gt('refresh_token_expires_at', new Date().toISOString()); // Refresh token not expired
 
     if (tokenError) {
       console.error('[proactive-token-renewal] Error fetching expiring tokens:', tokenError);
@@ -50,75 +42,38 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         message: 'No tokens need renewal',
-        ...results
+        checked: 0,
+        renewed: 0,
+        failed: 0
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     console.log(`[proactive-token-renewal] Found ${expiring_tokens.length} tokens that need renewal`);
+    
+    // Call renew-garmin-token function to handle all renewals
+    const { data: renewalData, error: renewalError } = await supabase.functions.invoke('renew-garmin-token', {
+      body: {} // No user_id parameter = process all eligible tokens
+    });
 
-    for (const token of expiring_tokens) {
-      try {
-        results.checked++;
-        
-        console.log(`[proactive-token-renewal] Attempting to renew token for user ${token.user_id}`);
-        
-        // Call the garmin-oauth function to refresh the token
-        const { data: refreshResult, error: refreshError } = await supabase.functions.invoke('garmin-oauth', {
-          body: {
-            refresh_token: token.token_secret,
-            grant_type: 'refresh_token',
-            user_id: token.user_id
-          }
-        });
-
-        if (refreshError) {
-          console.error(`[proactive-token-renewal] Renewal failed for user ${token.user_id}:`, refreshError);
-          results.errors.push(`Renewal failed for user ${token.user_id}: ${refreshError.message}`);
-          results.failed++;
-          
-          // Update mapping to mark as needs reauth if refresh token is expired
-          if (refreshError.message?.includes('refresh_token')) {
-            await supabase
-              .from('garmin_user_mapping')
-              .update({
-                is_active: false,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', token.user_id);
-          }
-        } else if (refreshResult?.success) {
-          console.log(`[proactive-token-renewal] Successfully renewed token for user ${token.user_id}`);
-          results.renewed++;
-          
-          // Update mapping last_seen_at
-          await supabase
-            .from('garmin_user_mapping')
-            .update({
-              last_seen_at: new Date().toISOString(),
-              is_active: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', token.user_id);
-        } else {
-          console.warn(`[proactive-token-renewal] Unexpected renewal result for user ${token.user_id}:`, refreshResult);
-          results.failed++;
-        }
-        
-      } catch (renewalError) {
-        console.error(`[proactive-token-renewal] Error renewing token for user ${token.user_id}:`, renewalError);
-        results.failed++;
-        results.errors.push(`Renewal error for user ${token.user_id}: ${renewalError.message}`);
-      }
+    if (renewalError) {
+      console.error('[proactive-token-renewal] Error calling renew-garmin-token:', renewalError);
+      throw renewalError;
     }
 
-    console.log(`[proactive-token-renewal] Renewal completed. Checked: ${results.checked}, Renewed: ${results.renewed}, Failed: ${results.failed}`);
+    if (!renewalData?.success) {
+      console.error('[proactive-token-renewal] renew-garmin-token failed:', renewalData?.error);
+      throw new Error(renewalData?.error || 'Token renewal failed');
+    }
+
+    console.log('[proactive-token-renewal] Token renewal completed:', renewalData.summary);
 
     return new Response(JSON.stringify({
       success: true,
       message: 'Proactive token renewal completed',
-      ...results
+      summary: renewalData.summary,
+      renewal_details: renewalData
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
