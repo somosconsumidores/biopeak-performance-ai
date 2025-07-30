@@ -61,17 +61,18 @@ export const PWAInstallPrompt = () => {
     }
   }, []);
 
-  // Show prompt for iOS devices or when deferredPrompt is available and not dismissed
-  if (!showPrompt && !isIOS) return null;
-  if (isIOS && !showPrompt) {
-    // For iOS, only show if not dismissed and not already dismissed today
+  // Don't show if prompt was dismissed
+  if (!showPrompt) return null;
+  
+  // For iOS, check if we should show the prompt initially
+  if (isIOS) {
     const dismissed = localStorage.getItem('pwa-prompt-dismissed');
     if (dismissed) {
       const dismissedTime = parseInt(dismissed);
       const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
       if (hoursSinceDismissed < 24) return null;
     }
-    // Show iOS prompt if not recently dismissed
+    // Show iOS prompt
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
         <div className="glass-card border-2 border-primary/20 bg-gradient-to-br from-background/95 via-background/90 to-primary/5 backdrop-blur-xl shadow-2xl">
