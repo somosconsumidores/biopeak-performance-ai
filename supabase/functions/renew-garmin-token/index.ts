@@ -55,8 +55,10 @@ Deno.serve(async (req) => {
     const results = [];
     if (!tokens || tokens.length === 0) {
       return new Response(JSON.stringify({
+        success: true,
         message: targetUserId ? `No tokens found for user ${targetUserId}` : 'No tokens found to renew',
-        results
+        results,
+        summary: { total: 0, success: 0, failed: 0, skipped: 0 }
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -153,6 +155,7 @@ Deno.serve(async (req) => {
     };
 
     return new Response(JSON.stringify({
+      success: true,
       message: `Token renewal complete: ${summary.success} success, ${summary.failed} failed, ${summary.skipped} skipped`,
       results,
       summary
