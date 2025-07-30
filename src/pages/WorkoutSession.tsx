@@ -207,7 +207,6 @@ export const WorkoutSession = () => {
             </Card>
           </ScrollReveal>
 
-
           {/* Header */}
           <ScrollReveal>
             <div className="flex items-center space-x-4 mb-8">
@@ -227,7 +226,7 @@ export const WorkoutSession = () => {
                     <Badge variant="outline">{getActivityType(currentActivity.activity_type)}</Badge>
                   </span>
                   <span className="text-xs sm:text-sm text-muted-foreground/80 italic">
-                    <span className="font-bold">{(currentActivity as any)?.source || 'GARMIN'}</span> {currentActivity.device_name || 'dispositivo desconhecido'}
+                    {(currentActivity as any)?.source || 'GARMIN'} {currentActivity.device_name || 'dispositivo desconhecido'}
                   </span>
                 </p>
               </div>
