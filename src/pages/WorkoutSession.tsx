@@ -53,8 +53,20 @@ export const WorkoutSession = () => {
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
     (activities.length > 0 ? activities[0] : latestActivity);
   
-  // Only show loading if both are loading and we have no data
-  const loading = (latestLoading && historyLoading) || (!currentActivity && (latestLoading || historyLoading));
+  // Debug logs
+  console.log('🔍 WORKOUT SESSION:', {
+    latestActivity: !!latestActivity,
+    latestLoading,
+    latestError,
+    activitiesCount: activities.length,
+    historyLoading,
+    historyError,
+    hasCurrentActivity: !!currentActivity
+  });
+  
+  // Simplify loading logic - only show loading if we don't have any data AND at least one hook is loading
+  const hasData = activities.length > 0 || latestActivity;
+  const loading = !hasData && (latestLoading || historyLoading);
   const error = latestError || historyError;
 
   // Get heart rate zones data - use currentActivity.activity_id
