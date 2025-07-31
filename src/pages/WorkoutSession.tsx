@@ -47,26 +47,17 @@ export const WorkoutSession = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
-  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay, refetch } = useUnifiedActivityHistory();
-  
-  console.log('🔍 WORKOUT SESSION DEBUG:', {
-    latestActivity: latestActivity?.activity_id,
-    latestLoading,
-    latestError,
-    activitiesCount: activities.length,
-    historyLoading,
-    historyError,
-    selectedActivityId
-  });
+  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
   
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
     (activities.length > 0 ? activities[0] : latestActivity);
-  const loading = latestLoading || historyLoading;
+  
+  // Only show loading if both are loading and we have no data
+  const loading = (latestLoading && historyLoading) || (!currentActivity && (latestLoading || historyLoading));
   const error = latestError || historyError;
 
   // Get heart rate zones data - use currentActivity.activity_id
-  console.log('🔍 WORKOUTSESSION: currentActivity for zones:', currentActivity?.activity_id);
   const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.activity_id || null);
 
   // Update URL when activity is selected
@@ -78,13 +69,6 @@ export const WorkoutSession = () => {
     }
   }, [selectedActivityId, setSearchParams]);
 
-  // Refetch activities when navigating to this page to ensure latest data
-  useEffect(() => {
-    if (!loading && !error && activities.length === 0 && !latestActivity) {
-      console.log('🔄 Refetching activities due to no data');
-      refetch();
-    }
-  }, [refetch, loading, error, activities.length, latestActivity]);
 
   const handleActivitySelect = (activityId: string) => {
     setSelectedActivityId(activityId === 'latest' ? null : activityId);
