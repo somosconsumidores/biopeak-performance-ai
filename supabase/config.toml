@@ -75,3 +75,6 @@ verify_jwt = true
 
 [functions.strava-sync]
 verify_jwt = true
+
+[functions.scheduled-token-renewal]
+verify_jwt = false
