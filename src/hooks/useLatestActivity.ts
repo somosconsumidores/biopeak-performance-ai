@@ -29,8 +29,8 @@ export const useLatestActivity = () => {
 
   useEffect(() => {
     const fetchLatestActivity = async () => {
-      if (!user || loading) {
-        if (!user) setLoading(false);
+      if (!user) {
+        setLoading(false);
         return;
       }
 

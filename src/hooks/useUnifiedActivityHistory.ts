@@ -48,7 +48,7 @@ export function useUnifiedActivityHistory(limit?: number) {
   }, [user, limit]);
 
   const fetchUnifiedActivities = async () => {
-    if (!user || loading) return;
+    if (!user) return;
 
     try {
       setLoading(true);
