@@ -213,9 +213,15 @@ export const useRealtimeSession = () => {
     setIsWatchingLocation(false);
   }, []);
 
-  // Create performance snapshot every 500m
+  // Create performance snapshot and check for AI coaching triggers
   const createSnapshot = useCallback(async (sessionData: SessionData, location: LocationData) => {
     if (!sessionData.sessionId) return;
+
+    console.log('📊 Creating snapshot at:', {
+      distance: sessionData.currentDistance,
+      duration: sessionData.currentDuration,
+      lastSnapshotDistance: lastSnapshotDistanceRef.current
+    });
 
     const snapshotData = {
       session_id: sessionData.sessionId,
@@ -241,8 +247,28 @@ export const useRealtimeSession = () => {
         .from('performance_snapshots')
         .insert(snapshotData);
 
-      // Trigger AI coaching analysis every 500m
-      if (sessionData.currentDistance - lastSnapshotDistanceRef.current >= 500) {
+      // Enhanced AI coaching triggers:
+      // 1. Initial feedback at 50m
+      // 2. Regular feedback every 150m
+      // 3. Time-based feedback every 2 minutes after the initial 30 seconds
+      const distanceTrigger = (
+        (sessionData.currentDistance >= 50 && lastSnapshotDistanceRef.current === 0) || // Initial feedback at 50m
+        (sessionData.currentDistance - lastSnapshotDistanceRef.current >= 150) // Every 150m thereafter
+      );
+      
+      const timeTrigger = (
+        sessionData.currentDuration >= 30 && // After 30 seconds
+        sessionData.currentDuration % 120 === 0 // Every 2 minutes
+      );
+
+      if (distanceTrigger || timeTrigger) {
+        console.log('🤖 Triggering AI coaching:', { 
+          distanceTrigger, 
+          timeTrigger, 
+          distance: sessionData.currentDistance,
+          duration: sessionData.currentDuration 
+        });
+        
         lastSnapshotDistanceRef.current = sessionData.currentDistance;
         await requestAIFeedback(sessionData, snapshotData);
       }
@@ -251,8 +277,11 @@ export const useRealtimeSession = () => {
     }
   }, []);
 
-  // Request AI feedback
+  // Request AI feedback with enhanced logging
   const requestAIFeedback = useCallback(async (sessionData: SessionData, performanceData: any) => {
+    console.log('🤖 Requesting AI feedback for session:', sessionData.sessionId);
+    console.log('📊 Performance data:', performanceData);
+    
     try {
       const { data, error } = await supabase.functions.invoke('ai-coaching-engine', {
         body: {
@@ -268,21 +297,34 @@ export const useRealtimeSession = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('🤖 AI Coach response:', { data, error });
+
+      if (error) {
+        console.error('❌ AI Coach error:', error);
+        throw error;
+      }
 
       if (data?.feedback) {
+        console.log('💬 AI Feedback received:', data.feedback);
         setLastFeedback(data.feedback);
         
         // Speak feedback if TTS is available
         if ('speechSynthesis' in window) {
+          console.log('🔊 Speaking AI feedback');
+          speechSynthesis.cancel(); // Cancel any ongoing speech
           const utterance = new SpeechSynthesisUtterance(data.feedback);
           utterance.rate = 0.9;
           utterance.pitch = 1;
+          utterance.lang = 'pt-BR'; // Set Portuguese
           speechSynthesis.speak(utterance);
+        } else {
+          console.warn('🔇 Speech synthesis not available');
         }
+      } else {
+        console.warn('⚠️ No feedback received from AI Coach');
       }
     } catch (error) {
-      console.error('Error requesting AI feedback:', error);
+      console.error('❌ Error requesting AI feedback:', error);
     }
   }, []);
 
@@ -353,8 +395,9 @@ export const useRealtimeSession = () => {
             lastSnapshot: now
           };
 
-          // Create snapshot if enough time has passed
-          if (lastLocationRef.current && (now.getTime() - current.lastSnapshot.getTime()) > 30000) { // Every 30 seconds
+          // Create snapshot more frequently during active sessions
+          if (lastLocationRef.current && (now.getTime() - current.lastSnapshot.getTime()) > 15000) { // Every 15 seconds
+            console.log('⏰ Creating scheduled snapshot');
             createSnapshot(updated, lastLocationRef.current);
           }
 
