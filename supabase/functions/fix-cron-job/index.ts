@@ -18,35 +18,44 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Check current cron jobs
+    // Check current cron jobs using direct SQL
     const { data: currentJobs, error: queryError } = await supabase
-      .from('pg_cron.job')
-      .select('jobname, schedule, command, active');
+      .rpc('exec_sql', { 
+        sql: 'SELECT jobname, schedule, command, active FROM cron.job WHERE jobname LIKE \'%token%\'' 
+      });
 
     console.log('[fix-cron-job] Current cron jobs:', currentJobs);
 
-    // Delete the old problematic cron job
-    const { error: deleteError } = await supabase.rpc('cron.unschedule', {
-      job_name: 'proactive-token-renewal'
-    });
+    // Delete the old problematic cron job using direct SQL
+    const { data: deleteResult, error: deleteError } = await supabase
+      .rpc('exec_sql', {
+        sql: 'SELECT cron.unschedule(\'proactive-token-renewal\') as result'
+      });
 
     if (deleteError) {
       console.log('[fix-cron-job] Error deleting old cron job (might not exist):', deleteError);
+    } else {
+      console.log('[fix-cron-job] Delete result:', deleteResult);
     }
 
-    // Create the new corrected cron job
-    const { data: scheduleResult, error: scheduleError } = await supabase.rpc('cron.schedule', {
-      job_name: 'scheduled-token-renewal',
-      cron_schedule: '*/30 * * * *', // Every 30 minutes
-      sql: `
+    // Create the new corrected cron job using direct SQL
+    const cronJobSQL = `
+      SELECT cron.schedule(
+        'scheduled-token-renewal',
+        '*/30 * * * *',
+        $$
         SELECT
           net.http_post(
               url:='https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/scheduled-token-renewal',
               headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM"}'::jsonb,
               body:=concat('{"time": "', now(), '"}')::jsonb
           ) as request_id;
-      `
-    });
+        $$
+      ) as job_id
+    `;
+
+    const { data: scheduleResult, error: scheduleError } = await supabase
+      .rpc('exec_sql', { sql: cronJobSQL });
 
     if (scheduleError) {
       console.error('[fix-cron-job] Error creating new cron job:', scheduleError);
@@ -55,11 +64,11 @@ Deno.serve(async (req) => {
 
     console.log('[fix-cron-job] Successfully created new cron job:', scheduleResult);
 
-    // Verify the new cron job
+    // Verify the new cron job using direct SQL
     const { data: newJobs, error: verifyError } = await supabase
-      .from('pg_cron.job')
-      .select('jobname, schedule, command, active')
-      .like('jobname', '%token%');
+      .rpc('exec_sql', { 
+        sql: 'SELECT jobname, schedule, command, active FROM cron.job WHERE jobname LIKE \'%token%\'' 
+      });
 
     console.log('[fix-cron-job] Updated cron jobs:', newJobs);
 
