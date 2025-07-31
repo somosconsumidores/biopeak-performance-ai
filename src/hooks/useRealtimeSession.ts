@@ -287,13 +287,13 @@ export const useRealtimeSession = () => {
       // 2. Regular feedback every 150m
       // 3. Time-based feedback every 2 minutes after the initial 30 seconds
       const distanceTrigger = (
-        (sessionData.currentDistance >= 50 && lastSnapshotDistanceRef.current === 0) || // Initial feedback at 50m
-        (sessionData.currentDistance - lastSnapshotDistanceRef.current >= 150) // Every 150m thereafter
+        (sessionData.currentDistance >= 10 && lastSnapshotDistanceRef.current === 0) || // Initial feedback at 10m (reduced for testing)
+        (sessionData.currentDistance - lastSnapshotDistanceRef.current >= 20) // Every 20m thereafter (reduced for testing)
       );
       
       const timeTrigger = (
-        sessionData.currentDuration >= 30 && // After 30 seconds
-        sessionData.currentDuration % 120 === 0 // Every 2 minutes
+        sessionData.currentDuration >= 10 && // After 10 seconds (reduced for testing)
+        sessionData.currentDuration % 30 === 0 // Every 30 seconds (reduced for testing)
       );
 
       if (distanceTrigger || timeTrigger) {
@@ -445,7 +445,7 @@ export const useRealtimeSession = () => {
           // Create snapshot more frequently during active sessions
           // Ensure lastSnapshot is a Date object too
           const lastSnapshot = current.lastSnapshot instanceof Date ? current.lastSnapshot : new Date(current.lastSnapshot);
-          if (lastLocationRef.current && (now.getTime() - lastSnapshot.getTime()) > 15000) { // Every 15 seconds
+          if (lastLocationRef.current && (now.getTime() - lastSnapshot.getTime()) > 5000) { // Every 5 seconds for testing
             console.log('⏰ [AI COACH DEBUG] Creating scheduled snapshot');
             console.log('📊 [AI COACH DEBUG] Session data for snapshot:', updated);
             console.log('📍 [AI COACH DEBUG] Location for snapshot:', lastLocationRef.current);
@@ -454,7 +454,7 @@ export const useRealtimeSession = () => {
             console.log('⏰ [AI COACH DEBUG] Snapshot not due yet or no location:', {
               hasLocation: !!lastLocationRef.current,
               timeSinceLastSnapshot: now.getTime() - current.lastSnapshot.getTime(),
-              threshold: 15000
+              threshold: 5000
             });
           }
 
