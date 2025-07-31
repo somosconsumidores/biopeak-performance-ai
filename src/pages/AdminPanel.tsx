@@ -53,7 +53,7 @@ export const AdminPanel = () => {
       if (tokenError) throw tokenError;
 
       const now = new Date();
-      const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const soonThreshold = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours
 
       const tokenStats = tokens.reduce((acc, token) => {
         acc.total++;
@@ -188,7 +188,7 @@ export const AdminPanel = () => {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Expirando em 7 dias</CardTitle>
+                  <CardTitle className="text-sm font-medium">Tokens a expirar em 4 horas</CardTitle>
                   <AlertTriangle className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
