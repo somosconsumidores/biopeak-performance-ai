@@ -49,6 +49,16 @@ export const WorkoutSession = () => {
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay, refetch } = useUnifiedActivityHistory();
   
+  console.log('🔍 WORKOUT SESSION DEBUG:', {
+    latestActivity: latestActivity?.activity_id,
+    latestLoading,
+    latestError,
+    activitiesCount: activities.length,
+    historyLoading,
+    historyError,
+    selectedActivityId
+  });
+  
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
     (activities.length > 0 ? activities[0] : latestActivity);
