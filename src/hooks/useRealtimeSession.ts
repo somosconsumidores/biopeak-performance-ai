@@ -282,6 +282,9 @@ export const useRealtimeSession = () => {
         .from('performance_snapshots')
         .insert(snapshotData);
 
+      // Update the session's lastSnapshot time ONLY after successful snapshot creation
+      setSessionData(current => current ? { ...current, lastSnapshot: new Date() } : current);
+
       // Enhanced AI coaching triggers:
       // 1. Initial feedback at 50m
       // 2. Regular feedback every 150m
@@ -439,7 +442,7 @@ export const useRealtimeSession = () => {
             currentPace,
             averagePace: currentPace, // Simplified - could be more sophisticated
             calories,
-            lastSnapshot: now
+            // DO NOT update lastSnapshot here - only in createSnapshot function
           };
 
           // Create snapshot more frequently during active sessions
@@ -531,7 +534,7 @@ export const useRealtimeSession = () => {
             currentPace,
             averagePace: currentPace,
             calories,
-            lastSnapshot: now
+            // DO NOT update lastSnapshot here - only in createSnapshot function
           };
         });
       }, 1000);
