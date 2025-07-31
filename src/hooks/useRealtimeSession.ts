@@ -442,8 +442,7 @@ export const useRealtimeSession = () => {
           average_pace_min_km: sessionData.averagePace,
           calories_burned: sessionData.calories,
           goal_achieved: goalAchieved,
-          subjective_feedback: subjectiveFeedback,
-          device_name: 'BioPeak AI Coach'
+          subjective_feedback: subjectiveFeedback
         })
         .eq('id', sessionData.sessionId);
 
