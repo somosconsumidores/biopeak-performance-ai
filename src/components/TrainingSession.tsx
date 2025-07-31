@@ -183,9 +183,9 @@ const TrainingSession: React.FC = () => {
         description: "Parabéns! Seus dados foram salvos. Redirecionando...",
       });
       
-      // Redirect to workouts page to see session analysis
+      // Redirect to workouts page to see session analysis with the completed session ID
       setTimeout(() => {
-        window.location.href = '/workouts';
+        window.location.href = `/workouts?activityId=${sessionData.sessionId}`;
       }, 1500);
     } catch (error) {
       console.error('Error completing session:', error);

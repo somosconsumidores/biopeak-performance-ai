@@ -77,7 +77,7 @@ export function useUnifiedActivityHistory(limit?: number) {
         .from('training_sessions')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'completed');
+        .in('status', ['completed', 'paused']);
 
       const [garminResult, stravaResult, polarResult, trainingSessionsResult] = await Promise.all([
         garminQuery,
