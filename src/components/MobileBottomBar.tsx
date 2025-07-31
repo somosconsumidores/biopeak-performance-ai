@@ -12,8 +12,8 @@ const MobileBottomBar: React.FC = () => {
   // Only show on mobile devices
   if (!isMobile) return null;
 
-  // Don't show on auth pages, landing page, or training session
-  const hideOnRoutes = ['/', '/auth', '/reset-password', '/training'];
+  // Don't show on auth pages and landing page
+  const hideOnRoutes = ['/', '/auth', '/reset-password'];
   if (hideOnRoutes.includes(location.pathname)) return null;
 
   const navItems = [
@@ -33,13 +33,15 @@ const MobileBottomBar: React.FC = () => {
           return (
             <Button
               key={item.path}
-              variant={isActive ? "default" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => navigate(item.path)}
               className={`flex flex-col items-center justify-center gap-1 h-12 px-2 ${
-                item.highlight 
-                  ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70' 
-                  : ''
+                isActive 
+                  ? 'text-primary' 
+                  : item.highlight 
+                    ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70' 
+                    : 'text-muted-foreground'
               }`}
             >
               <Icon className={`h-4 w-4 ${item.highlight ? 'animate-pulse' : ''}`} />
