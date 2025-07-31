@@ -424,7 +424,15 @@ export const useRealtimeSession = () => {
     try {
       const goalAchieved = checkGoalAchievement(sessionData);
       
-      await supabase
+      console.log('🏁 Completing session:', sessionData.sessionId);
+      console.log('📊 Session data:', {
+        distance: sessionData.currentDistance,
+        duration: sessionData.currentDuration,
+        pace: sessionData.averagePace,
+        calories: sessionData.calories
+      });
+      
+      const { data, error } = await supabase
         .from('training_sessions')
         .update({
           status: 'completed',
@@ -439,9 +447,16 @@ export const useRealtimeSession = () => {
         })
         .eq('id', sessionData.sessionId);
 
+      if (error) {
+        console.error('❌ Error updating session:', error);
+        throw error;
+      }
+      
+      console.log('✅ Session completed successfully:', data);
       setSessionData(current => current ? { ...current, status: 'completed' } : null);
     } catch (error) {
       console.error('Error completing session:', error);
+      throw error; // Re-throw to allow TrainingSession component to handle
     }
   }, [sessionData, stopLocationTracking]);
 

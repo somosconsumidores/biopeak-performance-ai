@@ -176,6 +176,7 @@ const TrainingSession: React.FC = () => {
   // Handle session completion
   const handleCompleteSession = async () => {
     try {
+      console.log('🎯 User requested session completion');
       await completeSession({ feeling: subjectiveFeedback });
       setShowCompletionDialog(false);
       toast({
@@ -188,10 +189,10 @@ const TrainingSession: React.FC = () => {
         window.location.href = `/workouts?activityId=${sessionData.sessionId}`;
       }, 1500);
     } catch (error) {
-      console.error('Error completing session:', error);
+      console.error('❌ Error completing session:', error);
       toast({
         title: "Erro ao finalizar treino",
-        description: "Houve um problema ao salvar os dados.",
+        description: error instanceof Error ? error.message : "Houve um problema ao salvar os dados.",
         variant: "destructive"
       });
     }

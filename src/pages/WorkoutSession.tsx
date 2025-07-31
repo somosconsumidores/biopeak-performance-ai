@@ -47,7 +47,7 @@ export const WorkoutSession = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
-  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
+  const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay, refetch } = useUnifiedActivityHistory();
   
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
@@ -67,6 +67,11 @@ export const WorkoutSession = () => {
       setSearchParams({});
     }
   }, [selectedActivityId, setSearchParams]);
+
+  // Refetch activities when navigating to this page to ensure latest data
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const handleActivitySelect = (activityId: string) => {
     setSelectedActivityId(activityId === 'latest' ? null : activityId);
