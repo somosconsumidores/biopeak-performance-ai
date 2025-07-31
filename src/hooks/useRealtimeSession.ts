@@ -297,15 +297,24 @@ export const useRealtimeSession = () => {
       );
 
       if (distanceTrigger || timeTrigger) {
-        console.log('🤖 Triggering AI coaching:', { 
+        console.log('🤖 [AI COACH DEBUG] Triggering AI coaching:', { 
           distanceTrigger, 
           timeTrigger, 
           distance: sessionData.currentDistance,
-          duration: sessionData.currentDuration 
+          duration: sessionData.currentDuration,
+          lastSnapshotDistance: lastSnapshotDistanceRef.current
         });
         
         lastSnapshotDistanceRef.current = sessionData.currentDistance;
         await requestAIFeedback(sessionData, snapshotData);
+      } else {
+        console.log('🤖 [AI COACH DEBUG] No trigger conditions met:', {
+          distance: sessionData.currentDistance,
+          duration: sessionData.currentDuration,
+          lastSnapshotDistance: lastSnapshotDistanceRef.current,
+          distanceCheck: sessionData.currentDistance - lastSnapshotDistanceRef.current,
+          timeCheck: sessionData.currentDuration % 120
+        });
       }
     } catch (error) {
       console.error('Error creating snapshot:', error);
@@ -368,7 +377,8 @@ export const useRealtimeSession = () => {
     if (!user) return null;
 
     try {
-      console.log('🚀 Starting new training session...');
+      console.log('🚀 [AI COACH DEBUG] Starting new training session...');
+      console.log('🎯 [AI COACH DEBUG] Goal:', goal);
       
       // Reset distance accumulator for new session
       distanceAccumulatorRef.current = 0;
