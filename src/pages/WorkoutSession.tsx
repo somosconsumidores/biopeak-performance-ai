@@ -27,6 +27,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
 import { useUnifiedActivityHistory } from '@/hooks/useUnifiedActivityHistory';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
@@ -45,6 +46,7 @@ export const WorkoutSession = () => {
     searchParams.get('activityId')
   );
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const { user } = useAuth();
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay, refetch } = useUnifiedActivityHistory();
@@ -331,7 +333,9 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="performance_analysis" 
               />
+            {user?.email === 'garminteste07@teste.com' && (
               <AIInsightsCard activityId={currentActivity.activity_id} />
+            )}
             </div>
           </ScrollReveal>
 
