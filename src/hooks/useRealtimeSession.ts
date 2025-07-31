@@ -425,7 +425,9 @@ export const useRealtimeSession = () => {
           if (!current || !lastLocationRef.current) return current;
 
           const now = new Date();
-          const durationSeconds = Math.floor((now.getTime() - current.startTime.getTime()) / 1000);
+          // Ensure startTime is a Date object (it might come as string from recovery)
+          const startTime = current.startTime instanceof Date ? current.startTime : new Date(current.startTime);
+          const durationSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
           const distanceKm = distanceAccumulatorRef.current / 1000;
           const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
           const calories = calculateCalories(distanceKm, durationSeconds / 60);
@@ -441,7 +443,9 @@ export const useRealtimeSession = () => {
           };
 
           // Create snapshot more frequently during active sessions
-          if (lastLocationRef.current && (now.getTime() - current.lastSnapshot.getTime()) > 15000) { // Every 15 seconds
+          // Ensure lastSnapshot is a Date object too
+          const lastSnapshot = current.lastSnapshot instanceof Date ? current.lastSnapshot : new Date(current.lastSnapshot);
+          if (lastLocationRef.current && (now.getTime() - lastSnapshot.getTime()) > 15000) { // Every 15 seconds
             console.log('⏰ [AI COACH DEBUG] Creating scheduled snapshot');
             console.log('📊 [AI COACH DEBUG] Session data for snapshot:', updated);
             console.log('📍 [AI COACH DEBUG] Location for snapshot:', lastLocationRef.current);
@@ -509,7 +513,9 @@ export const useRealtimeSession = () => {
           if (!current || !lastLocationRef.current) return current;
 
           const now = new Date();
-          const durationSeconds = Math.floor((now.getTime() - current.startTime.getTime()) / 1000);
+          // Ensure startTime is a Date object (it might come as string from recovery)
+          const startTime = current.startTime instanceof Date ? current.startTime : new Date(current.startTime);
+          const durationSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
           const distanceKm = distanceAccumulatorRef.current / 1000;
           const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
           const calories = calculateCalories(distanceKm, durationSeconds / 60);
@@ -647,7 +653,9 @@ export const useRealtimeSession = () => {
           if (!current || !lastLocationRef.current) return current;
 
           const now = new Date();
-          const durationSeconds = Math.floor((now.getTime() - current.startTime.getTime()) / 1000);
+          // Ensure startTime is a Date object (it might come as string from recovery)
+          const startTime = current.startTime instanceof Date ? current.startTime : new Date(current.startTime);
+          const durationSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
           const distanceKm = distanceAccumulatorRef.current / 1000;
           const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
           const calories = calculateCalories(distanceKm, durationSeconds / 60);
