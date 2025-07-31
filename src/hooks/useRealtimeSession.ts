@@ -49,7 +49,9 @@ export const useRealtimeSession = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<LocationData | null>(null);
   const distanceAccumulatorRef = useRef(0);
+  const microDistanceAccumulatorRef = useRef(0);
   const lastSnapshotDistanceRef = useRef(0);
+  const lastLocationTimestampRef = useRef<number>(Date.now());
 
   // Wake lock for keeping screen active
   const { isActive: isWakeLockActive } = useWakeLock({ 
@@ -162,14 +164,44 @@ export const useRealtimeSession = () => {
                   newLocation.longitude
                 );
                 
-                // Only add significant movements (accuracy filter)
-                if (distance > newLocation.accuracy / 2) {
+                console.log(`🎯 GPS Movement detected: ${distance.toFixed(1)}m, accuracy: ${newLocation.accuracy.toFixed(1)}m`);
+                
+                // More permissive filter: use smaller threshold and cap at 3m
+                const threshold = Math.min(newLocation.accuracy / 3, 3);
+                
+                if (distance > threshold) {
                   distanceAccumulatorRef.current += distance;
                   console.log(`📏 Distance updated: +${distance.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
+                } else if (distance > 1) {
+                  // Accumulate micro-distances to avoid losing small movements
+                  microDistanceAccumulatorRef.current += distance;
+                  console.log(`🔍 Micro-distance accumulated: +${distance.toFixed(1)}m (micro total: ${microDistanceAccumulatorRef.current.toFixed(1)}m)`);
+                  
+                  // Add to main distance when micro-distance reaches 5m
+                  if (microDistanceAccumulatorRef.current >= 5) {
+                    distanceAccumulatorRef.current += microDistanceAccumulatorRef.current;
+                    console.log(`📏 Micro-distance promoted: +${microDistanceAccumulatorRef.current.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
+                    microDistanceAccumulatorRef.current = 0;
+                  }
+                } else {
+                  console.log(`❌ Movement too small: ${distance.toFixed(1)}m (threshold: ${threshold.toFixed(1)}m)`);
+                }
+                
+                // Backup: Use GPS speed if available and no significant distance
+                if (distance <= threshold && newLocation.speed && newLocation.speed > 0.5) {
+                  const timeElapsed = (Date.now() - lastLocationTimestampRef.current) / 1000;
+                  if (timeElapsed > 0) {
+                    const speedDistance = newLocation.speed * timeElapsed;
+                    if (speedDistance > 1) {
+                      distanceAccumulatorRef.current += speedDistance;
+                      console.log(`🚀 Speed-based distance: +${speedDistance.toFixed(1)}m from ${newLocation.speed.toFixed(1)}m/s over ${timeElapsed.toFixed(1)}s`);
+                    }
+                  }
                 }
               }
 
               lastLocationRef.current = newLocation;
+              lastLocationTimestampRef.current = Date.now();
             },
             (error) => {
               console.error('GPS Error during tracking:', error);
