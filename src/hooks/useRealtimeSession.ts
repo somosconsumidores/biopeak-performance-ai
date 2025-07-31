@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useWakeLock } from './useWakeLock';
+import { useSessionPersistence } from './useSessionPersistence';
+import { useHibernationDetection } from './useHibernationDetection';
 
 export interface TrainingGoal {
   type: 'free_run' | 'target_distance' | 'target_pace' | 'target_duration' | 'target_calories';
@@ -38,12 +41,43 @@ export const useRealtimeSession = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [lastFeedback, setLastFeedback] = useState<string>('');
   const [isWatchingLocation, setIsWatchingLocation] = useState(false);
+  const [keepScreenOn, setKeepScreenOn] = useState(true);
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [hibernationDuration, setHibernationDuration] = useState(0);
   
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<LocationData | null>(null);
   const distanceAccumulatorRef = useRef(0);
   const lastSnapshotDistanceRef = useRef(0);
+
+  // Wake lock for keeping screen active
+  const { isActive: isWakeLockActive } = useWakeLock({ 
+    enabled: keepScreenOn && isRecording 
+  });
+
+  // Session persistence for recovery
+  const { 
+    pendingRecovery, 
+    saveSessionState, 
+    clearSavedSession 
+  } = useSessionPersistence();
+
+  // Hibernation detection
+  const { isHibernated } = useHibernationDetection({
+    onHibernation: (event) => {
+      console.log('Hibernation detected:', event);
+      // Save current state when hibernation is detected
+      if (sessionData && isRecording) {
+        saveSessionState(sessionData, isRecording, distanceAccumulatorRef.current);
+      }
+    },
+    onRecovery: (event) => {
+      console.log('Recovery from hibernation:', event);
+      setHibernationDuration(event.duration);
+    },
+    threshold: 30000, // 30 seconds
+  });
 
   // Calculate distance between two GPS points
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -477,6 +511,74 @@ export const useRealtimeSession = () => {
     }
   }, []);
 
+  // Check for pending recovery on mount
+  useEffect(() => {
+    if (pendingRecovery && !sessionData) {
+      setShowRecoveryDialog(true);
+      setHibernationDuration(Date.now() - pendingRecovery.timestamp);
+    }
+  }, [pendingRecovery, sessionData]);
+
+  // Save session state periodically
+  useEffect(() => {
+    if (sessionData && isRecording) {
+      const saveInterval = setInterval(() => {
+        saveSessionState(sessionData, isRecording, distanceAccumulatorRef.current);
+      }, 10000); // Save every 10 seconds
+
+      return () => clearInterval(saveInterval);
+    }
+  }, [sessionData, isRecording, saveSessionState]);
+
+  // Recover session function
+  const recoverSession = useCallback(() => {
+    if (!pendingRecovery) return;
+
+    const { sessionData: recoveredData, lastSavedDistance } = pendingRecovery;
+    
+    // Restore session data
+    setSessionData(recoveredData);
+    distanceAccumulatorRef.current = lastSavedDistance;
+    
+    // Resume recording if it was active
+    if (pendingRecovery.wasRecording) {
+      setIsRecording(true);
+      startLocationTracking().catch(console.error);
+      
+      // Restart the update interval
+      intervalRef.current = setInterval(() => {
+        setSessionData(current => {
+          if (!current || !lastLocationRef.current) return current;
+
+          const now = new Date();
+          const durationSeconds = Math.floor((now.getTime() - current.startTime.getTime()) / 1000);
+          const distanceKm = distanceAccumulatorRef.current / 1000;
+          const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
+          const calories = calculateCalories(distanceKm, durationSeconds / 60);
+
+          return {
+            ...current,
+            currentDistance: distanceAccumulatorRef.current,
+            currentDuration: durationSeconds,
+            currentPace,
+            averagePace: currentPace,
+            calories,
+            lastSnapshot: now
+          };
+        });
+      }, 1000);
+    }
+
+    setShowRecoveryDialog(false);
+    clearSavedSession();
+  }, [pendingRecovery, clearSavedSession, startLocationTracking, calculateCalories]);
+
+  // Discard recovered session
+  const discardRecoveredSession = useCallback(() => {
+    setShowRecoveryDialog(false);
+    clearSavedSession();
+  }, [clearSavedSession]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -492,9 +594,18 @@ export const useRealtimeSession = () => {
     isRecording,
     isWatchingLocation,
     lastFeedback,
+    keepScreenOn,
+    setKeepScreenOn,
+    isWakeLockActive,
+    showRecoveryDialog,
+    hibernationDuration,
+    pendingRecovery,
+    isHibernated,
     startSession,
     pauseSession,
     resumeSession,
-    completeSession
+    completeSession,
+    recoverSession,
+    discardRecoveredSession,
   };
 };

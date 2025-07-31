@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/components/ui/use-toast';
 import { useRealtimeSession, TrainingGoal } from '@/hooks/useRealtimeSession';
 import { useProfileStats } from '@/hooks/useProfileStats';
+import { SessionRecoveryDialog } from '@/components/SessionRecoveryDialog';
 import { 
   Play, 
   Pause, 
@@ -21,7 +22,9 @@ import {
   Heart,
   MapPin,
   Volume2,
-  VolumeX
+  VolumeX,
+  Smartphone,
+  Power
 } from 'lucide-react';
 
 const TrainingSession: React.FC = () => {
@@ -32,10 +35,19 @@ const TrainingSession: React.FC = () => {
     isRecording,
     isWatchingLocation,
     lastFeedback,
+    keepScreenOn,
+    setKeepScreenOn,
+    isWakeLockActive,
+    showRecoveryDialog,
+    hibernationDuration,
+    pendingRecovery,
+    isHibernated,
     startSession,
     pauseSession,
     resumeSession,
-    completeSession
+    completeSession,
+    recoverSession,
+    discardRecoveredSession,
   } = useRealtimeSession();
 
   const [showGoalSetup, setShowGoalSetup] = useState(false);
@@ -367,10 +379,28 @@ const TrainingSession: React.FC = () => {
                 >
                   {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setKeepScreenOn(!keepScreenOn)}
+                  title={keepScreenOn ? "Permitir hibernação da tela" : "Manter tela ligada"}
+                >
+                  {keepScreenOn ? <Smartphone className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                </Button>
                 <Badge variant={isWatchingLocation ? "default" : "secondary"}>
                   <MapPin className="h-3 w-3 mr-1" />
                   GPS {isWatchingLocation ? 'Ativo' : 'Inativo'}
                 </Badge>
+                {isWakeLockActive && (
+                  <Badge variant="outline" className="text-xs">
+                    Tela Ativa
+                  </Badge>
+                )}
+                {isHibernated && (
+                  <Badge variant="destructive" className="text-xs">
+                    Hibernando
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -493,6 +523,15 @@ const TrainingSession: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Session Recovery Dialog */}
+        <SessionRecoveryDialog
+          isOpen={showRecoveryDialog}
+          onRecover={recoverSession}
+          onDiscard={discardRecoveredSession}
+          sessionData={pendingRecovery?.sessionData || null}
+          hibernationDuration={hibernationDuration}
+        />
       </div>
     </div>
   );
