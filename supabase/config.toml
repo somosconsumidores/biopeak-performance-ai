@@ -78,3 +78,6 @@ verify_jwt = true
 
 [functions.scheduled-token-renewal]
 verify_jwt = false
+
+[functions.fix-cron-job]
+verify_jwt = false
