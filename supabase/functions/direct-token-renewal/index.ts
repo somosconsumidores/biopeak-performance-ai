@@ -18,13 +18,15 @@ Deno.serve(async (req) => {
     const garminClientId = Deno.env.get('GARMIN_CLIENT_ID');
     const garminClientSecret = Deno.env.get('GARMIN_CLIENT_SECRET');
 
-    console.log('[direct-token-renewal] Starting direct token renewal process');
+    console.log('[direct-token-renewal] Starting proactive token renewal process');
 
+    // Query for tokens that will expire within 4 hours
+    const fourHoursFromNow = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
     const { data: expiredTokens, error: queryError } = await supabase
       .from('garmin_tokens')
       .select('user_id, garmin_user_id, refresh_token, expires_at, refresh_token_expires_at')
       .eq('is_active', true)
-      .lt('expires_at', new Date().toISOString())
+      .lt('expires_at', fourHoursFromNow)
       .not('refresh_token', 'is', null);
 
     if (queryError) {
@@ -38,7 +40,7 @@ Deno.serve(async (req) => {
     const results = [];
     if (!expiredTokens || expiredTokens.length === 0) {
       return new Response(JSON.stringify({
-        message: 'No expired tokens found',
+        message: 'No tokens expiring within 4 hours found',
         results
       }), {
         status: 200,
