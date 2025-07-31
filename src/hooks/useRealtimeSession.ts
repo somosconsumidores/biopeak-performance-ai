@@ -127,6 +127,7 @@ export const useRealtimeSession = () => {
 
     return new Promise<boolean>((resolve, reject) => {
       console.log('🎯 Iniciando GPS tracking...');
+      console.log('🔍 Navegador suporta GPS:', !!navigator.geolocation);
       
       // First get current position to check permissions
       navigator.geolocation.getCurrentPosition(
@@ -213,7 +214,9 @@ export const useRealtimeSession = () => {
           resolve(true);
         },
         (error) => {
-          console.error('GPS Permission Error:', error);
+          console.error('🚨 GPS Permission Error:', error);
+          console.error('🚨 Error code:', error.code);
+          console.error('🚨 Error message:', error.message);
           let errorMessage = 'Erro desconhecido';
           
           switch (error.code) {
