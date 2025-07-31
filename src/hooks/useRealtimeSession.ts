@@ -445,17 +445,21 @@ export const useRealtimeSession = () => {
           // Create snapshot more frequently during active sessions
           // Ensure lastSnapshot is a Date object too
           const lastSnapshot = current.lastSnapshot instanceof Date ? current.lastSnapshot : new Date(current.lastSnapshot);
-          if (lastLocationRef.current && (now.getTime() - lastSnapshot.getTime()) > 5000) { // Every 5 seconds for testing
+          const timeSinceLastSnapshot = now.getTime() - lastSnapshot.getTime();
+          
+          console.log('⏰ [AI COACH DEBUG] Snapshot timing check:', {
+            hasLocation: !!lastLocationRef.current,
+            timeSinceLastSnapshot,
+            threshold: 5000,
+            lastSnapshotDate: lastSnapshot.toISOString(),
+            currentDate: now.toISOString()
+          });
+          
+          if (lastLocationRef.current && timeSinceLastSnapshot > 5000) { // Every 5 seconds for testing
             console.log('⏰ [AI COACH DEBUG] Creating scheduled snapshot');
             console.log('📊 [AI COACH DEBUG] Session data for snapshot:', updated);
             console.log('📍 [AI COACH DEBUG] Location for snapshot:', lastLocationRef.current);
             createSnapshot(updated, lastLocationRef.current);
-          } else {
-            console.log('⏰ [AI COACH DEBUG] Snapshot not due yet or no location:', {
-              hasLocation: !!lastLocationRef.current,
-              timeSinceLastSnapshot: now.getTime() - current.lastSnapshot.getTime(),
-              threshold: 5000
-            });
           }
 
           return updated;
