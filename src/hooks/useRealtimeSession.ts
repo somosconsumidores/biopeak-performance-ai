@@ -442,8 +442,16 @@ export const useRealtimeSession = () => {
 
           // Create snapshot more frequently during active sessions
           if (lastLocationRef.current && (now.getTime() - current.lastSnapshot.getTime()) > 15000) { // Every 15 seconds
-            console.log('⏰ Creating scheduled snapshot');
+            console.log('⏰ [AI COACH DEBUG] Creating scheduled snapshot');
+            console.log('📊 [AI COACH DEBUG] Session data for snapshot:', updated);
+            console.log('📍 [AI COACH DEBUG] Location for snapshot:', lastLocationRef.current);
             createSnapshot(updated, lastLocationRef.current);
+          } else {
+            console.log('⏰ [AI COACH DEBUG] Snapshot not due yet or no location:', {
+              hasLocation: !!lastLocationRef.current,
+              timeSinceLastSnapshot: now.getTime() - current.lastSnapshot.getTime(),
+              threshold: 15000
+            });
           }
 
           return updated;
