@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/components/ui/use-toast';
 import { useRealtimeSession, TrainingGoal } from '@/hooks/useRealtimeSession';
 import { useProfileStats } from '@/hooks/useProfileStats';
+import { useAuth } from '@/hooks/useAuth';
 import { SessionRecoveryDialog } from '@/components/SessionRecoveryDialog';
 import { 
   Play, 
@@ -30,6 +31,7 @@ import {
 const TrainingSession: React.FC = () => {
   const { toast } = useToast();
   const { stats } = useProfileStats();
+  const { user } = useAuth();
   const {
     sessionData,
     isRecording,
@@ -457,8 +459,8 @@ const TrainingSession: React.FC = () => {
           </Card>
         </div>
 
-        {/* AI Feedback */}
-        {lastFeedback && (
+        {/* AI Feedback - Only for specific user */}
+        {lastFeedback && user?.email === 'garminteste07@teste.com' && (
           <Card className="bg-primary/10 border-primary/30">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
