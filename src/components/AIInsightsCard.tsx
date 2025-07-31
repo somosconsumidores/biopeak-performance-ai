@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useWorkoutAIAnalysis, WorkoutAnalysis } from '@/hooks/useWorkoutAIAnalysis';
+import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 
 interface AIInsightsCardProps {
@@ -22,6 +23,7 @@ interface AIInsightsCardProps {
 
 export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
   const { analysis, loading, error, analyzeWorkout, clearAnalysis } = useWorkoutAIAnalysis();
+  const { user } = useAuth();
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
   // Load stored analysis when component mounts or activityId changes (only load from cache, don't trigger new analysis)
@@ -114,6 +116,11 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
         </CardContent>
       </Card>
     );
+  }
+
+  // Only show for specific user
+  if (user?.email !== 'garminteste07@teste.com') {
+    return null;
   }
 
   if (!analysis) return null;
