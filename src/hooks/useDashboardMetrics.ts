@@ -565,23 +565,57 @@ export function useDashboardMetrics() {
   const getConsecutiveTrainingDays = (activities: any[]): number => {
     if (activities.length === 0) return 0;
     
-    const dates = activities
-      .map(act => new Date(act.activity_date))
-      .sort((a, b) => b.getTime() - a.getTime());
+    console.log('getConsecutiveTrainingDays - Input activities:', activities.map(act => ({
+      date: act.activity_date,
+      duration: act.duration_in_seconds,
+      calories: act.active_kilocalories,
+      type: act.activity_type
+    })));
     
-    let consecutive = 1;
+    // Filtrar atividades insignificantes (menos de 5 minutos ou 10 calorias)
+    const significantActivities = activities.filter(act => {
+      const duration = act.duration_in_seconds || 0;
+      const calories = act.active_kilocalories || 0;
+      return duration >= 300 || calories >= 10; // 5 minutos ou 10+ calorias
+    });
+    
+    console.log('getConsecutiveTrainingDays - Significant activities:', significantActivities.length);
+    
+    if (significantActivities.length === 0) return 0;
+    
+    // Extrair datas únicas e ordenar da mais recente para a mais antiga
+    const uniqueDates = [...new Set(significantActivities.map(act => act.activity_date))]
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      
+    console.log('getConsecutiveTrainingDays - Unique dates (recent to old):', uniqueDates);
+    
+    if (uniqueDates.length <= 1) return uniqueDates.length;
+    
     let maxConsecutive = 1;
+    let currentConsecutive = 1;
     
-    for (let i = 1; i < dates.length; i++) {
-      const dayDiff = Math.abs(dates[i-1].getTime() - dates[i].getTime()) / (1000 * 60 * 60 * 24);
-      if (dayDiff <= 1.1) { // tolerância para fusos horários
-        consecutive++;
-        maxConsecutive = Math.max(maxConsecutive, consecutive);
+    // Verificar sequências consecutivas
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const currentDate = new Date(uniqueDates[i-1]);
+      const previousDate = new Date(uniqueDates[i]);
+      
+      // Calcular diferença em dias (deve ser exatamente 1 dia para ser consecutivo)
+      const timeDiff = currentDate.getTime() - previousDate.getTime();
+      const daysDiff = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+      
+      console.log(`getConsecutiveTrainingDays - Comparing ${uniqueDates[i-1]} and ${uniqueDates[i]}: ${daysDiff} days diff`);
+      
+      if (daysDiff === 1) {
+        // Dias consecutivos
+        currentConsecutive++;
+        maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
       } else {
-        consecutive = 1;
+        // Quebra na sequência - resetar contador
+        currentConsecutive = 1;
       }
     }
     
+    console.log('getConsecutiveTrainingDays - Max consecutive days:', maxConsecutive);
     return maxConsecutive;
   };
 
