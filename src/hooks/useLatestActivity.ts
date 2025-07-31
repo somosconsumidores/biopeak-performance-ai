@@ -29,8 +29,8 @@ export const useLatestActivity = () => {
 
   useEffect(() => {
     const fetchLatestActivity = async () => {
-      if (!user) {
-        setLoading(false);
+      if (!user || loading) {
+        if (!user) setLoading(false);
         return;
       }
 
@@ -101,7 +101,15 @@ export const useLatestActivity = () => {
         setActivity(activityWithCoordinates);
       } catch (err) {
         console.error('Error fetching latest activity:', err);
-        setError('Erro ao carregar a última atividade');
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar a última atividade';
+        
+        // Evitar loop infinito de requisições em caso de erro de rede
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
+          console.warn('Network error detected in latest activity, setting null to prevent loop');
+          setActivity(null);
+        }
+        
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }

@@ -80,8 +80,11 @@ export const WorkoutSession = () => {
 
   // Refetch activities when navigating to this page to ensure latest data
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    if (!loading && !error && activities.length === 0 && !latestActivity) {
+      console.log('🔄 Refetching activities due to no data');
+      refetch();
+    }
+  }, [refetch, loading, error, activities.length, latestActivity]);
 
   const handleActivitySelect = (activityId: string) => {
     setSelectedActivityId(activityId === 'latest' ? null : activityId);

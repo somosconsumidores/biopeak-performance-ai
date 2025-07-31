@@ -48,7 +48,7 @@ export function useUnifiedActivityHistory(limit?: number) {
   }, [user, limit]);
 
   const fetchUnifiedActivities = async () => {
-    if (!user) return;
+    if (!user || loading) return;
 
     try {
       setLoading(true);
@@ -192,7 +192,15 @@ export function useUnifiedActivityHistory(limit?: number) {
       setActivities(finalActivities);
     } catch (err) {
       console.error('Error fetching unified activity history:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao carregar histórico');
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar histórico';
+      
+      // Evitar loop infinito de requisições em caso de erro de rede
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
+        console.warn('Network error detected, setting empty activities to prevent loop');
+        setActivities([]);
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
