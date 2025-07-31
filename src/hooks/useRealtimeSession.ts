@@ -152,10 +152,10 @@ export const useRealtimeSession = () => {
           
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'Permissão de localização negada. Por favor, habilite no navegador.';
+              errorMessage = 'LOCALIZAÇÃO DESABILITADA: Para usar o sistema de treino, você precisa habilitar a localização no seu navegador. Vá nas configurações do navegador e permita acesso à localização para este site.';
               break;
             case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Localização indisponível. Verifique se o GPS está ativo.';
+              errorMessage = 'Localização indisponível. Verifique se o GPS está ativo no seu dispositivo.';
               break;
             case error.TIMEOUT:
               errorMessage = 'Tempo limite para obter localização. Tente novamente.';
@@ -434,7 +434,8 @@ export const useRealtimeSession = () => {
           average_pace_min_km: sessionData.averagePace,
           calories_burned: sessionData.calories,
           goal_achieved: goalAchieved,
-          subjective_feedback: subjectiveFeedback
+          subjective_feedback: subjectiveFeedback,
+          device_name: 'BioPeak AI Coach'
         })
         .eq('id', sessionData.sessionId);
 

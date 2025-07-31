@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface UnifiedActivity {
   id: string;
   activity_id: string;
-  source: 'GARMIN' | 'STRAVA' | 'POLAR';
+  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK';
   activity_type: string | null;
   activity_date: string | null;
   duration_in_seconds: number | null;
@@ -72,15 +72,24 @@ export function useUnifiedActivityHistory(limit?: number) {
         .select('*')
         .eq('user_id', user.id);
 
-      const [garminResult, stravaResult, polarResult] = await Promise.all([
+      // Buscar sessões de treino do BioPeak AI Coach
+      const trainingSessionsQuery = supabase
+        .from('training_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'completed');
+
+      const [garminResult, stravaResult, polarResult, trainingSessionsResult] = await Promise.all([
         garminQuery,
         stravaQuery, 
-        polarQuery
+        polarQuery,
+        trainingSessionsQuery
       ]);
 
       if (garminResult.error) throw garminResult.error;
       if (stravaResult.error) throw stravaResult.error;
       if (polarResult.error) throw polarResult.error;
+      if (trainingSessionsResult.error) throw trainingSessionsResult.error;
 
       // Normalizar dados do Garmin
       const garminActivities: UnifiedActivity[] = (garminResult.data || []).map(activity => ({
@@ -142,8 +151,33 @@ export function useUnifiedActivityHistory(limit?: number) {
         detailed_sport_info: activity.detailed_sport_info
       }));
 
+      // Normalizar dados das sessões de treino do BioPeak AI Coach
+      const trainingSessionActivities: UnifiedActivity[] = (trainingSessionsResult.data || []).map(session => ({
+        id: session.id,
+        activity_id: session.id,
+        source: 'BIOPEAK' as const,
+        activity_type: session.session_type || 'RUNNING',
+        activity_date: session.created_at ? new Date(session.created_at).toISOString().split('T')[0] : null,
+        duration_in_seconds: session.total_duration_seconds || null,
+        distance_in_meters: session.total_distance_meters || null,
+        average_pace_in_minutes_per_kilometer: session.average_pace_min_km || null,
+        average_heart_rate_in_beats_per_minute: session.average_heart_rate || null,
+        max_heart_rate_in_beats_per_minute: null,
+        active_kilocalories: session.calories_burned || null,
+        total_elevation_gain_in_meters: null,
+        total_elevation_loss_in_meters: null,
+        device_name: 'BioPeak AI Coach',
+        start_time_in_seconds: session.created_at ? Math.floor(new Date(session.created_at).getTime() / 1000) : null,
+        start_time_offset_in_seconds: null,
+        average_speed_in_meters_per_second: null,
+        max_speed_in_meters_per_second: null,
+        steps: null,
+        synced_at: session.created_at,
+        name: 'Treino BioPeak AI Coach'
+      }));
+
       // Combinar todas as atividades e ordenar por data
-      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities];
+      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities, ...trainingSessionActivities];
       
       // Ordenar por data mais recente primeiro
       allActivities.sort((a, b) => {
@@ -173,7 +207,7 @@ export function useUnifiedActivityHistory(limit?: number) {
     const type = getActivityTypeLabel(activity.activity_type);
     const distance = activity.distance_in_meters ? `${(activity.distance_in_meters / 1000).toFixed(1)}km` : '';
     const duration = activity.duration_in_seconds ? formatDuration(activity.duration_in_seconds) : '';
-    const source = activity.source;
+    const source = activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source;
     
     return `${date} - ${type} ${distance} ${duration} [${source}]`.trim();
   };

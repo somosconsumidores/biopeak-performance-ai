@@ -175,12 +175,26 @@ const TrainingSession: React.FC = () => {
 
   // Handle session completion
   const handleCompleteSession = async () => {
-    await completeSession({ feeling: subjectiveFeedback });
-    setShowCompletionDialog(false);
-    toast({
-      title: "Treino concluído!",
-      description: "Parabéns! Seus dados foram salvos.",
-    });
+    try {
+      await completeSession({ feeling: subjectiveFeedback });
+      setShowCompletionDialog(false);
+      toast({
+        title: "Treino concluído!",
+        description: "Parabéns! Seus dados foram salvos. Redirecionando...",
+      });
+      
+      // Redirect to workouts page to see session analysis
+      setTimeout(() => {
+        window.location.href = '/workouts';
+      }, 1500);
+    } catch (error) {
+      console.error('Error completing session:', error);
+      toast({
+        title: "Erro ao finalizar treino",
+        description: "Houve um problema ao salvar os dados.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Get progress percentage for goals
