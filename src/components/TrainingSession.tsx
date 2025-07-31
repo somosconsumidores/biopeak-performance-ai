@@ -245,7 +245,10 @@ const TrainingSession: React.FC = () => {
               BioPeak AI Coach
             </h1>
             <p className="text-xl text-muted-foreground">
-              Seu personal trainer virtual te acompanha em tempo real
+              🏃‍♂️ Inicie um treino para receber feedback do AI em tempo real
+            </p>
+            <p className="text-sm text-muted-foreground/80">
+              📍 O AI Coach funciona apenas durante treinos ativos com GPS
             </p>
           </div>
 
