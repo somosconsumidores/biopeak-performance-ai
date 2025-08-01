@@ -11,6 +11,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { useRealtimeSession, TrainingGoal } from '@/hooks/useRealtimeSession';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { SessionRecoveryDialog } from '@/components/SessionRecoveryDialog';
+import { GPSPermissionDialog } from '@/components/GPSPermissionDialog';
+import { GPSStatusIndicator } from '@/components/GPSStatusIndicator';
+import { useEnhancedGPS } from '@/hooks/useEnhancedGPS';
 import { 
   Play, 
   Pause, 
@@ -58,6 +61,9 @@ const TrainingSession: React.FC = () => {
     diagnoseProblem,
   } = useRealtimeSession();
 
+  // Enhanced GPS management
+  const enhancedGPS = useEnhancedGPS();
+
   const [showGoalSetup, setShowGoalSetup] = useState(false);
   const [goalType, setGoalType] = useState<TrainingGoal['type']>('free_run');
   const [targetDistance, setTargetDistance] = useState('');
@@ -67,6 +73,7 @@ const TrainingSession: React.FC = () => {
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [subjectiveFeedback, setSubjectiveFeedback] = useState<number>(3);
+  const [showGPSDialog, setShowGPSDialog] = useState(false);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -260,88 +267,74 @@ const TrainingSession: React.FC = () => {
             </p>
           </div>
 
-          {/* GPS Status and Troubleshooting */}
-          <Card className={`bg-card/80 backdrop-blur ${locationError ? 'border-destructive/50' : 'border-primary/20'}`}>
+          {/* Enhanced GPS Status */}
+          <Card className={`bg-card/80 backdrop-blur ${enhancedGPS.error ? 'border-destructive/50' : 'border-primary/20'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <MapPin className={`h-5 w-5 ${isWatchingLocation ? 'text-green-500' : 'text-yellow-500'}`} />
-                  <span className="font-medium">
-                    Status GPS: {isWatchingLocation ? 'Ativo' : 'Inativo'}
-                  </span>
-                  {isSimulationMode && (
-                    <Badge variant="outline" className="text-xs">
-                      Modo Simulação
-                    </Badge>
-                  )}
+                <div className="flex items-center gap-3">
+                  <GPSStatusIndicator
+                    status={enhancedGPS.status}
+                    isTracking={enhancedGPS.isTracking}
+                    isSimulationMode={enhancedGPS.isSimulationMode}
+                    accuracy={enhancedGPS.lastLocation?.accuracy}
+                    lastUpdate={enhancedGPS.lastUpdate}
+                    onRequestPermission={() => setShowGPSDialog(true)}
+                    onOpenSettings={() => setShowGPSDialog(true)}
+                  />
+                  <div>
+                    <span className="font-medium">Status GPS</span>
+                    <div className="text-xs text-muted-foreground">
+                      {enhancedGPS.isEmulator ? 'Emulador' : 'Dispositivo'} • 
+                      {enhancedGPS.isHttps ? 'HTTPS' : 'HTTP'}
+                    </div>
+                  </div>
                 </div>
+                
                 <div className="flex gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Configuração GPS</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <Button
-                            onClick={toggleSimulationMode}
-                            variant={isSimulationMode ? "default" : "outline"}
-                            className="w-full"
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            {isSimulationMode ? 'Usar GPS Real' : 'Modo Simulação'}
-                          </Button>
-                          <Button
-                            onClick={async () => {
-                              const diagnosis = await diagnoseProblem();
-                              toast({
-                                title: "Diagnóstico GPS",
-                                description: diagnosis.slice(0, 100) + "...",
-                              });
-                            }}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            Diagnosticar
-                          </Button>
-                        </div>
-                        {locationError && (
-                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                            <h4 className="font-semibold text-destructive mb-2">Problema detectado:</h4>
-                            <pre className="text-xs whitespace-pre-wrap text-muted-foreground">{locationError}</pre>
-                          </div>
-                        )}
-                        <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                          <h4 className="font-semibold">Instruções rápidas:</h4>
-                          <ul className="text-sm space-y-1 list-disc list-inside">
-                            <li>Para emulador: Use Extended Controls (⋯) → Location</li>
-                            <li>Ative permissões de localização no navegador</li>
-                            <li>Em caso de problemas, use o Modo Simulação</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button
+                    onClick={() => setShowGPSDialog(true)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={enhancedGPS.toggleSimulation}
+                    variant={enhancedGPS.isSimulationMode ? "default" : "outline"}
+                    size="sm"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               
-              {/* GPS Permission Status */}
-              <div className="text-sm text-muted-foreground">
-                Permissão: {
-                  gpsPermissionStatus === 'granted' ? '✅ Concedida' :
-                  gpsPermissionStatus === 'denied' ? '❌ Negada' :
-                  '⏳ Pendente'
-                }
-                {isSimulationMode && ' • 🧪 Simulando movimento GPS'}
-              </div>
+              {/* Error Display */}
+              {enhancedGPS.error && (
+                <div className="text-sm text-destructive bg-destructive/10 rounded p-2 mt-2">
+                  {enhancedGPS.error}
+                </div>
+              )}
+              
+              {/* Location Info */}
+              {enhancedGPS.lastLocation && (
+                <div className="text-xs text-muted-foreground mt-2">
+                  Última localização: {enhancedGPS.lastLocation.latitude.toFixed(6)}, {enhancedGPS.lastLocation.longitude.toFixed(6)}
+                  {enhancedGPS.lastLocation.accuracy && ` (±${enhancedGPS.lastLocation.accuracy.toFixed(0)}m)`}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Enhanced GPS Permission Dialog */}
+          <GPSPermissionDialog
+            open={showGPSDialog}
+            onClose={() => setShowGPSDialog(false)}
+            onRetry={enhancedGPS.retryConnection}
+            onUseSimulation={enhancedGPS.toggleSimulation}
+            currentStatus={enhancedGPS.status}
+            isEmulator={enhancedGPS.isEmulator}
+            diagnosis={enhancedGPS.error || ''}
+          />
 
           {/* Goal Setup */}
           <Card className="bg-card/80 backdrop-blur border-primary/20">
