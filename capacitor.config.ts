@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.2de71c28ed784dcd8f5f290d2b70bd62',
+  appId: 'com.lovable.biopeak',
   appName: 'biopeak-performance-ai',
   webDir: 'dist',
   server: {
