@@ -27,6 +27,38 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
+    Geolocation: {
+      enableHighAccuracy: true,
+      maximumAge: 3600000,
+      timeout: 10000,
+    },
+    Camera: {
+      allowEditing: true,
+      quality: 90,
+      resultType: "uri",
+      source: "prompt",
+      saveToGallery: false,
+    },
+  },
+  android: {
+    allowMixedContent: true,
+    permissions: [
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.CAMERA",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.READ_EXTERNAL_STORAGE",
+    ]
+  },
+  ios: {
+    permissions: [
+      "NSLocationWhenInUseUsageDescription",
+      "NSLocationAlwaysAndWhenInUseUsageDescription", 
+      "NSCameraUsageDescription",
+      "NSMicrophoneUsageDescription",
+      "NSPhotoLibraryUsageDescription",
+    ]
   },
 };
 

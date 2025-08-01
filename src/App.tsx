@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { PermissionOnboarding } from "./components/PermissionOnboarding";
+import { useState, useEffect } from "react";
 
 import { LandingPage } from "./pages/LandingPage";
 import { Dashboard } from "./pages/Dashboard";
@@ -48,6 +50,24 @@ const App = () => {
 
 // Routes component that has access to AuthProvider
 function AppRoutes() {
+  const { user, loading } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (user && !loading) {
+      // Check if user has seen onboarding
+      const hasSeenOnboarding = localStorage.getItem('biopeak-permissions-onboarding');
+      if (!hasSeenOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user, loading]);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('biopeak-permissions-onboarding', 'true');
+    setShowOnboarding(false);
+  };
+
   return (
     <BrowserRouter>
       <Routes>
@@ -127,6 +147,10 @@ function AppRoutes() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <MobileBottomBar />
+      <PermissionOnboarding 
+        open={showOnboarding} 
+        onComplete={handleOnboardingComplete} 
+      />
     </BrowserRouter>
   );
 }
