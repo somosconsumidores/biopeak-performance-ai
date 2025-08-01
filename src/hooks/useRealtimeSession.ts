@@ -44,6 +44,9 @@ export const useRealtimeSession = () => {
   const [keepScreenOn, setKeepScreenOn] = useState(true);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [hibernationDuration, setHibernationDuration] = useState(0);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [gpsPermissionStatus, setGpsPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -112,27 +115,197 @@ export const useRealtimeSession = () => {
     return Math.round((mets * weight * durationMinutes) / 60);
   }, []);
 
-  // Start GPS tracking
-  const startLocationTracking = useCallback(() => {
+  // Detect if running in development or emulator
+  const isEmulatorOrDev = useCallback((): boolean => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const hostname = window.location.hostname;
+    
+    // Check for common emulator indicators
+    const emulatorIndicators = [
+      'android emulator',
+      'genymotion',
+      'bluestacks',
+      'localhost',
+      '127.0.0.1',
+      '.local',
+      'dev',
+      'test'
+    ];
+    
+    return emulatorIndicators.some(indicator => 
+      userAgent.includes(indicator) || hostname.includes(indicator)
+    ) || hostname === 'localhost' || hostname.startsWith('192.168.');
+  }, []);
+
+  // Check GPS permission status
+  const checkGPSPermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt'> => {
+    if (!navigator.permissions) {
+      return 'prompt'; // Assume prompt if permissions API is not available
+    }
+    
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+      return permission.state;
+    } catch (error) {
+      console.warn('Error checking GPS permission:', error);
+      return 'prompt';
+    }
+  }, []);
+
+  // Simulate GPS movement for development/testing
+  const startSimulationMode = useCallback(() => {
+    console.log('🧪 Starting GPS simulation mode for development');
+    setIsSimulationMode(true);
+    setLocationError(null);
+    
+    // Starting location (São Paulo, Brazil)
+    let currentLat = -23.5505;
+    let currentLng = -46.6333;
+    let totalDistance = 0;
+    
+    lastLocationRef.current = {
+      latitude: currentLat,
+      longitude: currentLng,
+      accuracy: 5,
+      altitude: 750,
+      speed: 2.5 // 2.5 m/s = ~9 km/h
+    };
+    
+    const simulationInterval = setInterval(() => {
+      // Simulate movement in a random direction
+      const bearing = Math.random() * 360;
+      const distance = 2.5 + Math.random() * 2.5; // 2.5-5m per second
+      
+      // Convert bearing and distance to lat/lng change
+      const latChange = (distance * Math.cos(bearing * Math.PI / 180)) / 111320;
+      const lngChange = (distance * Math.sin(bearing * Math.PI / 180)) / (111320 * Math.cos(currentLat * Math.PI / 180));
+      
+      currentLat += latChange;
+      currentLng += lngChange;
+      totalDistance += distance;
+      
+      distanceAccumulatorRef.current = totalDistance;
+      
+      const newLocation: LocationData = {
+        latitude: currentLat,
+        longitude: currentLng,
+        accuracy: 3 + Math.random() * 2,
+        altitude: 750 + Math.random() * 10,
+        speed: 2.5 + Math.random() * 1.5
+      };
+      
+      lastLocationRef.current = newLocation;
+      lastLocationTimestampRef.current = Date.now();
+      
+      console.log('🧪 Simulated GPS Update:', newLocation, `Total distance: ${totalDistance.toFixed(1)}m`);
+    }, 1000);
+    
+    // Store simulation interval for cleanup
+    watchIdRef.current = simulationInterval as any;
+    setIsWatchingLocation(true);
+    
+    return Promise.resolve(true);
+  }, []);
+
+  // Enhanced GPS troubleshooting
+  const diagnoseProblem = useCallback(async (): Promise<string> => {
+    const isEmulator = isEmulatorOrDev();
+    const permission = await checkGPSPermission();
+    const hasGeolocation = 'geolocation' in navigator;
+    const isHttps = window.location.protocol === 'https:';
+    const isLocalhost = window.location.hostname === 'localhost';
+    
+    let diagnosis = '🔍 DIAGNÓSTICO GPS:\n\n';
+    
+    if (!hasGeolocation) {
+      diagnosis += '❌ Navegador não suporta geolocalização\n';
+      diagnosis += '💡 Solução: Use um navegador moderno (Chrome, Firefox, Safari)\n\n';
+      return diagnosis;
+    }
+    
+    if (!isHttps && !isLocalhost) {
+      diagnosis += '❌ Geolocalização requer HTTPS\n';
+      diagnosis += '💡 Solução: Acesse o site via HTTPS\n\n';
+    }
+    
+    if (isEmulator) {
+      diagnosis += '📱 EMULADOR DETECTADO\n';
+      diagnosis += '💡 Soluções para Emulador:\n';
+      diagnosis += '  1. Abra Extended Controls (⋯) → Location\n';
+      diagnosis += '  2. Defina coordenadas manualmente\n';
+      diagnosis += '  3. Ative GPS nas configurações do Android\n';
+      diagnosis += '  4. Use modo simulação do BioPeak\n\n';
+    }
+    
+    switch (permission) {
+      case 'denied':
+        diagnosis += '❌ Permissão de localização NEGADA\n';
+        diagnosis += '💡 Soluções:\n';
+        diagnosis += '  1. Clique no ícone 🔒 na barra de endereços\n';
+        diagnosis += '  2. Permita acesso à localização\n';
+        diagnosis += '  3. Recarregue a página\n\n';
+        break;
+      case 'prompt':
+        diagnosis += '⚠️ Permissão de localização pendente\n';
+        diagnosis += '💡 Aceite quando o navegador solicitar\n\n';
+        break;
+      case 'granted':
+        diagnosis += '✅ Permissão de localização concedida\n\n';
+        break;
+    }
+    
+    return diagnosis;
+  }, [isEmulatorOrDev, checkGPSPermission]);
+
+  // Enhanced GPS tracking with fallback to simulation
+  const startLocationTracking = useCallback(async () => {
+    console.log('🎯 Iniciando GPS tracking...');
+    setLocationError(null);
+    
+    // Check if running in emulator/dev environment
+    const isEmulator = isEmulatorOrDev();
+    const permission = await checkGPSPermission();
+    
+    console.log('🔍 Environment check:', { isEmulator, permission });
+    setGpsPermissionStatus(permission as any);
+
+    // If permission is denied or in emulator, offer simulation mode
+    if (permission === 'denied' || isEmulator) {
+      const diagnosis = await diagnoseProblem();
+      console.log('🔧 GPS Problem diagnosed:', diagnosis);
+      setLocationError(diagnosis);
+      
+      // Auto-start simulation mode in emulator or dev environment
+      if (isEmulator) {
+        console.log('🧪 Auto-starting simulation mode for emulator/dev');
+        return startSimulationMode();
+      }
+      
+      return Promise.reject(new Error('Permissão de localização negada. Use o modo simulação ou configure as permissões.'));
+    }
+
     if (!navigator.geolocation) {
-      console.error('Geolocation is not supported');
-      return Promise.reject(new Error('Geolocalização não é suportada neste dispositivo.'));
+      const error = 'Geolocalização não é suportada neste dispositivo.';
+      setLocationError(error);
+      return Promise.reject(new Error(error));
     }
 
     const options = {
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 15000, // Increased timeout for better emulator compatibility
       maximumAge: 1000
     };
 
     return new Promise<boolean>((resolve, reject) => {
-      console.log('🎯 Iniciando GPS tracking...');
       console.log('🔍 Navegador suporta GPS:', !!navigator.geolocation);
       
       // First get current position to check permissions
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log('✅ GPS permission granted, starting tracking...');
+          setLocationError(null);
+          setGpsPermissionStatus('granted');
+          setIsSimulationMode(false);
           
           // Initialize location reference
           lastLocationRef.current = {
@@ -206,6 +379,11 @@ export const useRealtimeSession = () => {
             },
             (error) => {
               console.error('GPS Error during tracking:', error);
+              // For emulator environments, fall back to simulation on tracking error
+              if (isEmulator) {
+                console.log('🧪 GPS tracking failed in emulator, falling back to simulation');
+                startSimulationMode();
+              }
             },
             options
           );
@@ -213,22 +391,45 @@ export const useRealtimeSession = () => {
           setIsWatchingLocation(true);
           resolve(true);
         },
-        (error) => {
+        async (error) => {
           console.error('🚨 GPS Permission Error:', error);
           console.error('🚨 Error code:', error.code);
           console.error('🚨 Error message:', error.message);
-          let errorMessage = 'Erro desconhecido';
+          
+          const diagnosis = await diagnoseProblem();
+          setLocationError(diagnosis);
+          setGpsPermissionStatus('denied');
+          
+          let errorMessage = 'Erro de localização';
           
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'LOCALIZAÇÃO DESABILITADA: Para usar o sistema de treino, você precisa habilitar a localização no seu navegador. Vá nas configurações do navegador e permita acesso à localização para este site.';
+              errorMessage = isEmulator 
+                ? 'GPS não configurado no emulador. Tentando modo simulação...' 
+                : 'Permissão de localização negada. Configure as permissões do navegador.';
               break;
             case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Localização indisponível. Verifique se o GPS está ativo no seu dispositivo.';
+              errorMessage = isEmulator 
+                ? 'GPS indisponível no emulador. Usando modo simulação...' 
+                : 'Localização indisponível. Verifique se o GPS está ativo.';
               break;
             case error.TIMEOUT:
-              errorMessage = 'Tempo limite para obter localização. Tente novamente.';
+              errorMessage = isEmulator 
+                ? 'GPS timeout no emulador. Usando modo simulação...' 
+                : 'Tempo limite para obter localização. Tente novamente.';
               break;
+          }
+          
+          // Auto-fallback to simulation in emulator environments
+          if (isEmulator) {
+            console.log('🧪 Auto-fallback to simulation mode for emulator');
+            try {
+              await startSimulationMode();
+              resolve(true);
+              return;
+            } catch (simError) {
+              console.error('Simulation mode failed:', simError);
+            }
           }
           
           console.error('GPS Error details:', errorMessage);
@@ -237,7 +438,7 @@ export const useRealtimeSession = () => {
         options
       );
     });
-  }, [calculateDistance]);
+  }, [calculateDistance, isEmulatorOrDev, checkGPSPermission, diagnoseProblem, startSimulationMode]);
 
   // Stop GPS tracking
   const stopLocationTracking = useCallback(() => {
@@ -700,6 +901,30 @@ export const useRealtimeSession = () => {
     };
   }, [stopLocationTracking]);
 
+  // Manual simulation toggle for troubleshooting
+  const toggleSimulationMode = useCallback(async () => {
+    if (isSimulationMode) {
+      // Stop simulation and try real GPS
+      if (watchIdRef.current) {
+        clearInterval(watchIdRef.current as any);
+        watchIdRef.current = null;
+      }
+      setIsSimulationMode(false);
+      setIsWatchingLocation(false);
+      
+      try {
+        await startLocationTracking();
+      } catch (error) {
+        console.error('Failed to start real GPS:', error);
+        setLocationError(error instanceof Error ? error.message : 'Erro ao iniciar GPS real');
+      }
+    } else {
+      // Stop real GPS and start simulation
+      stopLocationTracking();
+      await startSimulationMode();
+    }
+  }, [isSimulationMode, startLocationTracking, stopLocationTracking, startSimulationMode]);
+
   return {
     sessionData,
     isRecording,
@@ -712,11 +937,16 @@ export const useRealtimeSession = () => {
     hibernationDuration,
     pendingRecovery,
     isHibernated,
+    isSimulationMode,
+    locationError,
+    gpsPermissionStatus,
     startSession,
     pauseSession,
     resumeSession,
     completeSession,
     recoverSession,
     discardRecoveredSession,
+    toggleSimulationMode,
+    diagnoseProblem,
   };
 };
