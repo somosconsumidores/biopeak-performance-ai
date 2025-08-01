@@ -22,7 +22,7 @@ interface GPSPermissionDialogProps {
   onClose: () => void;
   onRetry: () => Promise<boolean | void>;
   onUseSimulation: () => void;
-  currentStatus: 'granted' | 'denied' | 'prompt' | null;
+  currentStatus: 'granted' | 'denied' | 'prompt' | 'unknown' | null;
   isEmulator: boolean;
   diagnosis: string;
 }
@@ -90,6 +90,8 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'prompt':
         return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      case 'unknown':
+        return <Settings className="h-5 w-5 text-gray-500" />;
       default:
         return <MapPin className="h-5 w-5 text-gray-500" />;
     }
@@ -103,6 +105,8 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
         return 'Permissão Negada';
       case 'prompt':
         return 'Permissão Pendente';
+      case 'unknown':
+        return 'Verificando Permissão';
       default:
         return 'Status Desconhecido';
     }

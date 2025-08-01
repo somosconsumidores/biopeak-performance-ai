@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 interface GPSStatusIndicatorProps {
-  status: 'granted' | 'denied' | 'prompt' | null;
+  status: 'granted' | 'denied' | 'prompt' | 'unknown' | null;
   isTracking: boolean;
   isSimulationMode: boolean;
   accuracy?: number;

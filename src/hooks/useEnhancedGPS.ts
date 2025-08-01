@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
+import { useNativePermissions } from './useNativePermissions';
 
 interface LocationData {
   latitude: number;
@@ -12,7 +13,7 @@ interface LocationData {
 }
 
 interface GPSState {
-  status: 'granted' | 'denied' | 'prompt' | null;
+  status: 'granted' | 'denied' | 'prompt' | 'unknown' | null;
   isTracking: boolean;
   isSimulationMode: boolean;
   isEmulator: boolean;
@@ -35,6 +36,8 @@ interface UseEnhancedGPSResult extends GPSState {
 
 export const useEnhancedGPS = (): UseEnhancedGPSResult => {
   const { toast } = useToast();
+  const { permissions, requestLocationPermission, checkPermissions, isNative } = useNativePermissions();
+  
   const [state, setState] = useState<GPSState>({
     status: null,
     isTracking: false,
@@ -45,6 +48,14 @@ export const useEnhancedGPS = (): UseEnhancedGPSResult => {
     lastLocation: null,
     lastUpdate: null,
     error: null
+  });
+
+  // Debug logging for platform detection
+  console.log('🔍 GPS HOOK DEBUG:', {
+    isNative,
+    platform: Capacitor.getPlatform(),
+    permissions: permissions.location,
+    gpsStatus: state.status
   });
 
   const watchIdRef = useRef<number | null>(null);
@@ -70,31 +81,48 @@ export const useEnhancedGPS = (): UseEnhancedGPSResult => {
     ) || hostname === 'localhost' || hostname.startsWith('192.168.');
   }, []);
 
-  // Check current permission status
+  // Check current permission status using native APIs when available
   const checkPermissionStatus = useCallback(async (): Promise<'granted' | 'denied' | 'prompt'> => {
-    if (!navigator.permissions) {
-      return 'prompt';
-    }
+    console.log('🔍 CHECKING GPS PERMISSION:', { isNative, platform: Capacitor.getPlatform() });
     
-    try {
-      const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-      return permission.state;
-    } catch (error) {
-      console.warn('Error checking GPS permission:', error);
-      return 'prompt';
+    if (isNative) {
+      try {
+        const result = await Geolocation.checkPermissions();
+        console.log('📱 NATIVE GPS PERMISSION:', result);
+        return result.location as 'granted' | 'denied' | 'prompt';
+      } catch (error) {
+        console.warn('❌ Error checking native GPS permission:', error);
+        return 'prompt';
+      }
+    } else {
+      // Web fallback
+      if (!navigator.permissions) {
+        return 'prompt';
+      }
+      
+      try {
+        const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        console.log('🌐 WEB GPS PERMISSION:', permission.state);
+        return permission.state;
+      } catch (error) {
+        console.warn('❌ Error checking web GPS permission:', error);
+        return 'prompt';
+      }
     }
-  }, []);
+  }, [isNative]);
 
-  // Request GPS permission
+  // Request GPS permission using native APIs when available
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!state.hasGeolocation) {
+    console.log('🚀 REQUESTING GPS PERMISSION:', { isNative, platform: Capacitor.getPlatform() });
+    
+    if (!state.hasGeolocation && !isNative) {
       const error = 'Geolocalização não suportada neste navegador';
       setState(prev => ({ ...prev, error }));
       toast({ title: "GPS Não Suportado", description: error, variant: "destructive" });
       return false;
     }
 
-    if (!state.isHttps && !state.isEmulator) {
+    if (!state.isHttps && !state.isEmulator && !isNative) {
       const error = 'Geolocalização requer HTTPS em dispositivos reais';
       setState(prev => ({ ...prev, error }));
       toast({ title: "HTTPS Necessário", description: error, variant: "destructive" });
@@ -104,61 +132,111 @@ export const useEnhancedGPS = (): UseEnhancedGPSResult => {
     try {
       setState(prev => ({ ...prev, error: null }));
       
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
+      if (isNative) {
+        // Use native Capacitor API
+        console.log('📱 REQUESTING NATIVE GPS PERMISSION...');
+        const permissionResult = await Geolocation.requestPermissions();
+        console.log('📱 NATIVE GPS PERMISSION RESULT:', permissionResult);
+        
+        if (permissionResult.location !== 'granted') {
+          const errorMessage = 'Permissão de localização negada no Android';
+          setState(prev => ({ ...prev, status: permissionResult.location as any, error: errorMessage }));
+          toast({ title: "Permissão Negada", description: errorMessage, variant: "destructive" });
+          return false;
+        }
+        
+        // Get current position using native API
+        const position = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 15000,
-          maximumAge: 5000
         });
-      });
+        
+        const location: LocationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude || undefined,
+          speed: position.coords.speed || undefined
+        };
 
-      const newStatus = await checkPermissionStatus();
-      const location: LocationData = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        altitude: position.coords.altitude || undefined,
-        speed: position.coords.speed || undefined
-      };
+        setState(prev => ({
+          ...prev,
+          status: 'granted',
+          lastLocation: location,
+          lastUpdate: Date.now(),
+          error: null
+        }));
 
-      setState(prev => ({
-        ...prev,
-        status: newStatus,
-        lastLocation: location,
-        lastUpdate: Date.now(),
-        error: null
-      }));
+        console.log('📱 NATIVE GPS SUCCESS:', location);
+        toast({ title: "GPS Autorizado", description: "Localização permitida com sucesso" });
+        
+      } else {
+        // Web fallback
+        console.log('🌐 REQUESTING WEB GPS PERMISSION...');
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 5000
+          });
+        });
+
+        const newStatus = await checkPermissionStatus();
+        const location: LocationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude || undefined,
+          speed: position.coords.speed || undefined
+        };
+
+        setState(prev => ({
+          ...prev,
+          status: newStatus,
+          lastLocation: location,
+          lastUpdate: Date.now(),
+          error: null
+        }));
+
+        console.log('🌐 WEB GPS SUCCESS:', location);
+        toast({ title: "GPS Autorizado", description: "Localização permitida com sucesso" });
+      }
 
       // Store in history
-      locationHistoryRef.current.push(location);
+      locationHistoryRef.current.push(state.lastLocation!);
       if (locationHistoryRef.current.length > 10) {
         locationHistoryRef.current.shift();
       }
 
-      toast({ title: "GPS Autorizado", description: "Localização permitida com sucesso" });
       return true;
 
     } catch (error: any) {
+      console.error('❌ GPS PERMISSION ERROR:', error);
+      
       const newStatus = await checkPermissionStatus();
       let errorMessage = 'Erro ao obter permissão de localização';
 
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = 'Permissão de localização negada pelo usuário';
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Localização indisponível. Verifique se o GPS está ativo';
-          break;
-        case error.TIMEOUT:
-          errorMessage = 'Tempo limite excedido ao obter localização';
-          break;
+      if (isNative) {
+        errorMessage = 'Erro ao acessar GPS nativo. Verifique as configurações do dispositivo.';
+      } else {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Permissão de localização negada pelo usuário';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Localização indisponível. Verifique se o GPS está ativo';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Tempo limite excedido ao obter localização';
+            break;
+        }
       }
 
       setState(prev => ({ ...prev, status: newStatus, error: errorMessage }));
       toast({ title: "Erro GPS", description: errorMessage, variant: "destructive" });
       return false;
     }
-  }, [state.hasGeolocation, state.isHttps, state.isEmulator, checkPermissionStatus, toast]);
+  }, [state.hasGeolocation, state.isHttps, state.isEmulator, isNative, checkPermissionStatus, toast]);
 
   // Start GPS simulation mode
   const startSimulation = useCallback(() => {
@@ -220,94 +298,167 @@ export const useEnhancedGPS = (): UseEnhancedGPSResult => {
     setState(prev => ({ ...prev, isSimulationMode: false, isTracking: false }));
   }, []);
 
-  // Start real GPS tracking
+  // Start real GPS tracking with native support
   const startTracking = useCallback(async (): Promise<boolean> => {
-    if (state.status !== 'granted') {
+    console.log('🚀 STARTING GPS TRACKING:', { 
+      currentStatus: state.status, 
+      permissionStatus: permissions.location,
+      isNative,
+      platform: Capacitor.getPlatform()
+    });
+    
+    // Use unified permission check
+    if (permissions.location !== 'granted') {
       const granted = await requestPermission();
       if (!granted) return false;
     }
 
     if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      if (isNative) {
+        await Geolocation.clearWatch({ id: watchIdRef.current.toString() });
+      } else {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
     }
 
     try {
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 1000
-      };
+      if (isNative) {
+        // Use native Capacitor tracking
+        console.log('📱 STARTING NATIVE GPS TRACKING...');
+        const watchId = await Geolocation.watchPosition(
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          },
+          (position, err) => {
+            if (err) {
+              console.error('❌ NATIVE GPS WATCH ERROR:', err);
+              setState(prev => ({ ...prev, error: 'Erro no rastreamento GPS nativo' }));
+              return;
+            }
 
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const location: LocationData = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude || undefined,
-            speed: position.coords.speed || undefined
-          };
+            if (position) {
+              const location: LocationData = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude || undefined,
+                speed: position.coords.speed || undefined
+              };
 
-          setState(prev => ({
-            ...prev,
-            lastLocation: location,
-            lastUpdate: Date.now(),
-            isTracking: true,
-            isSimulationMode: false,
-            error: null
-          }));
+              console.log('📱 NATIVE GPS UPDATE:', location);
+              setState(prev => ({
+                ...prev,
+                lastLocation: location,
+                lastUpdate: Date.now(),
+                isTracking: true,
+                isSimulationMode: false,
+                error: null
+              }));
 
-          // Store in history
-          locationHistoryRef.current.push(location);
-          if (locationHistoryRef.current.length > 10) {
-            locationHistoryRef.current.shift();
+              // Store in history
+              locationHistoryRef.current.push(location);
+              if (locationHistoryRef.current.length > 10) {
+                locationHistoryRef.current.shift();
+              }
+            }
           }
-        },
-        (error) => {
-          let errorMessage = 'Erro durante rastreamento GPS';
-          
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Permissão de GPS foi revogada';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'GPS temporariamente indisponível';
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Timeout no GPS - tentando novamente...';
-              break;
-          }
+        );
+        
+        watchIdRef.current = parseInt(watchId);
+        
+      } else {
+        // Web fallback
+        console.log('🌐 STARTING WEB GPS TRACKING...');
+        const options = {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 1000
+        };
 
-          console.error('GPS tracking error:', error);
-          setState(prev => ({ ...prev, error: errorMessage }));
-          
-          // Auto-retry on timeout
-          if (error.code === error.TIMEOUT) {
-            setTimeout(() => startTracking(), 2000);
-          }
-        },
-        options
-      );
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (position) => {
+            const location: LocationData = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude || undefined,
+              speed: position.coords.speed || undefined
+            };
+
+            console.log('🌐 WEB GPS UPDATE:', location);
+            setState(prev => ({
+              ...prev,
+              lastLocation: location,
+              lastUpdate: Date.now(),
+              isTracking: true,
+              isSimulationMode: false,
+              error: null
+            }));
+
+            // Store in history
+            locationHistoryRef.current.push(location);
+            if (locationHistoryRef.current.length > 10) {
+              locationHistoryRef.current.shift();
+            }
+          },
+          (error) => {
+            let errorMessage = 'Erro durante rastreamento GPS';
+            
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = 'Permissão de GPS foi revogada';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = 'GPS temporariamente indisponível';
+                break;
+              case error.TIMEOUT:
+                errorMessage = 'Timeout no GPS - tentando novamente...';
+                break;
+            }
+
+            console.error('❌ WEB GPS TRACKING ERROR:', error);
+            setState(prev => ({ ...prev, error: errorMessage }));
+            
+            // Auto-retry on timeout
+            if (error.code === error.TIMEOUT) {
+              setTimeout(() => startTracking(), 2000);
+            }
+          },
+          options
+        );
+      }
 
       setState(prev => ({ ...prev, isTracking: true, error: null }));
+      console.log('✅ GPS TRACKING STARTED');
       return true;
 
     } catch (error) {
-      console.error('Failed to start GPS tracking:', error);
+      console.error('❌ FAILED TO START GPS TRACKING:', error);
       setState(prev => ({ ...prev, error: 'Falha ao iniciar rastreamento GPS' }));
       return false;
     }
-  }, [state.status, requestPermission]);
+  }, [state.status, permissions.location, isNative, requestPermission]);
 
-  // Stop GPS tracking
-  const stopTracking = useCallback(() => {
+  // Stop GPS tracking with native support
+  const stopTracking = useCallback(async () => {
+    console.log('🛑 STOPPING GPS TRACKING:', { watchId: watchIdRef.current, isNative });
+    
     if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      try {
+        if (isNative) {
+          await Geolocation.clearWatch({ id: watchIdRef.current.toString() });
+        } else {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+        }
+      } catch (error) {
+        console.warn('❌ Error stopping GPS watch:', error);
+      }
       watchIdRef.current = null;
     }
     stopSimulation();
     setState(prev => ({ ...prev, isTracking: false }));
-  }, [stopSimulation]);
+  }, [isNative, stopSimulation]);
 
   // Toggle simulation mode
   const toggleSimulation = useCallback(() => {
@@ -405,21 +556,41 @@ export const useEnhancedGPS = (): UseEnhancedGPSResult => {
     return state.lastLocation;
   }, [state.lastLocation]);
 
-  // Initialize on mount
+  // Initialize on mount and sync with native permissions
   useEffect(() => {
     const init = async () => {
       const isEmulator = detectEmulator();
       const status = await checkPermissionStatus();
       
+      console.log('🚀 GPS HOOK INITIALIZING:', {
+        isEmulator,
+        status,
+        nativePermission: permissions.location,
+        isNative,
+        platform: Capacitor.getPlatform()
+      });
+      
       setState(prev => ({
         ...prev,
         isEmulator,
-        status
+        status: permissions.location !== 'unknown' ? permissions.location : status
       }));
     };
 
     init();
-  }, [detectEmulator, checkPermissionStatus]);
+  }, [detectEmulator, checkPermissionStatus, permissions.location, isNative]);
+
+  // Sync state with native permissions
+  useEffect(() => {
+    if (permissions.location !== 'unknown' && permissions.location !== state.status) {
+      console.log('🔄 SYNCING GPS STATUS:', {
+        from: state.status,
+        to: permissions.location,
+        isNative
+      });
+      setState(prev => ({ ...prev, status: permissions.location }));
+    }
+  }, [permissions.location, state.status, isNative]);
 
   // Cleanup on unmount
   useEffect(() => {
