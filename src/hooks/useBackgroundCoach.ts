@@ -11,7 +11,14 @@ interface SessionData {
   pace: number;
   calories: number;
   goal?: TrainingGoal;
+  sessionId?: string;
   [key: string]: any;
+}
+
+interface LastKmStats {
+  averagePace: number;
+  averageHeartRate?: number;
+  distance: number;
 }
 
 interface CoachingFeedback {
@@ -46,8 +53,8 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   });
 
   const goalRef = useRef<TrainingGoal | undefined>(options.goal);
-  const lastAnalysisRef = useRef<number>(0);
-  const feedbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFeedbackDistanceRef = useRef<number>(0);
+  const hasGivenInitialFeedbackRef = useRef<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Update goal when options change
@@ -75,81 +82,132 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
   }, [options.enableTTS]);
 
-  const generateCoachingFeedback = useCallback(async (sessionData: SessionData): Promise<CoachingFeedback | null> => {
+  const calculateLastKmStats = useCallback(async (sessionId: string, currentDistance: number): Promise<LastKmStats | null> => {
+    if (!sessionId || currentDistance < 1000) return null;
+
+    try {
+      const fromDistance = Math.max(0, currentDistance - 1000);
+      
+      const { data: snapshots, error } = await supabase
+        .from('performance_snapshots')
+        .select('*')
+        .eq('session_id', sessionId)
+        .gte('snapshot_at_distance_meters', fromDistance)
+        .lte('snapshot_at_distance_meters', currentDistance)
+        .order('snapshot_at_distance_meters', { ascending: true });
+
+      if (error || !snapshots || snapshots.length === 0) {
+        console.log('Não foi possível obter dados do último KM');
+        return null;
+      }
+
+      // Calculate average pace for the last KM
+      const totalPace = snapshots.reduce((sum, snapshot) => sum + (snapshot.current_pace_min_km || 0), 0);
+      const averagePace = totalPace / snapshots.length;
+      
+      // Calculate average heart rate if available
+      const hrSnapshots = snapshots.filter(s => s.current_heart_rate);
+      const averageHeartRate = hrSnapshots.length > 0 
+        ? hrSnapshots.reduce((sum, s) => sum + s.current_heart_rate, 0) / hrSnapshots.length 
+        : undefined;
+
+      return {
+        averagePace,
+        averageHeartRate,
+        distance: 1000
+      };
+    } catch (error) {
+      console.error('Erro ao calcular stats do último KM:', error);
+      return null;
+    }
+  }, []);
+
+  const generateCoachingFeedback = useCallback(async (sessionData: SessionData, lastKmStats?: LastKmStats | null): Promise<CoachingFeedback | null> => {
     if (!goalRef.current) return null;
 
     try {
       const goal = goalRef.current;
-      const currentPace = sessionData.pace;
       const currentDistance = sessionData.distance / 1000; // Convert to km
       const duration = sessionData.duration / 60; // Convert to minutes
 
       let message = '';
       let type: CoachingFeedback['type'] = 'motivation';
 
-      // Analyze performance based on goal
-      if (goal.type === 'target_pace' && goal.targetPace) {
-        const targetPace = goal.targetPace;
-        const paceDifference = currentPace - targetPace;
-
-        if (Math.abs(paceDifference) <= 0.1) {
-          message = `Perfeito! Você está mantendo o pace ideal de ${targetPace.toFixed(1)} min/km.`;
-          type = 'achievement';
-        } else if (paceDifference > 0.3) {
-          message = `Você está ${paceDifference.toFixed(1)} min/km mais lento que o objetivo. Tente acelerar um pouco!`;
-          type = 'instruction';
-        } else if (paceDifference < -0.3) {
-          message = `Cuidado! Você está ${Math.abs(paceDifference).toFixed(1)} min/km mais rápido que o planejado. Considere diminuir o ritmo.`;
-          type = 'warning';
-        } else {
-          message = `Continue assim! Pace atual: ${currentPace.toFixed(1)} min/km.`;
-          type = 'motivation';
-        }
-      } else if (goal.type === 'target_distance' && goal.targetDistance) {
-        const targetDistance = goal.targetDistance / 1000; // Convert to km
-        const progress = (currentDistance / targetDistance) * 100;
-
-        if (progress >= 100) {
-          message = `Parabéns! Você completou os ${targetDistance}km do seu objetivo!`;
-          type = 'achievement';
-        } else if (progress >= 75) {
-          message = `Quase lá! Você já completou ${progress.toFixed(0)}% do seu objetivo. Continue firme!`;
-          type = 'motivation';
-        } else if (progress >= 50) {
-          message = `Metade do caminho concluída! ${currentDistance.toFixed(1)}km de ${targetDistance}km.`;
-          type = 'motivation';
-        } else if (progress >= 25) {
-          message = `Bom progresso! Você já correu ${currentDistance.toFixed(1)}km.`;
-          type = 'motivation';
-        } else {
-          message = `Vamos começar! Objetivo: ${targetDistance}km. Você consegue!`;
-          type = 'motivation';
-        }
-      } else if (goal.type === 'target_duration' && goal.targetDuration) {
-        const targetDuration = goal.targetDuration / 60; // Convert to minutes
-        const progress = (duration / targetDuration) * 100;
-
-        if (progress >= 100) {
-          message = `Excelente! Você completou os ${targetDuration} minutos de treino!`;
-          type = 'achievement';
-        } else if (progress >= 75) {
-          message = `Faltam apenas ${Math.round(targetDuration - duration)} minutos! Continue!`;
-          type = 'motivation';
-        } else {
-          message = `${Math.round(duration)} minutos de treino. Continue no seu ritmo!`;
-          type = 'motivation';
-        }
-      } else {
-        // Generic motivational messages
-        const motivationalMessages = [
-          'Você está indo muito bem! Continue assim!',
-          'Mantenha o foco e a respiração controlada.',
-          'Cada passo te deixa mais forte!',
-          'Excelente performance até agora!',
-          'Continue firme no seu objetivo!'
-        ];
-        message = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+      // Initial feedback
+      if (!hasGivenInitialFeedbackRef.current) {
+        message = 'Bom treino, estou com você!';
         type = 'motivation';
+        hasGivenInitialFeedbackRef.current = true;
+      } else {
+        // Subsequent feedbacks with last KM stats + objective analysis
+        let statsMessage = '';
+        if (lastKmStats) {
+          const paceMin = Math.floor(lastKmStats.averagePace);
+          const paceSec = Math.round((lastKmStats.averagePace - paceMin) * 60);
+          statsMessage = `Último quilômetro: pace de ${paceMin}:${paceSec.toString().padStart(2, '0')} min/km. `;
+        }
+
+        // Objective-based analysis
+        let objectiveMessage = '';
+        if (goal.type === 'target_pace' && goal.targetPace && lastKmStats) {
+          const targetPace = goal.targetPace;
+          const paceDifference = lastKmStats.averagePace - targetPace;
+          
+          if (Math.abs(paceDifference) <= 0.1) {
+            objectiveMessage = `Perfeito! Você está mantendo o pace ideal de ${Math.floor(targetPace)}:${Math.round((targetPace - Math.floor(targetPace)) * 60).toString().padStart(2, '0')}.`;
+            type = 'achievement';
+          } else if (paceDifference > 0.2) {
+            objectiveMessage = `Você está ${Math.abs(paceDifference).toFixed(1)} min/km mais lento que o objetivo. Tente acelerar um pouco!`;
+            type = 'instruction';
+          } else if (paceDifference < -0.2) {
+            objectiveMessage = `Cuidado! Você está ${Math.abs(paceDifference).toFixed(1)} min/km mais rápido que o planejado. Considere diminuir o ritmo.`;
+            type = 'warning';
+          } else {
+            objectiveMessage = `Continue assim! Muito próximo do pace objetivo.`;
+            type = 'motivation';
+          }
+        } else if (goal.type === 'target_distance' && goal.targetDistance) {
+          const targetDistance = goal.targetDistance / 1000;
+          const progress = (currentDistance / targetDistance) * 100;
+          const remaining = targetDistance - currentDistance;
+          
+          if (progress >= 100) {
+            objectiveMessage = `Parabéns! Você completou os ${targetDistance}km do seu objetivo!`;
+            type = 'achievement';
+          } else if (remaining <= 1) {
+            objectiveMessage = `Quase lá! Faltam apenas ${(remaining * 1000).toFixed(0)}m para completar!`;
+            type = 'motivation';
+          } else if (progress >= 75) {
+            objectiveMessage = `Excelente! Faltam ${remaining.toFixed(1)}km do seu objetivo de ${targetDistance}km.`;
+            type = 'motivation';
+          } else if (progress >= 50) {
+            objectiveMessage = `Metade do caminho! ${currentDistance.toFixed(1)}km de ${targetDistance}km completados.`;
+            type = 'motivation';
+          } else {
+            objectiveMessage = `Continue no ritmo! ${remaining.toFixed(1)}km restantes do seu objetivo.`;
+            type = 'motivation';
+          }
+        } else if (goal.type === 'target_duration' && goal.targetDuration) {
+          const targetDuration = goal.targetDuration / 60;
+          const remaining = targetDuration - duration;
+          
+          if (remaining <= 0) {
+            objectiveMessage = `Excelente! Você completou os ${targetDuration} minutos de treino!`;
+            type = 'achievement';
+          } else if (remaining <= 5) {
+            objectiveMessage = `Faltam apenas ${Math.round(remaining)} minutos! Finalize com força!`;
+            type = 'motivation';
+          } else {
+            objectiveMessage = `${Math.round(remaining)} minutos restantes do seu treino. Continue firme!`;
+            type = 'motivation';
+          }
+        } else {
+          // Free run
+          objectiveMessage = `Excelente consistência! Continue no seu ritmo.`;
+          type = 'motivation';
+        }
+
+        message = statsMessage + objectiveMessage;
       }
 
       // Generate TTS audio if enabled
@@ -185,15 +243,24 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   const analyzePerformance = useCallback(async (sessionData: SessionData) => {
     if (!state.isActive || !state.isEnabled) return;
 
-    const now = Date.now();
-    const timeSinceLastAnalysis = now - lastAnalysisRef.current;
-    const minInterval = options.feedbackInterval || 30000; // 30 seconds default
+    const currentDistance = sessionData.distance;
+    const currentDistanceKm = Math.floor(currentDistance / 1000);
+    const lastFeedbackKm = Math.floor(lastFeedbackDistanceRef.current / 1000);
 
-    // Don't analyze too frequently
-    if (timeSinceLastAnalysis < minInterval) return;
+    // Check if we should give feedback
+    const shouldGiveFeedback = !hasGivenInitialFeedbackRef.current || (currentDistanceKm > lastFeedbackKm);
+    
+    if (!shouldGiveFeedback) return;
 
     try {
-      const feedback = await generateCoachingFeedback(sessionData);
+      let lastKmStats: LastKmStats | null = null;
+      
+      // Get last KM stats if we have sessionId and completed at least 1km
+      if (sessionData.sessionId && hasGivenInitialFeedbackRef.current && currentDistance >= 1000) {
+        lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
+      }
+
+      const feedback = await generateCoachingFeedback(sessionData, lastKmStats);
       
       if (feedback) {
         setState(prev => ({
@@ -208,11 +275,11 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
           await playAudioFeedback(feedback.audioUrl);
         }
 
+        // Update last feedback distance
+        lastFeedbackDistanceRef.current = currentDistance;
+
         // Log feedback for debugging
         console.log('BioPeak Coach:', feedback.message);
-
-        lastAnalysisRef.current = now;
-        console.log('Feedback do coach gerado:', feedback.message);
       }
     } catch (error) {
       console.error('Erro na análise de performance:', error);
@@ -221,7 +288,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         error: error instanceof Error ? error.message : 'Erro na análise' 
       }));
     }
-  }, [state.isActive, state.isEnabled, options.feedbackInterval, generateCoachingFeedback, playAudioFeedback]);
+  }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
   const startCoaching = useCallback((goal: TrainingGoal) => {
     if (state.isActive) {
@@ -230,7 +297,8 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
 
     goalRef.current = goal;
-    lastAnalysisRef.current = 0;
+    lastFeedbackDistanceRef.current = 0;
+    hasGivenInitialFeedbackRef.current = false;
 
     setState(prev => ({
       ...prev,
@@ -244,18 +312,11 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
 
   const pauseCoaching = useCallback(() => {
     setState(prev => ({ ...prev, isActive: false }));
-    
-    if (feedbackIntervalRef.current) {
-      clearInterval(feedbackIntervalRef.current);
-      feedbackIntervalRef.current = null;
-    }
-
     console.log('Coach pausado');
   }, []);
 
   const resumeCoaching = useCallback(() => {
     setState(prev => ({ ...prev, isActive: true }));
-    lastAnalysisRef.current = 0; // Reset to allow immediate feedback
     console.log('Coach retomado');
   }, []);
 
@@ -266,10 +327,9 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       feedbackCount: 0,
     }));
 
-    if (feedbackIntervalRef.current) {
-      clearInterval(feedbackIntervalRef.current);
-      feedbackIntervalRef.current = null;
-    }
+    // Reset feedback tracking
+    lastFeedbackDistanceRef.current = 0;
+    hasGivenInitialFeedbackRef.current = false;
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -290,9 +350,6 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (feedbackIntervalRef.current) {
-        clearInterval(feedbackIntervalRef.current);
-      }
       if (audioRef.current) {
         audioRef.current.pause();
       }
