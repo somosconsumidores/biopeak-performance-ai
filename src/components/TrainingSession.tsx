@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useRealtimeSession, TrainingGoal } from '@/hooks/useRealtimeSession';
+import { BackgroundTrainingSession } from './BackgroundTrainingSession';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { SessionRecoveryDialog } from '@/components/SessionRecoveryDialog';
 import { GPSPermissionDialog } from '@/components/GPSPermissionDialog';
