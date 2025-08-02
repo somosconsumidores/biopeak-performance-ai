@@ -14,7 +14,7 @@ export interface UseNativePermissionsResult {
   permissions: PermissionStatus;
   isNative: boolean;
   deviceInfo: any;
-  requestAllPermissions: () => Promise<void>;
+  requestAllPermissions: () => Promise<boolean>;
   requestLocationPermission: () => Promise<boolean>;
   requestCameraPermission: () => Promise<boolean>;
   checkPermissions: () => Promise<void>;
@@ -31,6 +31,14 @@ export const useNativePermissions = (): UseNativePermissionsResult => {
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+
+  // Debug logging for native permissions
+  console.log('🔍 NATIVE PERMISSIONS DEBUG:', {
+    isNative,
+    platform: Capacitor.getPlatform(),
+    permissions,
+    isReady
+  });
 
   const getDeviceInfo = useCallback(async () => {
     try {
@@ -105,13 +113,18 @@ export const useNativePermissions = (): UseNativePermissionsResult => {
   }, [isNative]);
 
   const requestLocationPermission = useCallback(async (): Promise<boolean> => {
+    console.log('🚀 REQUESTING NATIVE LOCATION PERMISSION:', { isNative, platform: Capacitor.getPlatform() });
+    
     try {
       if (isNative) {
+        console.log('📱 USING NATIVE GEOLOCATION API...');
         const result = await Geolocation.requestPermissions();
+        console.log('📱 NATIVE PERMISSION RESULT:', result);
         const granted = result.location === 'granted';
         setPermissions(prev => ({ ...prev, location: result.location as any }));
         return granted;
       } else {
+        console.log('🌐 USING WEB GEOLOCATION API...');
         return new Promise((resolve) => {
           navigator.geolocation.getCurrentPosition(
             () => {
@@ -158,19 +171,43 @@ export const useNativePermissions = (): UseNativePermissionsResult => {
   }, [isNative]);
 
   const requestAllPermissions = useCallback(async () => {
-    console.log('Requesting all permissions...');
+    console.log('🚀 REQUESTING ALL NATIVE PERMISSIONS...');
+    
+    // Force native permission request if on Android
+    if (isNative && Capacitor.getPlatform() === 'android') {
+      console.log('📱 FORCING ANDROID PERMISSION REQUEST...');
+      try {
+        const locationResult = await Geolocation.requestPermissions();
+        console.log('📱 ANDROID LOCATION PERMISSION:', locationResult);
+        
+        // Test actual GPS access
+        const position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+        console.log('📱 ANDROID GPS TEST SUCCESS:', position);
+        
+        setPermissions(prev => ({ ...prev, location: 'granted' }));
+        return true;
+      } catch (error) {
+        console.error('❌ ANDROID GPS TEST FAILED:', error);
+        setPermissions(prev => ({ ...prev, location: 'denied' }));
+        return false;
+      }
+    }
     
     // Request location permission
-    await requestLocationPermission();
+    const locationGranted = await requestLocationPermission();
     
     // Request camera permission  
-    await requestCameraPermission();
+    const cameraGranted = await requestCameraPermission();
     
     // Re-check all permissions after requests
     await checkPermissions();
     
-    console.log('All permissions requested');
-  }, [requestLocationPermission, requestCameraPermission, checkPermissions]);
+    console.log('✅ ALL PERMISSIONS REQUESTED:', { locationGranted, cameraGranted });
+    return locationGranted;
+  }, [requestLocationPermission, requestCameraPermission, checkPermissions, isNative]);
 
   useEffect(() => {
     const initializePermissions = async () => {

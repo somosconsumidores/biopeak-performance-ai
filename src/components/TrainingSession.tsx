@@ -299,6 +299,27 @@ const TrainingSession: React.FC = () => {
                     <Settings className="h-4 w-4" />
                   </Button>
                   <Button
+                    onClick={async () => {
+                      console.log('🧪 MANUAL GPS TEST STARTED');
+                      toast({ title: "Testando GPS...", description: "Verificando permissões nativas" });
+                      try {
+                        const success = await enhancedGPS.requestPermission();
+                        if (success) {
+                          toast({ title: "✅ GPS Funcionando", description: "Permissões OK" });
+                        } else {
+                          toast({ title: "❌ GPS Falhou", description: "Verifique permissões", variant: "destructive" });
+                        }
+                      } catch (error) {
+                        console.error('❌ Manual GPS test error:', error);
+                        toast({ title: "❌ Erro no teste", description: String(error), variant: "destructive" });
+                      }
+                    }}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    🧪 Testar GPS
+                  </Button>
+                  <Button
                     onClick={enhancedGPS.toggleSimulation}
                     variant={enhancedGPS.isSimulationMode ? "default" : "outline"}
                     size="sm"
