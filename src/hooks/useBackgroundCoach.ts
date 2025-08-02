@@ -240,53 +240,103 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
   }, [options.enableTTS]);
 
+  const isProcessingRef = useRef<boolean>(false);
+
   const analyzePerformance = useCallback(async (sessionData: SessionData) => {
-    if (!state.isActive || !state.isEnabled) return;
+    if (!state.isActive || !state.isEnabled || isProcessingRef.current) return;
 
     const currentDistance = sessionData.distance;
-    const currentDistanceKm = Math.floor(currentDistance / 1000);
-    const lastFeedbackKm = Math.floor(lastFeedbackDistanceRef.current / 1000);
+    console.log('🔍 Coach Analysis:', {
+      currentDistance,
+      lastFeedbackDistance: lastFeedbackDistanceRef.current,
+      hasGivenInitial: hasGivenInitialFeedbackRef.current,
+      distanceSinceLastFeedback: currentDistance - lastFeedbackDistanceRef.current
+    });
 
-    // Check if we should give feedback
-    const shouldGiveFeedback = !hasGivenInitialFeedbackRef.current || (currentDistanceKm > lastFeedbackKm);
-    
-    if (!shouldGiveFeedback) return;
-
-    try {
-      let lastKmStats: LastKmStats | null = null;
+    // Initial feedback: only once at the beginning
+    if (!hasGivenInitialFeedbackRef.current) {
+      console.log('✅ Triggering INITIAL feedback');
+      isProcessingRef.current = true;
       
-      // Get last KM stats if we have sessionId and completed at least 1km
-      if (sessionData.sessionId && hasGivenInitialFeedbackRef.current && currentDistance >= 1000) {
-        lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
-      }
+      try {
+        const feedback = await generateCoachingFeedback(sessionData, null);
+        
+        if (feedback) {
+          setState(prev => ({
+            ...prev,
+            lastFeedback: feedback,
+            feedbackCount: prev.feedbackCount + 1,
+            error: null,
+          }));
 
-      const feedback = await generateCoachingFeedback(sessionData, lastKmStats);
-      
-      if (feedback) {
-        setState(prev => ({
-          ...prev,
-          lastFeedback: feedback,
-          feedbackCount: prev.feedbackCount + 1,
-          error: null,
+          // Play audio feedback if available
+          if (feedback.audioUrl) {
+            await playAudioFeedback(feedback.audioUrl);
+          }
+
+          // Update tracking
+          hasGivenInitialFeedbackRef.current = true;
+          lastFeedbackDistanceRef.current = currentDistance;
+
+          console.log('🎯 Initial Coach Feedback:', feedback.message);
+        }
+      } catch (error) {
+        console.error('Erro no feedback inicial:', error);
+        setState(prev => ({ 
+          ...prev, 
+          error: error instanceof Error ? error.message : 'Erro na análise' 
         }));
+      } finally {
+        isProcessingRef.current = false;
+      }
+      return;
+    }
 
-        // Play audio feedback if available
-        if (feedback.audioUrl) {
-          await playAudioFeedback(feedback.audioUrl);
+    // Subsequent feedbacks: every 1000m (1km) traveled since last feedback
+    const distanceSinceLastFeedback = currentDistance - lastFeedbackDistanceRef.current;
+    if (distanceSinceLastFeedback >= 1000) {
+      console.log('✅ Triggering 1KM feedback - Distance since last:', distanceSinceLastFeedback);
+      isProcessingRef.current = true;
+      
+      try {
+        let lastKmStats: LastKmStats | null = null;
+        
+        // Get last KM stats if we have sessionId
+        if (sessionData.sessionId && currentDistance >= 1000) {
+          lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
         }
 
-        // Update last feedback distance
-        lastFeedbackDistanceRef.current = currentDistance;
+        const feedback = await generateCoachingFeedback(sessionData, lastKmStats);
+        
+        if (feedback) {
+          setState(prev => ({
+            ...prev,
+            lastFeedback: feedback,
+            feedbackCount: prev.feedbackCount + 1,
+            error: null,
+          }));
 
-        // Log feedback for debugging
-        console.log('BioPeak Coach:', feedback.message);
+          // Play audio feedback if available
+          if (feedback.audioUrl) {
+            await playAudioFeedback(feedback.audioUrl);
+          }
+
+          // Update last feedback distance
+          lastFeedbackDistanceRef.current = currentDistance;
+
+          console.log('🎯 1KM Coach Feedback:', feedback.message);
+        }
+      } catch (error) {
+        console.error('Erro no feedback de 1km:', error);
+        setState(prev => ({ 
+          ...prev, 
+          error: error instanceof Error ? error.message : 'Erro na análise' 
+        }));
+      } finally {
+        isProcessingRef.current = false;
       }
-    } catch (error) {
-      console.error('Erro na análise de performance:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error.message : 'Erro na análise' 
-      }));
+    } else {
+      console.log('⏳ No feedback needed - Distance since last:', distanceSinceLastFeedback, 'm (need 1000m)');
     }
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
