@@ -556,17 +556,43 @@ export const useRealtimeSession = () => {
         console.log('💬 AI Feedback received:', data.feedback);
         setLastFeedback(data.feedback);
         
-        // Speak feedback if TTS is available
-        if ('speechSynthesis' in window) {
-          console.log('🔊 Speaking AI feedback');
-          speechSynthesis.cancel(); // Cancel any ongoing speech
-          const utterance = new SpeechSynthesisUtterance(data.feedback);
-          utterance.rate = 0.9;
-          utterance.pitch = 1;
-          utterance.lang = 'pt-BR'; // Set Portuguese
-          speechSynthesis.speak(utterance);
-        } else {
-          console.warn('🔇 Speech synthesis not available');
+        // Enhanced TTS with better voice quality
+        try {
+          console.log('🔊 Speaking AI feedback with enhanced TTS');
+          const { data: ttsData, error: ttsError } = await supabase.functions.invoke('text-to-speech', {
+            body: { 
+              text: data.feedback, 
+              voice: 'alloy',
+              speed: 1.0
+            }
+          });
+
+          if (ttsError || !ttsData?.audioContent) {
+            console.warn('⚠️ Enhanced TTS failed, falling back to native:', ttsError);
+            // Fallback to native TTS
+            if ('speechSynthesis' in window) {
+              speechSynthesis.cancel();
+              const utterance = new SpeechSynthesisUtterance(data.feedback);
+              utterance.rate = 0.9;
+              utterance.pitch = 1;
+              utterance.lang = 'pt-BR';
+              speechSynthesis.speak(utterance);
+            }
+          } else {
+            // Play enhanced TTS audio
+            const binaryString = atob(ttsData.audioContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.volume = 0.8;
+            audio.play().finally(() => URL.revokeObjectURL(audioUrl));
+          }
+        } catch (error) {
+          console.error('❌ TTS Error:', error);
         }
       } else {
         console.warn('⚠️ No feedback received from AI Coach');

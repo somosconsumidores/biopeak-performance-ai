@@ -267,82 +267,22 @@ const TrainingSession: React.FC = () => {
             </p>
           </div>
 
-          {/* Enhanced GPS Status */}
-          <Card className={`bg-card/80 backdrop-blur ${enhancedGPS.error ? 'border-destructive/50' : 'border-primary/20'}`}>
+          {/* Simple GPS Status Card */}
+          <Card className="bg-card/80 backdrop-blur border-primary/20">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <GPSStatusIndicator
-                    status={enhancedGPS.status}
-                    isTracking={enhancedGPS.isTracking}
-                    isSimulationMode={enhancedGPS.isSimulationMode}
-                    accuracy={enhancedGPS.lastLocation?.accuracy}
-                    lastUpdate={enhancedGPS.lastUpdate}
-                    onRequestPermission={() => setShowGPSDialog(true)}
-                    onOpenSettings={() => setShowGPSDialog(true)}
-                  />
-                  <div>
-                    <span className="font-medium">Status GPS</span>
-                    <div className="text-xs text-muted-foreground">
-                      {enhancedGPS.isEmulator ? 'Emulador' : 'Dispositivo'} • 
-                      {enhancedGPS.isHttps ? 'HTTPS' : 'HTTP'}
-                    </div>
-                  </div>
+                  <div className={`h-3 w-3 rounded-full ${enhancedGPS.isTracking ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <span className="font-medium">GPS {enhancedGPS.isTracking ? 'Ativo' : 'Aguardando'}</span>
                 </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setShowGPSDialog(true)}
-                    variant="ghost"
-                    size="sm"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      console.log('🧪 MANUAL GPS TEST STARTED');
-                      toast({ title: "Testando GPS...", description: "Verificando permissões nativas" });
-                      try {
-                        const success = await enhancedGPS.requestPermission();
-                        if (success) {
-                          toast({ title: "✅ GPS Funcionando", description: "Permissões OK" });
-                        } else {
-                          toast({ title: "❌ GPS Falhou", description: "Verifique permissões", variant: "destructive" });
-                        }
-                      } catch (error) {
-                        console.error('❌ Manual GPS test error:', error);
-                        toast({ title: "❌ Erro no teste", description: String(error), variant: "destructive" });
-                      }
-                    }}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    🧪 Testar GPS
-                  </Button>
-                  <Button
-                    onClick={enhancedGPS.toggleSimulation}
-                    variant={enhancedGPS.isSimulationMode ? "default" : "outline"}
-                    size="sm"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => setShowGPSDialog(true)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </div>
-              
-              {/* Error Display */}
-              {enhancedGPS.error && (
-                <div className="text-sm text-destructive bg-destructive/10 rounded p-2 mt-2">
-                  {enhancedGPS.error}
-                </div>
-              )}
-              
-              {/* Location Info */}
-              {enhancedGPS.lastLocation && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  Última localização: {enhancedGPS.lastLocation.latitude.toFixed(6)}, {enhancedGPS.lastLocation.longitude.toFixed(6)}
-                  {enhancedGPS.lastLocation.accuracy && ` (±${enhancedGPS.lastLocation.accuracy.toFixed(0)}m)`}
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -484,8 +424,12 @@ const TrainingSession: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                  className={isSoundEnabled ? "text-primary" : "text-muted-foreground"}
                 >
                   {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  <span className="ml-1 text-xs">
+                    {isSoundEnabled ? 'ON' : 'OFF'}
+                  </span>
                 </Button>
                 <Button
                   variant="ghost"
