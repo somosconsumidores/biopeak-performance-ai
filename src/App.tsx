@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
@@ -69,7 +69,7 @@ function AppRoutes() {
   };
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={
           <PublicRoute>
@@ -151,7 +151,7 @@ function AppRoutes() {
         open={showOnboarding} 
         onComplete={handleOnboardingComplete} 
       />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
