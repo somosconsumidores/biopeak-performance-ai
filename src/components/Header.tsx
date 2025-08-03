@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { useTranslation } from '@/hooks/useTranslation';
 // Logo imports
 const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
 const bioPeakLogoLight = '/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png';
@@ -14,6 +15,7 @@ export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   // Get current logo based on theme
   const getEffectiveTheme = () => {
@@ -30,10 +32,10 @@ export const Header = () => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Treinos', href: '/workouts' },
-    { name: 'Insights', href: '/insights' },
-    { name: 'Perfil', href: '/profile' },
+    { name: t('dashboard'), href: '/dashboard' },
+    { name: t('workouts'), href: '/workouts' },
+    { name: t('insights'), href: '/insights' },
+    { name: t('profile'), href: '/profile' },
   ];
 
   return (
@@ -67,10 +69,10 @@ export const Header = () => {
                 <LanguageSelector />
                 <ThemeToggle />
                 <Button variant="outline" className="glass-card border-glass-border text-sm" asChild>
-                  <Link to="/sync">Sincronizar Atividades</Link>
+                  <Link to="/sync">{t('syncActivities')}</Link>
                 </Button>
                 <Button onClick={handleSignOut} variant="outline" className="glass-card border-glass-border text-sm">
-                  Sair
+                  {t('logout')}
                 </Button>
               </div>
             </>
@@ -79,10 +81,10 @@ export const Header = () => {
               <LanguageSelector />
               <ThemeToggle />
               <Button variant="outline" className="glass-card border-glass-border" asChild>
-                <Link to="/auth">Login</Link>
+                <Link to="/auth">{t('login')}</Link>
               </Button>
               <Button className="btn-primary" asChild>
-                <Link to="/auth">Começar Agora</Link>
+                <Link to="/auth">{t('getStarted')}</Link>
               </Button>
             </div>
           )}
@@ -123,7 +125,7 @@ export const Header = () => {
                     className="block px-3 py-3 text-sm font-medium text-foreground/80 hover:text-primary transition-colors duration-200 touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Sincronizar Atividades
+                    {t('syncActivities')}
                   </Link>
                   <div className="pt-4 pb-2">
                     <Button 
@@ -131,7 +133,7 @@ export const Header = () => {
                       variant="outline" 
                       className="w-full glass-card border-glass-border h-12 text-sm touch-manipulation"
                     >
-                      Sair
+                      {t('logout')}
                     </Button>
                   </div>
                 </>
@@ -142,10 +144,10 @@ export const Header = () => {
                     className="w-full glass-card border-glass-border h-12 text-sm touch-manipulation" 
                     asChild
                   >
-                    <Link to="/auth">Login</Link>
+                    <Link to="/auth">{t('login')}</Link>
                   </Button>
                   <Button className="w-full btn-primary h-12 text-sm touch-manipulation" asChild>
-                    <Link to="/auth">Começar Agora</Link>
+                    <Link to="/auth">{t('getStarted')}</Link>
                   </Button>
                 </div>
               )}

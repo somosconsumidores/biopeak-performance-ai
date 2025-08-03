@@ -68,7 +68,9 @@ export const LanguageSelector = () => {
   const handleLanguageChange = (language: Language) => {
     setSelectedLanguage(language);
     localStorage.setItem('biopeak-language', language);
-    // Reload page to apply language changes
+    // Trigger re-render of components that use useTranslation
+    window.dispatchEvent(new Event('languageChanged'));
+    // Reload page to apply language changes throughout the app
     window.location.reload();
   };
 
