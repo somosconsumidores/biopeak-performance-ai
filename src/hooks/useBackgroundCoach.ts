@@ -241,28 +241,18 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [options.enableTTS]);
 
   const isProcessingRef = useRef<boolean>(false);
-  const lastFeedbackTimeRef = useRef<number>(0);
-  const MIN_FEEDBACK_INTERVAL_MS = 30000; // 30 seconds minimum between any feedbacks
 
   const analyzePerformance = useCallback(async (sessionData: SessionData) => {
     if (!state.isActive || !state.isEnabled || isProcessingRef.current) return;
 
     const currentDistance = sessionData.distance;
-    const currentTime = Date.now();
-    
-    // Aggressive time-based debouncing
-    const timeSinceLastFeedback = currentTime - lastFeedbackTimeRef.current;
-    if (timeSinceLastFeedback < MIN_FEEDBACK_INTERVAL_MS) {
-      console.log('⏳ Feedback blocked by time debounce - Time since last:', timeSinceLastFeedback, 'ms (need', MIN_FEEDBACK_INTERVAL_MS, 'ms)');
-      return;
-    }
+    const distanceSinceLastFeedback = currentDistance - lastFeedbackDistanceRef.current;
 
     console.log('🔍 Coach Analysis:', {
       currentDistance,
       lastFeedbackDistance: lastFeedbackDistanceRef.current,
       hasGivenInitial: hasGivenInitialFeedbackRef.current,
-      distanceSinceLastFeedback: currentDistance - lastFeedbackDistanceRef.current,
-      timeSinceLastFeedback
+      distanceSinceLastFeedback
     });
 
     // Initial feedback: only once at the beginning
@@ -289,7 +279,6 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
           // Update tracking
           hasGivenInitialFeedbackRef.current = true;
           lastFeedbackDistanceRef.current = currentDistance;
-          lastFeedbackTimeRef.current = currentTime;
 
           console.log('🎯 Initial Coach Feedback:', feedback.message);
         }
@@ -306,7 +295,6 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
 
     // Subsequent feedbacks: every 1000m (1km) traveled since last feedback
-    const distanceSinceLastFeedback = currentDistance - lastFeedbackDistanceRef.current;
     if (distanceSinceLastFeedback >= 1000) {
       console.log('✅ Triggering 1KM feedback - Distance since last:', distanceSinceLastFeedback);
       isProcessingRef.current = true;
@@ -334,9 +322,8 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
             await playAudioFeedback(feedback.audioUrl);
           }
 
-          // Update last feedback distance and time
+          // Update last feedback distance
           lastFeedbackDistanceRef.current = currentDistance;
-          lastFeedbackTimeRef.current = currentTime;
 
           console.log('🎯 1KM Coach Feedback:', feedback.message);
         }
@@ -363,7 +350,6 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     goalRef.current = goal;
     lastFeedbackDistanceRef.current = 0;
     hasGivenInitialFeedbackRef.current = false;
-    lastFeedbackTimeRef.current = 0;
     isProcessingRef.current = false;
 
     setState(prev => ({
@@ -396,7 +382,6 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     // Reset all feedback tracking
     lastFeedbackDistanceRef.current = 0;
     hasGivenInitialFeedbackRef.current = false;
-    lastFeedbackTimeRef.current = 0;
     isProcessingRef.current = false;
 
     if (audioRef.current) {
