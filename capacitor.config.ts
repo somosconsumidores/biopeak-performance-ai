@@ -4,10 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.lovable.biopeak',
   appName: 'biopeak-performance-ai',
   webDir: 'dist',
-  server: {
-    url: 'https://2de71c28-ed78-4dcd-8f5f-290d2b70bd62.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+  // Removed server URL to run fully offline/local for production
+  // server: {
+  //   url: 'https://2de71c28-ed78-4dcd-8f5f-290d2b70bd62.lovableproject.com?forceHideBadge=true',
+  //   cleartext: true
+  // },
   plugins: {
     SplashScreen: {
       launchShowDuration: 3000,

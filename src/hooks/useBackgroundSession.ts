@@ -222,16 +222,27 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
         backgroundCoach.startCoaching(goal);
       }
 
-      // Start periodic snapshots
+      // Start periodic snapshots - more frequent for better recovery
       snapshotIntervalRef.current = setInterval(() => {
         if (sessionDataRef.current) {
-          // Save session data to localStorage
-          localStorage.setItem('backgroundSession', JSON.stringify({
+          // Save session data to localStorage with additional recovery info
+          const saveData = {
             ...sessionDataRef.current,
             lastSaved: Date.now(),
-          }));
+            appVersion: '1.0.0',
+            recoveryCues: {
+              lastGPSUpdate: Date.now(),
+              coachingActive: backgroundCoach.isActive,
+              totalSnapshots: sessionDataRef.current.snapshots?.length || 0
+            }
+          };
+          localStorage.setItem('backgroundSession', JSON.stringify(saveData));
+          console.log('💾 Session auto-saved:', {
+            distance: (saveData.distance / 1000).toFixed(2) + 'km',
+            duration: Math.floor(saveData.duration / 60) + 'min'
+          });
         }
-      }, 10000); // Save every 10 seconds
+      }, 5000); // Save every 5 seconds for better recovery
 
       setState(prev => ({
         ...prev,
@@ -366,15 +377,47 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
       const savedSession = localStorage.getItem('backgroundSession');
       if (savedSession) {
         const sessionData = JSON.parse(savedSession);
-        sessionDataRef.current = sessionData;
-        setState(prev => ({ ...prev, sessionData }));
-        return sessionData;
+        const timeDiff = Date.now() - (sessionData.lastSaved || 0);
+        
+        // Only recover if session was saved within last 30 minutes
+        if (timeDiff < 30 * 60 * 1000) {
+          sessionDataRef.current = sessionData;
+          
+          // Restore GPS and coaching state if session was active
+          if (sessionData.isRecording && !sessionData.isPaused) {
+            setState(prev => ({ 
+              ...prev, 
+              sessionData,
+              isActive: true 
+            }));
+            
+            // Restart GPS tracking
+            backgroundGPS.startTracking().catch(console.error);
+            
+            // Restart coaching if goal exists
+            if (sessionData.goal) {
+              backgroundCoach.startCoaching(sessionData.goal);
+            }
+            
+            console.log('✅ Sessão em background recuperada e reativada');
+          } else {
+            setState(prev => ({ ...prev, sessionData }));
+            console.log('✅ Sessão em background recuperada (pausada)');
+          }
+          
+          return sessionData;
+        } else {
+          // Clean up old session
+          localStorage.removeItem('backgroundSession');
+          console.log('🗑️ Sessão antiga removida (mais de 30min)');
+        }
       }
     } catch (error) {
       console.error('Erro ao recuperar sessão:', error);
+      localStorage.removeItem('backgroundSession');
     }
     return null;
-  }, []);
+  }, [backgroundGPS, backgroundCoach]);
 
   // Initialize recovery on mount
   useEffect(() => {
