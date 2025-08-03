@@ -10,6 +10,7 @@ import { ScrollReveal } from '@/components/ScrollReveal';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ArrowLeft, Mail, Lock, User } from 'lucide-react';
 
 export function Auth() {
@@ -23,6 +24,7 @@ export function Auth() {
   
   const { signUp, signIn, resetPassword, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function Auth() {
       setError(error.message);
     } else {
       toast({
-        title: 'Bem-vindo de volta!',
+        title: t('welcomeBack'),
         description: 'Login realizado com sucesso.',
       });
     }
@@ -64,7 +66,7 @@ export function Auth() {
       setError(error.message);
     } else {
       toast({
-        title: 'Conta criada!',
+        title: t('accountCreated'),
         description: 'Verifique seu email para confirmar a conta.',
       });
     }
@@ -84,7 +86,7 @@ export function Auth() {
     } else {
       setResetEmailSent(true);
       toast({
-        title: 'Email enviado!',
+        title: t('emailSent'),
         description: 'Verifique sua caixa de entrada para redefinir a senha.',
       });
     }
@@ -102,24 +104,24 @@ export function Auth() {
             <div className="text-center">
               <Link to="/" className="inline-flex items-center gap-2 text-primary/80 hover:text-primary transition-colors mb-6">
                 <ArrowLeft className="h-4 w-4" />
-                Voltar ao início
+                {t('backToLogin')}
               </Link>
               <h1 className="text-3xl font-bold gradient-text mb-2">BioPeak</h1>
               <p className="text-muted-foreground">
-                Transforme seus treinos em estratégia
+                {t('joinThousands')}
               </p>
             </div>
 
             <Card className="glass-card">
               <CardHeader className="text-center">
                 <CardTitle className="text-xl">
-                  {activeTab === 'reset' ? 'Recuperar Senha' : 'Acesse sua conta'}
+                  {activeTab === 'reset' ? t('resetPassword') : t('signInToAccount')}
                 </CardTitle>
                 <CardDescription>
                   {activeTab === 'signin' 
                     ? 'Entre com suas credenciais' 
                     : activeTab === 'signup'
-                    ? 'Crie sua conta no BioPeak'
+                    ? t('createAccount')
                     : 'Digite seu email para recuperar a senha'
                   }
                 </CardDescription>
@@ -145,14 +147,14 @@ export function Auth() {
                 {activeTab !== 'reset' ? (
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="signin">Entrar</TabsTrigger>
-                      <TabsTrigger value="signup">Criar Conta</TabsTrigger>
+                      <TabsTrigger value="signin">{t('signIn')}</TabsTrigger>
+                      <TabsTrigger value="signup">{t('createAccount')}</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="signin">
                       <form onSubmit={handleSignIn} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
+                          <Label htmlFor="email">{t('email')}</Label>
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -168,7 +170,7 @@ export function Auth() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="password">Senha</Label>
+                          <Label htmlFor="password">{t('password')}</Label>
                           <div className="relative">
                             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -188,7 +190,7 @@ export function Auth() {
                           className="w-full" 
                           disabled={isLoading}
                         >
-                          {isLoading ? 'Entrando...' : 'Entrar'}
+                          {isLoading ? 'Entrando...' : t('signIn')}
                         </Button>
                         
                         <Button
@@ -197,7 +199,7 @@ export function Auth() {
                           className="w-full text-sm"
                           onClick={() => setActiveTab('reset')}
                         >
-                          Esqueci minha senha
+                          {t('forgotPassword')}
                         </Button>
                       </form>
                     </TabsContent>
@@ -220,7 +222,7 @@ export function Auth() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
+                          <Label htmlFor="email">{t('email')}</Label>
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -236,7 +238,7 @@ export function Auth() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="password">Senha</Label>
+                          <Label htmlFor="password">{t('password')}</Label>
                           <div className="relative">
                             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -257,7 +259,7 @@ export function Auth() {
                           className="w-full" 
                           disabled={isLoading}
                         >
-                          {isLoading ? 'Criando conta...' : 'Criar Conta'}
+                          {isLoading ? 'Criando conta...' : t('signUp')}
                         </Button>
                       </form>
                     </TabsContent>
@@ -266,7 +268,7 @@ export function Auth() {
                   <div className="space-y-4">
                     <form onSubmit={handleResetPassword} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t('email')}</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input
@@ -286,7 +288,7 @@ export function Auth() {
                         className="w-full" 
                         disabled={isLoading}
                       >
-                        {isLoading ? 'Enviando...' : 'Enviar Email de Recuperação'}
+                        {isLoading ? 'Enviando...' : t('resetPassword')}
                       </Button>
                     </form>
                     
@@ -300,7 +302,7 @@ export function Auth() {
                         setError('');
                       }}
                     >
-                      Voltar ao login
+                      {t('backToLogin')}
                     </Button>
                   </div>
                 )}

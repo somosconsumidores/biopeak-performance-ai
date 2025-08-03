@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { useTranslation } from '@/hooks/useTranslation';
 
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
@@ -34,6 +35,7 @@ export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const { theme } = useTheme();
   const { stats: appStats, loading: statsLoading } = useAppStats();
+  const { t } = useTranslation();
 
   // Get current effective theme
   const getEffectiveTheme = () => {
@@ -50,23 +52,23 @@ export const LandingPage = () => {
   const features = [
     {
       icon: Brain,
-      title: 'IA Inteligente',
-      description: 'Análise avançada dos seus treinos com machine learning para insights personalizados.'
+      title: t('intelligentAI'),
+      description: t('aiDescription')
     },
     {
       icon: Activity,
-      title: 'Integração Garmin',
-      description: 'Sincronização automática com seus dispositivos Garmin para dados precisos.'
+      title: t('garminIntegration'),
+      description: t('garminDescription')
     },
     {
       icon: TrendingUp,
-      title: 'Evolução Contínua',
-      description: 'Acompanhe sua progressão com métricas detalhadas e recomendações.'
+      title: t('continuousEvolution'),
+      description: t('evolutionDescription')
     },
     {
       icon: Target,
-      title: 'Metas Inteligentes',
-      description: 'Definição automática de objetivos baseados no seu perfil e performance.'
+      title: t('smartGoals'),
+      description: t('goalsDescription')
     }
   ];
 
@@ -90,19 +92,19 @@ export const LandingPage = () => {
   const realStats = [
     { 
       value: statsLoading ? '...' : formatNumber(appStats.totalAthletes), 
-      label: 'Atletas Registrados' 
+      label: t('athletesRegistered')
     },
     { 
       value: statsLoading ? '...' : formatNumber(appStats.totalActivities), 
-      label: 'Atividades Registradas' 
+      label: t('activitiesRegistered')
     },
     { 
       value: statsLoading ? '...' : formatNumber(appStats.totalInsights), 
-      label: 'Insights Fornecidos' 
+      label: t('insightsProvided')
     },
     { 
       value: statsLoading ? '...' : formatNumber(appStats.totalGoals), 
-      label: 'Metas Atribuídas' 
+      label: t('goalsAssigned')
     }
   ];
 
@@ -120,14 +122,13 @@ export const LandingPage = () => {
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Treino é Físico.
+                {t('physicalTraining')}
               </span>
               <br />
-              Evolução é nos Dados.
+              {t('evolutionInData')}
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              O primeiro app que usa IA para transformar seus dados de treino Garmin em 
-              estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.
+              {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
               <img src={heroAnimation} alt="BioPeak Animation" className="h-56 sm:h-80 w-auto max-w-2xl" />
@@ -135,14 +136,14 @@ export const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
                 <Link to="/auth">
-                  <span className="truncate">Começar Agora</span>
+                  <span className="truncate">{t('getStarted')}</span>
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 </Link>
               </Button>
               <Dialog open={isVideoOpen} onOpenChange={setIsVideoOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" variant="outline" className="glass-card border-glass-border text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]">
-                    <span className="truncate">Ver Demo</span>
+                    <span className="truncate">{t('watchDemo')}</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-4xl p-0 bg-black/95 border-glass-border">
@@ -187,11 +188,10 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-16">
               <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-                Tecnologia de <span className="bg-gradient-primary bg-clip-text text-transparent">Ponta</span>
+                {t('cuttingEdgeTech').split(' ')[0]} <span className="bg-gradient-primary bg-clip-text text-transparent">{t('cuttingEdgeTech').split(' ').slice(1).join(' ')}</span>
               </h2>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Combinamos inteligência artificial avançada com dados precisos do Garmin 
-                para oferecer insights que nenhum outro app consegue.
+                {t('techDescription')}
               </p>
             </div>
           </ScrollReveal>
@@ -221,12 +221,10 @@ export const LandingPage = () => {
             <ScrollReveal>
               <div>
                 <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-                  Por que <span className="bg-gradient-primary bg-clip-text text-transparent">BioPeak?</span>
+                  {t('whyBioPeak').split(' ')[0]} {t('whyBioPeak').split(' ')[1]} <span className="bg-gradient-primary bg-clip-text text-transparent">{t('whyBioPeak').split(' ').slice(2).join(' ')}</span>
                 </h2>
                 <p className="text-xl text-muted-foreground mb-8">
-                  Não somos apenas mais um app de treino. Somos a evolução 
-                  da análise esportiva, transformando cada batimento cardíaco 
-                  em estratégia de performance.
+                  {t('whyDescription')}
                 </p>
                 <div className="space-y-4">
                   {benefits.map((benefit, index) => (
@@ -279,21 +277,20 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="glass-card p-12 text-center">
               <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-                Pronto para <span className="bg-gradient-primary bg-clip-text text-transparent">Evoluir?</span>
+                {t('readyToEvolve').split(' ')[0]} {t('readyToEvolve').split(' ')[1]} <span className="bg-gradient-primary bg-clip-text text-transparent">{t('readyToEvolve').split(' ').slice(2).join(' ')}</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Junte-se a milhares de atletas que já descobriram o poder da análise 
-                inteligente. Comece sua jornada para a performance máxima hoje.
+                {t('ctaDescription')}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-3 min-h-[3rem] max-w-[200px] sm:max-w-none" asChild>
                   <Link to="/auth">
-                    <span className="truncate">Começar Grátis</span>
+                    <span className="truncate">{t('startFree')}</span>
                     <ArrowRight className="ml-1 h-4 w-4 flex-shrink-0" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="glass-card border-glass-border text-sm sm:text-base px-4 sm:px-6 py-3 min-h-[3rem] max-w-[200px] sm:max-w-none">
-                  <span className="truncate">Falar c/ Expert</span>
+                  <span className="truncate">{t('talkToExpert')}</span>
                 </Button>
               </div>
             </div>
@@ -313,39 +310,39 @@ export const LandingPage = () => {
                 </span>
               </div>
               <p className="text-muted-foreground">
-                Transformando treinos em estratégia com inteligência artificial.
+                {t('transformingTraining')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold mb-4">Produto</h3>
+              <h3 className="font-semibold mb-4">{t('product')}</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li>Dashboard</li>
-                <li>Análise IA</li>
-                <li>Integração Garmin</li>
-                <li>Insights</li>
+                <li>{t('dashboard')}</li>
+                <li>{t('aiAnalysis')}</li>
+                <li>{t('garminIntegration')}</li>
+                <li>{t('insights')}</li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-4">Suporte</h3>
+              <h3 className="font-semibold mb-4">{t('support')}</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li>Central de Ajuda</li>
-                <li>Documentação</li>
-                <li>Contato</li>
-                <li>Status</li>
+                <li>{t('helpCenter')}</li>
+                <li>{t('documentation')}</li>
+                <li>{t('contact')}</li>
+                <li>{t('status')}</li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-4">Empresa</h3>
+              <h3 className="font-semibold mb-4">{t('company')}</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li>Sobre</li>
-                <li>Blog</li>
-                <li>Carreiras</li>
-                <li><a href="/privacy-policy" className="hover:text-foreground transition-colors">Privacidade</a></li>
+                <li>{t('about')}</li>
+                <li>{t('blog')}</li>
+                <li>{t('careers')}</li>
+                <li><a href="/privacy-policy" className="hover:text-foreground transition-colors">{t('privacy')}</a></li>
               </ul>
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-glass-border text-center text-muted-foreground">
-            <p>&copy; 2025 BioPeak. Todos os direitos reservados.</p>
+            <p>&copy; 2025 BioPeak. {t('allRightsReserved')}</p>
           </div>
         </div>
       </footer>
