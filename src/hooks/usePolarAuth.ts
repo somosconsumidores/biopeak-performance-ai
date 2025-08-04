@@ -7,6 +7,7 @@ export const usePolarAuth = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,6 +45,27 @@ export const usePolarAuth = () => {
     }
   };
 
+  const checkPolarHealth = async () => {
+    try {
+      console.log('🩺 Checking Polar API health...');
+      const { data, error } = await supabase.functions.invoke('polar-health-check');
+      
+      if (error) {
+        console.error('Health check error:', error);
+        setHealthStatus({ healthy: false, error: error.message });
+        return false;
+      }
+      
+      setHealthStatus(data);
+      console.log('🩺 Health check result:', data);
+      return data.healthy;
+    } catch (error) {
+      console.error('Health check failed:', error);
+      setHealthStatus({ healthy: false, error: 'Health check failed' });
+      return false;
+    }
+  };
+
   const startOAuthFlow = async () => {
     try {
       setIsConnecting(true);
@@ -59,18 +81,41 @@ export const usePolarAuth = () => {
         return;
       }
 
-      // Get client ID from backend (we'll need to add an endpoint for this)
+      // Check Polar API health first
+      console.log('🔍 Checking Polar API health before OAuth...');
+      const isHealthy = await checkPolarHealth();
+      
+      if (!isHealthy) {
+        toast({
+          title: "Serviço indisponível",
+          description: "A API da Polar está temporariamente indisponível. Tente novamente em alguns minutos.",
+          variant: "destructive",
+        });
+        setIsConnecting(false);
+        return;
+      }
+
+      // Get client ID from backend
+      console.log('🔍 Getting Polar configuration...');
       const { data, error } = await supabase.functions.invoke('get-polar-config');
       
       if (error || !data?.client_id) {
-        throw new Error('Configuração da Polar não encontrada');
+        console.error('Config error:', error);
+        toast({
+          title: "Erro de configuração",
+          description: "Configuração da Polar não encontrada. Contate o suporte.",
+          variant: "destructive",
+        });
+        setIsConnecting(false);
+        return;
       }
 
       const redirectUri = PolarOAuth.getCallbackUrl();
       const state = `user_${session.user.id}_${Date.now()}`;
 
+      console.log('🔍 Storing temporary OAuth state...');
       // Store temp state for verification
-      await supabase
+      const { error: stateError } = await supabase
         .from('oauth_temp_tokens')
         .insert({
           oauth_token: state,
@@ -79,6 +124,17 @@ export const usePolarAuth = () => {
           provider_type: 'polar',
         });
 
+      if (stateError) {
+        console.error('State storage error:', stateError);
+        toast({
+          title: "Erro interno",
+          description: "Erro ao preparar autenticação. Tente novamente.",
+          variant: "destructive",
+        });
+        setIsConnecting(false);
+        return;
+      }
+
       const authUrl = PolarOAuth.generateAuthorizationUrl({
         clientId: data.client_id,
         redirectUri,
@@ -86,7 +142,16 @@ export const usePolarAuth = () => {
         state,
       });
 
-      window.location.href = authUrl;
+      console.log('🚀 Redirecting to Polar OAuth...');
+      toast({
+        title: "Redirecionando",
+        description: "Você será redirecionado para a Polar para autorizar a conexão.",
+      });
+
+      // Add a small delay to show the toast
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 1000);
       
     } catch (error) {
       console.error('Error starting Polar OAuth flow:', error);
@@ -141,8 +206,10 @@ export const usePolarAuth = () => {
     isConnected,
     isConnecting,
     isLoading,
+    healthStatus,
     startOAuthFlow,
     disconnect,
     checkPolarConnection,
+    checkPolarHealth,
   };
 };

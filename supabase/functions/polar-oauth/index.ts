@@ -24,11 +24,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  console.log(`🚀 Polar OAuth request started at ${new Date().toISOString()}`);
+
   try {
+    // Log request details
+    console.log(`📨 Request method: ${req.method}`);
+    console.log(`📨 Request URL: ${req.url}`);
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('❌ No authorization header provided');
       throw new Error('No authorization header');
     }
+    console.log('✅ Authorization header present');
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -41,24 +50,36 @@ serve(async (req) => {
     );
 
     // Get the current user
+    console.log('🔍 Getting current user...');
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      console.error('❌ User authentication failed:', userError);
       throw new Error('User not authenticated');
     }
+    console.log(`✅ User authenticated: ${user.id}`);
 
+    // Parse request body
+    console.log('📝 Parsing request body...');
     const { code, redirect_uri }: PolarTokenRequest = await req.json();
+    console.log(`📝 Authorization code received: ${code ? 'YES' : 'NO'}`);
+    console.log(`📝 Redirect URI: ${redirect_uri || 'not provided'}`);
 
     if (!code) {
+      console.error('❌ No authorization code provided');
       throw new Error('Authorization code is required');
     }
 
     // Get Polar API credentials
+    console.log('🔑 Checking Polar API credentials...');
     const clientId = Deno.env.get('POLAR_CLIENT_ID');
     const clientSecret = Deno.env.get('POLAR_CLIENT_SECRET');
 
     if (!clientId || !clientSecret) {
+      console.error('❌ Polar API credentials not configured');
+      console.error(`Client ID present: ${!!clientId}, Client Secret present: ${!!clientSecret}`);
       throw new Error('Polar API credentials not configured');
     }
+    console.log('✅ Polar API credentials configured');
 
     // Prepare Basic Auth credentials
     const credentials = btoa(`${clientId}:${clientSecret}`);
@@ -70,7 +91,9 @@ serve(async (req) => {
       ...(redirect_uri && { redirect_uri }),
     });
 
-    console.log('Exchanging code for token with Polar API...');
+    console.log('🔄 Exchanging authorization code for access token...');
+    console.log(`🔄 Token endpoint: https://polarremote.com/v2/oauth2/token`);
+    console.log(`🔄 Grant type: authorization_code`);
 
     const tokenResponse = await fetch('https://polarremote.com/v2/oauth2/token', {
       method: 'POST',
@@ -82,19 +105,40 @@ serve(async (req) => {
       body: tokenBody.toString(),
     });
 
+    console.log(`📡 Polar API response status: ${tokenResponse.status} ${tokenResponse.statusText}`);
+    console.log(`📡 Polar API response headers:`, Object.fromEntries(tokenResponse.headers.entries()));
+
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({}));
-      console.error('Polar token exchange error:', errorData);
+      const errorText = await tokenResponse.text();
+      console.error('❌ Polar token exchange failed');
+      console.error(`❌ Status: ${tokenResponse.status} ${tokenResponse.statusText}`);
+      console.error(`❌ Response body: ${errorText}`);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText || tokenResponse.statusText };
+      }
+      
       throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
     }
 
     const tokenData: PolarTokenResponse = await tokenResponse.json();
-    console.log('Token exchange successful, x_user_id:', tokenData.x_user_id);
+    console.log('✅ Token exchange successful!');
+    console.log(`✅ X-User-ID: ${tokenData.x_user_id}`);
+    console.log(`✅ Token type: ${tokenData.token_type}`);
+    console.log(`✅ Expires in: ${tokenData.expires_in} seconds`);
 
     // Calculate expiration time
     const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+    console.log(`📅 Token expires at: ${expiresAt.toISOString()}`);
 
     // Store tokens in database
+    console.log('💾 Storing tokens in database...');
+    console.log(`💾 User ID: ${user.id}`);
+    console.log(`💾 Polar User ID: ${tokenData.x_user_id}`);
+    
     const { error: insertError } = await supabase
       .from('polar_tokens')
       .insert({
@@ -109,15 +153,22 @@ serve(async (req) => {
       });
 
     if (insertError) {
-      console.error('Database insertion error:', insertError);
+      console.error('❌ Database insertion failed:', insertError);
+      console.error('❌ Error code:', insertError.code);
+      console.error('❌ Error details:', insertError.details);
+      console.error('❌ Error hint:', insertError.hint);
       throw new Error(`Failed to store tokens: ${insertError.message}`);
     }
 
-    console.log('Polar tokens stored successfully for user:', user.id);
+    console.log('✅ Polar tokens stored successfully in database');
 
     // Register user with Polar and configure webhooks
+    console.log('🔗 Registering user with Polar and configuring webhooks...');
     try {
-      const registerResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/register-polar-user`, {
+      const registerUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/register-polar-user`;
+      console.log(`🔗 Registration URL: ${registerUrl}`);
+      
+      const registerResponse = await fetch(registerUrl, {
         method: 'POST',
         headers: {
           'Authorization': authHeader,
@@ -128,21 +179,31 @@ serve(async (req) => {
         }),
       });
 
+      console.log(`🔗 Registration response status: ${registerResponse.status} ${registerResponse.statusText}`);
+
       if (!registerResponse.ok) {
-        console.error('Failed to register Polar user, but tokens were saved');
+        const registerErrorText = await registerResponse.text();
+        console.error('⚠️ Failed to register Polar user, but tokens were saved');
+        console.error(`⚠️ Registration error response: ${registerErrorText}`);
       } else {
-        console.log('Polar user registered and webhook configured successfully');
+        const registerData = await registerResponse.json();
+        console.log('✅ Polar user registered and webhook configured successfully');
+        console.log('✅ Registration response:', registerData);
       }
     } catch (registrationError) {
-      console.error('Registration error:', registrationError);
+      console.error('⚠️ Registration error (non-fatal):', registrationError);
       // Don't fail the whole process if registration fails
     }
+
+    const duration = Date.now() - startTime;
+    console.log(`🏁 Polar OAuth process completed successfully in ${duration}ms`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Polar account connected successfully',
         x_user_id: tokenData.x_user_id,
+        duration_ms: duration,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -151,12 +212,17 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Polar OAuth error:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ Polar OAuth process failed after ${duration}ms`);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
     
     return new Response(
       JSON.stringify({
         error: error.message,
         success: false,
+        duration_ms: duration,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
