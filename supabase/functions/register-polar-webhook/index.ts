@@ -36,7 +36,7 @@ serve(async (req) => {
       // Listar webhooks existentes
       console.log('[register-polar-webhook] Listando webhooks existentes...');
       
-      const listResponse = await fetch('https://www.polaraccesslink.com/v3/notifications', {
+      const listResponse = await fetch('https://www.polaraccesslink.com/v3/webhooks', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -62,14 +62,15 @@ serve(async (req) => {
     // Registrar webhook
     console.log('[register-polar-webhook] Registrando webhook:', webhookUrl);
     
-    const registerResponse = await fetch('https://www.polaraccesslink.com/v3/notifications', {
+    const registerResponse = await fetch('https://www.polaraccesslink.com/v3/webhooks', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        url: webhookUrl
+        url: webhookUrl,
+        events: ['EXERCISE']
       })
     });
 
