@@ -111,17 +111,25 @@ export const usePolarAuth = () => {
       }
 
       const redirectUri = PolarOAuth.getCallbackUrl();
-      const state = `user_${session.user.id}_${Date.now()}`;
+      const state = crypto.randomUUID();
+
+      console.log('🔍 Generated OAuth parameters:', {
+        state,
+        redirectUri,
+        clientId: data.client_id,
+        scope: 'accesslink.read_all'
+      });
 
       console.log('🔍 Storing temporary OAuth state...');
       // Store temp state for verification
       const { error: stateError } = await supabase
         .from('oauth_temp_tokens')
         .insert({
-          oauth_token: state,
           user_id: session.user.id,
+          oauth_token: state,
           provider: 'polar',
           provider_type: 'polar',
+          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
         });
 
       if (stateError) {
@@ -135,11 +143,21 @@ export const usePolarAuth = () => {
         return;
       }
 
+      // Store in session storage as backup
+      PolarOAuth.storeAuthState({ state, redirectUri });
+
       const authUrl = PolarOAuth.generateAuthorizationUrl({
         clientId: data.client_id,
         redirectUri,
         scope: 'accesslink.read_all',
         state,
+      });
+
+      console.log('🚀 Redirecting to Polar OAuth:', {
+        url: authUrl,
+        redirectUri,
+        state,
+        scope: 'accesslink.read_all'
       });
 
       console.log('🚀 Redirecting to Polar OAuth...');

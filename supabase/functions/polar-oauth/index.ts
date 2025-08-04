@@ -9,6 +9,7 @@ const corsHeaders = {
 interface PolarTokenRequest {
   code: string;
   redirect_uri?: string;
+  state?: string;
 }
 
 interface PolarTokenResponse {
@@ -60,13 +61,24 @@ serve(async (req) => {
 
     // Parse request body
     console.log('📝 Parsing request body...');
-    const { code, redirect_uri }: PolarTokenRequest = await req.json();
+    const { code, redirect_uri, state }: PolarTokenRequest = await req.json();
     console.log(`📝 Authorization code received: ${code ? 'YES' : 'NO'}`);
     console.log(`📝 Redirect URI: ${redirect_uri || 'not provided'}`);
+    console.log(`📝 State: ${state || 'not provided'}`);
 
     if (!code) {
       console.error('❌ No authorization code provided');
       throw new Error('Authorization code is required');
+    }
+
+    if (!redirect_uri) {
+      console.error('❌ No redirect URI provided');
+      throw new Error('Redirect URI is required');
+    }
+
+    if (!state) {
+      console.error('❌ No state parameter provided');
+      throw new Error('State parameter is required for CSRF protection');
     }
 
     // Get Polar API credentials
@@ -81,6 +93,30 @@ serve(async (req) => {
     }
     console.log('✅ Polar API credentials configured');
 
+    // Verify OAuth state for CSRF protection
+    console.log('🔍 Verifying OAuth state...');
+    const { data: tempToken, error: stateError } = await supabase
+      .from('oauth_temp_tokens')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('oauth_token', state)
+      .eq('provider', 'polar')
+      .single();
+
+    if (stateError || !tempToken) {
+      console.error('❌ Invalid or expired OAuth state:', { stateError, receivedState: state, userId: user.id });
+      throw new Error('Invalid or expired OAuth state. Please restart the authentication process.');
+    }
+
+    // Log the found token for debugging
+    console.log('✅ Found matching OAuth state token:', {
+      tokenId: tempToken.id,
+      provider: tempToken.provider,
+      createdAt: tempToken.created_at
+    });
+
+    console.log('✅ OAuth state verified successfully');
+
     // Prepare Basic Auth credentials
     const credentials = btoa(`${clientId}:${clientSecret}`);
 
@@ -88,12 +124,13 @@ serve(async (req) => {
     const tokenBody = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      ...(redirect_uri && { redirect_uri }),
+      redirect_uri: redirect_uri, // Must be included and identical to authorization request
     });
 
     console.log('🔄 Exchanging authorization code for access token...');
     console.log(`🔄 Token endpoint: https://polarremote.com/v2/oauth2/token`);
     console.log(`🔄 Grant type: authorization_code`);
+    console.log(`🔄 Redirect URI: ${redirect_uri}`);
 
     const tokenResponse = await fetch('https://polarremote.com/v2/oauth2/token', {
       method: 'POST',
@@ -118,10 +155,22 @@ serve(async (req) => {
       try {
         errorData = JSON.parse(errorText);
       } catch {
-        errorData = { error: errorText || tokenResponse.statusText };
+        errorData = { error: 'parse_error', description: errorText };
       }
       
-      throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
+      // Map Polar error codes to user-friendly messages
+      const errorMessages = {
+        'invalid_request': 'The request is missing required parameters or is malformed',
+        'invalid_client': 'Client authentication failed. Please check your Polar app configuration.',
+        'invalid_grant': 'The authorization code is invalid, expired, or has already been used',
+        'unauthorized_client': 'The client is not authorized to use this authorization grant type',
+        'unsupported_grant_type': 'The authorization grant type is not supported',
+        'invalid_scope': 'The requested scope is invalid or malformed'
+      };
+
+      const userMessage = errorMessages[errorData.error] || 'Failed to exchange authorization code for access token';
+      
+      throw new Error(`${userMessage} (${errorData.error || tokenResponse.statusText})`);
     }
 
     const tokenData: PolarTokenResponse = await tokenResponse.json();
@@ -138,6 +187,15 @@ serve(async (req) => {
     console.log('💾 Storing tokens in database...');
     console.log(`💾 User ID: ${user.id}`);
     console.log(`💾 Polar User ID: ${tokenData.x_user_id}`);
+
+    // Clean up the temporary OAuth state
+    console.log('🧹 Cleaning up temporary OAuth state...');
+    await supabase
+      .from('oauth_temp_tokens')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('oauth_token', state)
+      .eq('provider', 'polar');
     
     const { error: insertError } = await supabase
       .from('polar_tokens')
