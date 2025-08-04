@@ -139,7 +139,8 @@ export class PolarOAuth {
 
   static getCallbackUrl(): string {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/polar-callback`;
+    // Use hash router format for Polar callback
+    return `${baseUrl}/#/polar-callback`;
   }
 
   static validateAuthState(receivedState: string, storedState: string): boolean {

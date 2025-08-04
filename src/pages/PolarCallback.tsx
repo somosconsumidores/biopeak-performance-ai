@@ -8,6 +8,10 @@ import { Loader2, CheckCircle, XCircle, Bug } from "lucide-react";
 import { usePolarOAuthDebug } from "@/hooks/usePolarOAuthDebug";
 
 export default function PolarCallback() {
+  // Debug: Log component execution immediately
+  console.log('🎯 PolarCallback component loaded at:', new Date().toISOString());
+  console.log('🎯 Current location:', window.location.href);
+  
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -42,14 +46,33 @@ export default function PolarCallback() {
     logOAuthDiagnostics();
     
     try {
-      const code = searchParams.get('code');
-      const error = searchParams.get('error');
-      const state = searchParams.get('state');
+      console.log('🚀 PolarCallback component executed - starting OAuth flow');
+      console.log('🔍 Current URL:', window.location.href);
+      console.log('🔍 Hash:', window.location.hash);
+      console.log('🔍 Search params:', window.location.search);
+      
+      // For HashRouter, parameters might be in different places
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Also check if parameters are after the hash (some OAuth providers redirect this way)
+      let hashParams = new URLSearchParams();
+      if (window.location.hash.includes('?')) {
+        const hashQuery = window.location.hash.split('?')[1];
+        hashParams = new URLSearchParams(hashQuery);
+      }
+      
+      const code = urlParams.get('code') || hashParams.get('code');
+      const error = urlParams.get('error') || hashParams.get('error');
+      const state = urlParams.get('state') || hashParams.get('state');
 
-      console.log('📨 URL parameters received:');
-      console.log(`📨 Code: ${code ? 'YES' : 'NO'}`);
-      console.log(`📨 Error: ${error || 'none'}`);
-      console.log(`📨 State: ${state || 'none'}`);
+      console.log('🔍 URL parameters extracted:', { 
+        code: code ? `${code.substring(0, 10)}...` : null,
+        error,
+        state: state ? `${state.substring(0, 10)}...` : null,
+        fullUrl: window.location.href,
+        fromSearch: !!urlParams.get('code'),
+        fromHash: !!hashParams.get('code')
+      });
 
       if (error) {
         console.error('❌ Polar authorization error:', error);
@@ -109,7 +132,7 @@ export default function PolarCallback() {
       
       const functionPayload = {
         code,
-        redirect_uri: `${window.location.origin}/polar-callback`,
+        redirect_uri: `${window.location.origin}/#/polar-callback`,
         ...(state && { state })
       };
       console.log('📤 Function payload:', functionPayload);
@@ -199,6 +222,7 @@ export default function PolarCallback() {
   };
 
   const handleRetry = () => {
+    console.log('🔄 Retry button clicked, navigating to /sync');
     navigate('/sync');
   };
 
