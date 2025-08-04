@@ -1,8 +1,10 @@
-import { AlertCircle, Activity, Clock, Smartphone } from "lucide-react";
+import { AlertCircle, Activity, Clock, Smartphone, Webhook } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePolarStats } from "@/hooks/usePolarStats";
+import { usePolarAuth } from "@/hooks/usePolarAuth";
 
 const formatLastSync = (syncAt: string | null): string => {
   if (!syncAt) return "Nunca";
@@ -27,6 +29,7 @@ const formatLastSync = (syncAt: string | null): string => {
 
 export function PolarConnectionStatus() {
   const { stats, isLoading } = usePolarStats();
+  const { webhookRegistered, isRegisteringWebhook, registerWebhook } = usePolarAuth();
 
   if (isLoading) {
     return (
@@ -110,11 +113,37 @@ export function PolarConnectionStatus() {
         )}
       </div>
 
-      <Alert>
+      {!webhookRegistered && (
+        <Alert className="border-warning">
+          <Webhook className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <strong>Webhook não configurado:</strong> Para receber atividades automaticamente, você precisa configurar o webhook da Polar.
+            </div>
+            <Button 
+              onClick={registerWebhook}
+              disabled={isRegisteringWebhook}
+              size="sm"
+              variant="outline"
+            >
+              {isRegisteringWebhook ? 'Configurando...' : 'Configurar Webhook'}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Alert className={webhookRegistered ? 'border-success' : undefined}>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Sincronização automática:</strong> Suas atividades Polar são sincronizadas automaticamente 
-          após cada treino. Não é necessário sincronização manual.
+          {webhookRegistered ? (
+            <>
+              <strong>Webhook configurado:</strong> Suas atividades Polar são sincronizadas automaticamente após cada treino.
+            </>
+          ) : (
+            <>
+              <strong>Sincronização manual:</strong> Configure o webhook acima para sincronização automática das atividades.
+            </>
+          )}
         </AlertDescription>
       </Alert>
     </div>
