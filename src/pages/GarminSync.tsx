@@ -1,6 +1,7 @@
 import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-updated.png';
 import stravaLogo from '@/assets/strava-logo.svg';
+import polarLogo from '@/assets/polar-logo.png';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
@@ -11,12 +12,15 @@ import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaStats } from '@/hooks/useStravaStats';
+import { usePolarAuth } from '@/hooks/usePolarAuth';
+import { usePolarStats } from '@/hooks/usePolarStats';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
+import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
 
 
 import { 
@@ -71,6 +75,18 @@ export function GarminSync() {
   const stravaConnected = stravaStats?.isConnected || false;
   const stravaActivities = stravaStats?.totalActivities || 0;
   const stravaLastSync = stravaStats?.lastSyncAt || null;
+  
+  // Polar integration
+  const { 
+    isConnected: polarConnected, 
+    isConnecting: polarConnecting, 
+    startOAuthFlow: startPolarFlow, 
+    disconnect: disconnectPolar 
+  } = usePolarAuth();
+  const { stats: polarStats, isLoading: polarLoading } = usePolarStats();
+  
+  const polarActivities = polarStats?.activitiesCount || 0;
+  const polarLastSync = polarStats?.lastSyncAt || null;
   const disconnectStrava = async () => {
     console.log('Strava disconnect');
     try {
@@ -141,6 +157,12 @@ export function GarminSync() {
     syncStatus: stravaConnected ? ('connected' as const) : ('disconnected' as const)
   };
 
+  const polarSyncStats = {
+    lastSync: polarLoading ? 'Carregando...' : formatLastSync(polarLastSync),
+    activitiesCount: polarLoading ? 0 : polarActivities,
+    syncStatus: polarConnected ? ('connected' as const) : ('disconnected' as const)
+  };
+
 
   const handleConnectGarmin = () => {
     console.log('[GarminSync] Connect button clicked');
@@ -150,6 +172,11 @@ export function GarminSync() {
   const handleConnectStrava = () => {
     console.log('[StravaSync] Connect button clicked');
     handleStravaConnect();
+  };
+
+  const handleConnectPolar = () => {
+    console.log('[PolarSync] Connect button clicked');
+    startPolarFlow();
   };
 
 
@@ -183,6 +210,13 @@ export function GarminSync() {
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
+  const polarMetrics = [
+    { label: 'Atividades Totais', value: polarSyncStats.activitiesCount, icon: Activity },
+    { label: 'Última Sincronização', value: polarSyncStats.lastSync, icon: Timer },
+    { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
+    { label: 'GPS', value: 'Ativo', icon: MapPin },
+  ];
+
 
   const webhookEndpoint = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-activities-webhook';
 
@@ -207,7 +241,7 @@ export function GarminSync() {
           </ScrollReveal>
 
           {/* Main Connection Cards */}
-          <div className="grid lg:grid-cols-2 gap-8 mb-8">
+          <div className="grid lg:grid-cols-3 gap-6 mb-8">
             {/* Garmin Connection Card */}
             <ScrollReveal delay={100}>
               <Card className="glass-card">
@@ -419,15 +453,126 @@ export function GarminSync() {
                 </CardContent>
               </Card>
             </ScrollReveal>
+
+            {/* Polar Connection Card */}
+            <ScrollReveal delay={200}>
+              <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex flex-col space-y-4">
+                    {/* Polar Logo */}
+                    <div className="flex justify-center">
+                      <img 
+                        src={polarLogo} 
+                        alt="Polar" 
+                        className="h-12 w-auto opacity-90"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-3">
+                          <Heart className="h-6 w-6 text-primary" />
+                          Polar Flow
+                        </CardTitle>
+                        <CardDescription>
+                          Conecte sua conta Polar Flow
+                        </CardDescription>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={getStatusColor(polarSyncStats.syncStatus)}>
+                          {polarSyncStats.syncStatus === 'connected' && (
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {polarSyncStats.syncStatus === 'disconnected' && (
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                          )}
+                          {getStatusText(polarSyncStats.syncStatus)}
+                        </Badge>
+                        
+                        {polarConnected && (
+                          <Button 
+                            onClick={disconnectPolar}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                          >
+                            Desconectar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {polarSyncStats.syncStatus === 'disconnected' ? (
+                      <>
+                        <Alert className="border-purple-500/50 bg-purple-500/10">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-purple-400">
+                            Conecte sua conta Polar Flow para acessar seus dados de atividades
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <Button 
+                          onClick={handleConnectPolar}
+                          disabled={polarConnecting}
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                          size="lg"
+                        >
+                          {polarConnecting ? (
+                            <>
+                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                              Conectando...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Conectar Polar
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Alert className="border-green-500/50 bg-green-500/10">
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription className="text-green-400">
+                            <strong>🎉 Conectado!</strong> Dados do Polar disponíveis.
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          {polarMetrics.map((metric, index) => (
+                            <div key={index} className="metric-card">
+                              <div className="flex items-center gap-2 mb-1">
+                                <metric.icon className="h-3 w-3 text-primary" />
+                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                              </div>
+                              <div className="font-semibold text-sm">{metric.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
           </div>
 
 
 
           {/* Connection Status - Show for connected devices */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {garminConnected && (
               <ScrollReveal delay={250}>
                 <GarminConnectionStatus />
+              </ScrollReveal>
+            )}
+            {polarConnected && (
+              <ScrollReveal delay={300}>
+                <PolarConnectionStatus />
               </ScrollReveal>
             )}
           </div>
