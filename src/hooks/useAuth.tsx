@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useGarminTokenManager } from './useGarminTokenManager';
+import { useAccessTracker } from './useAccessTracker';
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { trackLogin } = useAccessTracker();
 
   useGarminTokenManager(user);
 
@@ -40,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Track login for explicit sign-in events
+        if (event === 'SIGNED_IN' && session?.user) {
+          setTimeout(() => trackLogin(), 100);
+        }
       }
     );
 
@@ -91,15 +98,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     
-    // Track user access after successful login
-    if (!error) {
-      try {
-        await supabase.functions.invoke('track-user-access');
-      } catch (accessError) {
-        console.warn('Failed to track user access:', accessError);
-        // Don't block login if access tracking fails
-      }
-    }
     
     return { error };
   };

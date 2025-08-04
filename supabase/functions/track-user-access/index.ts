@@ -10,6 +10,7 @@ interface AccessLogData {
   ip_address?: string;
   user_agent?: string;
   session_id?: string;
+  access_type?: 'login' | 'session_resume' | 'app_resume';
 }
 
 Deno.serve(async (req) => {
@@ -53,6 +54,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get request body to check for access type and frequency control
+    const body = await req.json().catch(() => ({}));
+    const accessType = body.access_type || 'login';
+    const minIntervalHours = body.min_interval_hours || 1;
+
     // Extract client info from request
     const clientIP = req.headers.get('cf-connecting-ip') || 
                     req.headers.get('x-forwarded-for') || 
@@ -61,11 +67,40 @@ Deno.serve(async (req) => {
     
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
+    // Check for recent access to avoid spam (frequency control)
+    if (minIntervalHours > 0) {
+      const { data: recentAccess } = await supabaseClient
+        .from('user_access_logs')
+        .select('login_at')
+        .eq('user_id', user.id)
+        .gte('login_at', new Date(Date.now() - minIntervalHours * 60 * 60 * 1000).toISOString())
+        .order('login_at', { ascending: false })
+        .limit(1);
+
+      if (recentAccess && recentAccess.length > 0) {
+        console.log(`Access skipped for user ${user.id} - recent access within ${minIntervalHours} hours`);
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Access already logged recently',
+            skipped: true,
+            user_id: user.id,
+            timestamp: new Date().toISOString()
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
+
     // Prepare access log data
     const accessLogData: AccessLogData = {
       user_id: user.id,
       ip_address: clientIP !== 'unknown' ? clientIP : null,
       user_agent: userAgent !== 'unknown' ? userAgent : null,
+      access_type: accessType,
     };
 
     // Insert access log
@@ -84,7 +119,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Access logged for user ${user.id} from IP ${clientIP}`);
+    console.log(`Access logged for user ${user.id} from IP ${clientIP} (type: ${accessType})`);
 
     return new Response(
       JSON.stringify({ 
