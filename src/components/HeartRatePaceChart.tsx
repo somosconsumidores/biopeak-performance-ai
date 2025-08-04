@@ -6,6 +6,7 @@ import { Heart, Timer, AlertCircle, Download } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { useGarminActivityDetails } from '@/hooks/useGarminActivityDetails';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -19,7 +20,16 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
   const { data, loading, error, hasData, hasRawData } = useActivityDetailsChart(activityId);
   const { isMobile, isTablet } = useScreenSize();
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
+  const { theme } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Get heart rate color based on theme
+  const getHeartRateColor = () => {
+    if (theme === 'light') {
+      return '#000000'; // Black in light mode
+    }
+    return 'hsl(var(--secondary))'; // Keep secondary color in dark mode
+  };
 
   // Helper function to calculate proper timestamp range
   const calculateTimestampRange = (startTime: number | null, dateString: string | null) => {
@@ -209,7 +219,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                 orientation="right"
                 domain={['dataMin - 10', 'dataMax + 10']}
                 tickFormatter={(value) => isMobile ? `${Math.round(value)}` : `${Math.round(value)} bpm`}
-                stroke="hsl(var(--secondary))"
+                stroke={getHeartRateColor()}
                 fontSize={isMobile ? 9 : 12}
                 tick={{ fontSize: isMobile ? 9 : 12 }}
                 width={isMobile ? 35 : 50}
@@ -231,7 +241,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                 <ReferenceLine 
                   yAxisId="hr"
                   y={avgHeartRate} 
-                  stroke="hsl(var(--secondary))" 
+                  stroke={getHeartRateColor()}
                   strokeDasharray="5 5" 
                   strokeOpacity={0.5}
                   label={{ value: "FC Média", position: "top", fontSize: 10 }}
@@ -253,10 +263,10 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                 yAxisId="hr"
                 type="monotone" 
                 dataKey="heart_rate" 
-                stroke="hsl(var(--secondary))" 
+                stroke={getHeartRateColor()} 
                 strokeWidth={isMobile ? 1.5 : 2}
                 dot={false}
-                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--secondary))" }}
+                activeDot={{ r: isMobile ? 3 : 4, fill: getHeartRateColor() }}
                 name="Frequência Cardíaca"
               />
             </LineChart>
@@ -269,7 +279,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
             <span className="truncate">Ritmo: {avgPace > 0 ? `${Math.floor(avgPace)}:${Math.round((avgPace - Math.floor(avgPace)) * 60).toString().padStart(2, '0')}/km` : 'N/A'}</span>
           </div>
           <div className="flex items-center space-x-2 justify-center sm:justify-start">
-            <div className="w-3 h-0.5 bg-secondary rounded flex-shrink-0"></div>
+            <div className="w-3 h-0.5 rounded flex-shrink-0" style={{ backgroundColor: getHeartRateColor() }}></div>
             <span className="truncate">FC: {Math.round(avgHeartRate)} bpm</span>
           </div>
           <div className="text-muted-foreground text-center sm:text-left">
