@@ -462,8 +462,8 @@ export function GarminSync() {
                     {/* Polar Logo */}
                     <div className="flex justify-center">
                       <img 
-                        src={polarLogo} 
-                        alt="Polar" 
+                        src="/lovable-uploads/d0e13ad3-b240-4821-96b9-1074c42bf4e0.png" 
+                        alt="Polar Flow" 
                         className="h-12 w-auto opacity-90"
                       />
                     </div>
