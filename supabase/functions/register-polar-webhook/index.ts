@@ -38,12 +38,13 @@ serve(async (req) => {
     );
 
     const webhookUrl = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/polar-activities-webhook';
+    const webhookEndpoint = 'https://www.polaraccesslink.com/v3/webhooks';
 
     if (action === 'list') {
       // Listar webhooks existentes
-      console.log('[register-polar-webhook] Listando webhooks existentes...');
+      console.log(`[register-polar-webhook] Listando webhooks existentes em: ${webhookEndpoint}`);
       
-      const listResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
+      const listResponse = await fetch(webhookEndpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${basicAuth}`,
@@ -67,9 +68,9 @@ serve(async (req) => {
     }
 
     // Check if webhook already exists to prevent conflicts
-    console.log('[register-polar-webhook] Verificando se webhook já existe...');
+    console.log(`[register-polar-webhook] Verificando se webhook já existe em: ${webhookEndpoint}`);
     
-    const checkResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
+    const checkResponse = await fetch(webhookEndpoint, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${basicAuth}`,
@@ -102,9 +103,10 @@ serve(async (req) => {
     }
 
     // Registrar webhook
-    console.log('[register-polar-webhook] Registrando webhook:', webhookUrl);
+    console.log(`[register-polar-webhook] Registrando webhook em: ${webhookEndpoint}`);
+    console.log(`[register-polar-webhook] URL do webhook: ${webhookUrl}`);
     
-    const registerResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
+    const registerResponse = await fetch(webhookEndpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${basicAuth}`,
