@@ -253,10 +253,10 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
                 yAxisId="hr"
                 type="monotone" 
                 dataKey="heart_rate" 
-                stroke="black dark:stroke-secondary" 
+                stroke="hsl(var(--secondary))" 
                 strokeWidth={isMobile ? 1.5 : 2}
                 dot={false}
-                activeDot={{ r: isMobile ? 3 : 4, fill: "black dark:fill-secondary" }}
+                activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--secondary))" }}
                 name="Frequência Cardíaca"
               />
             </LineChart>
