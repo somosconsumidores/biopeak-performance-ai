@@ -132,9 +132,10 @@ export function useUnifiedActivityHistory(limit?: number) {
         source: 'POLAR' as const,
         activity_type: activity.sport || activity.activity_type,
         activity_date: activity.start_time ? new Date(activity.start_time).toISOString().split('T')[0] : null,
-        duration_in_seconds: activity.duration ? parsePolarDuration(activity.duration) : null,
-        distance_in_meters: activity.distance ? Number(activity.distance) * 1000 : null, // Polar distance is in km
-        average_pace_in_minutes_per_kilometer: null, // Não disponível diretamente no Polar
+        duration_in_seconds: activity.duration ? Number(activity.duration) : null, // Duration comes in seconds from Polar
+        distance_in_meters: activity.distance ? Number(activity.distance) : null, // Distance comes in meters from Polar
+        average_pace_in_minutes_per_kilometer: activity.distance && activity.duration ? 
+          ((Number(activity.duration) / 60) / (Number(activity.distance) / 1000)) : null, // Calculate pace from distance and duration
         average_heart_rate_in_beats_per_minute: null, // Não disponível diretamente no Polar
         max_heart_rate_in_beats_per_minute: null,
         active_kilocalories: activity.calories || null,
