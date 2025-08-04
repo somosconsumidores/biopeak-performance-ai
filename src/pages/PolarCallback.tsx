@@ -103,9 +103,9 @@ export default function PolarCallback() {
         }
       }
 
-      // Exchange code for tokens via our edge function
+      // Exchange code for tokens via our edge function using direct HTTP call
       setMessage('Trocando código de autorização por tokens...');
-      console.log('🔄 Calling polar-oauth edge function...');
+      console.log('🔄 Calling polar-oauth edge function with direct HTTP...');
       
       const functionPayload = {
         code,
@@ -113,23 +113,37 @@ export default function PolarCallback() {
         ...(state && { state })
       };
       console.log('📤 Function payload:', functionPayload);
+      console.log('🔐 Using session token for authentication:', session.access_token ? 'YES' : 'NO');
       
       const functionStartTime = Date.now();
-      const { data, error: exchangeError } = await supabase.functions.invoke('polar-oauth', {
-        body: functionPayload
-      });
-      const functionDuration = Date.now() - functionStartTime;
       
-      console.log(`📡 Edge function completed in ${functionDuration}ms`);
+      // Direct fetch call to ensure function execution
+      const functionUrl = `https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/polar-oauth`;
+      console.log('📡 Calling URL:', functionUrl);
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM',
+        },
+        body: JSON.stringify(functionPayload),
+      });
+      
+      const functionDuration = Date.now() - functionStartTime;
+      console.log(`📡 HTTP response received in ${functionDuration}ms`);
+      console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+      console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
 
-      console.log('📡 Edge function response received');
-      console.log('📡 Exchange error:', exchangeError);
-      console.log('📡 Response data:', data);
-
-      if (exchangeError) {
-        console.error('❌ Edge function error:', exchangeError);
-        throw new Error(`Token exchange failed: ${exchangeError.message}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ HTTP error response:', errorText);
+        throw new Error(`HTTP Error ${response.status}: ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log('📡 Response data:', data);
 
       if (!data?.success) {
         console.error('❌ Token exchange failed:', data);
