@@ -1288,6 +1288,7 @@ export type Database = {
           email: string | null
           height_cm: number | null
           id: string
+          last_login_at: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -1301,6 +1302,7 @@ export type Database = {
           email?: string | null
           height_cm?: number | null
           id?: string
+          last_login_at?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -1314,6 +1316,7 @@ export type Database = {
           email?: string | null
           height_cm?: number | null
           id?: string
+          last_login_at?: string | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
@@ -1579,6 +1582,36 @@ export type Database = {
           total_distance_meters?: number | null
           total_duration_seconds?: number | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_access_logs: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          login_at: string
+          session_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          login_at?: string
+          session_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          login_at?: string
+          session_id?: string | null
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []

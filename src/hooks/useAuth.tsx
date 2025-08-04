@@ -90,6 +90,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+    
+    // Track user access after successful login
+    if (!error) {
+      try {
+        await supabase.functions.invoke('track-user-access');
+      } catch (accessError) {
+        console.warn('Failed to track user access:', accessError);
+        // Don't block login if access tracking fails
+      }
+    }
+    
     return { error };
   };
 
