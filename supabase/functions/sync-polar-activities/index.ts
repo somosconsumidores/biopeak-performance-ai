@@ -41,13 +41,17 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, access_token, webhook_payload } = await req.json();
+    const { user_id, polar_user_id, access_token, webhook_payload } = await req.json();
 
     if (!user_id || !access_token) {
       throw new Error('User ID and access token are required');
     }
 
+    // Use polar_user_id for API calls, fallback to user_id if not provided
+    const apiUserId = polar_user_id || user_id;
+    
     console.log('[sync-polar-activities] Starting sync for user:', user_id);
+    console.log('[sync-polar-activities] Using Polar user ID for API calls:', apiUserId);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -55,7 +59,7 @@ serve(async (req) => {
     );
 
     // Create transaction to get available activities
-    const transactionResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions`, {
+    const transactionResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${apiUserId}/exercise-transactions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${access_token}`,
@@ -86,7 +90,7 @@ serve(async (req) => {
     console.log('[sync-polar-activities] Created transaction:', transactionId);
 
     // Get activities from transaction
-    const activitiesResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions/${transactionId}`, {
+    const activitiesResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${apiUserId}/exercise-transactions/${transactionId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${access_token}`,
@@ -174,7 +178,7 @@ serve(async (req) => {
     }
 
     // Commit transaction to confirm processing
-    const commitResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${user_id}/exercise-transactions/${transactionId}`, {
+    const commitResponse = await fetch(`https://www.polaraccesslink.com/v3/users/${apiUserId}/exercise-transactions/${transactionId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${access_token}`,

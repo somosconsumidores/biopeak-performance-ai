@@ -71,18 +71,27 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Find user by polar user ID and get signature key for verification
+    // Find user by polar user ID
     const { data: tokenData, error: tokenError } = await supabase
       .from('polar_tokens')
-      .select('user_id, access_token, x_user_id, signature_secret_key')
+      .select('user_id, access_token, x_user_id, polar_user_id')
       .eq('x_user_id', payload.user_id)
       .eq('is_active', true)
+      .single();
+
+    // Get global signature key
+    const { data: signatureData } = await supabase
+      .from('app_settings')
+      .select('setting_value')
+      .eq('setting_key', 'polar_webhook_signature_key')
       .single();
     
     // Verify signature if both signature and secret key are available
     let signatureValid = true;
-    if (polarSignature && tokenData?.signature_secret_key) {
-      signatureValid = await verifySignature(payloadText, polarSignature, tokenData.signature_secret_key);
+    const secretKey = signatureData?.setting_value;
+    
+    if (polarSignature && secretKey) {
+      signatureValid = await verifySignature(payloadText, polarSignature, secretKey);
       console.log('[polar-activities-webhook] Signature verification:', signatureValid ? 'VALID' : 'INVALID');
       
       if (!signatureValid) {
@@ -90,7 +99,7 @@ serve(async (req) => {
         return new Response('Unauthorized', { status: 401, headers: corsHeaders });
       }
     } else if (polarSignature) {
-      console.warn('[polar-activities-webhook] Signature provided but no secret key found for user');
+      console.warn('[polar-activities-webhook] Signature provided but no secret key found');
     }
 
     let logId: string | null = null;
@@ -174,6 +183,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           user_id: tokenData.user_id,
+          polar_user_id: tokenData.polar_user_id || payload.user_id,
           access_token: tokenData.access_token,
           webhook_payload: payload,
         }),
