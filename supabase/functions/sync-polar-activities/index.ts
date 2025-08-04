@@ -11,28 +11,23 @@ interface PolarActivity {
   upload_time: string;
   polar_user: string;
   transaction_id: number;
-  exercise?: {
-    id: string;
-    upload_time: string;
-    polar_user: string;
-    device: string;
-    device_id: string;
-    start_time: string;
-    start_time_utc_offset: number;
-    duration: string;
-    calories: number;
-    distance: number;
-    heart_rate?: {
-      average: number;
-      maximum: number;
-    };
-    training_load?: number;
-    sport: string;
-    has_route: boolean;
-    club_id?: number;
-    club_name?: string;
-    detailed_sport_info: string;
+  device?: string;
+  device_id?: string;
+  start_time?: string;
+  start_time_utc_offset?: number;
+  duration?: string;
+  calories?: number;
+  distance?: number;
+  heart_rate?: {
+    average: number;
+    maximum: number;
   };
+  training_load?: number;
+  sport?: string;
+  has_route?: boolean;
+  club_id?: number;
+  club_name?: string;
+  detailed_sport_info?: string;
 }
 
 serve(async (req) => {
@@ -127,6 +122,9 @@ serve(async (req) => {
 
         const activityData: PolarActivity = await activityResponse.json();
         
+        // Log the actual structure to debug
+        console.log('[sync-polar-activities] Raw activity data:', JSON.stringify(activityData, null, 2));
+        
         // Check if activity already exists
         const { data: existingActivity } = await supabase
           .from('polar_activities')
@@ -140,7 +138,7 @@ serve(async (req) => {
           continue;
         }
 
-        // Insert new activity
+        // Insert new activity - data is at root level, not in exercise wrapper
         const { error: insertError } = await supabase
           .from('polar_activities')
           .insert({
@@ -149,19 +147,19 @@ serve(async (req) => {
             upload_time: activityData.upload_time,
             polar_user: activityData.polar_user,
             transaction_id: activityData.transaction_id,
-            start_time: activityData.exercise?.start_time,
-            start_time_utc_offset: activityData.exercise?.start_time_utc_offset,
-            duration: activityData.exercise?.duration,
-            calories: activityData.exercise?.calories,
-            distance: activityData.exercise?.distance,
-            training_load: activityData.exercise?.training_load,
-            sport: activityData.exercise?.sport,
-            has_route: activityData.exercise?.has_route || false,
-            club_id: activityData.exercise?.club_id,
-            club_name: activityData.exercise?.club_name,
-            detailed_sport_info: activityData.exercise?.detailed_sport_info,
-            device: activityData.exercise?.device,
-            device_id: activityData.exercise?.device_id,
+            start_time: activityData.start_time,
+            start_time_utc_offset: activityData.start_time_utc_offset,
+            duration: activityData.duration,
+            calories: activityData.calories,
+            distance: activityData.distance,
+            training_load: activityData.training_load,
+            sport: activityData.sport,
+            has_route: activityData.has_route || false,
+            club_id: activityData.club_id,
+            club_name: activityData.club_name,
+            detailed_sport_info: activityData.detailed_sport_info,
+            device: activityData.device,
+            device_id: activityData.device_id,
             polar_user_id: parseInt(activityData.polar_user),
           });
 
