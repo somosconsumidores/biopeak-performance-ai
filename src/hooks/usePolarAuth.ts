@@ -81,7 +81,7 @@ export const usePolarAuth = () => {
     }
 
     const polarClientId = configData.client_id;
-    const redirectUri = `${window.location.origin}/polar-callback`;
+    const redirectUri = `https://biopeak-ai.com/functions/v1/polar-oauth`;
 
     // 2. Criar token de verificação (state) e salvar no Supabase
     const state = uuidv4();
