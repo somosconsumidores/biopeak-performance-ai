@@ -13,17 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, action = 'register', userId } = await req.json();
+    const { action = 'register' } = await req.json();
 
-    if (!accessToken) {
+    // Get Polar client credentials from environment
+    const polarClientId = Deno.env.get('POLAR_CLIENT_ID');
+    const polarClientSecret = Deno.env.get('POLAR_CLIENT_SECRET');
+    
+    if (!polarClientId || !polarClientSecret) {
       return new Response(
-        JSON.stringify({ error: 'Access token é obrigatório' }),
+        JSON.stringify({ error: 'Polar client credentials not configured' }),
         { 
-          status: 400, 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
+
+    // Create Basic Auth header
+    const basicAuth = btoa(`${polarClientId}:${polarClientSecret}`);
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,10 +43,10 @@ serve(async (req) => {
       // Listar webhooks existentes
       console.log('[register-polar-webhook] Listando webhooks existentes...');
       
-      const listResponse = await fetch('https://www.polaraccesslink.com/v3/webhooks', {
+      const listResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Basic ${basicAuth}`,
           'Content-Type': 'application/json'
         }
       });
@@ -59,13 +66,48 @@ serve(async (req) => {
       );
     }
 
+    // Check if webhook already exists to prevent conflicts
+    console.log('[register-polar-webhook] Verificando se webhook já existe...');
+    
+    const checkResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (checkResponse.ok) {
+      const existingWebhooks = await checkResponse.json();
+      console.log('[register-polar-webhook] Webhooks existentes:', existingWebhooks);
+      
+      // Check if our webhook URL already exists
+      const webhookExists = existingWebhooks.data?.some((webhook: any) => 
+        webhook.url === webhookUrl
+      );
+      
+      if (webhookExists) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Webhook já está registrado',
+            webhookUrl,
+            already_exists: true
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
+
     // Registrar webhook
     console.log('[register-polar-webhook] Registrando webhook:', webhookUrl);
     
-    const registerResponse = await fetch('https://www.polaraccesslink.com/v3/webhooks', {
+    const registerResponse = await fetch('https://www.polaraccesslink.com/v3/notifications/webhook', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Basic ${basicAuth}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -85,18 +127,18 @@ serve(async (req) => {
         resultData = { data: registerResult };
       }
 
-      // If we have a signature_secret_key in the response and userId, store it in polar_tokens
-      if (resultData.data?.signature_secret_key && userId) {
-        console.log('[register-polar-webhook] Storing signature secret key for user:', userId);
+      // Store signature_secret_key globally in app_settings
+      if (resultData.data?.signature_secret_key) {
+        console.log('[register-polar-webhook] Storing signature secret key globally');
         
         try {
           const { error: updateError } = await supabase
-            .from('polar_tokens')
+            .from('app_settings')
             .update({ 
-              signature_secret_key: resultData.data.signature_secret_key 
+              setting_value: resultData.data.signature_secret_key,
+              updated_at: new Date().toISOString()
             })
-            .eq('user_id', userId)
-            .eq('is_active', true);
+            .eq('setting_key', 'polar_webhook_signature_key');
 
           if (updateError) {
             console.error('[register-polar-webhook] Error storing signature key:', updateError);
@@ -115,7 +157,7 @@ serve(async (req) => {
           webhookUrl,
           status: registerResponse.status,
           data: resultData,
-          signature_key_stored: !!(resultData.data?.signature_secret_key && userId)
+          signature_key_stored: !!resultData.data?.signature_secret_key
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
