@@ -8,26 +8,52 @@ const corsHeaders = {
 
 interface PolarActivity {
   id: string;
-  upload_time: string;
-  polar_user: string;
-  transaction_id: number;
+  'upload-time': string;
+  'polar-user': string;
+  'transaction-id': number;
   device?: string;
-  device_id?: string;
-  start_time?: string;
-  start_time_utc_offset?: number;
+  'device-id'?: string;
+  'start-time'?: string;
+  'start-time-utc-offset'?: number;
   duration?: string;
   calories?: number;
   distance?: number;
-  heart_rate?: {
+  'heart-rate'?: {
     average: number;
     maximum: number;
   };
-  training_load?: number;
+  'training-load'?: number;
   sport?: string;
-  has_route?: boolean;
-  club_id?: number;
-  club_name?: string;
-  detailed_sport_info?: string;
+  'has-route'?: boolean;
+  'club-id'?: number;
+  'club-name'?: string;
+  'detailed-sport-info'?: string;
+}
+
+// Helper function to convert ISO 8601 duration to seconds
+function parseDurationToSeconds(duration: string): number | null {
+  if (!duration) return null;
+  
+  // Parse ISO 8601 duration like "PT54.649S" or "PT1H23M45.5S"
+  const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/;
+  const matches = duration.match(regex);
+  
+  if (!matches) return null;
+  
+  const hours = parseInt(matches[1] || '0', 10);
+  const minutes = parseInt(matches[2] || '0', 10);
+  const seconds = parseFloat(matches[3] || '0');
+  
+  return Math.round(hours * 3600 + minutes * 60 + seconds);
+}
+
+// Helper function to extract numeric user ID from Polar user URL
+function extractPolarUserId(polarUserUrl: string): number | null {
+  if (!polarUserUrl) return null;
+  
+  // Extract ID from URL like "https://www.polaraccesslink.com/v3/users/63167832"
+  const match = polarUserUrl.match(/\/users\/(\d+)$/);
+  return match ? parseInt(match[1], 10) : null;
 }
 
 serve(async (req) => {
@@ -138,29 +164,48 @@ serve(async (req) => {
           continue;
         }
 
-        // Insert new activity - data is at root level, not in exercise wrapper
+        // Convert duration from ISO 8601 to seconds
+        const durationInSeconds = parseDurationToSeconds(activityData.duration);
+        
+        // Extract numeric Polar user ID from URL
+        const polarUserId = extractPolarUserId(activityData['polar-user']);
+        
+        // Convert start time to timestamp
+        const startTime = activityData['start-time'] ? new Date(activityData['start-time']).toISOString() : null;
+        const uploadTime = activityData['upload-time'] ? new Date(activityData['upload-time']).toISOString() : null;
+        
+        console.log('[sync-polar-activities] Processed data:', {
+          duration_original: activityData.duration,
+          duration_seconds: durationInSeconds,
+          polar_user_original: activityData['polar-user'],
+          polar_user_id: polarUserId,
+          start_time: startTime,
+          upload_time: uploadTime
+        });
+
+        // Insert new activity with corrected field mapping
         const { error: insertError } = await supabase
           .from('polar_activities')
           .insert({
             user_id: user_id,
             activity_id: activityData.id,
-            upload_time: activityData.upload_time,
-            polar_user: activityData.polar_user,
-            transaction_id: activityData.transaction_id,
-            start_time: activityData.start_time,
-            start_time_utc_offset: activityData.start_time_utc_offset,
-            duration: activityData.duration,
+            upload_time: uploadTime,
+            polar_user: activityData['polar-user'],
+            transaction_id: activityData['transaction-id'],
+            start_time: startTime,
+            start_time_utc_offset: activityData['start-time-utc-offset'],
+            duration: durationInSeconds ? durationInSeconds.toString() : null,
             calories: activityData.calories,
             distance: activityData.distance,
-            training_load: activityData.training_load,
+            training_load: activityData['training-load'],
             sport: activityData.sport,
-            has_route: activityData.has_route || false,
-            club_id: activityData.club_id,
-            club_name: activityData.club_name,
-            detailed_sport_info: activityData.detailed_sport_info,
+            has_route: activityData['has-route'] || false,
+            club_id: activityData['club-id'],
+            club_name: activityData['club-name'],
+            detailed_sport_info: activityData['detailed-sport-info'],
             device: activityData.device,
-            device_id: activityData.device_id,
-            polar_user_id: parseInt(activityData.polar_user),
+            device_id: activityData['device-id'],
+            polar_user_id: polarUserId,
           });
 
         if (insertError) {
