@@ -102,9 +102,11 @@ serve(async (req) => {
       }
     }
 
-    // Registrar webhook
+    // Registrar webhook para todos os eventos
+    const events = ['EXERCISE', 'SLEEP', 'CONTINUOUS_HEART_RATE', 'SLEEP_WISE_CIRCADIAN_BEDTIME', 'SLEEP_WISE_ALERTNESS'];
     console.log(`[register-polar-webhook] Registrando webhook em: ${webhookEndpoint}`);
     console.log(`[register-polar-webhook] URL do webhook: ${webhookUrl}`);
+    console.log(`[register-polar-webhook] Eventos a registrar: ${events.join(', ')}`);
     
     const registerResponse = await fetch(webhookEndpoint, {
       method: 'POST',
@@ -114,7 +116,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: webhookUrl,
-        events: ['EXERCISE']
+        events: events
       })
     });
 
