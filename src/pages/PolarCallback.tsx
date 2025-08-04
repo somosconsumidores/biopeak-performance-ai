@@ -110,6 +110,7 @@ export default function PolarCallback() {
       const functionPayload = {
         code,
         redirect_uri: `${window.location.origin}/polar-callback`,
+        ...(state && { state })
       };
       console.log('📤 Function payload:', functionPayload);
       

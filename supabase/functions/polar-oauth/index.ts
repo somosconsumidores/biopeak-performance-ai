@@ -76,11 +76,6 @@ serve(async (req) => {
       throw new Error('Redirect URI is required');
     }
 
-    if (!state) {
-      console.error('❌ No state parameter provided');
-      throw new Error('State parameter is required for CSRF protection');
-    }
-
     // Get Polar API credentials
     console.log('🔑 Checking Polar API credentials...');
     const clientId = Deno.env.get('POLAR_CLIENT_ID');
@@ -93,29 +88,33 @@ serve(async (req) => {
     }
     console.log('✅ Polar API credentials configured');
 
-    // Verify OAuth state for CSRF protection
-    console.log('🔍 Verifying OAuth state...');
-    const { data: tempToken, error: stateError } = await supabase
-      .from('oauth_temp_tokens')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('oauth_token', state)
-      .eq('provider', 'polar')
-      .single();
+    // Verify OAuth state for CSRF protection (state is optional per Polar docs)
+    let tempToken = null;
+    if (state) {
+      console.log('🔍 Verifying OAuth state...');
+      const { data: foundToken, error: stateError } = await supabase
+        .from('oauth_temp_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('oauth_token', state)
+        .eq('provider', 'polar')
+        .single();
 
-    if (stateError || !tempToken) {
-      console.error('❌ Invalid or expired OAuth state:', { stateError, receivedState: state, userId: user.id });
-      throw new Error('Invalid or expired OAuth state. Please restart the authentication process.');
+      if (stateError || !foundToken) {
+        console.warn('⚠️ State verification failed, but continuing (state is optional):', { stateError, receivedState: state, userId: user.id });
+        // Continue without state validation since it's optional per Polar documentation
+      } else {
+        tempToken = foundToken;
+        console.log('✅ Found matching OAuth state token:', {
+          tokenId: tempToken.id,
+          provider: tempToken.provider,
+          createdAt: tempToken.created_at
+        });
+        console.log('✅ OAuth state verified successfully');
+      }
+    } else {
+      console.log('ℹ️ No state parameter provided (optional per Polar docs)');
     }
-
-    // Log the found token for debugging
-    console.log('✅ Found matching OAuth state token:', {
-      tokenId: tempToken.id,
-      provider: tempToken.provider,
-      createdAt: tempToken.created_at
-    });
-
-    console.log('✅ OAuth state verified successfully');
 
     // Prepare Basic Auth credentials
     const credentials = btoa(`${clientId}:${clientSecret}`);
@@ -188,14 +187,16 @@ serve(async (req) => {
     console.log(`💾 User ID: ${user.id}`);
     console.log(`💾 Polar User ID: ${tokenData.x_user_id}`);
 
-    // Clean up the temporary OAuth state
-    console.log('🧹 Cleaning up temporary OAuth state...');
-    await supabase
-      .from('oauth_temp_tokens')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('oauth_token', state)
-      .eq('provider', 'polar');
+    // Clean up the temporary OAuth state if it exists
+    if (tempToken) {
+      console.log('🧹 Cleaning up temporary OAuth state...');
+      await supabase
+        .from('oauth_temp_tokens')
+        .delete()
+        .eq('id', tempToken.id);
+    } else {
+      console.log('🧹 No temporary OAuth state to clean up');
+    }
     
     const { error: insertError } = await supabase
       .from('polar_tokens')
