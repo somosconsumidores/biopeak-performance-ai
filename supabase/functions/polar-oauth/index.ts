@@ -221,37 +221,73 @@ serve(async (req) => {
 
     console.log('✅ Polar tokens stored successfully in database');
 
-    // Register user with Polar and configure webhooks
-    console.log('🔗 Registering user with Polar and configuring webhooks...');
+    // MANDATORY: Register user with Polar API (POST /v3/users)
+    console.log('👤 Registering user with Polar API (mandatory step)...');
     try {
-      const registerUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/register-polar-user`;
-      console.log(`🔗 Registration URL: ${registerUrl}`);
+      console.log(`👤 Calling POST https://www.polaraccesslink.com/v3/users with member-id: ${user.id}`);
       
-      const registerResponse = await fetch(registerUrl, {
+      const userRegistrationResponse = await fetch('https://www.polaraccesslink.com/v3/users', {
         method: 'POST',
         headers: {
-          'Authorization': authHeader,
+          'Authorization': `Bearer ${tokenData.access_token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
-          access_token: tokenData.access_token,
+          'member-id': user.id,
         }),
       });
 
-      console.log(`🔗 Registration response status: ${registerResponse.status} ${registerResponse.statusText}`);
+      console.log(`👤 User registration response status: ${userRegistrationResponse.status} ${userRegistrationResponse.statusText}`);
 
-      if (!registerResponse.ok) {
-        const registerErrorText = await registerResponse.text();
-        console.error('⚠️ Failed to register Polar user, but tokens were saved');
-        console.error(`⚠️ Registration error response: ${registerErrorText}`);
+      if (!userRegistrationResponse.ok) {
+        const errorData = await userRegistrationResponse.json().catch(() => ({}));
+        console.error('❌ Polar user registration failed:', errorData);
+        
+        // If user already exists (409), that's okay - continue
+        if (userRegistrationResponse.status === 409) {
+          console.log('✅ User already registered with Polar (409 conflict is expected)');
+        } else {
+          console.error(`❌ User registration failed with status ${userRegistrationResponse.status}`);
+          throw new Error(`User registration failed: ${errorData.error || userRegistrationResponse.statusText}`);
+        }
       } else {
-        const registerData = await registerResponse.json();
-        console.log('✅ Polar user registered and webhook configured successfully');
-        console.log('✅ Registration response:', registerData);
+        const userData = await userRegistrationResponse.json();
+        console.log('✅ Polar user registered successfully:', userData);
       }
+
+      // Configure webhook for activity notifications
+      console.log('🔔 Configuring webhook for activity notifications...');
+      const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/polar-activities-webhook`;
+      console.log(`🔔 Webhook URL: ${webhookUrl}`);
+      
+      const webhookResponse = await fetch('https://www.polaraccesslink.com/v3/notifications', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          url: webhookUrl,
+        }),
+      });
+
+      console.log(`🔔 Webhook response status: ${webhookResponse.status} ${webhookResponse.statusText}`);
+
+      if (!webhookResponse.ok) {
+        const webhookError = await webhookResponse.json().catch(() => ({}));
+        console.error('⚠️ Webhook registration failed (non-critical):', webhookError);
+        console.log('⚠️ Webhook registration failed, but user registration was successful');
+      } else {
+        const webhookData = await webhookResponse.json();
+        console.log('✅ Webhook configured successfully:', webhookData);
+      }
+
     } catch (registrationError) {
-      console.error('⚠️ Registration error (non-fatal):', registrationError);
-      // Don't fail the whole process if registration fails
+      console.error('❌ Critical error during user registration:', registrationError);
+      // This is critical - if user registration fails, the integration won't work
+      throw new Error(`Failed to register user with Polar: ${registrationError.message}`);
     }
 
     const duration = Date.now() - startTime;
