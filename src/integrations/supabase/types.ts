@@ -1588,6 +1588,7 @@ export type Database = {
       }
       user_access_logs: {
         Row: {
+          access_type: string | null
           created_at: string
           id: string
           ip_address: unknown | null
@@ -1597,6 +1598,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_type?: string | null
           created_at?: string
           id?: string
           ip_address?: unknown | null
@@ -1606,6 +1608,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_type?: string | null
           created_at?: string
           id?: string
           ip_address?: unknown | null
