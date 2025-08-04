@@ -26,9 +26,11 @@ export function ThemeProvider({
   storageKey = "biopeak-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  )
+  const [theme, setTheme] = useState<Theme>(() => {
+    const savedTheme = localStorage.getItem(storageKey) as Theme;
+    // Always default to light theme for new users or if no valid theme is saved
+    return savedTheme && ["dark", "light", "system"].includes(savedTheme) ? savedTheme : defaultTheme;
+  })
 
   useEffect(() => {
     const root = window.document.documentElement
