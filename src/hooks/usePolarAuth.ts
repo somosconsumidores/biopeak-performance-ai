@@ -7,8 +7,6 @@ export const usePolarAuth = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRegisteringWebhook, setIsRegisteringWebhook] = useState(false);
-  const [webhookRegistered, setWebhookRegistered] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const { toast } = useToast();
 
@@ -40,10 +38,6 @@ export const usePolarAuth = () => {
         const hasTokens = tokens && tokens.length > 0;
         setIsConnected(hasTokens);
         
-        // Check if webhook is registered (has signature_secret_key)
-        if (hasTokens && tokens[0].signature_secret_key) {
-          setWebhookRegistered(true);
-        }
       }
     } catch (error) {
       console.error('Error in checkPolarConnection:', error);
@@ -167,74 +161,6 @@ export const usePolarAuth = () => {
     }
   };
 
-  const registerWebhook = async () => {
-    try {
-      setIsRegisteringWebhook(true);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar logado.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Get the active token
-      const { data: tokens, error: tokenError } = await supabase
-        .from('polar_tokens')
-        .select('access_token')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (tokenError || !tokens || tokens.length === 0) {
-        toast({
-          title: "Erro",
-          description: "Token Polar não encontrado. Conecte-se à Polar primeiro.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const accessToken = tokens[0].access_token;
-
-      // Register webhook
-      const { data, error } = await supabase.functions.invoke('register-polar-webhook', {
-        body: {
-          accessToken,
-          userId: session.user.id,
-          action: 'register'
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.success) {
-        setWebhookRegistered(true);
-        toast({
-          title: "Webhook registrado",
-          description: "Webhook da Polar configurado com sucesso! As atividades serão sincronizadas automaticamente.",
-        });
-      } else {
-        throw new Error(data.error || 'Falha ao registrar webhook');
-      }
-    } catch (error) {
-      console.error('Error registering webhook:', error);
-      toast({
-        title: "Erro ao registrar webhook",
-        description: error instanceof Error ? error.message : "Erro ao configurar webhook da Polar",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRegisteringWebhook(false);
-    }
-  };
 
   const disconnect = async () => {
     try {
@@ -259,7 +185,6 @@ export const usePolarAuth = () => {
       }
 
       setIsConnected(false);
-      setWebhookRegistered(false);
       
       toast({
         title: "Desconectado",
@@ -279,12 +204,10 @@ export const usePolarAuth = () => {
     isConnected,
     isConnecting,
     isLoading,
-    isRegisteringWebhook,
-    webhookRegistered,
     healthStatus,
     startOAuthFlow,
     startPolarOAuth,
-    registerWebhook,
+    
     disconnect,
     checkPolarConnection,
     checkPolarHealth,
