@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Bug } from "lucide-react";
+import { usePolarOAuthDebug } from "@/hooks/usePolarOAuthDebug";
 
 export default function PolarCallback() {
   const [searchParams] = useSearchParams();
@@ -12,14 +13,33 @@ export default function PolarCallback() {
   const { toast } = useToast();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando conexão com a Polar...');
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const { debugInfo, runFullDiagnostics, logAuditTrail } = usePolarOAuthDebug();
 
   useEffect(() => {
+    logAuditTrail('CALLBACK_STARTED', { url: window.location.href });
     handleCallback();
   }, []);
+
+  const logOAuthDiagnostics = () => {
+    console.log('🔍 POLAR OAUTH DIAGNOSTICS:');
+    console.log(`🔍 Current URL: ${window.location.href}`);
+    console.log(`🔍 Origin: ${window.location.origin}`);
+    console.log(`🔍 Expected callback: ${window.location.origin}/polar-callback`);
+    console.log(`🔍 User Agent: ${navigator.userAgent}`);
+    console.log(`🔍 Timestamp: ${new Date().toISOString()}`);
+    
+    // Log all URL parameters
+    const allParams = Array.from(searchParams.entries());
+    console.log('🔍 All URL parameters:', Object.fromEntries(allParams));
+  };
 
   const handleCallback = async () => {
     const startTime = Date.now();
     console.log('🔄 Starting Polar OAuth callback process...');
+    
+    // First, log comprehensive diagnostics
+    logOAuthDiagnostics();
     
     try {
       const code = searchParams.get('code');
@@ -33,11 +53,13 @@ export default function PolarCallback() {
 
       if (error) {
         console.error('❌ Polar authorization error:', error);
+        await logAuditTrail('AUTHORIZATION_ERROR', { error });
         throw new Error(`Polar authorization error: ${error}`);
       }
 
       if (!code) {
         console.error('❌ No authorization code received');
+        await logAuditTrail('MISSING_CODE', { allParams: Object.fromEntries(searchParams.entries()) });
         throw new Error('No authorization code received from Polar');
       }
 
@@ -85,12 +107,19 @@ export default function PolarCallback() {
       setMessage('Trocando código de autorização por tokens...');
       console.log('🔄 Calling polar-oauth edge function...');
       
+      const functionPayload = {
+        code,
+        redirect_uri: `${window.location.origin}/polar-callback`,
+      };
+      console.log('📤 Function payload:', functionPayload);
+      
+      const functionStartTime = Date.now();
       const { data, error: exchangeError } = await supabase.functions.invoke('polar-oauth', {
-        body: {
-          code,
-          redirect_uri: `${window.location.origin}/polar-callback`,
-        }
+        body: functionPayload
       });
+      const functionDuration = Date.now() - functionStartTime;
+      
+      console.log(`📡 Edge function completed in ${functionDuration}ms`);
 
       console.log('📡 Edge function response received');
       console.log('📡 Exchange error:', exchangeError);
@@ -158,6 +187,11 @@ export default function PolarCallback() {
     navigate('/sync');
   };
 
+  const handleShowDebug = async () => {
+    await runFullDiagnostics();
+    setShowDebugInfo(true);
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -186,9 +220,36 @@ export default function PolarCallback() {
           )}
           
           {status === 'error' && (
-            <Button onClick={handleRetry} className="w-full">
-              Tentar Novamente
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={handleRetry} className="w-full">
+                Tentar Novamente
+              </Button>
+              <Button 
+                onClick={handleShowDebug} 
+                variant="outline" 
+                className="w-full"
+                size="sm"
+              >
+                <Bug className="h-4 w-4 mr-2" />
+                Mostrar Diagnóstico
+              </Button>
+            </div>
+          )}
+          
+          {showDebugInfo && debugInfo && (
+            <div className="mt-4 p-4 bg-muted rounded-lg text-left">
+              <h4 className="font-semibold mb-2">Informações de Diagnóstico:</h4>
+              <div className="text-xs space-y-1">
+                <p><strong>URL atual:</strong> {debugInfo.currentUrl}</p>
+                <p><strong>Callback esperado:</strong> {debugInfo.expectedCallback}</p>
+                <p><strong>Usuário autenticado:</strong> {debugInfo.userSession.authenticated ? 'Sim' : 'Não'}</p>
+                <p><strong>Health check:</strong> {debugInfo.healthCheck.success ? '✅' : '❌'}</p>
+                <p><strong>Config check:</strong> {debugInfo.configCheck.success ? '✅' : '❌'}</p>
+                {Object.keys(debugInfo.urlParameters).length > 0 && (
+                  <p><strong>Parâmetros URL:</strong> {JSON.stringify(debugInfo.urlParameters)}</p>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
