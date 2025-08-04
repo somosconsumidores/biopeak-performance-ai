@@ -619,6 +619,87 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_sleep_summaries: {
+        Row: {
+          age_group: string | null
+          avg_sleep_stress: number | null
+          awake_duration_in_seconds: number | null
+          awakening_count: number | null
+          calendar_date: string
+          created_at: string
+          deep_sleep_duration_in_seconds: number | null
+          id: string
+          light_sleep_duration_in_seconds: number | null
+          rem_sleep_duration_in_seconds: number | null
+          sleep_end_time_in_seconds: number | null
+          sleep_end_time_offset_in_seconds: number | null
+          sleep_quality_type_name: string | null
+          sleep_score: number | null
+          sleep_score_feedback: string | null
+          sleep_score_insight: string | null
+          sleep_start_time_in_seconds: number | null
+          sleep_start_time_offset_in_seconds: number | null
+          sleep_time_in_seconds: number | null
+          summary_id: string
+          synced_at: string
+          unmeasurable_sleep_in_seconds: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_group?: string | null
+          avg_sleep_stress?: number | null
+          awake_duration_in_seconds?: number | null
+          awakening_count?: number | null
+          calendar_date: string
+          created_at?: string
+          deep_sleep_duration_in_seconds?: number | null
+          id?: string
+          light_sleep_duration_in_seconds?: number | null
+          rem_sleep_duration_in_seconds?: number | null
+          sleep_end_time_in_seconds?: number | null
+          sleep_end_time_offset_in_seconds?: number | null
+          sleep_quality_type_name?: string | null
+          sleep_score?: number | null
+          sleep_score_feedback?: string | null
+          sleep_score_insight?: string | null
+          sleep_start_time_in_seconds?: number | null
+          sleep_start_time_offset_in_seconds?: number | null
+          sleep_time_in_seconds?: number | null
+          summary_id: string
+          synced_at?: string
+          unmeasurable_sleep_in_seconds?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_group?: string | null
+          avg_sleep_stress?: number | null
+          awake_duration_in_seconds?: number | null
+          awakening_count?: number | null
+          calendar_date?: string
+          created_at?: string
+          deep_sleep_duration_in_seconds?: number | null
+          id?: string
+          light_sleep_duration_in_seconds?: number | null
+          rem_sleep_duration_in_seconds?: number | null
+          sleep_end_time_in_seconds?: number | null
+          sleep_end_time_offset_in_seconds?: number | null
+          sleep_quality_type_name?: string | null
+          sleep_score?: number | null
+          sleep_score_feedback?: string | null
+          sleep_score_insight?: string | null
+          sleep_start_time_in_seconds?: number | null
+          sleep_start_time_offset_in_seconds?: number | null
+          sleep_time_in_seconds?: number | null
+          summary_id?: string
+          synced_at?: string
+          unmeasurable_sleep_in_seconds?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       garmin_sync_control: {
         Row: {
           callback_url: string | null

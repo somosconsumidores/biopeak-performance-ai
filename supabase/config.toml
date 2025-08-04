@@ -37,6 +37,12 @@ verify_jwt = false
 [functions.garmin-ping-webhook]
 verify_jwt = false
 
+[functions.garmin-sleep-webhook]
+verify_jwt = false
+
+[functions.sync-garmin-sleep]
+verify_jwt = true
+
 [functions.get-mapbox-token]
 verify_jwt = true
 
