@@ -1185,6 +1185,60 @@ export type Database = {
         }
         Relationships: []
       }
+      polar_sleep: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          polar_user_id: number | null
+          sleep_charge: number | null
+          sleep_deficit: number | null
+          sleep_efficiency: number | null
+          sleep_end_time: string | null
+          sleep_goal: number | null
+          sleep_score: number | null
+          sleep_start_time: string | null
+          synced_at: string
+          total_sleep: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          polar_user_id?: number | null
+          sleep_charge?: number | null
+          sleep_deficit?: number | null
+          sleep_efficiency?: number | null
+          sleep_end_time?: string | null
+          sleep_goal?: number | null
+          sleep_score?: number | null
+          sleep_start_time?: string | null
+          synced_at?: string
+          total_sleep?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          polar_user_id?: number | null
+          sleep_charge?: number | null
+          sleep_deficit?: number | null
+          sleep_efficiency?: number | null
+          sleep_end_time?: string | null
+          sleep_goal?: number | null
+          sleep_score?: number | null
+          sleep_start_time?: string | null
+          synced_at?: string
+          total_sleep?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       polar_sync_control: {
         Row: {
           created_at: string | null

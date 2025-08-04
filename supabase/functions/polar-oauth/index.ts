@@ -290,6 +290,28 @@ serve(async (req) => {
       throw new Error(`Failed to register user with Polar: ${registrationError.message}`);
     }
 
+    // Trigger initial sleep data sync
+    try {
+      console.log('🛌 Triggering initial sleep data sync...');
+      const syncSupabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      const sleepSyncResponse = await syncSupabase.functions.invoke('sync-polar-sleep', {
+        body: { user_id: user.id }
+      });
+
+      if (sleepSyncResponse.error) {
+        console.error('⚠️ Sleep sync error:', sleepSyncResponse.error);
+      } else {
+        console.log('✅ Initial sleep sync completed successfully:', sleepSyncResponse.data);
+      }
+    } catch (sleepSyncError) {
+      console.error('⚠️ Error triggering sleep sync:', sleepSyncError);
+      // Don't fail the OAuth flow if sleep sync fails
+    }
+
     const duration = Date.now() - startTime;
     console.log(`🏁 Polar OAuth process completed successfully in ${duration}ms`);
 

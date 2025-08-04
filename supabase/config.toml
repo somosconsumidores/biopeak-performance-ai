@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.fix-cron-job]
 verify_jwt = false
+
+[functions.sync-polar-sleep]
+verify_jwt = true
