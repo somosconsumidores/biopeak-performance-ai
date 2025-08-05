@@ -29,6 +29,12 @@ interface MetricCardProps {
   mainLabel: string;
   secondaryValue?: string;
   secondaryLabel?: string;
+  distributionValues?: {
+    beginning?: string;
+    middle?: string;
+    end?: string;
+    unit: string;
+  };
   comment: string;
   gradient: string;
   iconColor: string;
@@ -41,6 +47,7 @@ const MetricCard = ({
   mainLabel, 
   secondaryValue, 
   secondaryLabel, 
+  distributionValues,
   comment, 
   gradient,
   iconColor 
@@ -60,7 +67,34 @@ const MetricCard = ({
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-foreground/90">{title}</h3>
         
-        {secondaryValue && (
+        {distributionValues ? (
+          <div className="space-y-2">
+            {distributionValues.beginning && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-foreground/70">Início:</span>
+                <span className="text-base font-semibold text-foreground/80">
+                  {distributionValues.beginning} {distributionValues.unit}
+                </span>
+              </div>
+            )}
+            {distributionValues.middle && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-foreground/70">Meio:</span>
+                <span className="text-base font-semibold text-foreground/80">
+                  {distributionValues.middle} {distributionValues.unit}
+                </span>
+              </div>
+            )}
+            {distributionValues.end && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-foreground/70">Fim:</span>
+                <span className="text-base font-semibold text-foreground/80">
+                  {distributionValues.end} {distributionValues.unit}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : secondaryValue && (
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-foreground/70">{secondaryLabel}:</span>
             <span className="text-base font-semibold text-foreground/80">{secondaryValue}</span>
@@ -187,13 +221,25 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
           ? `${metrics.effortDistribution.middle}`
           : `${metrics.effortDistribution.middle.toFixed(2)}`
         : 'N/A',
-      mainLabel: hasHeartRateData ? 'bpm' : 'min/km',
-      secondaryValue: metrics.effortDistribution.beginning && metrics.effortDistribution.end
-        ? hasHeartRateData
-          ? `${metrics.effortDistribution.beginning}-${metrics.effortDistribution.end}`
-          : `${metrics.effortDistribution.beginning.toFixed(2)}-${metrics.effortDistribution.end.toFixed(2)}`
-        : undefined,
-      secondaryLabel: 'Variação',
+      mainLabel: hasHeartRateData ? 'bpm médio' : 'min/km médio',
+      distributionValues: {
+        beginning: metrics.effortDistribution.beginning 
+          ? hasHeartRateData 
+            ? `${metrics.effortDistribution.beginning}`
+            : `${metrics.effortDistribution.beginning.toFixed(2)}`
+          : undefined,
+        middle: metrics.effortDistribution.middle 
+          ? hasHeartRateData 
+            ? `${metrics.effortDistribution.middle}`
+            : `${metrics.effortDistribution.middle.toFixed(2)}`
+          : undefined,
+        end: metrics.effortDistribution.end 
+          ? hasHeartRateData 
+            ? `${metrics.effortDistribution.end}`
+            : `${metrics.effortDistribution.end.toFixed(2)}`
+          : undefined,
+        unit: hasHeartRateData ? 'bpm' : 'min/km'
+      },
       comment: metrics.effortDistribution.comment,
       gradient: 'bg-gradient-to-br from-purple-400/20 to-indigo-500/20',
       iconColor: 'bg-purple-400'
