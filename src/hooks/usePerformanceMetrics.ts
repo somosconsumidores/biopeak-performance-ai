@@ -125,6 +125,17 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             });
 
             if (functionError) {
+              console.log('⚠️ Function failed, calculating metrics locally as fallback');
+              
+              // Fallback: Calculate basic metrics locally for Strava activities
+              if (stravaActivity) {
+                const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
+                if (basicMetrics) {
+                  setMetrics(basicMetrics);
+                  return;
+                }
+              }
+              
               throw new Error(`Failed to calculate metrics: ${functionError.message}`);
             }
 
@@ -191,4 +202,47 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
       comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
     }
   };
+}
+
+// Fallback function to calculate basic metrics locally
+async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) {
+  try {
+    const durationMinutes = stravaActivity.moving_time / 60;
+    const distanceKm = stravaActivity.distance / 1000;
+    const avgSpeedMs = stravaActivity.average_speed;
+    const avgPaceMinKm = avgSpeedMs > 0 ? (1000 / 60) / avgSpeedMs : null;
+
+    // Calculate basic movement efficiency
+    const movementEfficiency = durationMinutes > 0 ? distanceKm / durationMinutes : null;
+
+    const basicMetrics = {
+      efficiency: {
+        powerPerBeat: null,
+        distancePerMinute: movementEfficiency,
+        comment: `Eficiência de movimento: ${movementEfficiency ? movementEfficiency.toFixed(2) + ' km/min' : 'Dados insuficientes'}`
+      },
+      pace: {
+        averageSpeedKmh: avgSpeedMs * 3.6,
+        paceVariationCoefficient: null,
+        comment: `Pace médio: ${avgPaceMinKm ? avgPaceMinKm.toFixed(2) + ' min/km' : 'Dados indisponíveis'}`
+      },
+      heartRate: {
+        averageHr: null,
+        relativeIntensity: null,
+        relativeReserve: null,
+        comment: "Análise sem dados de frequência cardíaca"
+      },
+      effortDistribution: {
+        beginning: null,
+        middle: null,
+        end: null,
+        comment: "Dados insuficientes para análise de distribuição"
+      }
+    };
+
+    return basicMetrics;
+  } catch (error) {
+    console.error('Error calculating basic metrics:', error);
+    return null;
+  }
 }
