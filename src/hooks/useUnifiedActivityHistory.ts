@@ -106,7 +106,7 @@ export function useUnifiedActivityHistory(limit?: number) {
         activity_type: activity.type,
         activity_date: activity.start_date ? new Date(activity.start_date).toISOString().split('T')[0] : null,
         duration_in_seconds: activity.elapsed_time || activity.moving_time,
-        distance_in_meters: activity.distance ? activity.distance * 1000 : null, // Strava distance is in km
+        distance_in_meters: activity.distance || null, // Strava distance is already in meters
         average_pace_in_minutes_per_kilometer: activity.average_speed ? 
           (1000 / (activity.average_speed * 60)) : null, // Convert from m/s to min/km
         average_heart_rate_in_beats_per_minute: activity.average_heartrate ? Math.round(activity.average_heartrate) : null,
