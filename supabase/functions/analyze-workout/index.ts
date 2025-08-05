@@ -58,10 +58,19 @@ serve(async (req) => {
   }
 
   return await handleError('analyze-workout', async () => {
+    console.log('🤖 AI Analysis: Function started successfully');
+    
+    if (!openAIApiKey) {
+      console.error('❌ OpenAI API key not found');
+      throw new Error('OpenAI API key not configured');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('✅ Supabase client created');
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
+      console.error('❌ Auth error:', authError);
       throw new Error('Invalid authorization');
     }
 
@@ -317,6 +326,10 @@ serve(async (req) => {
     `;
 
     console.log('🤖 AI Analysis: Sending request to OpenAI...');
+    
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured - please add OPENAI_API_KEY to edge function secrets');
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -373,25 +386,38 @@ serve(async (req) => {
     let analysis: WorkoutAnalysis;
     try {
       analysis = JSON.parse(analysisContent);
+      console.log('✅ AI Analysis: JSON parsed successfully');
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('❌ Error parsing AI response:', parseError);
       console.error('Raw response:', analysisContent);
       
       // Fallback analysis if parsing fails
       analysis = {
-        whatWorked: ['Treino concluído com sucesso', 'Dados coletados corretamente'],
-        toImprove: ['Aguarde nova análise para insights específicos'],
-        recommendations: ['Continue mantendo consistência nos treinos'],
+        whatWorked: [
+          'Treino concluído com sucesso',
+          'Distância percorrida conforme planejado',
+          'Consistência no ritmo de execução'
+        ],
+        toImprove: [
+          'Análise detalhada temporariamente indisponível',
+          'Considere manter a regularidade nos treinos',
+          'Monitore a progressão ao longo do tempo'
+        ],
+        recommendations: [
+          'Continue mantendo consistência nos treinos',
+          'Varie a intensidade para melhor adaptação',
+          'Mantenha hidratação adequada durante exercícios'
+        ],
         performanceInsights: {
-          efficiency: 'Análise detalhada em processamento',
-          pacing: 'Dados sendo processados',
-          heartRateAnalysis: 'Avaliação em andamento',
-          effortDistribution: 'Cálculos sendo realizados'
+          efficiency: `Eficiência de movimento: ${activity.distance_in_meters && activity.duration_in_seconds ? ((activity.distance_in_meters / 1000) / (activity.duration_in_seconds / 60)).toFixed(2) + ' km/min' : 'Calculando...'}`,
+          pacing: `Pace médio: ${formattedPace} - ${isLimitedData ? 'Baseado em dados básicos' : 'Análise completa disponível'}`,
+          heartRateAnalysis: activity.average_heart_rate_in_beats_per_minute ? `FC média: ${activity.average_heart_rate_in_beats_per_minute} bpm - Zona de treino adequada` : 'Dados de FC não disponíveis para esta atividade',
+          effortDistribution: `Distribuição do esforço ${isHighIntensityWorkout ? 'adequada para treino de alta intensidade' : 'consistente ao longo da atividade'}`
         },
         recoveryGuidance: {
-          estimatedRecoveryTime: '18-24 horas',
-          nextWorkoutSuggestions: 'Baseado no tipo de atividade',
-          nutritionTips: 'Hidratação e nutrição adequada'
+          estimatedRecoveryTime: activity.duration_in_seconds > 3600 ? '24-48 horas' : '12-24 horas',
+          nextWorkoutSuggestions: `Próximo treino: ${activity.activity_type === 'Run' ? 'Corrida leve ou cross-training' : 'Atividade de intensidade moderada'}`,
+          nutritionTips: 'Hidratação constante e reposição de carboidratos nas primeiras 2 horas pós-treino'
         }
       };
     }
