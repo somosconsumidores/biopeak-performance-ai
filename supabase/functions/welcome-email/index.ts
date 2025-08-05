@@ -121,14 +121,26 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     const emailResponse = await resend.emails.send({
-      from: "BioPeak <onboarding@resend.dev>",
+      from: "BioPeak <noreply@biopeak-ai.com>",
       to: [email],
       subject: "🎉 Bem-vindo(a) ao BioPeak - Sua jornada fitness começa aqui!",
       html: emailHtml,
     });
 
-    console.log("Welcome email sent successfully:", {
+    console.log("Resend API response:", {
+      success: !!emailResponse.data?.id,
       emailId: emailResponse.data?.id,
+      error: emailResponse.error,
+      fullResponse: emailResponse
+    });
+
+    // Validate that the email was actually sent
+    if (!emailResponse.data?.id) {
+      throw new Error(`Failed to send email: ${emailResponse.error || 'No email ID returned from Resend'}`);
+    }
+
+    console.log("Welcome email sent successfully:", {
+      emailId: emailResponse.data.id,
       recipient: email,
       displayName
     });
