@@ -51,7 +51,6 @@ Deno.serve(async (req) => {
         .from('strava_tokens')
         .select('access_token')
         .eq('user_id', currentUserId)
-        .eq('is_active', true)
         .single();
 
       if (tokenError || !stravaTokens) {
@@ -99,52 +98,68 @@ Deno.serve(async (req) => {
     const streams = await stravaResponse.json();
     console.log('Successfully fetched streams from Strava:', Object.keys(streams));
 
-    // Save streams to database
-    const { data: existingRecord } = await supabase
-      .from('strava_activity_details')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .eq('strava_activity_id', activity_id)
-      .single();
+    // Transform streams into individual time-point records
+    const timePoints = [];
+    
+    // Get the time stream as the base for iteration
+    const timeData = streams.time?.data || [];
+    const latlngData = streams.latlng?.data || [];
+    const heartrateData = streams.heartrate?.data || [];
+    const velocityData = streams.velocity_smooth?.data || [];
+    const cadenceData = streams.cadence?.data || [];
+    const wattsData = streams.watts?.data || [];
+    const distanceData = streams.distance?.data || [];
+    const gradeData = streams.grade_smooth?.data || [];
+    const tempData = streams.temp?.data || [];
+    const movingData = streams.moving?.data || [];
 
-    const streamData = {
-      user_id: currentUserId,
-      strava_activity_id: activity_id,
-      latlng: streams.latlng || null,
-      heartrate: streams.heartrate || null,
-      velocity_smooth: streams.velocity_smooth || null,
-      cadence: streams.cadence || null,
-      watts: streams.watts || null,
-      distance: streams.distance || null,
-      time: streams.time || null,
-      grade_smooth: streams.grade_smooth || null,
-      temp: streams.temp || null,
-      moving: streams.moving || null,
-    };
+    console.log(`Processing ${timeData.length} time points for activity ${activity_id}`);
 
-    let result;
-    if (existingRecord) {
-      // Update existing record
-      const { data, error } = await supabase
-        .from('strava_activity_details')
-        .update(streamData)
-        .eq('id', existingRecord.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      result = data;
-    } else {
-      // Insert new record
-      const { data, error } = await supabase
-        .from('strava_activity_details')
-        .insert(streamData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      result = data;
+    // Create individual records for each time point
+    for (let i = 0; i < timeData.length; i++) {
+      const timePoint = {
+        user_id: currentUserId,
+        strava_activity_id: parseInt(activity_id),
+        time_index: i,
+        time_seconds: timeData[i] || null,
+        latitude: latlngData[i] ? latlngData[i][0] : null,
+        longitude: latlngData[i] ? latlngData[i][1] : null,
+        heartrate: heartrateData[i] || null,
+        velocity_smooth: velocityData[i] || null,
+        cadence: cadenceData[i] || null,
+        watts: wattsData[i] || null,
+        distance: distanceData[i] || null,
+        grade_smooth: gradeData[i] || null,
+        temp: tempData[i] || null,
+        moving: movingData[i] || null,
+      };
+      timePoints.push(timePoint);
     }
+
+    // Delete existing records for this activity
+    const { error: deleteError } = await supabase
+      .from('strava_activity_details')
+      .delete()
+      .eq('user_id', currentUserId)
+      .eq('strava_activity_id', parseInt(activity_id));
+
+    if (deleteError) {
+      console.error('Error deleting existing records:', deleteError);
+      throw deleteError;
+    }
+
+    // Insert all time points in batch
+    const { data: result, error: insertError } = await supabase
+      .from('strava_activity_details')
+      .insert(timePoints)
+      .select();
+
+    if (insertError) {
+      console.error('Error inserting time points:', insertError);
+      throw insertError;
+    }
+
+    console.log(`Successfully saved ${result.length} time points to database`);
 
     console.log('Successfully saved streams to database');
 

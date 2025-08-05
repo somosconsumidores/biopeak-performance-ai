@@ -1507,55 +1507,61 @@ export type Database = {
       }
       strava_activity_details: {
         Row: {
-          cadence: Json | null
+          cadence: number | null
           created_at: string
-          distance: Json | null
-          grade_smooth: Json | null
-          heartrate: Json | null
+          distance: number | null
+          grade_smooth: number | null
+          heartrate: number | null
           id: string
-          latlng: Json | null
-          moving: Json | null
+          latitude: number | null
+          longitude: number | null
+          moving: boolean | null
           strava_activity_id: number
-          temp: Json | null
-          time: Json | null
+          temp: number | null
+          time_index: number
+          time_seconds: number | null
           updated_at: string
           user_id: string
-          velocity_smooth: Json | null
-          watts: Json | null
+          velocity_smooth: number | null
+          watts: number | null
         }
         Insert: {
-          cadence?: Json | null
+          cadence?: number | null
           created_at?: string
-          distance?: Json | null
-          grade_smooth?: Json | null
-          heartrate?: Json | null
+          distance?: number | null
+          grade_smooth?: number | null
+          heartrate?: number | null
           id?: string
-          latlng?: Json | null
-          moving?: Json | null
+          latitude?: number | null
+          longitude?: number | null
+          moving?: boolean | null
           strava_activity_id: number
-          temp?: Json | null
-          time?: Json | null
+          temp?: number | null
+          time_index: number
+          time_seconds?: number | null
           updated_at?: string
           user_id: string
-          velocity_smooth?: Json | null
-          watts?: Json | null
+          velocity_smooth?: number | null
+          watts?: number | null
         }
         Update: {
-          cadence?: Json | null
+          cadence?: number | null
           created_at?: string
-          distance?: Json | null
-          grade_smooth?: Json | null
-          heartrate?: Json | null
+          distance?: number | null
+          grade_smooth?: number | null
+          heartrate?: number | null
           id?: string
-          latlng?: Json | null
-          moving?: Json | null
+          latitude?: number | null
+          longitude?: number | null
+          moving?: boolean | null
           strava_activity_id?: number
-          temp?: Json | null
-          time?: Json | null
+          temp?: number | null
+          time_index?: number
+          time_seconds?: number | null
           updated_at?: string
           user_id?: string
-          velocity_smooth?: Json | null
-          watts?: Json | null
+          velocity_smooth?: number | null
+          watts?: number | null
         }
         Relationships: []
       }
