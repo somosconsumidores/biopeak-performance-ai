@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       timePoints.push(timePoint);
     }
 
-    // Delete existing records for this activity
+    // Delete existing records for this activity first
     const { error: deleteError } = await supabase
       .from('strava_activity_details')
       .delete()
