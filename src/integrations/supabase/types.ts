@@ -1505,6 +1505,60 @@ export type Database = {
         }
         Relationships: []
       }
+      strava_activity_details: {
+        Row: {
+          cadence: Json | null
+          created_at: string
+          distance: Json | null
+          grade_smooth: Json | null
+          heartrate: Json | null
+          id: string
+          latlng: Json | null
+          moving: Json | null
+          strava_activity_id: number
+          temp: Json | null
+          time: Json | null
+          updated_at: string
+          user_id: string
+          velocity_smooth: Json | null
+          watts: Json | null
+        }
+        Insert: {
+          cadence?: Json | null
+          created_at?: string
+          distance?: Json | null
+          grade_smooth?: Json | null
+          heartrate?: Json | null
+          id?: string
+          latlng?: Json | null
+          moving?: Json | null
+          strava_activity_id: number
+          temp?: Json | null
+          time?: Json | null
+          updated_at?: string
+          user_id: string
+          velocity_smooth?: Json | null
+          watts?: Json | null
+        }
+        Update: {
+          cadence?: Json | null
+          created_at?: string
+          distance?: Json | null
+          grade_smooth?: Json | null
+          heartrate?: Json | null
+          id?: string
+          latlng?: Json | null
+          moving?: Json | null
+          strava_activity_id?: number
+          temp?: Json | null
+          time?: Json | null
+          updated_at?: string
+          user_id?: string
+          velocity_smooth?: Json | null
+          watts?: Json | null
+        }
+        Relationships: []
+      }
       strava_activity_streams: {
         Row: {
           created_at: string
