@@ -100,8 +100,8 @@ const translations: Translations = {
   physicalTraining: { pt: 'Treino é Físico.', en: 'Training is Physical.' },
   evolutionInData: { pt: 'Evolução é nos Dados.', en: 'Evolution is in Data.' },
   heroDescription: { 
-    pt: 'O primeiro app que usa IA para transformar seus dados de treino Garmin em estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.',
-    en: 'The first app that uses AI to transform your Garmin training data into intelligent performance strategies. Because training is physical, but evolution is in data.'
+    pt: 'O primeiro app que usa IA para transformar seus dados de treino em estratégias inteligentes de performance. Porque treino é físico, mas evolução é nos dados.',
+    en: 'The first app that uses AI to transform your training data into intelligent performance strategies. Because training is physical, but evolution is in data.'
   },
   watchDemo: { pt: 'Ver Demo', en: 'Watch Demo' },
   athletesRegistered: { pt: 'Atletas Registrados', en: 'Registered Athletes' },
