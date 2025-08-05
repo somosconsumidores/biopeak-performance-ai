@@ -265,7 +265,9 @@ Deno.serve(async (req) => {
       return activityDate > latest ? activityDate : latest
     }, lastSyncDate || new Date(0))
 
-    // Update sync status
+    // Update sync status to completed
+    console.log(`Sync completed for user ${user.id}: ${syncedCount} new activities synced, total now: ${previouslySynced + syncedCount}`)
+    
     await updateSyncStatus(
       serviceRoleClient, 
       user.id, 
