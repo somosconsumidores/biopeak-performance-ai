@@ -1580,6 +1580,7 @@ export type Database = {
       strava_tokens: {
         Row: {
           access_token: string
+          athlete_id: number | null
           created_at: string
           expires_at: string
           id: string
@@ -1589,6 +1590,7 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          athlete_id?: number | null
           created_at?: string
           expires_at: string
           id?: string
@@ -1598,12 +1600,49 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          athlete_id?: number | null
           created_at?: string
           expires_at?: string
           id?: string
           refresh_token?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      strava_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json
+          processed_at: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+          webhook_type: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          webhook_type?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          webhook_type?: string
         }
         Relationships: []
       }
