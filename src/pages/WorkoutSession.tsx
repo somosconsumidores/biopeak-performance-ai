@@ -31,6 +31,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
+import { StravaPaceChart } from '@/components/StravaPaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
@@ -314,11 +315,16 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="heart_rate" 
               />
-              <HeartRatePaceChart 
-                activityId={currentActivity.activity_id} 
-                activityStartTime={currentActivity.start_time_in_seconds}
-                activityDate={currentActivity.activity_date}
-              />
+              {/* Show Strava pace chart if it's a Strava activity, otherwise show Garmin chart */}
+              {(currentActivity as any)?.source === 'STRAVA' && (currentActivity as any)?.strava_activity_id ? (
+                <StravaPaceChart stravaActivityId={(currentActivity as any).strava_activity_id} />
+              ) : (
+                <HeartRatePaceChart 
+                  activityId={currentActivity.activity_id} 
+                  activityStartTime={currentActivity.start_time_in_seconds}
+                  activityDate={currentActivity.activity_date}
+                />
+              )}
             </div>
           </ScrollReveal>
 
