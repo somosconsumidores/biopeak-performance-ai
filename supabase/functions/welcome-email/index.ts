@@ -62,8 +62,8 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f8fafc;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <!-- Header -->
-            <div style="background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); padding: 20px; text-align: center;">
-              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/lovable-uploads/22844e62-1fc2-4f34-88f4-7c78d593395d.png" alt="BioPeak - Bem-vindo" style="max-width: 100%; height: auto; border-radius: 8px;">
+            <div style="background-color: #0ea5e9; padding: 20px; text-align: center;">
+              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/lovable-uploads/22844e62-1fc2-4f34-88f4-7c78d593395d.png" alt="BioPeak - Bem-vindo" style="display: block; max-width: 300px; width: 300px; height: auto; margin: 0 auto; border-radius: 8px;">
             </div>
             
             <!-- Content -->
@@ -86,8 +86,8 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://grcwlmltlcltmwbhdpky.supabase.co" 
-                   style="display: inline-block; background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                <a href="https://minify-url.com/welcome-email" 
+                   style="display: inline-block; background-color: #0ea5e9; color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px;">
                   🔗 Conecte seu dispositivo agora e comece a evoluir
                 </a>
               </div>
