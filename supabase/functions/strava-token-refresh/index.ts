@@ -58,8 +58,7 @@ Deno.serve(async (req) => {
         expires_at: expiresAt,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', user_id)
-      .eq('is_active', true);
+      .eq('user_id', user_id);
 
     if (updateError) {
       throw new Error(`Failed to update token in database: ${updateError.message}`);
