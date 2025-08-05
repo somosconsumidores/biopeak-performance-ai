@@ -42,24 +42,30 @@ Deno.serve(async (req) => {
 
     console.log('🔄 Calculating Strava performance metrics for activity:', activity_id, 'user:', user_id)
 
-    // Get Strava activity data
-    const { data: activity, error: activityError } = await supabase
-      .from('strava_activities')
-      .select('*')
-      .eq('strava_activity_id', activity_id)
-      .eq('user_id', user_id)
-      .single()
+    // Get Strava activity data - activity_id can be either UUID or strava_activity_id
+    let activityQuery = supabase.from('strava_activities').select('*').eq('user_id', user_id)
+    
+    // Check if activity_id is a UUID (our internal ID) or a number (Strava ID)
+    if (activity_id.includes('-')) {
+      // It's a UUID, query by our internal id
+      activityQuery = activityQuery.eq('id', activity_id)
+    } else {
+      // It's a Strava activity ID number
+      activityQuery = activityQuery.eq('strava_activity_id', parseInt(activity_id))
+    }
+
+    const { data: activity, error: activityError } = await activityQuery.single()
 
     if (activityError) {
       console.error('❌ Strava activity not found:', activityError)
       throw new Error(`Strava activity not found: ${activityError.message}`)
     }
 
-    // Get activity details from strava_activity_details
+    // Get activity details from strava_activity_details using the actual Strava activity ID
     const { data: details, error: detailsError } = await supabase
       .from('strava_activity_details')
       .select('*')
-      .eq('strava_activity_id', activity_id)
+      .eq('strava_activity_id', activity.strava_activity_id)
       .order('time_seconds', { ascending: true })
 
     if (detailsError) {
@@ -201,7 +207,7 @@ function calculateStravaPerformanceMetrics(activity: any, details: any[]): Strav
 
   return {
     user_id: activity.user_id,
-    activity_id: activity.strava_activity_id.toString(),
+    activity_id: activity.id, // Use our internal UUID for consistency
     movement_efficiency: movementEfficiency,
     pace_consistency: paceConsistency,
     pace_distribution_beginning: paceDistributionBeginning,
