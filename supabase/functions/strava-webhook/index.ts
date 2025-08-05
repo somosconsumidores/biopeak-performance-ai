@@ -87,10 +87,10 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
   console.log('Processing new activity creation:', payload.object_id)
   
   try {
-    // Find user by athlete ID
+    // Find user by athlete ID with token expiration data
     const { data: userData } = await serviceRoleClient
       .from('strava_tokens')
-      .select('user_id, access_token')
+      .select('user_id, access_token, refresh_token, expires_at')
       .eq('athlete_id', payload.owner_id)
       .maybeSingle()
 
@@ -99,13 +99,40 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       return
     }
 
+    let accessToken = userData.access_token;
+
+    // Check if token is expired and refresh if needed
+    if (userData.expires_at) {
+      const expiresAt = new Date(userData.expires_at);
+      const now = new Date();
+      
+      if (expiresAt <= now) {
+        console.log('Token expired, refreshing for user:', userData.user_id);
+        accessToken = await refreshStravaToken(serviceRoleClient, userData);
+      }
+    }
+
     // Fetch activity details directly from Strava API
-    const activityResponse = await fetch(`https://www.strava.com/api/v3/activities/${payload.object_id}`, {
+    let activityResponse = await fetch(`https://www.strava.com/api/v3/activities/${payload.object_id}`, {
       headers: {
-        'Authorization': `Bearer ${userData.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json'
       }
     })
+
+    // If we get 401, try refreshing token once more
+    if (!activityResponse.ok && activityResponse.status === 401 && userData.refresh_token) {
+      console.log('Got 401, attempting token refresh for user:', userData.user_id);
+      accessToken = await refreshStravaToken(serviceRoleClient, userData);
+      
+      // Retry the API call with new token
+      activityResponse = await fetch(`https://www.strava.com/api/v3/activities/${payload.object_id}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+    }
 
     if (!activityResponse.ok) {
       throw new Error(`Strava API error: ${activityResponse.status} ${activityResponse.statusText}`)
@@ -150,7 +177,7 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
         body: { 
           activity_id: payload.object_id,
           user_id: userData.user_id,
-          access_token: userData.access_token,
+          access_token: accessToken,
           internal_call: true
         }
       })
@@ -235,5 +262,27 @@ async function handleActivityDeleted(serviceRoleClient: any, payload: any) {
         processed_at: new Date().toISOString()
       })
       .eq('payload->object_id', payload.object_id)
+   }
+}
+
+// Helper function to refresh Strava token
+async function refreshStravaToken(serviceRoleClient: any, userData: any): Promise<string> {
+  try {
+    const refreshResponse = await serviceRoleClient.functions.invoke('strava-token-refresh', {
+      body: {
+        refresh_token: userData.refresh_token,
+        user_id: userData.user_id
+      }
+    });
+
+    if (refreshResponse.error || !refreshResponse.data?.success) {
+      throw new Error(`Token refresh failed: ${refreshResponse.error?.message || 'Unknown error'}`);
+    }
+
+    console.log('Successfully refreshed token for user:', userData.user_id);
+    return refreshResponse.data.access_token;
+  } catch (refreshError) {
+    console.error('Failed to refresh token:', refreshError);
+    throw new Error(`Token refresh failed: ${refreshError.message}`);
   }
 }
