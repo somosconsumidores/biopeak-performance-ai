@@ -63,7 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <!-- Header -->
             <div style="background-color: #0ea5e9; padding: 20px; text-align: center;">
-              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/lovable-uploads/22844e62-1fc2-4f34-88f4-7c78d593395d.png" alt="BioPeak - Bem-vindo" style="display: block; max-width: 300px; width: 300px; height: auto; margin: 0 auto; border-radius: 8px;">
+              <img src="https://static.wixstatic.com/media/a025ad_8cbd13ffdb864246be31faddecf48b30~mv2.png" alt="BioPeak - Bem-vindo" style="display: block; max-width: 300px; width: 300px; height: auto; margin: 0 auto; border-radius: 8px;">
             </div>
             
             <!-- Content -->
