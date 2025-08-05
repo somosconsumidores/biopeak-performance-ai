@@ -162,9 +162,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       icon: <Zap className="h-6 w-6" />,
       title: hasHeartRateData ? 'Eficiência' : 'Eficiência de Movimento',
       mainValue: metrics.efficiency.distancePerMinute 
-        ? hasHeartRateData 
-          ? `${(metrics.efficiency.distancePerMinute * 1000).toFixed(0)}`
-          : `${metrics.efficiency.distancePerMinute.toFixed(2)}`
+        ? `${metrics.efficiency.distancePerMinute.toFixed(2)}`
         : 'N/A',
       mainLabel: hasHeartRateData ? 'm/min' : 'km/min',
       secondaryValue: hasHeartRateData && metrics.efficiency.powerPerBeat 
