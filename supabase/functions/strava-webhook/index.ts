@@ -133,7 +133,7 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
         max_heartrate: activityData.max_heartrate,
         calories: activityData.calories
       }, {
-        onConflict: 'strava_activity_id'
+        onConflict: 'user_id,strava_activity_id'
       })
 
     if (insertError) {
