@@ -127,16 +127,25 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Resend API response:", {
+    console.log("Resend API response detailed:", {
       success: !!emailResponse.data?.id,
       emailId: emailResponse.data?.id,
       error: emailResponse.error,
-      fullResponse: emailResponse
+      data: emailResponse.data,
+      fullResponse: JSON.stringify(emailResponse, null, 2),
+      timestamp: new Date().toISOString(),
+      fromEmail: "BioPeak <noreply@biopeak-ai.com>",
+      toEmail: email
     });
 
     // Validate that the email was actually sent
     if (!emailResponse.data?.id) {
-      throw new Error(`Failed to send email: ${emailResponse.error || 'No email ID returned from Resend'}`);
+      console.error("EMAIL SEND FAILED:", {
+        error: emailResponse.error,
+        data: emailResponse.data,
+        fullResponse: emailResponse
+      });
+      throw new Error(`Failed to send email: ${JSON.stringify(emailResponse.error) || 'No email ID returned from Resend'}`);
     }
 
     console.log("Welcome email sent successfully:", {

@@ -7,6 +7,9 @@ verify_jwt = false
 [functions.test-welcome-email]
 verify_jwt = true
 
+[functions.test-email-simple]
+verify_jwt = true
+
 [functions.direct-token-renewal]
 verify_jwt = true
 
