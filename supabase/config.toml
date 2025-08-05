@@ -1,6 +1,9 @@
 
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.strava-token-refresh]
+verify_jwt = false
+
 [functions.welcome-email]
 verify_jwt = false
 
