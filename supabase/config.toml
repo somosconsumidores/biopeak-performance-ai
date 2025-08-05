@@ -4,6 +4,9 @@ project_id = "grcwlmltlcltmwbhdpky"
 [functions.welcome-email]
 verify_jwt = false
 
+[functions.test-welcome-email]
+verify_jwt = true
+
 [functions.direct-token-renewal]
 verify_jwt = true
 
