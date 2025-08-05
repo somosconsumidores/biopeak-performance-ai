@@ -30,10 +30,20 @@ export const useRecalculateMetrics = () => {
 
       console.log(`✅ Métricas existentes deletadas para atividade ${activityId}`);
 
-      // Then call the edge function to recalculate
-      const { data, error } = await supabase.functions.invoke('calculate-performance-metrics', {
+      // Check if this is a Strava or Garmin activity
+      const { data: stravaActivity } = await supabase
+        .from('strava_activities')
+        .select('strava_activity_id')
+        .eq('id', activityId)
+        .maybeSingle();
+
+      // Then call the appropriate edge function to recalculate
+      const functionName = stravaActivity ? 'calculate-strava-performance-metrics' : 'calculate-performance-metrics';
+      const activityIdToUse = stravaActivity ? stravaActivity.strava_activity_id.toString() : activityId;
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { 
-          activity_id: activityId,
+          activity_id: activityIdToUse,
           user_id: userData.user.id
         }
       });
