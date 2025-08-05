@@ -142,6 +142,28 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
 
     console.log('Successfully processed and stored activity:', payload.object_id)
 
+    // Fetch activity streams automatically
+    try {
+      console.log('Fetching activity streams for activity:', payload.object_id)
+      
+      const streamsResponse = await serviceRoleClient.functions.invoke('strava-activity-streams', {
+        body: { 
+          activity_id: payload.object_id,
+          user_id: userData.user_id,
+          access_token: userData.access_token,
+          internal_call: true
+        }
+      })
+
+      if (streamsResponse.error) {
+        console.error('Error fetching activity streams:', streamsResponse.error)
+      } else {
+        console.log('Successfully fetched activity streams for:', payload.object_id)
+      }
+    } catch (streamsError) {
+      console.error('Failed to call activity streams function:', streamsError)
+    }
+
     // Update webhook log
     await serviceRoleClient
       .from('strava_webhook_logs')

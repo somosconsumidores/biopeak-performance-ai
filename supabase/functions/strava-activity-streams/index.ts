@@ -17,40 +17,55 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get the authorization header
-    const authorization = req.headers.get('Authorization');
-    if (!authorization) {
-      throw new Error('No authorization header');
-    }
+    const requestBody = await req.json();
+    const { activity_id, user_id, access_token, internal_call } = requestBody;
 
-    // Get user from JWT
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authorization.replace('Bearer ', '')
-    );
-    
-    if (userError || !user) {
-      throw new Error('Invalid user token');
-    }
+    let currentUserId;
+    let stravaAccessToken;
 
-    const { activity_id } = await req.json();
+    // Handle internal calls from other edge functions
+    if (internal_call && user_id && access_token) {
+      currentUserId = user_id;
+      stravaAccessToken = access_token;
+      console.log('Processing internal call for user:', currentUserId);
+    } else {
+      // Handle regular authenticated calls
+      const authorization = req.headers.get('Authorization');
+      if (!authorization) {
+        throw new Error('No authorization header');
+      }
+
+      // Get user from JWT
+      const { data: { user }, error: userError } = await supabase.auth.getUser(
+        authorization.replace('Bearer ', '')
+      );
+      
+      if (userError || !user) {
+        throw new Error('Invalid user token');
+      }
+
+      currentUserId = user.id;
+
+      // Get user's Strava token
+      const { data: stravaTokens, error: tokenError } = await supabase
+        .from('strava_tokens')
+        .select('access_token')
+        .eq('user_id', currentUserId)
+        .eq('is_active', true)
+        .single();
+
+      if (tokenError || !stravaTokens) {
+        throw new Error('No valid Strava token found');
+      }
+
+      stravaAccessToken = stravaTokens.access_token;
+    }
     
     if (!activity_id) {
       throw new Error('activity_id is required');
     }
 
-    console.log(`Fetching streams for activity ${activity_id} for user ${user.id}`);
-
-    // Get user's Strava token
-    const { data: stravaTokens, error: tokenError } = await supabase
-      .from('strava_tokens')
-      .select('access_token')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
-
-    if (tokenError || !stravaTokens) {
-      throw new Error('No valid Strava token found');
-    }
+    console.log(`Fetching streams for activity ${activity_id} for user ${currentUserId}`);
 
     // Fetch activity streams from Strava API
     const streamKeys = [
@@ -70,7 +85,7 @@ Deno.serve(async (req) => {
       `https://www.strava.com/api/v3/activities/${activity_id}/streams?keys=${streamKeys}&key_by_type=true`,
       {
         headers: {
-          'Authorization': `Bearer ${stravaTokens.access_token}`,
+          'Authorization': `Bearer ${stravaAccessToken}`,
         },
       }
     );
@@ -88,12 +103,12 @@ Deno.serve(async (req) => {
     const { data: existingRecord } = await supabase
       .from('strava_activity_details')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .eq('strava_activity_id', activity_id)
       .single();
 
     const streamData = {
-      user_id: user.id,
+      user_id: currentUserId,
       strava_activity_id: activity_id,
       latlng: streams.latlng || null,
       heartrate: streams.heartrate || null,
