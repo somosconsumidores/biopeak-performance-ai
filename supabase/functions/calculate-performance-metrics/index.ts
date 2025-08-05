@@ -150,19 +150,46 @@ function calculatePerformanceMetrics(activity: any, details: any[]): Performance
 
   // Efficiency calculations
   if (activity.average_heart_rate_in_beats_per_minute && activity.duration_in_seconds) {
-    const totalBeats = activity.average_heart_rate_in_beats_per_minute * (activity.duration_in_seconds / 60);
-    
-    if (activity.active_kilocalories && totalBeats > 0) {
-      metrics.power_per_beat = Number((activity.active_kilocalories / totalBeats).toFixed(2));
+    // Calculate average power from details if available
+    let averagePower = null;
+    if (details.length > 0) {
+      const powerReadings = details
+        .filter(d => d.power_in_watts !== null && d.power_in_watts > 0)
+        .map(d => d.power_in_watts);
       
-      if (metrics.power_per_beat >= 0.08) {
-        metrics.efficiency_comment = "Excelente eficiência energética";
-      } else if (metrics.power_per_beat >= 0.06) {
-        metrics.efficiency_comment = "Boa eficiência energética";
-      } else if (metrics.power_per_beat >= 0.04) {
-        metrics.efficiency_comment = "Eficiência moderada";
+      if (powerReadings.length > 0) {
+        averagePower = powerReadings.reduce((a, b) => a + b, 0) / powerReadings.length;
+      }
+    }
+    
+    // If we have actual power data, calculate power per beat
+    if (averagePower && averagePower > 0) {
+      metrics.power_per_beat = Number((averagePower / activity.average_heart_rate_in_beats_per_minute).toFixed(2));
+      
+      if (metrics.power_per_beat >= 2.0) {
+        metrics.efficiency_comment = "Excelente eficiência de potência";
+      } else if (metrics.power_per_beat >= 1.5) {
+        metrics.efficiency_comment = "Boa eficiência de potência";
+      } else if (metrics.power_per_beat >= 1.0) {
+        metrics.efficiency_comment = "Eficiência moderada de potência";
       } else {
-        metrics.efficiency_comment = "Baixa eficiência energética";
+        metrics.efficiency_comment = "Baixa eficiência de potência";
+      }
+    } else {
+      // Fallback: Calculate metabolic efficiency from calories if no power data
+      const totalBeats = activity.average_heart_rate_in_beats_per_minute * (activity.duration_in_seconds / 60);
+      if (activity.active_kilocalories && totalBeats > 0) {
+        const caloriesPerBeat = activity.active_kilocalories / totalBeats;
+        
+        if (caloriesPerBeat >= 0.08) {
+          metrics.efficiency_comment = "Excelente eficiência metabólica";
+        } else if (caloriesPerBeat >= 0.06) {
+          metrics.efficiency_comment = "Boa eficiência metabólica";
+        } else if (caloriesPerBeat >= 0.04) {
+          metrics.efficiency_comment = "Eficiência metabólica moderada";
+        } else {
+          metrics.efficiency_comment = "Baixa eficiência metabólica";
+        }
       }
     }
 
