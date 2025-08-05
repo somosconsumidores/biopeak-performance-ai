@@ -32,10 +32,11 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const payload: WebhookPayload = await req.json();
     
-    console.log("Welcome email webhook triggered:", {
+    console.log("Welcome email webhook triggered v1.1:", {
       type: payload.type,
       userId: payload.record.id,
-      email: payload.record.email
+      email: payload.record.email,
+      timestamp: new Date().toISOString()
     });
 
     // Only process user creation events
