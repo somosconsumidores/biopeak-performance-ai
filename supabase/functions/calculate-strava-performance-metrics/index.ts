@@ -70,13 +70,20 @@ Deno.serve(async (req) => {
 
     if (detailsError) {
       console.error('❌ Error fetching Strava activity details:', detailsError)
-      throw new Error(`Failed to fetch activity details: ${detailsError.message}`)
+      // Don't throw error if no details found, just proceed with basic metrics
+      if (detailsError.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch activity details: ${detailsError.message}`)
+      } else {
+        console.log('⚠️ No activity details found, will calculate basic metrics only')
+      }
     }
 
     console.log(`📊 Processing ${details?.length || 0} detail records for Strava activity`)
 
     // Calculate performance metrics
+    console.log('📈 Starting metrics calculation...')
     const metrics = calculateStravaPerformanceMetrics(activity, details || [])
+    console.log('📈 Metrics calculation completed:', JSON.stringify(metrics, null, 2))
 
     // Save metrics to database
     const { data: savedMetrics, error: saveError } = await supabase
@@ -85,13 +92,15 @@ Deno.serve(async (req) => {
         ...metrics,
         calculated_at: new Date().toISOString()
       }, {
-        onConflict: 'user_id,activity_id'
+        onConflict: 'user_id,activity_id',
+        ignoreDuplicates: false
       })
       .select()
       .single()
 
     if (saveError) {
       console.error('❌ Error saving Strava performance metrics:', saveError)
+      console.error('❌ Metrics data being saved:', JSON.stringify(metrics, null, 2))
       throw new Error(`Failed to save metrics: ${saveError.message}`)
     }
 
@@ -101,7 +110,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         metrics: savedMetrics,
-        message: 'Strava performance metrics calculated successfully'
+        message: 'Strava performance metrics calculated successfully',
+        details_count: details?.length || 0
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
