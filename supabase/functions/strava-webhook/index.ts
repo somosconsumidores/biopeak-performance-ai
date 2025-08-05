@@ -92,7 +92,6 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       .from('strava_tokens')
       .select('user_id, access_token')
       .eq('athlete_id', payload.owner_id)
-      .eq('is_active', true)
       .maybeSingle()
 
     if (!userData) {
