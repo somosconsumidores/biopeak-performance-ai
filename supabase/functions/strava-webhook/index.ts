@@ -99,16 +99,48 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       return
     }
 
-    // Trigger sync for this user
-    const { error: syncError } = await serviceRoleClient.functions.invoke('strava-sync', {
-      headers: { 'Authorization': `Bearer ${userData.access_token}` }
+    // Fetch activity details directly from Strava API
+    const activityResponse = await fetch(`https://www.strava.com/api/v3/activities/${payload.object_id}`, {
+      headers: {
+        'Authorization': `Bearer ${userData.access_token}`,
+        'Accept': 'application/json'
+      }
     })
 
-    if (syncError) {
-      console.error('Failed to trigger sync:', syncError)
-    } else {
-      console.log('Successfully triggered sync for user:', userData.user_id)
+    if (!activityResponse.ok) {
+      throw new Error(`Strava API error: ${activityResponse.status} ${activityResponse.statusText}`)
     }
+
+    const activityData = await activityResponse.json()
+    console.log('Fetched activity data from Strava:', activityData.id)
+
+    // Insert activity into strava_activities table
+    const { error: insertError } = await serviceRoleClient
+      .from('strava_activities')
+      .upsert({
+        user_id: userData.user_id,
+        strava_activity_id: activityData.id,
+        name: activityData.name,
+        type: activityData.type,
+        start_date: activityData.start_date,
+        distance: activityData.distance,
+        moving_time: activityData.moving_time,
+        elapsed_time: activityData.elapsed_time,
+        total_elevation_gain: activityData.total_elevation_gain,
+        average_speed: activityData.average_speed,
+        max_speed: activityData.max_speed,
+        average_heartrate: activityData.average_heartrate,
+        max_heartrate: activityData.max_heartrate,
+        calories: activityData.calories
+      }, {
+        onConflict: 'strava_activity_id'
+      })
+
+    if (insertError) {
+      throw new Error(`Database insert error: ${insertError.message}`)
+    }
+
+    console.log('Successfully processed and stored activity:', payload.object_id)
 
     // Update webhook log
     await serviceRoleClient
@@ -139,7 +171,7 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
 async function handleActivityUpdated(serviceRoleClient: any, payload: any) {
   console.log('Processing activity update:', payload.object_id)
   
-  // Similar logic to creation - trigger a sync to get updated data
+  // Use same logic as creation to fetch and update the activity
   await handleActivityCreated(serviceRoleClient, payload)
 }
 
