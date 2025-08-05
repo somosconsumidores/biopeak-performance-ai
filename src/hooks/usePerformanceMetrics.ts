@@ -75,22 +75,51 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             console.log('⚡ No pre-calculated metrics found. Detecting activity source...');
             
             // Try to detect if this is a Strava activity
-            const { data: stravaActivity } = await supabase
-              .from('strava_activities')
-              .select('strava_activity_id')
-              .eq('strava_activity_id', parseInt(activityId))
-              .eq('user_id', user.id)
-              .single();
+            console.log('🔍 Checking if activity is Strava. Activity ID:', activityId, 'User ID:', user.id);
+            
+            // Check if activityId is a UUID (contains hyphens) or a number
+            let stravaActivity = null;
+            let stravaCheckError = null;
+            
+            if (activityId.includes('-')) {
+              // It's a UUID, check by our internal ID
+              const result = await supabase
+                .from('strava_activities')
+                .select('strava_activity_id, id')
+                .eq('id', activityId)
+                .eq('user_id', user.id)
+                .single();
+              stravaActivity = result.data;
+              stravaCheckError = result.error;
+            } else {
+              // It's a number, check by strava_activity_id
+              const result = await supabase
+                .from('strava_activities')
+                .select('strava_activity_id, id')
+                .eq('strava_activity_id', parseInt(activityId))
+                .eq('user_id', user.id)
+                .single();
+              stravaActivity = result.data;
+              stravaCheckError = result.error;
+            }
+            
+            console.log('🔍 Strava activity check result:', { stravaActivity, stravaCheckError });
 
             let functionName = 'calculate-performance-metrics';
+            let activityIdForFunction = activityId;
+            
             if (stravaActivity) {
               console.log('🎯 Detected Strava activity, using Strava-specific metrics');
               functionName = 'calculate-strava-performance-metrics';
+              // Always use the UUID for the function call
+              activityIdForFunction = stravaActivity.id;
             }
+            
+            console.log('📞 Calling function:', functionName, 'with activity ID:', activityIdForFunction);
             
             const { error: functionError } = await supabase.functions.invoke(functionName, {
               body: { 
-                activity_id: activityId, 
+                activity_id: activityIdForFunction, 
                 user_id: user.id 
               }
             });
