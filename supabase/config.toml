@@ -99,3 +99,9 @@ verify_jwt = false
 
 [functions.sync-polar-sleep]
 verify_jwt = true
+
+[functions.register-strava-webhook-simple]
+verify_jwt = false
+
+[functions.strava-webhook]
+verify_jwt = false
