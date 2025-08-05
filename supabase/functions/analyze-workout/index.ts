@@ -67,30 +67,73 @@ serve(async (req) => {
 
     console.log('🤖 AI Analysis: Starting analysis for activity:', activityId, 'User:', user.id);
 
-    // Get workout summary data
-    const { data: activity, error: activityError } = await supabase
+    // Try to get workout data from multiple sources (Garmin first, then Strava)
+    let activity: any = null;
+    let activitySource = '';
+    
+    // Try Garmin first
+    const { data: garminActivity, error: garminError } = await supabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
       .eq('activity_id', activityId)
-      .single();
-
-    if (activityError || !activity) {
-      throw new Error('Activity not found');
+      .maybeSingle();
+    
+    if (garminActivity) {
+      activity = garminActivity;
+      activitySource = 'garmin';
+      console.log('🔍 Found Garmin activity for analysis');
+    } else {
+      // Try Strava if Garmin not found
+      const { data: stravaActivity, error: stravaError } = await supabase
+        .from('strava_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('strava_activity_id', activityId)
+        .maybeSingle();
+        
+      if (stravaActivity) {
+        activity = {
+          activity_type: stravaActivity.type,
+          duration_in_seconds: stravaActivity.elapsed_time,
+          distance_in_meters: stravaActivity.distance * 1000, // Convert km to meters
+          average_heart_rate_in_beats_per_minute: stravaActivity.average_heartrate,
+          max_heart_rate_in_beats_per_minute: stravaActivity.max_heartrate,
+          average_speed_in_meters_per_second: stravaActivity.average_speed,
+          max_speed_in_meters_per_second: stravaActivity.max_speed,
+          active_kilocalories: stravaActivity.calories,
+          total_elevation_gain_in_meters: stravaActivity.total_elevation_gain,
+          activity_id: activityId,
+          activity_name: stravaActivity.name,
+        };
+        activitySource = 'strava';
+        console.log('🔍 Found Strava activity for analysis');
+      }
     }
 
-    // Get detailed workout data including activity name
-    const { data: activityDetails, error: detailsError } = await supabase
-      .from('garmin_activity_details')
-      .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
-      .eq('user_id', user.id)
-      .eq('activity_id', activityId)
-      .order('sample_timestamp', { ascending: true })
-      .limit(500); // Limit for performance
-
-    if (detailsError) {
-      console.error('Error fetching activity details:', detailsError);
+    if (!activity) {
+      throw new Error('Activity not found in any source');
     }
+
+    // Get detailed workout data only for Garmin activities
+    let activityDetails: any[] = [];
+    if (activitySource === 'garmin') {
+      const { data: details, error: detailsError } = await supabase
+        .from('garmin_activity_details')
+        .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
+        .eq('user_id', user.id)
+        .eq('activity_id', activityId)
+        .order('sample_timestamp', { ascending: true })
+        .limit(500); // Limit for performance
+
+      if (detailsError) {
+        console.error('Error fetching Garmin activity details:', detailsError);
+      } else {
+        activityDetails = details || [];
+      }
+    }
+    
+    console.log(`📊 Activity source: ${activitySource}, detailed data points: ${activityDetails.length}`);
 
     // Get user profile for context
     const { data: profile } = await supabase
@@ -166,9 +209,13 @@ serve(async (req) => {
     }
 
     // Check if this is a high-intensity workout based on activity name
-    const activityName = activityDetails?.[0]?.activity_name?.toLowerCase() || '';
-    const highIntensityKeywords = ['limite', 'vo2', 'superséries', 'superseries', 'corrida de tempo', 'sprint'];
+    const activityName = (activityDetails?.[0]?.activity_name || activity.activity_name || '').toLowerCase();
+    const highIntensityKeywords = ['limite', 'vo2', 'superséries', 'superseries', 'corrida de tempo', 'sprint', 'interval', 'threshold', 'tempo'];
     const isHighIntensityWorkout = highIntensityKeywords.some(keyword => activityName.includes(keyword));
+    
+    // Additional analysis for limited data scenarios (Strava)
+    const isLimitedData = activitySource === 'strava' || activityDetails.length === 0;
+    console.log(`📊 Data analysis: source=${activitySource}, limited=${isLimitedData}, highIntensity=${isHighIntensityWorkout}`);
 
     // Prepare analysis data
     const analysisData = {
@@ -196,13 +243,30 @@ serve(async (req) => {
       detailedData: activityDetails || [],
     };
 
-    // Create specialized prompts based on activity type
+    // Create specialized prompts based on data availability and activity type
+    const limitedDataContext = isLimitedData ? `
+      
+      ⚠️ DADOS LIMITADOS (${activitySource.toUpperCase()}): 
+      Esta análise é baseada em dados básicos de tempo, distância e pace. Sem dados detalhados de frequência cardíaca ou power,
+      foque em análises de:
+      - Consistência de pace e ritmo
+      - Eficiência de movimento (distância/tempo)
+      - Padrões de performance baseados em métricas básicas
+      - Progressão temporal e comparações históricas
+      - Adaptação ao terreno baseada em elevação
+      - Recomendações práticas para melhoria
+      
+      Seja criativo com os dados disponíveis e forneça insights valiosos mesmo com informações limitadas.
+    ` : '';
+
     const basePrompt = `
       Analise os dados do treino de ${activity.activity_type || 'exercício'} e forneça insights detalhados em português brasileiro.
       
+      📊 FONTE DOS DADOS: ${activitySource.toUpperCase()} ${isLimitedData ? '(DADOS LIMITADOS)' : '(DADOS COMPLETOS)'}
+      
       Dados do treino:
       - Tipo: ${activity.activity_type}
-      ${activityDetails?.[0]?.activity_name ? `- Nome: ${activityDetails[0].activity_name}` : ''}
+      ${activity.activity_name ? `- Nome: ${activity.activity_name}` : ''}
       - Duração: ${Math.round((activity.duration_in_seconds || 0) / 60)} minutos
       - Distância: ${((activity.distance_in_meters || 0) / 1000).toFixed(1)} km
        - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
@@ -212,11 +276,24 @@ serve(async (req) => {
        ${storedPace ? `- Pace armazenado: ${formatPace(storedPace)} min/km` : ''}${paceAnalysis}
       - Calorias: ${activity.active_kilocalories || 'N/A'} kcal
       - Elevação: ${activity.total_elevation_gain_in_meters || 0}m
+      ${limitedDataContext}
       
-      ${isHighIntensityWorkout ? '⚠️ IMPORTANTE: Este é um treino de ALTA INTENSIDADE (detectado pelas palavras-chave: limite, vo2, superséries, corrida de tempo, sprint). Em treinos desta natureza, variações de pace e frequência cardíaca são ESPERADAS e NORMAIS, pois há momentos de esforço intenso alternados com períodos de recuperação. Considere isso na análise e não trate as variações como problemas, mas sim como características do tipo de treino.' : ''}
+      ${isHighIntensityWorkout ? '⚠️ IMPORTANTE: Este é um treino de ALTA INTENSIDADE (detectado pelas palavras-chave). Em treinos desta natureza, variações de pace e frequência cardíaca são ESPERADAS e NORMAIS, pois há momentos de esforço intenso alternados com períodos de recuperação. Considere isso na análise e não trate as variações como problemas, mas sim como características do tipo de treino.' : ''}
       
       ${userAge ? `Idade do usuário: ${userAge} anos` : ''}
       ${profile?.weight_kg ? `Peso: ${profile.weight_kg}kg` : ''}
+      
+      INSTRUÇÕES ESPECIAIS PARA DADOS LIMITADOS:
+      ${isLimitedData ? `
+      - Analise a CONSISTÊNCIA DO PACE: variação, estabilidade, padrões
+      - Calcule EFICIÊNCIA DE MOVIMENTO: distância por minuto, economia de energia
+      - Avalie PROGRESSÃO TEMPORAL: inicio vs meio vs final do treino
+      - Identifique PADRÕES DE TERRENO: subidas/descidas baseado em elevação
+      - Sugira MELHORIAS ESPECÍFICAS baseadas nos dados disponíveis
+      - Use ANÁLISE CONTEXTUAL: tipo de atividade, duração, condições
+      - Forneça RECOMENDAÇÕES PRÁTICAS mesmo com dados limitados
+      - Seja CRIATIVO e PERSPICAZ com os insights
+      ` : 'Use todos os dados detalhados disponíveis para uma análise completa.'}
       
       Forneça uma análise estruturada em JSON com exactly este formato:
       {
@@ -252,7 +329,24 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você é um especialista em análise de performance esportiva. Analise os dados de treino e forneça insights práticos e motivacionais em português brasileiro. Responda APENAS com JSON válido, sem markdown ou formatação adicional.'
+            content: `Você é um especialista em análise de performance esportiva especializado em maximizar insights com dados limitados. 
+            
+            EXPERTISE ESPECIAL:
+            - Análise de pace e consistência temporal
+            - Eficiência de movimento e economia energética  
+            - Padrões de progressão e fadiga
+            - Adaptação a terreno e condições
+            - Recomendações práticas baseadas em métricas básicas
+            - Insights contextuais e preditivos
+            
+            Para dados limitados (apenas tempo, distância, pace):
+            - Seja criativo e perspicaz
+            - Foque em padrões e tendências
+            - Analise eficiência e consistência
+            - Forneça recomendações práticas
+            - Use contexto do tipo de atividade
+            
+            Responda APENAS com JSON válido, sem markdown. Seja específico, prático e motivacional.`
           },
           {
             role: 'user',
