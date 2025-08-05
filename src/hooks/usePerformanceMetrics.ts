@@ -72,9 +72,23 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         if (metricsError) {
           // If no pre-calculated metrics found, trigger calculation
           if (metricsError.code === 'PGRST116') {
-            console.log('⚡ No pre-calculated metrics found. Triggering calculation...');
+            console.log('⚡ No pre-calculated metrics found. Detecting activity source...');
             
-            const { error: functionError } = await supabase.functions.invoke('calculate-performance-metrics', {
+            // Try to detect if this is a Strava activity
+            const { data: stravaActivity } = await supabase
+              .from('strava_activities')
+              .select('strava_activity_id')
+              .eq('strava_activity_id', parseInt(activityId))
+              .eq('user_id', user.id)
+              .single();
+
+            let functionName = 'calculate-performance-metrics';
+            if (stravaActivity) {
+              console.log('🎯 Detected Strava activity, using Strava-specific metrics');
+              functionName = 'calculate-strava-performance-metrics';
+            }
+            
+            const { error: functionError } = await supabase.functions.invoke(functionName, {
               body: { 
                 activity_id: activityId, 
                 user_id: user.id 
@@ -122,27 +136,29 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
 // Format metrics from database format to component format
 function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
+  const isStravaActivity = dbMetrics.activity_source === 'strava';
+  
   return {
     efficiency: {
-      powerPerBeat: dbMetrics.power_per_beat,
-      distancePerMinute: dbMetrics.distance_per_minute,
+      powerPerBeat: isStravaActivity ? null : dbMetrics.power_per_beat,
+      distancePerMinute: isStravaActivity ? dbMetrics.movement_efficiency : dbMetrics.distance_per_minute,
       comment: dbMetrics.efficiency_comment || "Sem dados suficientes"
     },
     pace: {
       averageSpeedKmh: dbMetrics.average_speed_kmh,
-      paceVariationCoefficient: dbMetrics.pace_variation_coefficient,
+      paceVariationCoefficient: isStravaActivity ? dbMetrics.pace_consistency : dbMetrics.pace_variation_coefficient,
       comment: dbMetrics.pace_comment || "Sem dados suficientes"
     },
     heartRate: {
-      averageHr: dbMetrics.average_hr,
-      relativeIntensity: dbMetrics.relative_intensity,
-      relativeReserve: dbMetrics.relative_reserve,
+      averageHr: isStravaActivity ? null : dbMetrics.average_hr,
+      relativeIntensity: isStravaActivity ? null : dbMetrics.relative_intensity,
+      relativeReserve: isStravaActivity ? null : dbMetrics.relative_reserve,
       comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
     },
     effortDistribution: {
-      beginning: dbMetrics.effort_beginning_bpm,
-      middle: dbMetrics.effort_middle_bpm,
-      end: dbMetrics.effort_end_bpm,
+      beginning: isStravaActivity ? dbMetrics.pace_distribution_beginning : dbMetrics.effort_beginning_bpm,
+      middle: isStravaActivity ? dbMetrics.pace_distribution_middle : dbMetrics.effort_middle_bpm,
+      end: isStravaActivity ? dbMetrics.pace_distribution_end : dbMetrics.effort_end_bpm,
       comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
     }
   };

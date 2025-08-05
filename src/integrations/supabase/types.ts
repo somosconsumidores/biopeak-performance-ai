@@ -973,6 +973,7 @@ export type Database = {
       performance_metrics: {
         Row: {
           activity_id: string
+          activity_source: string | null
           average_hr: number | null
           average_speed_kmh: number | null
           calculated_at: string
@@ -983,18 +984,26 @@ export type Database = {
           effort_distribution_comment: string | null
           effort_end_bpm: number | null
           effort_middle_bpm: number | null
+          fatigue_index: number | null
           heart_rate_comment: string | null
           id: string
+          movement_efficiency: number | null
           pace_comment: string | null
+          pace_consistency: number | null
+          pace_distribution_beginning: number | null
+          pace_distribution_end: number | null
+          pace_distribution_middle: number | null
           pace_variation_coefficient: number | null
           power_per_beat: number | null
           relative_intensity: number | null
           relative_reserve: number | null
+          terrain_adaptation_score: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           activity_id: string
+          activity_source?: string | null
           average_hr?: number | null
           average_speed_kmh?: number | null
           calculated_at?: string
@@ -1005,18 +1014,26 @@ export type Database = {
           effort_distribution_comment?: string | null
           effort_end_bpm?: number | null
           effort_middle_bpm?: number | null
+          fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          movement_efficiency?: number | null
           pace_comment?: string | null
+          pace_consistency?: number | null
+          pace_distribution_beginning?: number | null
+          pace_distribution_end?: number | null
+          pace_distribution_middle?: number | null
           pace_variation_coefficient?: number | null
           power_per_beat?: number | null
           relative_intensity?: number | null
           relative_reserve?: number | null
+          terrain_adaptation_score?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           activity_id?: string
+          activity_source?: string | null
           average_hr?: number | null
           average_speed_kmh?: number | null
           calculated_at?: string
@@ -1027,13 +1044,20 @@ export type Database = {
           effort_distribution_comment?: string | null
           effort_end_bpm?: number | null
           effort_middle_bpm?: number | null
+          fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          movement_efficiency?: number | null
           pace_comment?: string | null
+          pace_consistency?: number | null
+          pace_distribution_beginning?: number | null
+          pace_distribution_end?: number | null
+          pace_distribution_middle?: number | null
           pace_variation_coefficient?: number | null
           power_per_beat?: number | null
           relative_intensity?: number | null
           relative_reserve?: number | null
+          terrain_adaptation_score?: number | null
           updated_at?: string
           user_id?: string
         }
