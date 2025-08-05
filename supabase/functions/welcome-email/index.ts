@@ -61,43 +61,49 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f8fafc;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <!-- Header -->
-            <div style="background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); padding: 40px 20px; text-align: center;">
-              <h1 style="color: white; font-size: 32px; font-weight: bold; margin: 0;">🎉 Bem-vindo ao BioPeak!</h1>
-              <p style="color: rgba(255,255,255,0.9); font-size: 18px; margin: 10px 0 0 0;">Sua jornada fitness começa aqui</p>
+            <div style="background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); padding: 20px; text-align: center;">
+              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/lovable-uploads/22844e62-1fc2-4f34-88f4-7c78d593395d.png" alt="BioPeak - Bem-vindo" style="max-width: 100%; height: auto; border-radius: 8px;">
             </div>
             
             <!-- Content -->
             <div style="padding: 40px 20px;">
-              <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0;">Olá, ${displayName}! 👋</h2>
+              <h2 style="color: #1e293b; font-size: 24px; font-weight: 600; margin: 0 0 20px 0;">👋 Olá, atleta!</h2>
               
               <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                É um prazer tê-lo(a) no BioPeak! Agora você tem acesso à plataforma mais avançada para monitoramento e análise de performance esportiva.
+                Parabéns por dar o primeiro passo rumo a uma nova era da sua performance esportiva.<br>
+                Você agora faz parte do BioPeak, o app que transforma seus dados de treino em inteligência real para evolução física, técnica e estratégica.
               </p>
               
               <div style="background-color: #f1f5f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin: 0 0 15px 0;">🚀 O que você pode fazer agora:</h3>
+                <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin: 0 0 15px 0;">🚀 O que você pode esperar:</h3>
                 <ul style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;">
-                  <li style="margin-bottom: 8px;">Conectar seus dispositivos Garmin, Polar ou Strava</li>
-                  <li style="margin-bottom: 8px;">Sincronizar automaticamente suas atividades</li>
-                  <li style="margin-bottom: 8px;">Receber insights personalizados com IA</li>
-                  <li style="margin-bottom: 8px;">Acompanhar métricas avançadas de performance</li>
-                  <li>Definir e monitorar seus objetivos fitness</li>
+                  <li style="margin-bottom: 8px;">✅ Conexão com seus dispositivos (Garmin, Polar, Strava e outros mais em desenvolvimento)</li>
+                  <li style="margin-bottom: 8px;">✅ Recomendações inteligentes com base em IA</li>
+                  <li style="margin-bottom: 8px;">✅ Previsões de performance, análise de fadiga e eficiência</li>
+                  <li style="margin-bottom: 8px;">✅ Insights diários sobre sono, esforço e recuperação</li>
                 </ul>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="https://grcwlmltlcltmwbhdpky.supabase.co" 
                    style="display: inline-block; background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                  Começar Agora
+                  🔗 Conecte seu dispositivo agora e comece a evoluir
                 </a>
               </div>
+
+              <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 20px 0; text-align: center;">
+                Se preferir, use o BioPeak Ai Coach e registre suas atividades usando a solução nativa de controle de atividade (que está em desenvolvimento)
+              </p>
               
               <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 30px;">
                 <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 10px 0;">
-                  <strong>Precisa de ajuda?</strong> Nossa equipe está aqui para ajudar você a aproveitar ao máximo o BioPeak.
+                  <strong>💬 Precisa de ajuda ou quer dar sugestões?</strong>
+                </p>
+                <p style="color: #64748b; font-size: 14px; margin: 0 0 10px 0;">
+                  Nosso time está a postos. Responda este e-mail ou chame no Instagram @biopeak.ai
                 </p>
                 <p style="color: #64748b; font-size: 14px; margin: 0;">
-                  📧 Responda este email ou visite nossa central de ajuda
+                  Amamos ouvir nossos usuários. 💙
                 </p>
               </div>
             </div>
