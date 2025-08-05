@@ -157,12 +157,14 @@ Deno.serve(async (req) => {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
+      athlete_id: tokenData.athlete?.id,
     }
     console.log('🔵 Strava Auth - Token record:', {
       userId: tokenRecord.user_id,
       hasAccessToken: !!tokenRecord.access_token,
       hasRefreshToken: !!tokenRecord.refresh_token,
-      expiresAt: tokenRecord.expires_at
+      expiresAt: tokenRecord.expires_at,
+      athleteId: tokenRecord.athlete_id
     })
     
     const { error: upsertError } = await serviceRoleClient
