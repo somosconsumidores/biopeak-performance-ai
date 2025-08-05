@@ -1862,6 +1862,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      recover_stuck_strava_syncs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       smart_cleanup_expired_oauth_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
