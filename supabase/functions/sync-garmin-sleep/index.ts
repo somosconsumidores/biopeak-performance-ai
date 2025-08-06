@@ -174,48 +174,76 @@ serve(async (req) => {
 
     // Determine time range for sleep data
     let startDate: string, endDate: string;
+    let sleepSummaries: GarminSleepSummary[] = [];
     
-    if (callbackUrl) {
-      // For webhook calls, get last 7 days to ensure we don't miss any data
-      const end = new Date();
-      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
-      startDate = start.toISOString().split('T')[0];
-      endDate = end.toISOString().split('T')[0];
+    // Check if we have webhook payload data
+    if (bodyPayload?.webhook_payload && bodyPayload.webhook_payload.summaryId) {
+      console.log(`[sync-garmin-sleep] Using webhook payload data instead of API call`);
+      
+      // Convert webhook payload to our GarminSleepSummary format
+      const webhookData = bodyPayload.webhook_payload;
+      const sleepSummary: GarminSleepSummary = {
+        summaryId: webhookData.summaryId,
+        calendarDate: webhookData.calendarDate,
+        sleepTimeInSeconds: webhookData.durationInSeconds,
+        deepSleepDurationInSeconds: webhookData.deepSleepDurationInSeconds,
+        lightSleepDurationInSeconds: webhookData.lightSleepDurationInSeconds,
+        remSleepDurationInSeconds: webhookData.remSleepInSeconds,
+        awakeDurationInSeconds: webhookData.awakeDurationInSeconds,
+        sleepStartTimeInSeconds: webhookData.startTimeInSeconds,
+        sleepStartTimeOffsetInSeconds: webhookData.startTimeOffsetInSeconds,
+        unmeasurableSleepInSeconds: webhookData.unmeasurableSleepInSeconds,
+        sleepScore: webhookData.overallSleepScore?.value,
+        sleepScoreFeedback: webhookData.sleepScores ? JSON.stringify(webhookData.sleepScores) : null,
+        sleepScoreInsight: webhookData.sleepScores ? JSON.stringify(webhookData.sleepScores) : null
+      };
+      
+      sleepSummaries = [sleepSummary];
+      console.log(`[sync-garmin-sleep] Converted webhook payload to sleep summary:`, JSON.stringify(sleepSummary, null, 2));
     } else {
-      // For manual syncs, get last 30 days
-      const end = new Date();
-      const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
-      startDate = start.toISOString().split('T')[0];
-      endDate = end.toISOString().split('T')[0];
-    }
-
-    // Construct Garmin API URL
-    const garminUrl = new URL('https://apis.garmin.com/wellness-api/rest/sleeps');
-    garminUrl.searchParams.append('uploadStartTimeInSeconds', Math.floor(new Date(startDate).getTime() / 1000).toString());
-    garminUrl.searchParams.append('uploadEndTimeInSeconds', Math.floor(new Date(endDate).getTime() / 1000).toString());
-
-    console.log(`[sync-garmin-sleep] Fetching sleep data from ${garminUrl.toString()}`);
-
-    // Call Garmin API
-    const garminResponse = await fetch(garminUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${validAccessToken}`,
-        'Content-Type': 'application/json'
+      // Original API call logic
+      if (callbackUrl) {
+        // For webhook calls, get last 7 days to ensure we don't miss any data
+        const end = new Date();
+        const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startDate = start.toISOString().split('T')[0];
+        endDate = end.toISOString().split('T')[0];
+      } else {
+        // For manual syncs, get last 30 days
+        const end = new Date();
+        const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = start.toISOString().split('T')[0];
+        endDate = end.toISOString().split('T')[0];
       }
-    });
 
-    if (!garminResponse.ok) {
-      const errorText = await garminResponse.text();
-      throw new Error(`Garmin API error: ${garminResponse.status} - ${errorText}`);
+      // Construct Garmin API URL
+      const garminUrl = new URL('https://apis.garmin.com/wellness-api/rest/sleeps');
+      garminUrl.searchParams.append('uploadStartTimeInSeconds', Math.floor(new Date(startDate).getTime() / 1000).toString());
+      garminUrl.searchParams.append('uploadEndTimeInSeconds', Math.floor(new Date(endDate).getTime() / 1000).toString());
+
+      console.log(`[sync-garmin-sleep] Fetching sleep data from ${garminUrl.toString()}`);
+
+      // Call Garmin API
+      const garminResponse = await fetch(garminUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${validAccessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!garminResponse.ok) {
+        const errorText = await garminResponse.text();
+        throw new Error(`Garmin API error: ${garminResponse.status} - ${errorText}`);
+      }
+
+      const garminData = await garminResponse.json();
+      sleepSummaries = garminData.sleepSummaries || [];
+      console.log(`[sync-garmin-sleep] Sleep summaries data:`, JSON.stringify(sleepSummaries.slice(0, 2), null, 2));
     }
 
-    const garminData = await garminResponse.json();
-    const sleepSummaries: GarminSleepSummary[] = garminData.sleepSummaries || [];
-
-    console.log(`[sync-garmin-sleep] Received ${sleepSummaries.length} sleep summaries from Garmin API`);
-    console.log(`[sync-garmin-sleep] Sleep summaries data:`, JSON.stringify(sleepSummaries.slice(0, 2), null, 2));
-
+    console.log(`[sync-garmin-sleep] Received ${sleepSummaries.length} sleep summaries to process`);
+    
     let summariesAdded = 0;
     let summariesUpdated = 0;
 

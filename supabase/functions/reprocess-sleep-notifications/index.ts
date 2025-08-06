@@ -127,7 +127,20 @@ serve(async (req) => {
       console.log(`[reprocess-sleep-notifications] Processing webhook ${webhookId} for user ${webhookUserId}`);
 
       // Extract sleep summaries from payload
-      const sleepSummaries = payload?.sleeps || [];
+      let sleepSummaries = [];
+      
+      // Handle different payload formats
+      if (payload?.sleeps && Array.isArray(payload.sleeps)) {
+        sleepSummaries = payload.sleeps;
+      } else if (payload?.sleepSummaries && Array.isArray(payload.sleepSummaries)) {
+        sleepSummaries = payload.sleepSummaries;
+      } else if (payload?.summaryId) {
+        // Single sleep summary object - convert to array
+        sleepSummaries = [payload];
+      } else {
+        console.log(`[reprocess-sleep-notifications] Unexpected payload format for webhook ${webhookId}:`, payload);
+      }
+      
       if (sleepSummaries.length === 0) {
         results.push({
           webhook_id: webhookId,
