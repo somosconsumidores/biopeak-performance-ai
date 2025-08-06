@@ -198,3 +198,5 @@ export const SleepFeedbacks = () => {
     </div>
   );
 };
+
+export default SleepFeedbacks;

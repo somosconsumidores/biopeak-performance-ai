@@ -26,7 +26,7 @@ import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AdminPanel } from "./pages/AdminPanel";
-import { SleepFeedbacks } from "./pages/SleepFeedbacks";
+import SleepFeedbacks from "./pages/SleepFeedbacks";
 import MobileBottomBar from "./components/MobileBottomBar";
 
 const queryClient = new QueryClient();
