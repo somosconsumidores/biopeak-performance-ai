@@ -171,7 +171,33 @@ serve(async (req) => {
             .single();
 
           try {
-            // Trigger background sync
+            // Create a temporary user token for the sync function
+            const { data: tokenResponse, error: tokenError } = await supabase.auth.admin.generateAccessToken(userId);
+            
+            if (tokenError || !tokenResponse.access_token) {
+              console.error(`[garmin-sleep-webhook] Failed to generate user token:`, tokenError);
+              
+              // Update webhook log status
+              if (webhookLog) {
+                await supabase
+                  .from('garmin_webhook_logs')
+                  .update({
+                    status: 'failed',
+                    error_message: 'Failed to generate user access token'
+                  })
+                  .eq('id', webhookLog.id);
+              }
+
+              results.push({
+                userId: garminUserId,
+                summaryId,
+                status: 'error',
+                message: 'Failed to generate user access token'
+              });
+              continue;
+            }
+
+            // Trigger background sync with user token
             const syncResponse = await supabase.functions.invoke('sync-garmin-sleep', {
               body: {
                 triggered_by_webhook: true,
@@ -181,7 +207,7 @@ serve(async (req) => {
                 access_token: activeToken.access_token
               },
               headers: {
-                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'Authorization': `Bearer ${tokenResponse.access_token}`,
                 'x-webhook-source': 'garmin'
               }
             });
