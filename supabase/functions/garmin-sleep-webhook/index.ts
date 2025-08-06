@@ -177,10 +177,11 @@ serve(async (req) => {
                 triggered_by_webhook: true,
                 callback_url: callbackURL,
                 user_id: userId,
-                garmin_user_id: garminUserId
+                garmin_user_id: garminUserId,
+                access_token: activeToken.access_token
               },
               headers: {
-                'Authorization': `Bearer ${activeToken.access_token}`,
+                'Authorization': `Bearer ${supabaseServiceKey}`,
                 'x-webhook-source': 'garmin'
               }
             });
