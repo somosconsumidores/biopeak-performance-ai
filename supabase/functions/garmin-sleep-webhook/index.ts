@@ -17,6 +17,7 @@ interface SleepNotification {
 
 interface SleepPayload {
   sleepSummaries?: SleepNotification[];
+  sleeps?: SleepNotification[];
 }
 
 serve(async (req) => {
@@ -74,8 +75,8 @@ serve(async (req) => {
       return createSuccessResponse({ message: 'Invalid JSON - processed successfully' });
     }
 
-    // Extract sleep summaries from payload
-    const sleepSummaries = payload.sleepSummaries || [];
+    // Extract sleep summaries from payload (Garmin sends 'sleeps' field)
+    const sleepSummaries = payload.sleepSummaries || payload.sleeps || [];
     if (sleepSummaries.length === 0) {
       console.log('[garmin-sleep-webhook] No sleep summaries in payload');
       return createSuccessResponse({ message: 'No sleep summaries to process' });
