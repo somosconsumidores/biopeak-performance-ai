@@ -48,14 +48,15 @@ serve(async (req) => {
     let isWebhookTriggered = false;
     let adminOverride = false;
     let callbackUrl = null;
+    let bodyPayload = null;
 
     try {
       const body = await req.text();
       if (body) {
-        const payload = JSON.parse(body);
-        isWebhookTriggered = payload.triggered_by_webhook === true;
-        adminOverride = payload.admin_override === true;
-        callbackUrl = payload.callback_url;
+        bodyPayload = JSON.parse(body);
+        isWebhookTriggered = bodyPayload.triggered_by_webhook === true;
+        adminOverride = bodyPayload.admin_override === true;
+        callbackUrl = bodyPayload.callback_url;
       }
     } catch (error) {
       console.log('[sync-garmin-sleep] No valid request body found, checking headers...');
@@ -76,7 +77,7 @@ serve(async (req) => {
       });
     }
 
-    // Authenticate user
+    // Authenticate user or service role
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -87,10 +88,31 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      throw new Error('Authentication failed');
+    
+    let user;
+    let userId;
+    
+    // Check if it's a service role call with user_id in body
+    if (token === supabaseServiceKey) {
+      // Service role call - get user_id from body payload
+      userId = bodyPayload?.user_id;
+      
+      if (!userId) {
+        throw new Error('Service role calls must include user_id in body');
+      }
+      
+      // Create a mock user object for service role calls
+      user = { id: userId };
+    } else {
+      // Regular user token
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !authUser) {
+        throw new Error('Authentication failed');
+      }
+      
+      user = authUser;
+      userId = user.id;
     }
 
     // Check rate limiting to prevent excessive sync requests
@@ -98,7 +120,7 @@ serve(async (req) => {
     const { data: recentSyncs } = await supabase
       .from('garmin_sync_control')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('sync_type', 'sleep')
       .gte('created_at', oneHourAgo);
 
@@ -116,7 +138,7 @@ serve(async (req) => {
     const { data: syncControl } = await supabase
       .from('garmin_sync_control')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         sync_type: 'sleep',
         triggered_by: isWebhookTriggered ? 'webhook' : 'admin_override',
         callback_url: callbackUrl,
@@ -125,13 +147,13 @@ serve(async (req) => {
       .select()
       .single();
 
-    console.log(`[sync-garmin-sleep] Starting sleep sync for user ${user.id}`);
+    console.log(`[sync-garmin-sleep] Starting sleep sync for user ${userId}`);
 
     // Get Garmin tokens
     const { data: tokenData, error: tokenError } = await supabase
       .from('garmin_tokens')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -144,7 +166,7 @@ serve(async (req) => {
 
     // Refresh token if needed
     const tokenManager = new GarminTokenManager(supabaseUrl, supabaseServiceKey);
-    const validAccessToken = await tokenManager.getValidAccessToken(user.id);
+    const validAccessToken = await tokenManager.getValidAccessToken(userId);
 
     if (!validAccessToken) {
       throw new Error('Failed to get valid access token');
@@ -200,7 +222,7 @@ serve(async (req) => {
     for (const summary of sleepSummaries) {
       try {
         const sleepData = {
-          user_id: user.id,
+          user_id: userId,
           summary_id: summary.summaryId,
           calendar_date: summary.calendarDate,
           sleep_time_in_seconds: summary.sleepTimeInSeconds || null,
@@ -240,7 +262,7 @@ serve(async (req) => {
         const { data: existingData } = await supabase
           .from('garmin_sleep_summaries')
           .select('created_at, updated_at')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('summary_id', summary.summaryId)
           .single();
 
@@ -299,18 +321,22 @@ serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
         
-        if (user) {
-          await supabase
-            .from('garmin_sync_control')
-            .update({
-              status: 'failed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .eq('sync_type', 'sleep')
-            .eq('status', 'pending');
+        // Only try to get user if it's not service role key
+        if (token !== supabaseServiceKey) {
+          const { data: { user } } = await supabase.auth.getUser(token);
+          
+          if (user) {
+            await supabase
+              .from('garmin_sync_control')
+              .update({
+                status: 'failed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id)
+              .eq('sync_type', 'sleep')
+              .eq('status', 'pending');
+          }
         }
       }
     } catch (updateError) {
