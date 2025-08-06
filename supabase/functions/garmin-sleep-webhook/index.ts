@@ -175,6 +175,7 @@ serve(async (req) => {
             const syncResponse = await supabase.functions.invoke('sync-garmin-sleep', {
               body: {
                 triggered_by_webhook: true,
+                webhook_payload: sleepSummary,
                 callback_url: callbackURL,
                 user_id: userId,
                 garmin_user_id: garminUserId,
