@@ -177,6 +177,8 @@ serve(async (req) => {
 
       // Generate user access token
       try {
+        console.log(`[reprocess-sleep-notifications] Calling sync function for user ${webhookUserId} with payload:`, JSON.stringify(payload, null, 2));
+        
         // Call sync-garmin-sleep function using service role
         const syncResponse = await supabase.functions.invoke('sync-garmin-sleep', {
           body: {
@@ -191,6 +193,8 @@ serve(async (req) => {
             'x-webhook-source': 'reprocess'
           }
         });
+
+        console.log(`[reprocess-sleep-notifications] Sync response for webhook ${webhookId}:`, syncResponse);
 
         if (syncResponse.error) {
           console.error(`[reprocess-sleep-notifications] Sync failed for webhook ${webhookId}:`, syncResponse.error);

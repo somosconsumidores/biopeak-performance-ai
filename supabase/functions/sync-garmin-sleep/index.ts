@@ -214,6 +214,7 @@ serve(async (req) => {
     const sleepSummaries: GarminSleepSummary[] = garminData.sleepSummaries || [];
 
     console.log(`[sync-garmin-sleep] Received ${sleepSummaries.length} sleep summaries from Garmin API`);
+    console.log(`[sync-garmin-sleep] Sleep summaries data:`, JSON.stringify(sleepSummaries.slice(0, 2), null, 2));
 
     let summariesAdded = 0;
     let summariesUpdated = 0;
