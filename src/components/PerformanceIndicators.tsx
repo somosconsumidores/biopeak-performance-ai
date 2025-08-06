@@ -183,7 +183,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         : 'N/A',
       mainLabel: 'km/h',
       secondaryValue: metrics.pace.paceVariationCoefficient 
-        ? `${(metrics.pace.paceVariationCoefficient * 100).toFixed(1)}%`
+        ? `${metrics.pace.paceVariationCoefficient.toFixed(1)}%`
         : undefined,
       secondaryLabel: hasHeartRateData ? 'Variação' : 'Consistência',
       comment: metrics.pace.comment,
