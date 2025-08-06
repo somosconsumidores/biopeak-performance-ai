@@ -68,6 +68,16 @@ interface OvertrainingRisk {
   recommendation: string;
 }
 
+interface SleepAnalytics {
+  sleepScore: number | null;
+  lastSleepDate: string | null;
+  hoursSlept: string | null;
+  qualityComment: string;
+  deepSleepPercentage: number;
+  lightSleepPercentage: number;
+  remSleepPercentage: number;
+}
+
 export function useDashboardMetrics() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activityDistribution, setActivityDistribution] = useState<ActivityDistribution[]>([]);
@@ -75,6 +85,7 @@ export function useDashboardMetrics() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [peakPerformance, setPeakPerformance] = useState<PeakPerformance | null>(null);
   const [overtrainingRisk, setOvertrainingRisk] = useState<OvertrainingRisk | null>(null);
+  const [sleepAnalytics, setSleepAnalytics] = useState<SleepAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -142,11 +153,113 @@ export function useDashboardMetrics() {
       const overtraining = calculateOvertrainingRisk(activities);
       setOvertrainingRisk(overtraining);
 
+      // Buscar dados de sono
+      const sleepData = await fetchSleepData();
+      setSleepAnalytics(sleepData);
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError(error instanceof Error ? error.message : 'Erro ao carregar dados');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSleepData = async (): Promise<SleepAnalytics> => {
+    if (!user) {
+      return {
+        sleepScore: null,
+        lastSleepDate: null,
+        hoursSlept: null,
+        qualityComment: 'Dados de sono não disponíveis.',
+        deepSleepPercentage: 0,
+        lightSleepPercentage: 0,
+        remSleepPercentage: 0,
+      };
+    }
+
+    try {
+      // Buscar dados de sono mais recentes
+      const { data: sleepData, error } = await supabase
+        .from('garmin_sleep_summaries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('calendar_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !sleepData) {
+        return {
+          sleepScore: null,
+          lastSleepDate: null,
+          hoursSlept: null,
+          qualityComment: 'Ainda não há dados de sono registrados.',
+          deepSleepPercentage: 0,
+          lightSleepPercentage: 0,
+          remSleepPercentage: 0,
+        };
+      }
+
+      // Calcular horas dormidas
+      const totalSleepSeconds = sleepData.sleep_time_in_seconds || 0;
+      const hours = Math.floor(totalSleepSeconds / 3600);
+      const minutes = Math.floor((totalSleepSeconds % 3600) / 60);
+      const hoursSlept = `${hours}h ${minutes}m`;
+
+      // Calcular percentuais dos tipos de sono
+      const deepSeconds = sleepData.deep_sleep_duration_in_seconds || 0;
+      const lightSeconds = sleepData.light_sleep_duration_in_seconds || 0;
+      const remSeconds = sleepData.rem_sleep_duration_in_seconds || 0;
+      const totalSeconds = deepSeconds + lightSeconds + remSeconds;
+
+      const deepPercentage = totalSeconds > 0 ? Math.round((deepSeconds / totalSeconds) * 100) : 0;
+      const lightPercentage = totalSeconds > 0 ? Math.round((lightSeconds / totalSeconds) * 100) : 0;
+      const remPercentage = totalSeconds > 0 ? Math.round((remSeconds / totalSeconds) * 100) : 0;
+
+      // Gerar comentário de qualidade baseado no score
+      const sleepScore = sleepData.sleep_score || 0;
+      let qualityComment = '';
+      
+      if (sleepScore >= 80) {
+        qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
+      } else if (sleepScore >= 70) {
+        qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
+      } else if (sleepScore >= 60) {
+        qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
+      } else if (sleepScore > 0) {
+        qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
+      } else {
+        qualityComment = 'Score de sono não disponível para esta noite.';
+      }
+
+      // Formatar data
+      const lastSleepDate = new Date(sleepData.calendar_date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+
+      return {
+        sleepScore,
+        lastSleepDate,
+        hoursSlept,
+        qualityComment,
+        deepSleepPercentage: deepPercentage,
+        lightSleepPercentage: lightPercentage,
+        remSleepPercentage: remPercentage,
+      };
+
+    } catch (error) {
+      console.error('Error fetching sleep data:', error);
+      return {
+        sleepScore: null,
+        lastSleepDate: null,
+        hoursSlept: null,
+        qualityComment: 'Erro ao carregar dados de sono.',
+        deepSleepPercentage: 0,
+        lightSleepPercentage: 0,
+        remSleepPercentage: 0,
+      };
     }
   };
 
@@ -626,6 +739,7 @@ export function useDashboardMetrics() {
     recentActivities,
     peakPerformance,
     overtrainingRisk,
+    sleepAnalytics,
     loading,
     error,
     refetch: fetchDashboardData

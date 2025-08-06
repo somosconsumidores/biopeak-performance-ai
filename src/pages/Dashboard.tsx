@@ -25,7 +25,9 @@ import {
   Loader2,
   PieChart as PieChartIcon,
   ShieldAlert,
-  Info
+  Info,
+  Moon,
+  Brain
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -36,6 +38,7 @@ export const Dashboard = () => {
     recentActivities, 
     peakPerformance, 
     overtrainingRisk,
+    sleepAnalytics,
     loading, 
     error 
   } = useDashboardMetrics();
@@ -465,6 +468,121 @@ export const Dashboard = () => {
               </Card>
             </ScrollReveal>
           </div>
+
+          {/* Sleep Analytics */}
+          {sleepAnalytics && (
+            <ScrollReveal delay={450}>
+              <Card className="glass-card border-glass-border mb-6 md:mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Moon className="h-5 w-5 text-primary" />
+                    <span>Análise do Sono</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* Sleep Score & Duration */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-3xl font-bold text-foreground">
+                            {sleepAnalytics.sleepScore || 'N/A'}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Score de Sono</div>
+                          <div className="text-xs text-muted-foreground">
+                            {sleepAnalytics.lastSleepDate ? `Última noite: ${sleepAnalytics.lastSleepDate}` : 'Sem dados recentes'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-primary">
+                            {sleepAnalytics.hoursSlept || 'N/A'}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Tempo Dormido</div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg bg-muted/20 border border-muted">
+                        <h4 className="font-semibold mb-2 text-primary flex items-center space-x-2">
+                          <Clock className="h-4 w-4" />
+                          <span>Qualidade do Sono</span>
+                        </h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {sleepAnalytics.qualityComment}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sleep Stages Distribution */}
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-foreground flex items-center space-x-2">
+                        <Brain className="h-4 w-4" />
+                        <span>Distribuição das Fases do Sono</span>
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        {/* Deep Sleep */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Sono Profundo</span>
+                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.deepSleepPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${sleepAnalytics.deepSleepPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Light Sleep */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Sono Leve</span>
+                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.lightSleepPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${sleepAnalytics.lightSleepPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* REM Sleep */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Sono REM</span>
+                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.remSleepPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${sleepAnalytics.remSleepPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <div className="text-xs text-blue-400 font-medium">Profundo</div>
+                          <div className="text-xs text-muted-foreground">Recuperação</div>
+                        </div>
+                        <div className="p-2 rounded-lg bg-cyan-400/10 border border-cyan-400/20">
+                          <div className="text-xs text-cyan-400 font-medium">Leve</div>
+                          <div className="text-xs text-muted-foreground">Transição</div>
+                        </div>
+                        <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                          <div className="text-xs text-purple-400 font-medium">REM</div>
+                          <div className="text-xs text-muted-foreground">Memória</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
 
           {/* Recent Workouts */}
           <ScrollReveal delay={500}>
