@@ -1469,6 +1469,36 @@ export type Database = {
           },
         ]
       }
+      sleep_feedback_analysis: {
+        Row: {
+          analysis_text: string
+          created_at: string
+          id: string
+          overtraining_data: Json
+          sleep_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_text: string
+          created_at?: string
+          id?: string
+          overtraining_data: Json
+          sleep_data: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_text?: string
+          created_at?: string
+          id?: string
+          overtraining_data?: Json
+          sleep_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       strava_activities: {
         Row: {
           average_heartrate: number | null

@@ -76,6 +76,7 @@ interface SleepAnalytics {
   deepSleepPercentage: number;
   lightSleepPercentage: number;
   remSleepPercentage: number;
+  totalSleepMinutes: number;
 }
 
 export function useDashboardMetrics() {
@@ -175,6 +176,7 @@ export function useDashboardMetrics() {
         deepSleepPercentage: 0,
         lightSleepPercentage: 0,
         remSleepPercentage: 0,
+        totalSleepMinutes: 0,
       };
     }
 
@@ -197,6 +199,7 @@ export function useDashboardMetrics() {
           deepSleepPercentage: 0,
           lightSleepPercentage: 0,
           remSleepPercentage: 0,
+          totalSleepMinutes: 0,
         };
       }
 
@@ -247,6 +250,7 @@ export function useDashboardMetrics() {
         deepSleepPercentage: deepPercentage,
         lightSleepPercentage: lightPercentage,
         remSleepPercentage: remPercentage,
+        totalSleepMinutes: Math.round(totalSleepSeconds / 60),
       };
 
     } catch (error) {
@@ -259,6 +263,7 @@ export function useDashboardMetrics() {
         deepSleepPercentage: 0,
         lightSleepPercentage: 0,
         remSleepPercentage: 0,
+        totalSleepMinutes: 0,
       };
     }
   };

@@ -70,7 +70,9 @@ serve(async (req) => {
 🏃‍♂️ Risco de Overtraining: ${overtrainingData?.level || 'baixo'} (${overtrainingData?.score || 0}/100)
 ⚠️ Fatores identificados: ${overtrainingFactors}
 
-Com base nesses dados, responda:
+IMPORTANTE: Mencione nominalmente o score de overtraining (${overtrainingData?.score || 0}/100) nas suas análises para dar mais credibilidade.
+
+Com base nesses dados, responda de forma limpa e direta (sem usar asteriscos * para formatação):
 
 1. 📈 Qual é a **eficiência e qualidade fisiológica** do sono desse atleta hoje?
 2. 🧠 Quais **impactos esperados** esse padrão de sono pode ter na **recuperação neural, cognição e tempo de reação**?

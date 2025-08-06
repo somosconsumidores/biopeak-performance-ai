@@ -26,6 +26,7 @@ import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AdminPanel } from "./pages/AdminPanel";
+import { SleepFeedbacks } from "./pages/SleepFeedbacks";
 import MobileBottomBar from "./components/MobileBottomBar";
 
 const queryClient = new QueryClient();
@@ -141,6 +142,11 @@ function AppRoutes() {
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminPanel />
+          </ProtectedRoute>
+        } />
+        <Route path="/sleep-feedbacks" element={
+          <ProtectedRoute>
+            <SleepFeedbacks />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

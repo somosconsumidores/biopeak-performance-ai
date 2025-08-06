@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
-import { useSleepAIAnalysis } from '@/hooks/useSleepAIAnalysis';
+import { SleepAnalysisDialog } from '@/components/SleepAnalysisDialog';
 
 import { 
   Activity, 
@@ -49,35 +49,28 @@ export const Dashboard = () => {
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
   
-  const { 
-    analysis: sleepAnalysis, 
-    loading: sleepAnalysisLoading, 
-    error: sleepAnalysisError, 
-    analyzeSleep, 
-    clearAnalysis 
-  } = useSleepAIAnalysis();
 
-  const [showSleepAnalysisModal, setShowSleepAnalysisModal] = useState(false);
+  // Get sleep and overtraining data for AI analysis
+  const getSleepAnalysisData = () => {
+    if (!sleepAnalytics || !overtrainingRisk) return null;
 
-  const handleAnalyzeSleep = async () => {
-    if (!sleepAnalytics || !overtrainingRisk) return;
-
+    const totalSleepMinutes = sleepAnalytics.totalSleepMinutes || 0;
+    
     const sleepData = {
-      sleepScore: sleepAnalytics.sleepScore,
-      totalSleep: Math.round((Number(sleepAnalytics.hoursSlept?.replace('h', '')) || 0) * 60), // Convert hours to minutes
-      lightSleep: Math.round(((sleepAnalytics.lightSleepPercentage || 0) / 100) * (Number(sleepAnalytics.hoursSlept?.replace('h', '')) || 0) * 60),
-      deepSleep: Math.round(((sleepAnalytics.deepSleepPercentage || 0) / 100) * (Number(sleepAnalytics.hoursSlept?.replace('h', '')) || 0) * 60),
-      remSleep: Math.round(((sleepAnalytics.remSleepPercentage || 0) / 100) * (Number(sleepAnalytics.hoursSlept?.replace('h', '')) || 0) * 60),
+      sleepScore: sleepAnalytics.sleepScore || 0,
+      totalSleep: totalSleepMinutes,
+      lightSleep: Math.round((sleepAnalytics.lightSleepPercentage / 100) * totalSleepMinutes),
+      deepSleep: Math.round((sleepAnalytics.deepSleepPercentage / 100) * totalSleepMinutes),
+      remSleep: Math.round((sleepAnalytics.remSleepPercentage / 100) * totalSleepMinutes),
     };
 
-    const overtrainingData = {
+    const overtrainingAnalysisData = {
       score: overtrainingRisk.score,
       level: overtrainingRisk.level,
       factors: overtrainingRisk.factors,
     };
 
-    await analyzeSleep(sleepData, overtrainingData);
-    setShowSleepAnalysisModal(true);
+    return { sleepData, overtrainingData: overtrainingAnalysisData };
   };
 
   if (loading) {
@@ -512,20 +505,15 @@ export const Dashboard = () => {
                       <Moon className="w-4 h-4 text-primary" />
                       <h3 className="text-lg font-semibold">Análise do Sono</h3>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAnalyzeSleep}
-                      disabled={sleepAnalysisLoading || !sleepAnalytics}
-                      className="flex items-center gap-2"
-                    >
-                      {sleepAnalysisLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Brain className="w-4 h-4" />
-                      )}
-                      {sleepAnalysisLoading ? 'Analisando...' : 'Peça a IA para analisar'}
-                    </Button>
+                    {(() => {
+                      const analysisData = getSleepAnalysisData();
+                      return analysisData ? (
+                        <SleepAnalysisDialog 
+                          sleepData={analysisData.sleepData}
+                          overtrainingData={analysisData.overtrainingData}
+                        />
+                      ) : null;
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -744,38 +732,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Sleep AI Analysis Modal */}
-      <Dialog open={showSleepAnalysisModal} onOpenChange={setShowSleepAnalysisModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Brain className="w-5 h-5 text-primary" />
-              Análise de Sono por IA
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {sleepAnalysisError && (
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <p className="text-destructive text-sm">{sleepAnalysisError}</p>
-              </div>
-            )}
-            
-            {sleepAnalysis && (
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {sleepAnalysis.analysis}
-                </div>
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground">
-                    Análise realizada em: {new Date(sleepAnalysis.analyzedAt).toLocaleString('pt-BR')}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
