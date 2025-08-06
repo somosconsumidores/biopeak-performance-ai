@@ -200,7 +200,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         : hasHeartRateData ? 'N/A' : 'Auto',
       mainLabel: hasHeartRateData ? 'bpm' : 'Adaptação',
       secondaryValue: hasHeartRateData && metrics.heartRate.relativeIntensity 
-        ? `${(metrics.heartRate.relativeIntensity * 100).toFixed(0)}%`
+        ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%`
         : undefined,
       secondaryLabel: 'Intensidade',
       comment: metrics.heartRate.comment,
