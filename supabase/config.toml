@@ -64,6 +64,9 @@ verify_jwt = true
 [functions.reprocess-stuck-webhooks]
 verify_jwt = true
 
+[functions.reprocess-sleep-notifications]
+verify_jwt = true
+
 [functions.recover-specific-webhook]
 verify_jwt = false
 
