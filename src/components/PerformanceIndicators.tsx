@@ -248,47 +248,51 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     <div className="w-full space-y-6">
       {/* Header */}
       <Card className="glass-card border-glass-border">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/20">
-              <Target className="h-6 w-6 text-primary" />
+        <CardHeader className="space-y-4 pb-4">
+          <div className={`flex items-start justify-between ${isMobile ? 'flex-col gap-4' : 'flex-row'}`}>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Target className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className={`font-bold ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+                  Indicadores de Performance
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Análise detalhada da sua atividade
+                </p>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-2xl font-bold">Indicadores de Performance</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Análise detalhada da sua atividade
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={hasHeartRateData ? "default" : "secondary"} 
-              className="text-sm font-medium px-3 py-1"
-            >
-              {hasHeartRateData ? (
-                <>
-                  <Heart className="h-3 w-3 mr-1" />
-                  COM FC
-                </>
-              ) : (
-                <>
-                  <Activity className="h-3 w-3 mr-1" />
-                  SEM FC
-                </>
-              )}
-            </Badge>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => recalculateMetrics.mutate({ activityId })}
-              disabled={recalculateMetrics.isPending}
-              className="h-10 px-4"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${recalculateMetrics.isPending ? 'animate-spin' : ''}`} />
-              {recalculateMetrics.isPending ? 'Calculando...' : 'Recalcular'}
-            </Button>
+            <div className={`flex items-center ${isMobile ? 'w-full justify-between' : 'gap-3'}`}>
+              <Badge 
+                variant={hasHeartRateData ? "default" : "secondary"} 
+                className={`font-medium px-3 py-1 ${isMobile ? 'text-xs' : 'text-sm'}`}
+              >
+                {hasHeartRateData ? (
+                  <>
+                    <Heart className="h-3 w-3 mr-1" />
+                    COM FC
+                  </>
+                ) : (
+                  <>
+                    <Activity className="h-3 w-3 mr-1" />
+                    SEM FC
+                  </>
+                )}
+              </Badge>
+              
+              <Button
+                variant="outline"
+                size={isMobile ? "sm" : "sm"}
+                onClick={() => recalculateMetrics.mutate({ activityId })}
+                disabled={recalculateMetrics.isPending}
+                className={`px-4 ${isMobile ? 'h-8 text-xs' : 'h-10'}`}
+              >
+                <RefreshCw className={`mr-2 ${recalculateMetrics.isPending ? 'animate-spin' : ''} ${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                {recalculateMetrics.isPending ? 'Calculando...' : 'Recalcular'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
