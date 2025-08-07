@@ -6,11 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface DataPoint {
-  distance: number;
-  time: number;
-}
-
 interface BestSegmentResult {
   inicio_metros: number;
   fim_metros: number;
