@@ -21,13 +21,28 @@ export function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have the necessary tokens in the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      navigate('/auth');
-    }
+    // Handle the auth state change from the magic link
+    const handleAuthStateChange = async () => {
+      // Get the session from the URL parameters or storage
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+        return;
+      }
+
+      if (!session) {
+        console.log('No session found, redirecting to auth');
+        navigate('/auth');
+        return;
+      }
+
+      // If we have a session, the user can reset their password
+      console.log('Session found, user can reset password');
+    };
+
+    handleAuthStateChange();
   }, [searchParams, navigate]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
