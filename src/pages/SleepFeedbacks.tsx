@@ -5,6 +5,7 @@ import { Trash2, Brain, Calendar, BarChart3 } from 'lucide-react';
 import { useSleepFeedback } from '@/hooks/useSleepFeedback';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollReveal } from '@/components/ScrollReveal';
+import { Header } from '@/components/Header';
 
 export const SleepFeedbacks = () => {
   const { savedFeedbacks, loading, error, loadFeedbacks, deleteFeedback } = useSleepFeedback();
@@ -82,18 +83,20 @@ export const SleepFeedbacks = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <ScrollReveal>
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
-            <Brain className="h-8 w-8 text-primary" />
-            Meus Feedbacks de Sono
-          </h1>
-          <p className="text-muted-foreground">
-            Histórico das suas análises de sono geradas por IA
-          </p>
-        </div>
-      </ScrollReveal>
+    <>
+      <Header />
+      <div className="container mx-auto px-4 py-8 pt-20">
+        <ScrollReveal>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
+              <Brain className="h-8 w-8 text-primary" />
+              Meus Feedbacks de Sono
+            </h1>
+            <p className="text-muted-foreground">
+              Histórico das suas análises de sono geradas por IA
+            </p>
+          </div>
+        </ScrollReveal>
 
       {error && (
         <ScrollReveal>
@@ -195,7 +198,8 @@ export const SleepFeedbacks = () => {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
