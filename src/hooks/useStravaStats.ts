@@ -30,11 +30,13 @@ export const useStravaStats = () => {
       }
 
       try {
-        // Check if user has valid Strava tokens
+        // Check if user has valid Strava tokens - get the most recent one
         const { data: tokenData, error: tokenError } = await supabase
           .from('strava_tokens')
           .select('access_token, expires_at')
           .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         console.log("🔍 [useStravaStats] Token query result:", { 

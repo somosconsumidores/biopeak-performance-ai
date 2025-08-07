@@ -11,6 +11,7 @@ interface StravaConfig {
 
 export const useStravaAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -153,6 +154,14 @@ export const useStravaAuth = () => {
   };
 
   const handleCallback = async (code: string, state: string): Promise<boolean> => {
+    // Prevent concurrent processing
+    if (isProcessing) {
+      console.warn('⚠️ [StravaAuth] Already processing callback, skipping...');
+      return false;
+    }
+
+    setIsProcessing(true);
+
     try {
       console.log('🚀 [StravaAuth] Callback received:', {
         hasCode: !!code,
@@ -412,7 +421,7 @@ export const useStravaAuth = () => {
       });
       
       return true;
-      
+
     } catch (error) {
       console.error('❌ [StravaAuth] Callback error:', error);
       toast({
@@ -421,6 +430,8 @@ export const useStravaAuth = () => {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsProcessing(false);
     }
   };
 
