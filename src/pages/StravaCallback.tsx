@@ -67,6 +67,8 @@ export default function StravaCallback() {
         console.error('[StravaCallback] OAuth error received:', error);
         setStatus('error');
         setMessage(`Erro na autorização: ${error}`);
+        // Clear URL params before redirect
+        window.history.replaceState({}, '', '/strava-callback');
         setTimeout(() => navigate('/sync'), 3000);
         return;
       }
@@ -75,6 +77,8 @@ export default function StravaCallback() {
         console.error('[StravaCallback] Missing parameters:', { code: !!code, state: !!state });
         setStatus('error');
         setMessage('Parâmetros de autorização ausentes');
+        // Clear URL params before redirect
+        window.history.replaceState({}, '', '/strava-callback');
         setTimeout(() => navigate('/sync'), 3000);
         return;
       }
@@ -93,6 +97,8 @@ export default function StravaCallback() {
           console.error('[StravaCallback] Authentication failed');
           setStatus('error');
           setMessage('Falha na autenticação com o Strava');
+          // Clear URL params before redirect
+          window.history.replaceState({}, '', '/strava-callback');
           setTimeout(() => navigate('/sync'), 3000);
           return;
         }
@@ -100,6 +106,10 @@ export default function StravaCallback() {
         console.log('[StravaCallback] Authentication successful!');
         setStatus('success');
         setMessage('Strava conectado com sucesso!');
+        
+        // Clear URL params immediately after successful auth to prevent re-processing
+        console.log('[StravaCallback] Clearing URL parameters to prevent re-processing...');
+        window.history.replaceState({}, '', '/strava-callback');
         
         // Force refresh of Strava stats to update UI immediately
         console.log('[StravaCallback] Invalidating all Strava queries...');
@@ -128,13 +138,25 @@ export default function StravaCallback() {
         console.error('[StravaCallback] Callback processing error:', error);
         setStatus('error');
         setMessage('Erro inesperado durante o processamento');
+        // Clear URL params before redirect
+        window.history.replaceState({}, '', '/strava-callback');
         setTimeout(() => navigate('/sync'), 3000);
       } finally {
         setIsProcessing(false);
       }
     };
 
-    processCallback();
+    // Only process if we have the required parameters
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    
+    if (code && state) {
+      processCallback();
+    } else if (!isProcessing) {
+      // If no params and not processing, redirect to sync page
+      console.log('[StravaCallback] No OAuth parameters found, redirecting to sync...');
+      navigate('/sync');
+    }
   }, [searchParams, handleCallback, navigate, isProcessing, syncActivities]);
 
   const getIcon = () => {
