@@ -27,6 +27,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
 import { useUnifiedActivityHistory } from '@/hooks/useUnifiedActivityHistory';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
@@ -42,6 +43,7 @@ import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
 export const WorkoutSession = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     searchParams.get('activityId')
@@ -50,12 +52,19 @@ export const WorkoutSession = () => {
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
-  const { getSegmentByActivity, formatPace: formatBestSegmentPace } = useActivityBestSegments();
+  const { getSegmentByActivity, formatPace: formatBestSegmentPace, fetchUserSegments, segments } = useActivityBestSegments();
   
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
     (activities.length > 0 ? activities[0] : latestActivity);
-  
+
+  // Load user segments when component mounts or user changes
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserSegments(user.id);
+    }
+  }, [user?.id, fetchUserSegments]);
+
   // Debug logs
   console.log('🔍 WORKOUT SESSION:', {
     latestActivity: !!latestActivity,
@@ -309,7 +318,17 @@ export const WorkoutSession = () => {
                     <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
                     <div className="text-lg sm:text-2xl font-bold">
                       {(() => {
-                        const bestSegment = getSegmentByActivity(currentActivity.activity_id);
+                        // Convert activity ID to string for comparison since DB stores as string
+                        const activityIdStr = String(currentActivity.activity_id);
+                        const bestSegment = getSegmentByActivity(activityIdStr);
+                        console.log('🔍 BEST SEGMENT DEBUG:', {
+                          activityId: currentActivity.activity_id,
+                          activityIdStr,
+                          bestSegment,
+                          allSegments: segments,
+                          segmentsCount: segments.length,
+                          userId: user?.id
+                        });
                         return bestSegment?.best_1km_pace_min_km 
                           ? formatBestSegmentPace(bestSegment.best_1km_pace_min_km)
                           : '--';
