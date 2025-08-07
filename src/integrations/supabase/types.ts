@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_best_segments: {
+        Row: {
+          activity_date: string | null
+          activity_id: string
+          best_1km_pace_min_km: number | null
+          created_at: string
+          id: string
+          segment_duration_seconds: number | null
+          segment_end_distance_meters: number | null
+          segment_start_distance_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string | null
+          activity_id: string
+          best_1km_pace_min_km?: number | null
+          created_at?: string
+          id?: string
+          segment_duration_seconds?: number | null
+          segment_end_distance_meters?: number | null
+          segment_start_distance_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string | null
+          activity_id?: string
+          best_1km_pace_min_km?: number | null
+          created_at?: string
+          id?: string
+          segment_duration_seconds?: number | null
+          segment_end_distance_meters?: number | null
+          segment_start_distance_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json
