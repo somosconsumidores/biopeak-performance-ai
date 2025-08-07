@@ -29,7 +29,7 @@ import heroLogoLight from '@/assets/biopeak-logo-light.png';
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png';
-import heroAnimation from '@/assets/hero-animation-new.gif';
+
 
 export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
@@ -131,7 +131,7 @@ export const LandingPage = () => {
               {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
-              <img src={heroAnimation} alt="BioPeak Animation" className="h-56 sm:h-80 w-auto max-w-2xl" />
+              <img src="https://static.wixstatic.com/media/a025ad_cf5ff4a4d6074fb7b479925857fd7130~mv2.png" alt="BioPeak Hero" className="h-56 sm:h-80 w-auto max-w-2xl" />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
