@@ -28,50 +28,88 @@ function haversine(coord1: [number, number], coord2: [number, number]): number {
 }
 
 function getBestMovingSegment(points: ActivityPoint[], segmentDistance = 1000) {
-  let bestPace = Infinity;
+  console.log(`📊 Processing ${points.length} GPS points for best 1km segment`);
+  
+  if (points.length < 10) {
+    console.log('❌ Insufficient GPS points for analysis (need at least 10 points)');
+    return null;
+  }
+
+  // Sort points by time to ensure correct order
+  points.sort((a, b) => a.time - b.time);
+  
   let bestSegment = null;
+  let bestPace = Infinity;
+  let segmentsAnalyzed = 0;
 
-  for (let start = 0; start < points.length; start++) {
-    let totalDistance = 0;
-    const segmentStart = points[start];
-    let segmentEnd = null;
+  console.log(`🔍 Searching for best ${segmentDistance}m segment using accumulated distance...`);
 
-    for (let end = start + 1; end < points.length; end++) {
-      const p1 = points[end - 1];
-      const p2 = points[end];
-      totalDistance += haversine([p1.lat, p1.lon], [p2.lat, p2.lon]);
-
-      if (totalDistance >= segmentDistance) {
-        segmentEnd = points[end];
+  // Sliding window algorithm to find the BEST (fastest) 1km segment
+  for (let i = 0; i < points.length - 1; i++) {
+    const startPoint = points[i];
+    
+    if (!startPoint.distance || !startPoint.time) continue;
+    
+    // Find the end point that completes approximately segmentDistance meters
+    for (let j = i + 1; j < points.length; j++) {
+      const endPoint = points[j];
+      
+      if (!endPoint.distance || !endPoint.time) continue;
+      
+      // Use accumulated distance from Garmin data (more accurate than Haversine)
+      const distance = endPoint.distance - startPoint.distance;
+      const duration = endPoint.time - startPoint.time; // seconds
+      
+      // Check if we've reached our target distance (with tolerance)
+      if (distance >= segmentDistance * 0.98 && distance <= segmentDistance * 1.05) {
+        if (duration > 0) {
+          const pace = (duration / 60) / (distance / 1000); // minutes per km
+          segmentsAnalyzed++;
+          
+          // Track the best (fastest) segment
+          if (pace < bestPace) {
+            bestPace = pace;
+            bestSegment = {
+              startTime: startPoint.time,
+              endTime: endPoint.time,
+              startDistance: startPoint.distance,
+              endDistance: endPoint.distance,
+              durationSec: duration,
+              paceMinPerKm: pace
+            };
+            
+            const startTimeStr = new Date(startPoint.time * 1000).toISOString().slice(11, 19);
+            const endTimeStr = new Date(endPoint.time * 1000).toISOString().slice(11, 19);
+            console.log(`🏃 New best segment: ${distance.toFixed(0)}m in ${(duration/60).toFixed(2)}min (${pace.toFixed(2)} min/km) [${startTimeStr}-${endTimeStr}]`);
+          }
+        }
+        break; // Found our distance, move to next starting point
+      }
+      
+      // If distance exceeds target significantly, stop searching from this start point
+      if (distance > segmentDistance * 1.1) {
         break;
       }
     }
-
-    if (segmentEnd) {
-      const durationSec = segmentEnd.time - segmentStart.time;
-      const pace = (durationSec / 60) / (segmentDistance / 1000); // min/km
-
-      if (pace < bestPace && pace > 0) {
-        bestPace = pace;
-        bestSegment = {
-          startTime: segmentStart.time,
-          endTime: segmentEnd.time,
-          startDistance: segmentStart.distance,
-          endDistance: segmentEnd.distance,
-          durationSec: durationSec,
-          paceMinPerKm: pace
-        };
-      }
-    }
   }
-
-  if (!bestSegment) return null;
-
-  return {
-    ...bestSegment,
-    paceMinPerKm: Number(bestSegment.paceMinPerKm.toFixed(2)),
-    durationSec: Number(bestSegment.durationSec.toFixed(2))
-  };
+  
+  console.log(`📈 Analyzed ${segmentsAnalyzed} potential segments`);
+  
+  if (bestSegment) {
+    const startTime = new Date(bestSegment.startTime * 1000).toISOString();
+    const endTime = new Date(bestSegment.endTime * 1000).toISOString();
+    console.log(`✅ Best segment found: ${(bestSegment.endDistance - bestSegment.startDistance).toFixed(0)}m in ${(bestSegment.durationSec/60).toFixed(2)}min (${bestSegment.paceMinPerKm.toFixed(2)} min/km)`);
+    console.log(`⏱️ Period: ${startTime.slice(11, 19)} UTC - ${endTime.slice(11, 19)} UTC`);
+    
+    return {
+      ...bestSegment,
+      paceMinPerKm: Number(bestSegment.paceMinPerKm.toFixed(2)),
+      durationSec: Number(bestSegment.durationSec.toFixed(2))
+    };
+  } else {
+    console.log('❌ No valid 1km segment found in the activity');
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
