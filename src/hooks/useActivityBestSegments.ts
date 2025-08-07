@@ -34,7 +34,7 @@ export function useActivityBestSegments() {
     try {
       console.log('🔄 Calculating best 1km segment for activity:', activityId);
       
-      const { data, error } = await supabase.functions.invoke('calculate-best-1km-segments', {
+      const { data, error } = await supabase.functions.invoke('calculate-best-1km-chatgpt-method', {
         body: {
           activity_id: activityId,
           user_id: userId
