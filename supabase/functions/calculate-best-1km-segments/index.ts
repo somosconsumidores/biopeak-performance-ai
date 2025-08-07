@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     // Get activity details with GPS data
     const { data: activityDetails, error: detailsError } = await supabase
       .from('garmin_activity_details')
-      .select('samples')
+      .select('samples, latitude_in_degree, longitude_in_degree, start_time_in_seconds, total_distance_in_meters, heart_rate, speed_meters_per_second')
       .eq('activity_id', activity_id)
       .eq('user_id', user_id)
 
@@ -135,27 +135,75 @@ Deno.serve(async (req) => {
       throw new Error('Activity details not found')
     }
 
-    // Extract and process GPS points
+    console.log(`📊 Found ${activityDetails.length} activity detail records`)
+
+    // Extract and process GPS points from each detail record
     const allPoints: ActivityPoint[] = []
     
     for (const detail of activityDetails) {
-      if (detail.samples && Array.isArray(detail.samples)) {
+      let gpsPoint = null
+      
+      // Try to get data from samples object (most common format)
+      if (detail.samples && typeof detail.samples === 'object') {
+        const sample = detail.samples
+        if (sample.latitudeInDegree && sample.longitudeInDegree && 
+            sample.startTimeInSeconds && sample.totalDistanceInMeters !== undefined) {
+          gpsPoint = {
+            lat: sample.latitudeInDegree,
+            lon: sample.longitudeInDegree,
+            time: sample.startTimeInSeconds,
+            distance: sample.totalDistanceInMeters
+          }
+        }
+      }
+      
+      // Try to get data from samples array (alternative format)
+      if (!gpsPoint && detail.samples && Array.isArray(detail.samples)) {
         for (const sample of detail.samples) {
           if (sample.latitudeInDegree && sample.longitudeInDegree && 
               sample.startTimeInSeconds && sample.totalDistanceInMeters !== undefined) {
-            allPoints.push({
+            gpsPoint = {
               lat: sample.latitudeInDegree,
               lon: sample.longitudeInDegree,
               time: sample.startTimeInSeconds,
               distance: sample.totalDistanceInMeters
-            })
+            }
+            break // Use first valid sample
           }
         }
       }
+      
+      // Fallback to direct columns
+      if (!gpsPoint && detail.latitude_in_degree && detail.longitude_in_degree && 
+          detail.start_time_in_seconds && detail.total_distance_in_meters !== undefined) {
+        gpsPoint = {
+          lat: detail.latitude_in_degree,
+          lon: detail.longitude_in_degree,
+          time: detail.start_time_in_seconds,
+          distance: detail.total_distance_in_meters
+        }
+      }
+      
+      if (gpsPoint) {
+        allPoints.push(gpsPoint)
+      }
     }
 
+    console.log(`📍 Extracted ${allPoints.length} GPS points`)
+
     if (allPoints.length < 10) {
-      throw new Error('Insufficient GPS data for analysis')
+      console.log('⚠️ Insufficient GPS data - need at least 10 points for analysis')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Insufficient GPS data for 1km segment analysis - need more GPS points',
+          best_segment: null
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      )
     }
 
     // Sort points by time
