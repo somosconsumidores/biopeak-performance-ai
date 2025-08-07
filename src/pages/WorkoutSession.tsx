@@ -35,6 +35,7 @@ import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { useActivityBestSegments } from '@/hooks/useActivityBestSegments';
+import { BestSegmentCard } from '@/components/BestSegmentCard';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
@@ -463,6 +464,13 @@ export const WorkoutSession = () => {
               </Card>
             </ScrollReveal>
           </div>
+
+          {/* Best 1km Segment Card */}
+          <ScrollReveal delay={650}>
+            <div className="mb-8">
+              <BestSegmentCard activityId={currentActivity.activity_id} />
+            </div>
+          </ScrollReveal>
 
           {/* Recovery Feedback */}
           <ScrollReveal delay={700}>

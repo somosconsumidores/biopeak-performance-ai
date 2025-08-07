@@ -17,7 +17,7 @@ import {
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useRecalculateMetrics } from '@/hooks/useRecalculateMetrics';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { BestSegmentCard } from '@/components/BestSegmentCard';
+
 
 interface PerformanceIndicatorsProps {
   activityId: string;
@@ -303,11 +303,6 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         {metricCards.map((card, index) => (
           <MetricCard key={index} {...card} />
         ))}
-      </div>
-
-      {/* Best 1km Segment */}
-      <div className="mt-8">
-        <BestSegmentCard activityId={activityId} />
       </div>
     </div>
   );
