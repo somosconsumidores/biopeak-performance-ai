@@ -93,27 +93,27 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { activityId, userId } = await req.json();
+    const { activity_id, user_id } = await req.json();
 
-    if (!activityId || !userId) {
-      console.log("❌ Missing required parameters: activityId and userId");
+    if (!activity_id || !user_id) {
+      console.log("❌ Missing required parameters: activity_id and user_id");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required parameters: activityId and userId" 
+          error: "Missing required parameters: activity_id and user_id" 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    console.log(`📊 Processing activity: ${activityId} for user: ${userId}`);
+    console.log(`📊 Processing activity: ${activity_id} for user: ${user_id}`);
 
     // Fetch GPS data from activity details, ordered by time
     const { data: activityDetails, error: detailsError } = await supabaseClient
       .from('garmin_activity_details')
       .select('total_distance_in_meters, start_time_in_seconds')
-      .eq('activity_id', activityId)
-      .eq('user_id', userId)
+      .eq('activity_id', activity_id)
+      .eq('user_id', user_id)
       .not('total_distance_in_meters', 'is', null)
       .not('start_time_in_seconds', 'is', null)
       .order('start_time_in_seconds', { ascending: true });
@@ -166,8 +166,8 @@ serve(async (req) => {
     const { error: upsertError } = await supabaseClient
       .from('activity_best_segments')
       .upsert({
-        user_id: userId,
-        activity_id: activityId,
+        user_id: user_id,
+        activity_id: activity_id,
         best_1km_pace_min_km: bestSegment.melhor_pace_min_km,
         segment_start_distance_meters: bestSegment.inicio_metros,
         segment_end_distance_meters: bestSegment.fim_metros,
