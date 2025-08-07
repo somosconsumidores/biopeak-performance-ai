@@ -126,13 +126,24 @@ Deno.serve(async (req) => {
     // Get activity details with GPS data
     const { data: activityDetails, error: detailsError } = await supabase
       .from('garmin_activity_details')
-      .select('samples, latitude_in_degree, longitude_in_degree, start_time_in_seconds, total_distance_in_meters, heart_rate, speed_meters_per_second')
+      .select('samples, latitude_in_degree, longitude_in_degree, start_time_in_seconds, total_distance_in_meters')
       .eq('activity_id', activity_id)
       .eq('user_id', user_id)
+      .order('start_time_in_seconds', { ascending: true })
 
-    if (detailsError || !activityDetails.length) {
+    if (detailsError || !activityDetails?.length) {
       console.error('❌ Activity details not found:', detailsError)
-      throw new Error('Activity details not found')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Activity details not found - cannot calculate segment',
+          best_segment: null
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      )
     }
 
     console.log(`📊 Found ${activityDetails.length} activity detail records`)
@@ -146,57 +157,45 @@ Deno.serve(async (req) => {
       // Try to get data from samples object (most common format)
       if (detail.samples && typeof detail.samples === 'object') {
         const sample = detail.samples
-        if (sample.latitudeInDegree && sample.longitudeInDegree && 
-            sample.startTimeInSeconds && sample.totalDistanceInMeters !== undefined) {
+        if (sample.latitudeInDegree != null && sample.longitudeInDegree != null && 
+            sample.startTimeInSeconds != null && sample.totalDistanceInMeters != null) {
           gpsPoint = {
-            lat: sample.latitudeInDegree,
-            lon: sample.longitudeInDegree,
-            time: sample.startTimeInSeconds,
-            distance: sample.totalDistanceInMeters
+            lat: Number(sample.latitudeInDegree),
+            lon: Number(sample.longitudeInDegree),
+            time: Number(sample.startTimeInSeconds),
+            distance: Number(sample.totalDistanceInMeters)
           }
         }
       }
       
-      // Try to get data from samples array (alternative format)
-      if (!gpsPoint && detail.samples && Array.isArray(detail.samples)) {
-        for (const sample of detail.samples) {
-          if (sample.latitudeInDegree && sample.longitudeInDegree && 
-              sample.startTimeInSeconds && sample.totalDistanceInMeters !== undefined) {
-            gpsPoint = {
-              lat: sample.latitudeInDegree,
-              lon: sample.longitudeInDegree,
-              time: sample.startTimeInSeconds,
-              distance: sample.totalDistanceInMeters
-            }
-            break // Use first valid sample
-          }
-        }
-      }
-      
-      // Fallback to direct columns
-      if (!gpsPoint && detail.latitude_in_degree && detail.longitude_in_degree && 
-          detail.start_time_in_seconds && detail.total_distance_in_meters !== undefined) {
+      // Fallback to direct columns if samples don't work
+      if (!gpsPoint && detail.latitude_in_degree != null && detail.longitude_in_degree != null && 
+          detail.start_time_in_seconds != null && detail.total_distance_in_meters != null) {
         gpsPoint = {
-          lat: detail.latitude_in_degree,
-          lon: detail.longitude_in_degree,
-          time: detail.start_time_in_seconds,
-          distance: detail.total_distance_in_meters
+          lat: Number(detail.latitude_in_degree),
+          lon: Number(detail.longitude_in_degree),
+          time: Number(detail.start_time_in_seconds),
+          distance: Number(detail.total_distance_in_meters)
         }
       }
       
-      if (gpsPoint) {
+      // Validate the GPS point
+      if (gpsPoint && 
+          !isNaN(gpsPoint.lat) && !isNaN(gpsPoint.lon) && 
+          !isNaN(gpsPoint.time) && !isNaN(gpsPoint.distance) &&
+          Math.abs(gpsPoint.lat) <= 90 && Math.abs(gpsPoint.lon) <= 180) {
         allPoints.push(gpsPoint)
       }
     }
 
-    console.log(`📍 Extracted ${allPoints.length} GPS points`)
+    console.log(`📍 Extracted ${allPoints.length} valid GPS points`)
 
     if (allPoints.length < 10) {
       console.log('⚠️ Insufficient GPS data - need at least 10 points for analysis')
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Insufficient GPS data for 1km segment analysis - need more GPS points',
+          message: `Insufficient GPS data for 1km segment analysis - only ${allPoints.length} valid points found`,
           best_segment: null
         }),
         {
@@ -206,10 +205,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Sort points by time
+    // Sort points by time to ensure correct order
     allPoints.sort((a, b) => a.time - b.time)
     
-    console.log(`📊 Processing ${allPoints.length} GPS points`)
+    console.log(`📊 Processing ${allPoints.length} GPS points for 1km segment analysis`)
+    console.log(`🏃 Distance range: ${allPoints[0]?.distance?.toFixed(2)}m to ${allPoints[allPoints.length-1]?.distance?.toFixed(2)}m`)
+    console.log(`⏰ Time range: ${Math.round((allPoints[allPoints.length-1]?.time - allPoints[0]?.time) / 60)} minutes`)
 
     // Calculate best 1km segment
     const bestSegment = getBestMovingSegment(allPoints, 1000)
@@ -219,7 +220,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'No valid 1km segment found',
+          message: 'No valid 1km segment found in the activity data',
           best_segment: null
         }),
         {
