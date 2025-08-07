@@ -33,6 +33,7 @@ import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
+import { useActivityBestSegments } from '@/hooks/useActivityBestSegments';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
@@ -49,6 +50,7 @@ export const WorkoutSession = () => {
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
+  const { getSegmentByActivity, formatPace: formatBestSegmentPace } = useActivityBestSegments();
   
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
@@ -272,7 +274,7 @@ export const WorkoutSession = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
                   <div className="text-center">
                     <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
                     <div className="text-lg sm:text-2xl font-bold">{formatDuration(currentActivity.duration_in_seconds)}</div>
@@ -302,6 +304,18 @@ export const WorkoutSession = () => {
                     <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
                     <div className="text-lg sm:text-2xl font-bold">{formatElevation(currentActivity.total_elevation_gain_in_meters)}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Elevação</div>
+                  </div>
+                  <div className="text-center">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
+                    <div className="text-lg sm:text-2xl font-bold">
+                      {(() => {
+                        const bestSegment = getSegmentByActivity(currentActivity.activity_id);
+                        return bestSegment?.best_1km_pace_min_km 
+                          ? formatBestSegmentPace(bestSegment.best_1km_pace_min_km)
+                          : '--';
+                      })()}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Melhor 1km</div>
                   </div>
                 </div>
               </CardContent>
