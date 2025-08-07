@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,10 +26,27 @@ export const BestSegmentCard = ({ activityId, compact = false }: BestSegmentCard
     calculateBestSegment, 
     getSegmentByActivity,
     formatPace,
-    formatDuration 
+    formatDuration,
+    fetchUserSegments
   } = useActivityBestSegments();
 
+  // Load user segments when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserSegments(user.id);
+    }
+  }, [user?.id, fetchUserSegments]);
+
   const segment = getSegmentByActivity(activityId);
+
+  // Debug log
+  console.log('🔍 BEST SEGMENT CARD DEBUG:', {
+    activityId,
+    segment,
+    allSegments: segments,
+    segmentsCount: segments.length,
+    userId: user?.id
+  });
 
   const handleCalculate = async () => {
     if (!user?.id) return;
