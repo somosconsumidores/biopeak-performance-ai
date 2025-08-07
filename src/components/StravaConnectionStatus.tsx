@@ -7,17 +7,21 @@ import { useStravaStats } from "@/hooks/useStravaStats";
 import { useStravaSync } from "@/hooks/useStravaSync";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const StravaConnectionStatus = () => {
   const { handleStravaConnect, isLoading: isConnecting } = useStravaAuth();
-  const { data: stats, isLoading: isLoadingStats } = useStravaStats();
+  const { data: stats, isLoading: isLoadingStats, refetch } = useStravaStats();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useStravaSync();
+  const queryClient = useQueryClient();
 
   const handleSync = async () => {
     const success = await syncActivities();
     if (success) {
       // Refresh stats after successful sync
-      window.location.reload();
+      queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
+      refetch();
     }
   };
 

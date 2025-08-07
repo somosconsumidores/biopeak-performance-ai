@@ -116,8 +116,8 @@ export const useStravaStats = () => {
       }
     },
     enabled: !!user,
-    staleTime: 10000, // Consider data stale after 10 seconds
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 5000, // Consider data stale after 5 seconds (reduced for faster refresh)
+    refetchInterval: 15000, // Refetch every 15 seconds (more frequent)
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 };

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface StravaConfig {
   clientId: string;
@@ -12,6 +13,7 @@ export const useStravaAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleStravaConnect = async () => {
     setIsLoading(true);
@@ -400,6 +402,10 @@ export const useStravaAuth = () => {
         athleteName: authData.athlete?.firstname
       });
 
+      // Invalidate Strava stats query to refresh the UI
+      console.log('🔄 [StravaAuth] Invalidating strava-stats query...');
+      queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
+      
       toast({
         title: "Conectado com sucesso!",
         description: `Bem-vindo, ${authData.athlete?.firstname || 'atleta'}!`,

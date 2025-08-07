@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaSync } from '@/hooks/useStravaSync';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -11,6 +12,7 @@ export default function StravaCallback() {
   const navigate = useNavigate();
   const { handleCallback } = useStravaAuth();
   const { syncActivities, isLoading: isSyncing } = useStravaSync();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -99,6 +101,11 @@ export default function StravaCallback() {
         setStatus('success');
         setMessage('Strava conectado com sucesso!');
         
+        // Force refresh of Strava stats to update UI immediately
+        console.log('[StravaCallback] Invalidating all Strava queries...');
+        queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
+        
         // Start automatic sync after successful authentication
         console.log('[StravaCallback] Starting automatic activity sync...');
         setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
@@ -107,6 +114,9 @@ export default function StravaCallback() {
         const syncSuccess = await syncActivities();
         if (syncSuccess) {
           setMessage('Atividades sincronizadas com sucesso!');
+          // Refresh queries again after sync
+          queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
         } else {
           setMessage('Strava conectado, mas houve erro na sincronização');
         }
