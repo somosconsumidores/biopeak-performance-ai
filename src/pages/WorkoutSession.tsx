@@ -34,8 +34,6 @@ import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
-import { useActivityBestSegments } from '@/hooks/useActivityBestSegments';
-import { BestSegmentCard } from '@/components/BestSegmentCard';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
@@ -53,18 +51,12 @@ export const WorkoutSession = () => {
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
-  const { getSegmentByActivity, formatPace: formatBestSegmentPace, fetchUserSegments, segments } = useActivityBestSegments();
+  
   
   // Determine which activity to show - prioritize unified activities
   const currentActivity = selectedActivityId ? getActivityById(selectedActivityId) : 
     (activities.length > 0 ? activities[0] : latestActivity);
 
-  // Load user segments when component mounts or user changes
-  useEffect(() => {
-    if (user?.id) {
-      fetchUserSegments(user.id);
-    }
-  }, [user?.id, fetchUserSegments]);
 
   // Debug logs
   console.log('🔍 WORKOUT SESSION:', {
@@ -315,28 +307,6 @@ export const WorkoutSession = () => {
                     <div className="text-lg sm:text-2xl font-bold">{formatElevation(currentActivity.total_elevation_gain_in_meters)}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Elevação</div>
                   </div>
-                  <div className="text-center">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
-                    <div className="text-lg sm:text-2xl font-bold">
-                      {(() => {
-                        // Convert activity ID to string for comparison since DB stores as string
-                        const activityIdStr = String(currentActivity.activity_id);
-                        const bestSegment = getSegmentByActivity(activityIdStr);
-                        console.log('🔍 BEST SEGMENT DEBUG:', {
-                          activityId: currentActivity.activity_id,
-                          activityIdStr,
-                          bestSegment,
-                          allSegments: segments,
-                          segmentsCount: segments.length,
-                          userId: user?.id
-                        });
-                        return bestSegment?.best_1km_pace_min_km 
-                          ? formatBestSegmentPace(bestSegment.best_1km_pace_min_km)
-                          : '--';
-                      })()}
-                    </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">Melhor 1km</div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -465,12 +435,6 @@ export const WorkoutSession = () => {
             </ScrollReveal>
           </div>
 
-          {/* Best 1km Segment Card */}
-          <ScrollReveal delay={650}>
-            <div className="mb-8">
-              <BestSegmentCard activityId={currentActivity.activity_id} />
-            </div>
-          </ScrollReveal>
 
           {/* Recovery Feedback */}
           <ScrollReveal delay={700}>
