@@ -111,6 +111,3 @@ verify_jwt = false
 
 [functions.strava-webhook]
 verify_jwt = false
-
-[functions.calculate-best-1km-chatgpt-method]
-verify_jwt = true
