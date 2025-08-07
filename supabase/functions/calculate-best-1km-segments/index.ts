@@ -35,133 +35,76 @@ function getBestMovingSegment(points: ActivityPoint[], segmentDistance = 1000) {
     return null;
   }
 
-  // Sort points by time to ensure correct order
-  points.sort((a, b) => a.time - b.time);
+  // Sort points by distance to ensure correct order
+  points.sort((a, b) => a.distance - b.distance);
   
+  console.log(`🔍 Searching for best ${segmentDistance}m segment (${points[0]?.distance?.toFixed(0)}m-${points[points.length-1]?.distance?.toFixed(0)}m tolerance)`);
+  console.log(`📍 Data range: ${points[0]?.distance?.toFixed(0)}m to ${points[points.length-1]?.distance?.toFixed(0)}m`);
+
+  // Find approximately how many records correspond to 1km
+  let recordsFor1km = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (points[i].distance >= segmentDistance) {
+      recordsFor1km = i + 1; // +1 because we need to include the current record
+      break;
+    }
+  }
+
+  if (recordsFor1km === 0) {
+    console.log('❌ Activity shorter than 1km - cannot calculate best segment');
+    return null;
+  }
+
+  console.log(`📏 Approximately ${recordsFor1km} records correspond to ${segmentDistance}m`);
+
   let bestSegment = null;
   let bestPace = Infinity;
   let segmentsAnalyzed = 0;
-  let validSegmentsFound = 0;
-
-  // Improved tolerance - much stricter for 1km accuracy (±1%)
-  const minDistance = segmentDistance * 0.99; // 990m minimum
-  const maxDistance = segmentDistance * 1.01; // 1010m maximum
   
-  console.log(`🔍 Searching for best ${segmentDistance}m segment (${minDistance.toFixed(0)}m-${maxDistance.toFixed(0)}m tolerance)`);
-  console.log(`📍 Data range: ${points[0]?.distance?.toFixed(0)}m to ${points[points.length-1]?.distance?.toFixed(0)}m`);
-
-  // Multiple analysis approaches
-  const segments = [];
-  
-  // Approach 1: Optimized sliding window with stricter tolerance
-  for (let i = 0; i < points.length - 1; i++) {
-    const startPoint = points[i];
+  // For each position starting from where we have enough records for 1km
+  for (let i = recordsFor1km - 1; i < points.length; i++) {
+    const endPoint = points[i];
+    const startIndex = i - recordsFor1km + 1;
+    const startPoint = points[startIndex];
     
-    if (!startPoint.distance || !startPoint.time) continue;
+    if (!startPoint || !endPoint || !startPoint.time || !endPoint.time || 
+        !startPoint.distance || !endPoint.distance) continue;
     
-    // Binary search approach for finding end point more efficiently
-    let left = i + 1;
-    let right = points.length - 1;
-    let bestEndIndex = -1;
+    const distance = endPoint.distance - startPoint.distance;
+    const duration = endPoint.time - startPoint.time;
     
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const endPoint = points[mid];
+    if (duration <= 0 || distance <= 0) continue;
+    
+    const pace = (duration / 60) / (distance / 1000);
+    segmentsAnalyzed++;
+    
+    const segment = {
+      startTime: startPoint.time,
+      endTime: endPoint.time,
+      startDistance: startPoint.distance,
+      endDistance: endPoint.distance,
+      distance: distance,
+      durationSec: duration,
+      paceMinPerKm: pace,
+      startIndex: startIndex,
+      endIndex: i,
+      windowSize: recordsFor1km
+    };
+    
+    if (pace < bestPace) {
+      bestPace = pace;
+      bestSegment = segment;
       
-      if (!endPoint.distance || !endPoint.time) {
-        left = mid + 1;
-        continue;
-      }
-      
-      const distance = endPoint.distance - startPoint.distance;
-      
-      if (distance >= minDistance && distance <= maxDistance) {
-        bestEndIndex = mid;
-        break;
-      } else if (distance < minDistance) {
-        left = mid + 1;
-      } else {
-        right = mid - 1;
-      }
-    }
-    
-    // If binary search found a candidate, also check nearby points for better precision
-    if (bestEndIndex !== -1) {
-      const checkPoints = [];
-      for (let k = Math.max(bestEndIndex - 5, i + 1); k <= Math.min(bestEndIndex + 5, points.length - 1); k++) {
-        checkPoints.push(k);
-      }
-      
-      for (const j of checkPoints) {
-        const endPoint = points[j];
-        
-        if (!endPoint.distance || !endPoint.time) continue;
-        
-        const distance = endPoint.distance - startPoint.distance;
-        const duration = endPoint.time - startPoint.time;
-        
-        if (distance >= minDistance && distance <= maxDistance && duration > 0) {
-          const pace = (duration / 60) / (distance / 1000);
-          segmentsAnalyzed++;
-          
-          const segment = {
-            startTime: startPoint.time,
-            endTime: endPoint.time,
-            startDistance: startPoint.distance,
-            endDistance: endPoint.distance,
-            distance: distance,
-            durationSec: duration,
-            paceMinPerKm: pace,
-            startIndex: i,
-            endIndex: j
-          };
-          
-          segments.push(segment);
-          
-          if (pace < bestPace) {
-            bestPace = pace;
-            bestSegment = segment;
-            validSegmentsFound++;
-            
-            const startTimeStr = new Date(startPoint.time * 1000).toISOString().slice(11, 19);
-            const endTimeStr = new Date(endPoint.time * 1000).toISOString().slice(11, 19);
-            console.log(`🏃 New best segment #${validSegmentsFound}: ${distance.toFixed(1)}m in ${(duration/60).toFixed(2)}min (${pace.toFixed(2)} min/km) [${startTimeStr}-${endTimeStr}]`);
-          }
-        }
-      }
-    }
-    
-    // Skip ahead to avoid overlapping segments (optimization)
-    if (bestEndIndex !== -1) {
-      i = bestEndIndex - 10; // Small overlap to not miss potential better segments
+      const startTimeStr = new Date(startPoint.time * 1000).toISOString().slice(11, 19);
+      const endTimeStr = new Date(endPoint.time * 1000).toISOString().slice(11, 19);
+      console.log(`🏃 New best segment: ${distance.toFixed(1)}m in ${(duration/60).toFixed(2)}min (${pace.toFixed(3)} min/km) [${startTimeStr}-${endTimeStr}] (window: ${recordsFor1km} records)`);
     }
   }
   
-  console.log(`📈 Analyzed ${segmentsAnalyzed} potential segments, found ${validSegmentsFound} valid 1km segments`);
+  console.log(`📈 Analyzed ${segmentsAnalyzed} segments with fixed window of ${recordsFor1km} records`);
   
-  // Additional analysis: Look for lap-like patterns (consecutive segments with similar paces)
-  if (segments.length > 0) {
-    console.log(`🔍 Additional analysis of ${segments.length} total segments:`);
-    
-    // Sort segments by pace to see the fastest ones
-    const sortedSegments = [...segments].sort((a, b) => a.paceMinPerKm - b.paceMinPerKm);
-    const topSegments = sortedSegments.slice(0, Math.min(5, sortedSegments.length));
-    
-    console.log(`🏆 Top ${topSegments.length} fastest segments:`);
-    topSegments.forEach((seg, idx) => {
-      const startTimeStr = new Date(seg.startTime * 1000).toISOString().slice(11, 19);
-      const endTimeStr = new Date(seg.endTime * 1000).toISOString().slice(11, 19);
-      console.log(`  ${idx + 1}. ${seg.distance.toFixed(1)}m in ${(seg.durationSec/60).toFixed(2)}min (${seg.paceMinPerKm.toFixed(2)} min/km) [${startTimeStr}-${endTimeStr}]`);
-    });
-    
-    // Cross-validation: Check if we missed any obvious patterns
-    const paceVariation = sortedSegments.length > 1 ? 
-      ((sortedSegments[sortedSegments.length-1].paceMinPerKm - sortedSegments[0].paceMinPerKm) / sortedSegments[0].paceMinPerKm * 100) : 0;
-    console.log(`📊 Pace variation across segments: ${paceVariation.toFixed(1)}%`);
-    
-    if (paceVariation > 50) {
-      console.log(`⚠️ High pace variation detected - activity may have intervals or varying terrain`);
-    }
+  if (segmentsAnalyzed < 10) {
+    console.log(`⚠️ Only ${segmentsAnalyzed} segments analyzed - may not be reliable`);
   }
   
   if (bestSegment) {
