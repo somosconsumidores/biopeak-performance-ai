@@ -12,6 +12,7 @@ import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { SleepAnalysisDialog } from '@/components/SleepAnalysisDialog';
+import { BestSegmentsHistory } from '@/components/BestSegmentsHistory';
 
 import { 
   Activity, 
@@ -620,6 +621,13 @@ export const Dashboard = () => {
               </Card>
             </ScrollReveal>
           )}
+
+          {/* Best Segments History */}
+          <ScrollReveal delay={475}>
+            <div className="mb-6 md:mb-8">
+              <BestSegmentsHistory limit={3} compact={true} />
+            </div>
+          </ScrollReveal>
 
           {/* Recent Workouts */}
           <ScrollReveal delay={500}>
