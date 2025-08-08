@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useGarminTokenManager } from './useGarminTokenManager';
 import { useAccessTracker } from './useAccessTracker';
+import { getProductionRedirectUrl } from '@/lib/utils';
 
 interface AuthContextType {
   user: User | null;
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getProductionRedirectUrl("/");
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: getProductionRedirectUrl("/reset-password"),
       });
       return { error };
     } catch (error: any) {
