@@ -74,36 +74,53 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           if (metricsError.code === 'PGRST116') {
             console.log('⚡ No pre-calculated metrics found. Detecting activity source...');
             
-            // Try to detect if this is a Strava activity
-            console.log('🔍 Checking if activity is Strava. Activity ID:', activityId, 'User ID:', user.id);
+            // Try to detect activity source (Strava, Polar, or Garmin)
+            console.log('🔍 Detecting activity source. Activity ID:', activityId, 'User ID:', user.id);
             
             // Check if activityId is a UUID (contains hyphens) or a number
             let stravaActivity = null;
+            let polarActivity = null;
             let stravaCheckError = null;
+            let polarCheckError = null;
             
             if (activityId.includes('-')) {
               // It's a UUID, check by our internal ID
-              const result = await supabase
+              const stravaResult = await supabase
                 .from('strava_activities')
                 .select('strava_activity_id, id')
                 .eq('id', activityId)
                 .eq('user_id', user.id)
                 .single();
-              stravaActivity = result.data;
-              stravaCheckError = result.error;
+              stravaActivity = stravaResult.data;
+              stravaCheckError = stravaResult.error;
+
+              // Also check for Polar activity
+              const polarResult = await supabase
+                .from('polar_activities')
+                .select('activity_id, id')
+                .eq('id', activityId)
+                .eq('user_id', user.id)
+                .single();
+              polarActivity = polarResult.data;
+              polarCheckError = polarResult.error;
             } else {
               // It's a number, check by strava_activity_id
-              const result = await supabase
+              const stravaResult = await supabase
                 .from('strava_activities')
                 .select('strava_activity_id, id')
                 .eq('strava_activity_id', parseInt(activityId))
                 .eq('user_id', user.id)
                 .single();
-              stravaActivity = result.data;
-              stravaCheckError = result.error;
+              stravaActivity = stravaResult.data;
+              stravaCheckError = stravaResult.error;
             }
             
-            console.log('🔍 Strava activity check result:', { stravaActivity, stravaCheckError });
+            console.log('🔍 Activity source check results:', { 
+              stravaActivity, 
+              stravaCheckError,
+              polarActivity,
+              polarCheckError 
+            });
 
             let functionName = 'calculate-performance-metrics';
             let activityIdForFunction = activityId;
@@ -113,6 +130,11 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
               functionName = 'calculate-strava-performance-metrics';
               // Always use the UUID for the function call
               activityIdForFunction = stravaActivity.id;
+            } else if (polarActivity) {
+              console.log('🎯 Detected Polar activity, using Polar-specific metrics');
+              functionName = 'calculate-polar-performance-metrics';
+              // Always use the UUID for the function call
+              activityIdForFunction = polarActivity.id;
             }
             
             console.log('📞 Calling function:', functionName, 'with activity ID:', activityIdForFunction);
@@ -177,11 +199,12 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 // Format metrics from database format to component format
 function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
   const isStravaActivity = dbMetrics.activity_source === 'strava';
+  const isPolarActivity = dbMetrics.activity_source === 'polar';
   
   return {
     efficiency: {
-      powerPerBeat: isStravaActivity ? null : dbMetrics.power_per_beat,
-      distancePerMinute: isStravaActivity ? dbMetrics.movement_efficiency : dbMetrics.distance_per_minute,
+      powerPerBeat: (isStravaActivity || isPolarActivity) ? null : dbMetrics.power_per_beat,
+      distancePerMinute: dbMetrics.movement_efficiency || dbMetrics.distance_per_minute,
       comment: dbMetrics.efficiency_comment || "Sem dados suficientes"
     },
     pace: {
@@ -190,9 +213,9 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
       comment: dbMetrics.pace_comment || "Sem dados suficientes"
     },
     heartRate: {
-      averageHr: isStravaActivity ? null : dbMetrics.average_hr,
-      relativeIntensity: isStravaActivity ? null : dbMetrics.relative_intensity,
-      relativeReserve: isStravaActivity ? null : dbMetrics.relative_reserve,
+      averageHr: (isStravaActivity || isPolarActivity) ? null : dbMetrics.average_hr,
+      relativeIntensity: (isStravaActivity || isPolarActivity) ? null : dbMetrics.relative_intensity,
+      relativeReserve: (isStravaActivity || isPolarActivity) ? null : dbMetrics.relative_reserve,
       comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
     },
     effortDistribution: {
