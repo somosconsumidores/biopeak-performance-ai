@@ -88,10 +88,13 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
   
   try {
     // Find user by athlete ID with token expiration data
+    // Convert to number to handle scientific notation in database
     const { data: userData } = await serviceRoleClient
       .from('strava_tokens')
       .select('user_id, access_token, refresh_token, expires_at')
-      .eq('athlete_id', payload.owner_id)
+      .eq('athlete_id', Number(payload.owner_id))
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (!userData) {
