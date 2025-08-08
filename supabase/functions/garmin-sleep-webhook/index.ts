@@ -188,25 +188,50 @@ serve(async (req) => {
             });
 
             if (syncResponse.error) {
-              console.error(`[garmin-sleep-webhook] Sync function error:`, syncResponse.error);
+              // Check if this is a rate limiting error (429)
+              const isRateLimited = syncResponse.error.context?.status === 429;
               
-              // Update webhook log status
-              if (webhookLog) {
-                await supabase
-                  .from('garmin_webhook_logs')
-                  .update({
-                    status: 'failed',
-                    error_message: syncResponse.error.message
-                  })
-                  .eq('id', webhookLog.id);
-              }
+              if (isRateLimited) {
+                console.log(`[garmin-sleep-webhook] Rate limited for user ${userId} - sleep sync will retry later`);
+                
+                // Update webhook log status to rate_limited instead of failed
+                if (webhookLog) {
+                  await supabase
+                    .from('garmin_webhook_logs')
+                    .update({
+                      status: 'rate_limited',
+                      error_message: 'Rate limited - will retry later'
+                    })
+                    .eq('id', webhookLog.id);
+                }
 
-              results.push({
-                userId: garminUserId,
-                summaryId,
-                status: 'error',
-                message: `Sync failed: ${syncResponse.error.message}`
-              });
+                results.push({
+                  userId: garminUserId,
+                  summaryId,
+                  status: 'rate_limited',
+                  message: 'Rate limited - sync will retry later'
+                });
+              } else {
+                console.error(`[garmin-sleep-webhook] Sync function error:`, syncResponse.error);
+                
+                // Update webhook log status to failed for real errors
+                if (webhookLog) {
+                  await supabase
+                    .from('garmin_webhook_logs')
+                    .update({
+                      status: 'failed',
+                      error_message: syncResponse.error.message
+                    })
+                    .eq('id', webhookLog.id);
+                }
+
+                results.push({
+                  userId: garminUserId,
+                  summaryId,
+                  status: 'error',
+                  message: `Sync failed: ${syncResponse.error.message}`
+                });
+              }
             } else {
               console.log(`[garmin-sleep-webhook] Successfully triggered sync for user ${userId}`);
               

@@ -116,6 +116,8 @@ serve(async (req) => {
     }
 
     // Check rate limiting to prevent excessive sync requests
+    // Increased limit for sleep data: 15 syncs per hour (vs 5 for activities)
+    // Sleep webhooks can arrive multiple times for the same period
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data: recentSyncs } = await supabase
       .from('garmin_sync_control')
@@ -124,13 +126,21 @@ serve(async (req) => {
       .eq('sync_type', 'sleep')
       .gte('created_at', oneHourAgo);
 
-    if (recentSyncs && recentSyncs.length >= 5) {
+    const rateLimit = isWebhookTriggered ? 15 : 10; // Higher limit for webhooks vs manual syncs
+    
+    if (recentSyncs && recentSyncs.length >= rateLimit) {
+      console.log(`[sync-garmin-sleep] Rate limit hit: ${recentSyncs.length}/${rateLimit} syncs in last hour for user ${userId}`);
       return new Response(JSON.stringify({
         error: 'Rate limit exceeded',
-        message: 'Too many sync requests in the last hour'
+        message: `Too many sync requests in the last hour (${recentSyncs.length}/${rateLimit})`,
+        retryAfter: 3600 // Retry after 1 hour
       }), { 
         status: 429, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Retry-After': '3600'
+        }
       });
     }
 
