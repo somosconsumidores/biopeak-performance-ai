@@ -5,21 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper function to parse ISO 8601 duration to seconds
-function parseDurationToSeconds(duration: string): number | null {
+// Helper function to safely convert duration to seconds
+function getDurationInSeconds(duration: any): number | null {
   if (!duration) return null
   
-  // Format: PT1H23M45S or PT45M30S or PT30S
-  const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/
-  const match = duration.match(regex)
+  // If it's already a number (seconds), return it
+  if (typeof duration === 'number') {
+    return duration
+  }
   
-  if (!match) return null
+  // If it's a string that represents a number
+  if (typeof duration === 'string' && !isNaN(Number(duration))) {
+    return Number(duration)
+  }
   
-  const hours = parseInt(match[1] || '0', 10)
-  const minutes = parseInt(match[2] || '0', 10)
-  const seconds = parseFloat(match[3] || '0')
-  
-  return hours * 3600 + minutes * 60 + seconds
+  return null
 }
 
 Deno.serve(async (req) => {
@@ -48,11 +48,16 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('id', activity_id)
       .eq('user_id', user_id)
-      .single()
+      .maybeSingle()
 
     if (activityError) {
-      console.error('❌ Polar activity not found:', activityError)
-      throw new Error(`Polar activity not found: ${activityError.message}`)
+      console.error('❌ Error fetching Polar activity:', activityError)
+      throw new Error(`Error fetching Polar activity: ${activityError.message}`)
+    }
+
+    if (!activity) {
+      console.error('❌ Polar activity not found for ID:', activity_id)
+      throw new Error(`Polar activity not found for ID: ${activity_id}`)
     }
 
     console.log('✅ Found Polar activity:', activity.sport || 'Unknown Sport')
@@ -109,14 +114,19 @@ Deno.serve(async (req) => {
 
 function calculateBasicPolarMetrics(activity: any) {
   console.log(`🔍 Analyzing Polar activity: ${activity.sport}`)
+  console.log(`📊 Duration value: ${activity.duration} (type: ${typeof activity.duration})`)
+  console.log(`📏 Distance value: ${activity.distance} meters`)
 
-  // Parse duration from ISO 8601 format
-  const durationSeconds = parseDurationToSeconds(activity.duration)
+  // Get duration in seconds (Polar stores duration as number in seconds)
+  const durationSeconds = getDurationInSeconds(activity.duration)
   const durationMinutes = durationSeconds ? durationSeconds / 60 : null
   
   // Basic calculations from activity summary
   const distanceKm = activity.distance ? activity.distance / 1000 : null
   const calories = activity.calories
+
+  console.log(`⏱️ Duration: ${durationSeconds}s (${durationMinutes?.toFixed(2)}min)`)
+  console.log(`📍 Distance: ${distanceKm?.toFixed(2)}km`)
 
   // Movement Efficiency: distance per minute
   const movementEfficiency = (durationMinutes && distanceKm) 
@@ -128,14 +138,24 @@ function calculateBasicPolarMetrics(activity: any) {
     ? (distanceKm / durationMinutes) * 60 
     : null
 
+  // Calculate pace in min/km
+  const avgPaceMinKm = (avgSpeedKmh && avgSpeedKmh > 0) 
+    ? 60 / avgSpeedKmh 
+    : null
+
+  console.log(`🏃 Calculated metrics:`)
+  console.log(`  - Movement efficiency: ${movementEfficiency?.toFixed(3)} km/min`)
+  console.log(`  - Average speed: ${avgSpeedKmh?.toFixed(2)} km/h`)
+  console.log(`  - Average pace: ${avgPaceMinKm?.toFixed(2)} min/km`)
+
   // Generate comments based on calculations
   const efficiencyComment = movementEfficiency 
-    ? `Eficiência de movimento: ${movementEfficiency.toFixed(2)} km/min`
+    ? `Eficiência de movimento: ${movementEfficiency.toFixed(3)} km/min`
     : "Dados insuficientes para calcular eficiência"
 
-  const paceComment = avgSpeedKmh
-    ? `Velocidade média: ${avgSpeedKmh.toFixed(2)} km/h`
-    : "Dados de velocidade indisponíveis"
+  const paceComment = avgPaceMinKm
+    ? `Pace médio: ${Math.floor(avgPaceMinKm)}:${Math.round((avgPaceMinKm % 1) * 60).toString().padStart(2, '0')} min/km`
+    : "Dados de pace indisponíveis"
 
   const heartRateComment = "Análise de frequência cardíaca não disponível para dados Polar básicos"
 
