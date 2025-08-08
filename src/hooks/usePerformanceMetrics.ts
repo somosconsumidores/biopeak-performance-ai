@@ -104,7 +104,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
               polarActivity = polarResult.data;
               polarCheckError = polarResult.error;
             } else {
-              // It's a number, check by strava_activity_id
+              // It's a number, check by strava_activity_id and polar activity_id
               const stravaResult = await supabase
                 .from('strava_activities')
                 .select('strava_activity_id, id')
@@ -113,6 +113,16 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
                 .single();
               stravaActivity = stravaResult.data;
               stravaCheckError = stravaResult.error;
+
+              // Also check for Polar activity by activity_id (numeric)
+              const polarResult = await supabase
+                .from('polar_activities')
+                .select('activity_id, id')
+                .eq('activity_id', activityId)
+                .eq('user_id', user.id)
+                .single();
+              polarActivity = polarResult.data;
+              polarCheckError = polarResult.error;
             }
             
             console.log('🔍 Activity source check results:', { 
