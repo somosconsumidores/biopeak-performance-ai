@@ -11,18 +11,28 @@ interface PolarActivity {
   'upload-time': string;
   'polar-user': string;
   duration: string;
-  calories: number;
-  distance: number;
-  'heart-rate': {
-    average: number;
-    maximum: number;
+  calories?: number;
+  distance?: number;
+  sport?: string;
+  'detailed-sport-info'?: string;
+  'heart-rate'?: {
+    average?: number;
+    maximum?: number;
   };
+  'start-time'?: string;
+  'start-time-utc-offset'?: number;
 }
 
 function parseDurationToSeconds(duration: string): number | null {
-  const match = duration.match(/PT(\d+(?:\.\d+)?)S/);
+  if (!duration) return null;
+  
+  // Handle different duration formats: PT1H30M45S, PT30M45S, PT45S
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
   if (match) {
-    return parseFloat(match[1]);
+    const hours = parseInt(match[1] || '0');
+    const minutes = parseInt(match[2] || '0');
+    const seconds = parseFloat(match[3] || '0');
+    return hours * 3600 + minutes * 60 + seconds;
   }
   return null;
 }
@@ -42,21 +52,83 @@ async function fetchAndStorePolarSamples(
 ) {
   console.log(`Fetching samples for activity ${activityId}`);
   
-  const samplesUrl = `https://www.polaraccesslink.com/v3/exercises/${activityId}/samples`;
+  // Try multiple possible endpoints for activity samples
+  const possibleEndpoints = [
+    `https://www.polaraccesslink.com/v3/exercises/${activityId}/samples`,
+    `https://www.polaraccesslink.com/v3/exercises/${activityId}/tcx`,
+    `https://www.polaraccesslink.com/v3/exercises/${activityId}/gpx`
+  ];
   
-  const samplesResponse = await fetch(samplesUrl, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json'
-    }
-  });
+  let samplesData = null;
+  let samplesResponse = null;
+  
+  // Try each endpoint with retry logic
+  for (const endpoint of possibleEndpoints) {
+    console.log(`Trying endpoint: ${endpoint}`);
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        samplesResponse = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        });
 
-  if (!samplesResponse.ok) {
-    console.log(`No samples available for activity ${activityId}: ${samplesResponse.status}`);
+        console.log(`Attempt ${attempt} for ${endpoint}: ${samplesResponse.status}`);
+        
+        if (samplesResponse.ok) {
+          samplesData = await samplesResponse.json();
+          console.log(`Successfully fetched data from ${endpoint}`);
+          break;
+        } else if (samplesResponse.status === 404) {
+          console.log(`Endpoint ${endpoint} returned 404, trying next endpoint`);
+          break; // Try next endpoint
+        } else if (samplesResponse.status >= 500 && attempt < 3) {
+          console.log(`Server error ${samplesResponse.status}, retrying in ${attempt * 1000}ms`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+          continue;
+        }
+      } catch (error) {
+        console.log(`Network error on attempt ${attempt} for ${endpoint}:`, error.message);
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+      }
+    }
+    
+    if (samplesData) break; // Found data, stop trying other endpoints
+  }
+
+  if (!samplesData) {
+    console.log(`No samples available for activity ${activityId} from any endpoint`);
+    // Create a basic detail record even without samples
+    const basicDetail = {
+      activity_id: activityId,
+      user_id: userId,
+      polar_user_id: polarUserId,
+      activity_type: activityData.sport || 'unknown',
+      activity_name: `Polar Activity ${activityId}`,
+      activity_summary: activityData,
+      samples: null,
+      duration_in_seconds: parseDurationToSeconds(activityData.duration),
+      total_distance_in_meters: activityData.distance || null,
+      heart_rate: activityData['heart-rate']?.average || null
+    };
+    
+    const { error: insertError } = await supabase
+      .from('polar_activity_details')
+      .insert([basicDetail]);
+
+    if (insertError) {
+      console.error(`Error inserting basic detail for activity ${activityId}:`, insertError);
+      throw insertError;
+    }
+    
+    console.log(`Inserted basic detail record for activity ${activityId}`);
     return;
   }
 
-  const samplesData = await samplesResponse.json();
   console.log(`Got samples data for activity ${activityId}:`, JSON.stringify(samplesData).substring(0, 200));
 
   if (!samplesData.samples || samplesData.samples.length === 0) {
@@ -193,26 +265,62 @@ serve(async (req) => {
           continue;
         }
 
-        // Fetch activity data from Polar API
+        // Fetch activity data from Polar API with retry logic
         const activityUrl = `https://www.polaraccesslink.com/v3/exercises/${activity.activity_id}`;
         console.log(`Fetching activity from: ${activityUrl}`);
         
-        const activityResponse = await fetch(activityUrl, {
-          headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
-            'Accept': 'application/json'
-          }
-        });
+        let activityData = null;
+        let lastError = null;
+        
+        // Retry logic for activity fetching
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const activityResponse = await fetch(activityUrl, {
+              headers: {
+                'Authorization': `Bearer ${tokenData.access_token}`,
+                'Accept': 'application/json'
+              }
+            });
 
-        if (!activityResponse.ok) {
-          console.log(`Failed to fetch activity ${activity.activity_id}: ${activityResponse.status}`);
-          errors.push(`Failed to fetch activity ${activity.activity_id}: ${activityResponse.status}`);
+            console.log(`Activity fetch attempt ${attempt}: ${activityResponse.status}`);
+            
+            if (activityResponse.ok) {
+              activityData = await activityResponse.json();
+              console.log(`Successfully fetched activity data for ${activity.activity_id}`);
+              break;
+            } else if (activityResponse.status === 404) {
+              lastError = `Activity ${activity.activity_id} not found (404)`;
+              console.log(lastError);
+              break; // Don't retry on 404
+            } else if (activityResponse.status === 401 || activityResponse.status === 403) {
+              lastError = `Authentication failed for activity ${activity.activity_id} (${activityResponse.status})`;
+              console.log(lastError);
+              break; // Don't retry on auth errors
+            } else if (activityResponse.status >= 500 && attempt < 3) {
+              lastError = `Server error ${activityResponse.status} for activity ${activity.activity_id}`;
+              console.log(`${lastError}, retrying in ${attempt * 1000}ms`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+              continue;
+            } else {
+              lastError = `HTTP ${activityResponse.status} for activity ${activity.activity_id}`;
+              console.log(lastError);
+              break;
+            }
+          } catch (error) {
+            lastError = `Network error: ${error.message}`;
+            console.log(`Network error on attempt ${attempt} for activity ${activity.activity_id}:`, error.message);
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+            }
+          }
+        }
+
+        if (!activityData) {
+          console.log(`Failed to fetch activity ${activity.activity_id}: ${lastError}`);
+          errors.push(`Failed to fetch activity ${activity.activity_id}: ${lastError}`);
           errorCount++;
           continue;
         }
-
-        const activityData = await activityResponse.json();
-        console.log(`Fetched activity data for ${activity.activity_id}`);
 
         // Fetch and store activity samples
         await fetchAndStorePolarSamples(
