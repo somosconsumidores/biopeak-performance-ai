@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface PerformanceMetrics {
+  activity_source?: string;
+  calories?: number;
+  duration?: number;
   efficiency: {
     powerPerBeat: number | null;
     distancePerMinute: number | null;
@@ -14,6 +17,7 @@ interface PerformanceMetrics {
   };
   heartRate: {
     averageHr: number | null;
+    maxHr?: number | null;
     relativeIntensity: number | null;
     relativeReserve: number | null;
     comment: string;
@@ -218,6 +222,9 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
   const isPolarActivity = dbMetrics.activity_source === 'polar';
   
   return {
+    activity_source: dbMetrics.activity_source,
+    calories: dbMetrics.calories,
+    duration: dbMetrics.duration_seconds,
     efficiency: {
       powerPerBeat: isStravaActivity ? null : dbMetrics.power_per_beat,
       distancePerMinute: dbMetrics.movement_efficiency || dbMetrics.distance_per_minute,
@@ -230,6 +237,7 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
     },
     heartRate: {
       averageHr: isPolarActivity ? dbMetrics.average_hr : (isStravaActivity ? null : dbMetrics.average_hr),
+      maxHr: isPolarActivity ? dbMetrics.max_hr : (isStravaActivity ? null : dbMetrics.max_hr),
       relativeIntensity: isPolarActivity ? dbMetrics.relative_intensity : (isStravaActivity ? null : dbMetrics.relative_intensity),
       relativeReserve: isPolarActivity ? dbMetrics.relative_reserve : (isStravaActivity ? null : dbMetrics.relative_reserve),
       comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
@@ -324,6 +332,9 @@ async function calculateBasicPolarMetrics(activityUuidOrExternalId: string, user
     const movementEfficiency = (distanceKm && durationMinutes) ? distanceKm / durationMinutes : null;
 
     return {
+      activity_source: 'polar',
+      calories: activity.calories || null,
+      duration: durationSeconds || null,
       efficiency: {
         powerPerBeat: null,
         distancePerMinute: movementEfficiency,
@@ -336,6 +347,7 @@ async function calculateBasicPolarMetrics(activityUuidOrExternalId: string, user
       },
       heartRate: {
         averageHr: activity.average_heart_rate_bpm || null,
+        maxHr: activity.maximum_heart_rate_bpm || null,
         relativeIntensity: null,
         relativeReserve: null,
         comment: activity.average_heart_rate_bpm ? 
