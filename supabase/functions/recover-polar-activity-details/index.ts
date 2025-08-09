@@ -184,8 +184,7 @@ serve(async (req) => {
           .select('access_token')
           .eq('user_id', activity.user_id)
           .eq('is_active', true)
-          .limit(1)
-          .single();
+          .maybeSingle();
 
         if (tokenError || !tokenData) {
           console.log(`No active token found for user ${activity.user_id}`);

@@ -2108,6 +2108,16 @@ export type Database = {
           active: boolean
         }[]
       }
+      get_polar_activities_without_details: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          activity_id: string
+          user_id: string
+          polar_user_id: number
+          activity_type: string
+          start_time: string
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string
