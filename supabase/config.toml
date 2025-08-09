@@ -4,6 +4,9 @@ project_id = "grcwlmltlcltmwbhdpky"
 [functions.recover-polar-webhook-activities]
 verify_jwt = false
 
+[functions.recover-polar-activity-details]
+verify_jwt = false
+
 [functions.strava-token-refresh]
 verify_jwt = false
 

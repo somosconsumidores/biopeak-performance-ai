@@ -300,59 +300,114 @@ export const AdminPanel = () => {
                 Recuperação de Atividades Polar
               </CardTitle>
               <CardDescription>
-                Recuperar detalhes de atividades Polar a partir dos webhooks
+                Recuperar detalhes de atividades Polar
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Esta função processa webhooks de exercícios Polar que foram recebidos mas não processados,
-                  recuperando os dados completos das atividades e armazenando nos detalhes.
-                </p>
-                <Button
-                  onClick={async () => {
-                    try {
-                      setRefreshing(true);
-                      const response = await supabase.functions.invoke('recover-polar-webhook-activities');
-                      
-                      if (response.error) {
-                        throw response.error;
-                      }
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Recuperar de Webhooks</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Processa webhooks recebidos mas não processados, criando novas atividades.
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setRefreshing(true);
+                          const response = await supabase.functions.invoke('recover-polar-webhook-activities');
+                          
+                          if (response.error) {
+                            throw response.error;
+                          }
 
-                      const result = response.data;
-                      toast({
-                        title: "Recuperação concluída",
-                        description: `${result.processed_count} atividades processadas, ${result.error_count} erros`,
-                      });
-                      
-                      if (result.errors && result.errors.length > 0) {
-                        console.error('Recovery errors:', result.errors);
-                      }
-                      
-                      await fetchStats();
-                    } catch (error) {
-                      console.error('Recovery error:', error);
-                      toast({
-                        title: "Erro na recuperação",
-                        description: error.message || "Erro desconhecido",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setRefreshing(false);
-                    }
-                  }}
-                  disabled={refreshing}
-                  className="w-full"
-                >
-                  {refreshing ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    'Recuperar Atividades Polar'
-                  )}
-                </Button>
+                          const result = response.data;
+                          toast({
+                            title: "Recuperação concluída",
+                            description: `${result.processed_count} atividades processadas, ${result.error_count} erros`,
+                          });
+                          
+                          if (result.errors && result.errors.length > 0) {
+                            console.error('Recovery errors:', result.errors);
+                          }
+                          
+                          await fetchStats();
+                        } catch (error) {
+                          console.error('Recovery error:', error);
+                          toast({
+                            title: "Erro na recuperação",
+                            description: error.message || "Erro desconhecido",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setRefreshing(false);
+                        }
+                      }}
+                      disabled={refreshing}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                    >
+                      {refreshing ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Processando...
+                        </>
+                      ) : (
+                        'Recuperar de Webhooks'
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Recuperar Detalhes</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Busca detalhes para atividades existentes que não possuem dados detalhados.
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setRefreshing(true);
+                          const response = await supabase.functions.invoke('recover-polar-activity-details');
+                          
+                          if (response.error) {
+                            throw response.error;
+                          }
+
+                          const result = response.data;
+                          toast({
+                            title: "Recuperação de detalhes concluída",
+                            description: `${result.processed_count} atividades processadas, ${result.error_count} erros`,
+                          });
+                          
+                          if (result.errors && result.errors.length > 0) {
+                            console.error('Details recovery errors:', result.errors);
+                          }
+                          
+                          await fetchStats();
+                        } catch (error) {
+                          console.error('Details recovery error:', error);
+                          toast({
+                            title: "Erro na recuperação de detalhes",
+                            description: error.message || "Erro desconhecido",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setRefreshing(false);
+                        }
+                      }}
+                      disabled={refreshing}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
+                    >
+                      {refreshing ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Processando...
+                        </>
+                      ) : (
+                        'Recuperar Detalhes'
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
