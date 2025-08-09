@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.4';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,7 +119,7 @@ async function fetchAndStorePolarSamples(
   console.log(`Successfully inserted ${processedSamples.length} samples for activity ${activityId}`);
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -132,21 +133,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Find activities in polar_activities that don't have details
+    // Find activities in polar_activities that don't have details using LEFT JOIN
     const { data: activitiesWithoutDetails, error: queryError } = await supabase
-      .from('polar_activities')
-      .select(`
-        activity_id,
-        user_id,
-        polar_user_id,
-        activity_type,
-        start_time
-      `)
-      .not('activity_id', 'in', `(
-        SELECT DISTINCT activity_id 
-        FROM polar_activity_details 
-        WHERE activity_id IS NOT NULL
-      )`);
+      .rpc('get_polar_activities_without_details');
 
     if (queryError) {
       console.error('Error finding activities without details:', queryError);
