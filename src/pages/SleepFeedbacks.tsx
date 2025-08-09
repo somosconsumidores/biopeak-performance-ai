@@ -6,6 +6,7 @@ import { useSleepFeedback } from '@/hooks/useSleepFeedback';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Header } from '@/components/Header';
+import { SleepScoreChart } from '@/components/SleepScoreChart';
 
 export const SleepFeedbacks = () => {
   const { savedFeedbacks, loading, error, loadFeedbacks, deleteFeedback } = useSleepFeedback();
@@ -97,6 +98,13 @@ export const SleepFeedbacks = () => {
             </p>
           </div>
         </ScrollReveal>
+
+        {/* Gráfico de evolução do score de sono */}
+        {savedFeedbacks.length > 0 && (
+          <ScrollReveal>
+            <SleepScoreChart feedbacks={savedFeedbacks} />
+          </ScrollReveal>
+        )}
 
       {error && (
         <ScrollReveal>
