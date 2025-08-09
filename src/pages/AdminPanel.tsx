@@ -291,6 +291,71 @@ export const AdminPanel = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Polar Webhook Recovery */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Recuperação de Atividades Polar
+              </CardTitle>
+              <CardDescription>
+                Recuperar detalhes de atividades Polar a partir dos webhooks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Esta função processa webhooks de exercícios Polar que foram recebidos mas não processados,
+                  recuperando os dados completos das atividades e armazenando nos detalhes.
+                </p>
+                <Button
+                  onClick={async () => {
+                    try {
+                      setRefreshing(true);
+                      const response = await supabase.functions.invoke('recover-polar-webhook-activities');
+                      
+                      if (response.error) {
+                        throw response.error;
+                      }
+
+                      const result = response.data;
+                      toast({
+                        title: "Recuperação concluída",
+                        description: `${result.processed_count} atividades processadas, ${result.error_count} erros`,
+                      });
+                      
+                      if (result.errors && result.errors.length > 0) {
+                        console.error('Recovery errors:', result.errors);
+                      }
+                      
+                      await fetchStats();
+                    } catch (error) {
+                      console.error('Recovery error:', error);
+                      toast({
+                        title: "Erro na recuperação",
+                        description: error.message || "Erro desconhecido",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setRefreshing(false);
+                    }
+                  }}
+                  disabled={refreshing}
+                  className="w-full"
+                >
+                  {refreshing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    'Recuperar Atividades Polar'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AdminRoute>
