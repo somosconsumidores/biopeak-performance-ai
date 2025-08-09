@@ -100,11 +100,9 @@ export const SleepFeedbacks = () => {
         </ScrollReveal>
 
         {/* Gráfico de evolução do score de sono */}
-        {savedFeedbacks.length > 0 && (
-          <ScrollReveal>
-            <SleepScoreChart feedbacks={savedFeedbacks} />
-          </ScrollReveal>
-        )}
+        <ScrollReveal>
+          <SleepScoreChart className="mb-8" />
+        </ScrollReveal>
 
       {error && (
         <ScrollReveal>

@@ -1,30 +1,29 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Moon } from 'lucide-react';
-import { SleepFeedbackAnalysis } from '@/hooks/useSleepFeedback';
+import { TrendingUp, Moon, Loader2 } from 'lucide-react';
+import { useSleepScoreHistory } from '@/hooks/useSleepScoreHistory';
 
 interface SleepScoreChartProps {
-  feedbacks: SleepFeedbackAnalysis[];
+  className?: string;
 }
 
-export const SleepScoreChart = ({ feedbacks }: SleepScoreChartProps) => {
-  const chartData = useMemo(() => {
-    if (!feedbacks || feedbacks.length === 0) return [];
+export const SleepScoreChart = ({ className }: SleepScoreChartProps) => {
+  const { sleepScores, loading, error } = useSleepScoreHistory();
 
-    return feedbacks
-      .filter(feedback => feedback.sleep_data?.sleepScore)
-      .map(feedback => ({
-        date: new Date(feedback.created_at).toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit'
-        }),
-        score: feedback.sleep_data.sleepScore,
-        fullDate: feedback.created_at
-      }))
-      .sort((a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime())
-      .slice(-10); // Últimos 10 registros
-  }, [feedbacks]);
+  const chartData = useMemo(() => {
+    if (!sleepScores || sleepScores.length === 0) return [];
+
+    return sleepScores.map(item => ({
+      date: new Date(item.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+      }),
+      score: item.score,
+      source: item.source,
+      fullDate: item.date
+    }));
+  }, [sleepScores]);
 
   const averageScore = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -38,18 +37,32 @@ export const SleepScoreChart = ({ feedbacks }: SleepScoreChartProps) => {
     return lastScore - firstScore;
   }, [chartData]);
 
-  if (chartData.length === 0) {
+  if (loading) {
+    return (
+      <Card className={`glass-card border-glass-border ${className}`}>
+        <CardContent className="py-12">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            <span className="ml-2 text-muted-foreground">Carregando dados de sono...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || chartData.length === 0) {
     return null;
   }
 
   return (
-    <Card className="glass-card border-glass-border mb-8">
+    <Card className={`glass-card border-glass-border ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-3">
           <Moon className="h-6 w-6 text-primary" />
           <div>
             <h3 className="text-xl font-semibold">Evolução do Score de Sono</h3>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+              <span>{chartData.length} registros</span>
               <span>Média: {averageScore} pontos</span>
               <div className="flex items-center gap-1">
                 <TrendingUp className={`h-4 w-4 ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`} />
@@ -79,11 +92,15 @@ export const SleepScoreChart = ({ feedbacks }: SleepScoreChartProps) => {
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
+                    const data = payload[0].payload;
                     return (
                       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
                         <p className="font-medium text-foreground">{label}</p>
                         <p className="text-primary">
                           Score: {payload[0].value} pontos
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          Fonte: {data.source}
                         </p>
                       </div>
                     );
