@@ -1162,6 +1162,7 @@ export type Database = {
         Row: {
           activity_id: string
           activity_type: string | null
+          average_heart_rate_bpm: number | null
           calories: number | null
           carbohydrate_percentage_of_calories: number | null
           club_id: number | null
@@ -1175,6 +1176,8 @@ export type Database = {
           fat_percentage_of_calories: number | null
           has_route: boolean | null
           id: string
+          maximum_heart_rate_bpm: number | null
+          minimum_heart_rate_bpm: number | null
           polar_user: string | null
           polar_user_id: number | null
           protein_percentage_of_calories: number | null
@@ -1191,6 +1194,7 @@ export type Database = {
         Insert: {
           activity_id: string
           activity_type?: string | null
+          average_heart_rate_bpm?: number | null
           calories?: number | null
           carbohydrate_percentage_of_calories?: number | null
           club_id?: number | null
@@ -1204,6 +1208,8 @@ export type Database = {
           fat_percentage_of_calories?: number | null
           has_route?: boolean | null
           id?: string
+          maximum_heart_rate_bpm?: number | null
+          minimum_heart_rate_bpm?: number | null
           polar_user?: string | null
           polar_user_id?: number | null
           protein_percentage_of_calories?: number | null
@@ -1220,6 +1226,7 @@ export type Database = {
         Update: {
           activity_id?: string
           activity_type?: string | null
+          average_heart_rate_bpm?: number | null
           calories?: number | null
           carbohydrate_percentage_of_calories?: number | null
           club_id?: number | null
@@ -1233,6 +1240,8 @@ export type Database = {
           fat_percentage_of_calories?: number | null
           has_route?: boolean | null
           id?: string
+          maximum_heart_rate_bpm?: number | null
+          minimum_heart_rate_bpm?: number | null
           polar_user?: string | null
           polar_user_id?: number | null
           protein_percentage_of_calories?: number | null

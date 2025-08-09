@@ -321,6 +321,8 @@ serve(async (req) => {
             duration: durationInSeconds ? durationInSeconds.toString() : null,
             calories: activityData.calories,
             distance: activityData.distance,
+            average_heart_rate_bpm: activityData['heart-rate']?.average,
+            maximum_heart_rate_bpm: activityData['heart-rate']?.maximum,
             training_load: activityData['training-load'],
             sport: activityData.sport,
             has_route: activityData['has-route'] || false,
