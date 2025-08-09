@@ -136,8 +136,8 @@ export function useUnifiedActivityHistory(limit?: number) {
         distance_in_meters: activity.distance ? Number(activity.distance) : null, // Distance comes in meters from Polar
         average_pace_in_minutes_per_kilometer: activity.distance && activity.duration ? 
           ((Number(activity.duration) / 60) / (Number(activity.distance) / 1000)) : null, // Calculate pace from distance and duration
-        average_heart_rate_in_beats_per_minute: null, // Não disponível diretamente no Polar
-        max_heart_rate_in_beats_per_minute: null,
+        average_heart_rate_in_beats_per_minute: activity.average_heart_rate_bpm || null,
+        max_heart_rate_in_beats_per_minute: activity.maximum_heart_rate_bpm || null,
         active_kilocalories: activity.calories || null,
         total_elevation_gain_in_meters: null,
         total_elevation_loss_in_meters: null,
