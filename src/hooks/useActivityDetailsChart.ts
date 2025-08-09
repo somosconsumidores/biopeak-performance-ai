@@ -22,43 +22,91 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     try {
       console.log('🔍 DEBUG: Fetching data for activity ID:', id);
       
-      // First check total count
-      const { count, error: countError } = await supabase
+      // Try Garmin data first
+      let allDetails = [];
+      let dataSource = 'garmin';
+      
+      // First check Garmin total count
+      const { count: garminCount, error: garminCountError } = await supabase
         .from('garmin_activity_details')
         .select('*', { count: 'exact', head: true })
         .eq('activity_id', id)
         .not('total_distance_in_meters', 'is', null);
 
-      if (countError) throw countError;
-      console.log('🔍 DEBUG: Total records count:', count);
-      setHasRawData((count || 0) > 0);
+      if (garminCountError) throw garminCountError;
+      console.log('🔍 DEBUG: Garmin records count:', garminCount);
 
-      // Fetch all data in chunks if needed
-      const allDetails = [];
-      const chunkSize = 1000;
-      let currentOffset = 0;
-      
-      while (currentOffset < (count || 0)) {
-        const { data: chunk, error: chunkError } = await supabase
-          .from('garmin_activity_details')
-          .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
-          .eq('activity_id', id)
-          .not('total_distance_in_meters', 'is', null)
-          .order('total_distance_in_meters', { ascending: true })
-          .range(currentOffset, currentOffset + chunkSize - 1);
-
-        if (chunkError) throw chunkError;
+      if (garminCount && garminCount > 0) {
+        // Fetch Garmin data in chunks
+        const chunkSize = 1000;
+        let currentOffset = 0;
         
-        if (chunk && chunk.length > 0) {
-          allDetails.push(...chunk);
-          console.log(`🔍 DEBUG: Fetched chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+        while (currentOffset < garminCount) {
+          const { data: chunk, error: chunkError } = await supabase
+            .from('garmin_activity_details')
+            .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
+            .eq('activity_id', id)
+            .not('total_distance_in_meters', 'is', null)
+            .order('total_distance_in_meters', { ascending: true })
+            .range(currentOffset, currentOffset + chunkSize - 1);
+
+          if (chunkError) throw chunkError;
+          
+          if (chunk && chunk.length > 0) {
+            allDetails.push(...chunk);
+            console.log(`🔍 DEBUG: Fetched Garmin chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+          }
+          
+          currentOffset += chunkSize;
+          
+          // Break if we got less than expected (end of data)
+          if (!chunk || chunk.length < chunkSize) break;
         }
+      } else {
+        // Try Polar data if no Garmin data
+        console.log('🔍 DEBUG: No Garmin data found, trying Polar data');
+        dataSource = 'polar';
         
-        currentOffset += chunkSize;
-        
-        // Break if we got less than expected (end of data)
-        if (!chunk || chunk.length < chunkSize) break;
+        const { count: polarCount, error: polarCountError } = await supabase
+          .from('polar_activity_details')
+          .select('*', { count: 'exact', head: true })
+          .eq('activity_id', id)
+          .not('total_distance_in_meters', 'is', null);
+
+        if (polarCountError) throw polarCountError;
+        console.log('🔍 DEBUG: Polar records count:', polarCount);
+
+        if (polarCount && polarCount > 0) {
+          // Fetch Polar data in chunks
+          const chunkSize = 1000;
+          let currentOffset = 0;
+          
+          while (currentOffset < polarCount) {
+            const { data: chunk, error: chunkError } = await supabase
+              .from('polar_activity_details')
+              .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
+              .eq('activity_id', id)
+              .not('total_distance_in_meters', 'is', null)
+              .order('total_distance_in_meters', { ascending: true })
+              .range(currentOffset, currentOffset + chunkSize - 1);
+
+            if (chunkError) throw chunkError;
+            
+            if (chunk && chunk.length > 0) {
+              allDetails.push(...chunk);
+              console.log(`🔍 DEBUG: Fetched Polar chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+            }
+            
+            currentOffset += chunkSize;
+            
+            // Break if we got less than expected (end of data)
+            if (!chunk || chunk.length < chunkSize) break;
+          }
+        }
       }
+      
+      setHasRawData(allDetails.length > 0);
+      console.log(`🔍 DEBUG: Using ${dataSource} data source with ${allDetails.length} total records`);
       
       console.log('🔍 DEBUG: Total records fetched:', allDetails.length);
       if (allDetails.length > 0) {

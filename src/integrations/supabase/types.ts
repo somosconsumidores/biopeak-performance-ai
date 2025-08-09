@@ -1248,6 +1248,81 @@ export type Database = {
         }
         Relationships: []
       }
+      polar_activity_details: {
+        Row: {
+          activity_id: string
+          activity_name: string | null
+          activity_summary: Json | null
+          activity_type: string | null
+          cadence: number | null
+          created_at: string
+          device_name: string | null
+          duration_in_seconds: number | null
+          elevation_in_meters: number | null
+          heart_rate: number | null
+          id: string
+          latitude_in_degree: number | null
+          longitude_in_degree: number | null
+          polar_user_id: number | null
+          power_in_watts: number | null
+          sample_timestamp: number | null
+          samples: Json | null
+          speed_meters_per_second: number | null
+          temperature_celsius: number | null
+          total_distance_in_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          activity_type?: string | null
+          cadence?: number | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          polar_user_id?: number | null
+          power_in_watts?: number | null
+          sample_timestamp?: number | null
+          samples?: Json | null
+          speed_meters_per_second?: number | null
+          temperature_celsius?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          activity_type?: string | null
+          cadence?: number | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          polar_user_id?: number | null
+          power_in_watts?: number | null
+          sample_timestamp?: number | null
+          samples?: Json | null
+          speed_meters_per_second?: number | null
+          temperature_celsius?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       polar_sleep: {
         Row: {
           created_at: string

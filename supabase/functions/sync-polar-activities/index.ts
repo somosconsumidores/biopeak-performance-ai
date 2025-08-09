@@ -56,6 +56,130 @@ function extractPolarUserId(polarUserUrl: string): number | null {
   return match ? parseInt(match[1], 10) : null;
 }
 
+// Helper function to fetch and store detailed samples
+async function fetchAndStorePolarSamples(
+  activityId: string,
+  activityUrl: string,
+  userId: string,
+  polarUserId: number | null,
+  accessToken: string,
+  supabase: any
+) {
+  try {
+    console.log(`[sync-polar-activities] Fetching samples for activity ${activityId}`);
+    
+    // Fetch the detailed activity data which may contain samples links
+    const activityResponse = await fetch(activityUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!activityResponse.ok) {
+      console.error(`[sync-polar-activities] Failed to fetch activity details for samples: ${activityResponse.status}`);
+      return;
+    }
+
+    const activityData = await activityResponse.json();
+    
+    // Check if samples are available
+    if (!activityData.samples || !Array.isArray(activityData.samples)) {
+      console.log(`[sync-polar-activities] No samples available for activity ${activityId}`);
+      return;
+    }
+
+    const samples = [];
+    let cumulativeDistance = 0;
+    let cumulativeTime = 0;
+    
+    // Process each sample URL
+    for (const sampleUrl of activityData.samples) {
+      try {
+        const sampleResponse = await fetch(sampleUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!sampleResponse.ok) {
+          console.error(`[sync-polar-activities] Failed to fetch sample from ${sampleUrl}: ${sampleResponse.status}`);
+          continue;
+        }
+
+        const sampleData = await sampleResponse.json();
+        console.log(`[sync-polar-activities] Fetched sample data for activity ${activityId}`);
+        
+        // Process sample data based on type
+        if (sampleData.data && Array.isArray(sampleData.data)) {
+          for (const dataPoint of sampleData.data) {
+            // Calculate cumulative values based on recording rate
+            const recordingRate = dataPoint['recording-rate'] || 1;
+            if (dataPoint.speed) {
+              cumulativeDistance += (dataPoint.speed * recordingRate);
+            }
+            cumulativeTime += recordingRate;
+
+            const sample = {
+              user_id: userId,
+              activity_id: activityId,
+              polar_user_id: polarUserId,
+              sample_timestamp: dataPoint.timestamp || null,
+              heart_rate: dataPoint['heart-rate'] || null,
+              speed_meters_per_second: dataPoint.speed || null,
+              latitude_in_degree: dataPoint.latitude || null,
+              longitude_in_degree: dataPoint.longitude || null,
+              elevation_in_meters: dataPoint.altitude || null,
+              total_distance_in_meters: cumulativeDistance,
+              duration_in_seconds: cumulativeTime,
+              power_in_watts: dataPoint.power || null,
+              cadence: dataPoint.cadence || null,
+              temperature_celsius: dataPoint.temperature || null,
+              samples: sampleData,
+              activity_summary: activityData,
+              device_name: activityData.device || null,
+              activity_type: activityData['detailed-sport-info'] || activityData.sport || null,
+              activity_name: `${activityData.sport || 'Activity'} - ${new Date(activityData['start-time'] || Date.now()).toLocaleDateString()}`,
+            };
+
+            samples.push(sample);
+          }
+        }
+      } catch (sampleError) {
+        console.error(`[sync-polar-activities] Error processing sample from ${sampleUrl}:`, sampleError);
+        continue;
+      }
+    }
+
+    // Batch insert samples if any were processed
+    if (samples.length > 0) {
+      console.log(`[sync-polar-activities] Inserting ${samples.length} samples for activity ${activityId}`);
+      
+      // Insert in chunks to avoid payload size limits
+      const chunkSize = 1000;
+      for (let i = 0; i < samples.length; i += chunkSize) {
+        const chunk = samples.slice(i, i + chunkSize);
+        const { error: insertError } = await supabase
+          .from('polar_activity_details')
+          .insert(chunk);
+
+        if (insertError) {
+          console.error(`[sync-polar-activities] Error inserting samples chunk for activity ${activityId}:`, insertError);
+        } else {
+          console.log(`[sync-polar-activities] Successfully inserted ${chunk.length} samples for activity ${activityId}`);
+        }
+      }
+    } else {
+      console.log(`[sync-polar-activities] No valid samples found for activity ${activityId}`);
+    }
+
+  } catch (error) {
+    console.error(`[sync-polar-activities] Error fetching samples for activity ${activityId}:`, error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -213,6 +337,14 @@ serve(async (req) => {
         } else {
           syncedCount++;
           console.log('[sync-polar-activities] Synced activity:', activityData.id);
+          
+          // Try to fetch and store detailed samples
+          try {
+            await fetchAndStorePolarSamples(activityData.id, activityUrl, user_id, polarUserId, access_token, supabase);
+          } catch (sampleError) {
+            console.error(`[sync-polar-activities] Failed to fetch samples for activity ${activityData.id}:`, sampleError);
+            // Don't fail the whole sync if samples fail
+          }
         }
 
       } catch (activityError) {
