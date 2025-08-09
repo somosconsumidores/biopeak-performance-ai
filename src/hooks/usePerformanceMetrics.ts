@@ -159,9 +159,15 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             if (functionError) {
               console.log('⚠️ Function failed, calculating metrics locally as fallback');
               
-              // Fallback: Calculate basic metrics locally for Strava activities
+              // Fallback: Calculate basic metrics locally for Strava or Polar activities
               if (stravaActivity) {
                 const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
+                if (basicMetrics) {
+                  setMetrics(basicMetrics);
+                  return;
+                }
+              } else if (polarActivity) {
+                const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
                 if (basicMetrics) {
                   setMetrics(basicMetrics);
                   return;
@@ -171,11 +177,11 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
               throw new Error(`Failed to calculate metrics: ${functionError.message}`);
             }
 
-            // Retry fetching after calculation
+            // Retry fetching after calculation (ensure we use the same ID used in upsert)
             const { data: retryMetricsData, error: retryError } = await supabase
               .from('performance_metrics')
               .select('*')
-              .eq('activity_id', activityId)
+              .eq('activity_id', activityIdForFunction)
               .eq('user_id', user.id)
               .single();
 
@@ -237,7 +243,7 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
   };
 }
 
-// Fallback function to calculate basic metrics locally
+// Fallback function to calculate basic metrics locally for Strava
 async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) {
   try {
     const durationMinutes = stravaActivity.moving_time / 60;
@@ -245,7 +251,6 @@ async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) 
     const avgSpeedMs = stravaActivity.average_speed;
     const avgPaceMinKm = avgSpeedMs > 0 ? (1000 / 60) / avgSpeedMs : null;
 
-    // Calculate basic movement efficiency
     const movementEfficiency = durationMinutes > 0 ? distanceKm / durationMinutes : null;
 
     const basicMetrics = {
@@ -276,6 +281,68 @@ async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) 
     return basicMetrics;
   } catch (error) {
     console.error('Error calculating basic metrics:', error);
+    return null;
+  }
+}
+
+// Fallback function to calculate basic metrics locally for Polar
+async function calculateBasicPolarMetrics(activityUuidOrExternalId: string, userId: string) {
+  try {
+    // Try to fetch by UUID first, then by external activity_id
+    let { data: activity } = await supabase
+      .from('polar_activities')
+      .select('*')
+      .eq('id', activityUuidOrExternalId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!activity) {
+      const fallback = await supabase
+        .from('polar_activities')
+        .select('*')
+        .eq('activity_id', activityUuidOrExternalId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      activity = fallback.data;
+    }
+
+    if (!activity) return null;
+
+    const durationSeconds = typeof activity.duration === 'number'
+      ? activity.duration
+      : (!isNaN(Number(activity.duration)) ? Number(activity.duration) : null);
+    const durationMinutes = durationSeconds ? durationSeconds / 60 : null;
+    const distanceKm = activity.distance ? Number(activity.distance) / 1000 : null;
+    const avgSpeedKmh = (distanceKm && durationMinutes) ? (distanceKm / durationMinutes) * 60 : null;
+    const avgPaceMinKm = avgSpeedKmh ? 60 / avgSpeedKmh : null;
+    const movementEfficiency = (distanceKm && durationMinutes) ? distanceKm / durationMinutes : null;
+
+    return {
+      efficiency: {
+        powerPerBeat: null,
+        distancePerMinute: movementEfficiency,
+        comment: movementEfficiency ? `Eficiência de movimento: ${movementEfficiency.toFixed(3)} km/min` : 'Dados insuficientes'
+      },
+      pace: {
+        averageSpeedKmh: avgSpeedKmh,
+        paceVariationCoefficient: null,
+        comment: avgPaceMinKm ? `Pace médio: ${avgPaceMinKm.toFixed(2)} min/km` : 'Dados indisponíveis'
+      },
+      heartRate: {
+        averageHr: null,
+        relativeIntensity: null,
+        relativeReserve: null,
+        comment: 'Sem dados de FC para análise detalhada'
+      },
+      effortDistribution: {
+        beginning: null,
+        middle: null,
+        end: null,
+        comment: 'Dados insuficientes para distribuição de esforço'
+      }
+    } as PerformanceMetrics;
+  } catch (error) {
+    console.error('Error calculating basic polar metrics:', error);
     return null;
   }
 }

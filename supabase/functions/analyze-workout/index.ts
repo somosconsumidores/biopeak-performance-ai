@@ -76,12 +76,12 @@ serve(async (req) => {
 
     console.log('🤖 AI Analysis: Starting analysis for activity:', activityId, 'User:', user.id);
 
-    // Try to get workout data from multiple sources (Garmin first, then Strava)
+    // Try to get workout data from multiple sources (Garmin, then Strava, then Polar)
     let activity: any = null;
     let activitySource = '';
     
     // Try Garmin first
-    const { data: garminActivity, error: garminError } = await supabase
+    const { data: garminActivity } = await supabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
@@ -94,7 +94,7 @@ serve(async (req) => {
       console.log('🔍 Found Garmin activity for analysis');
     } else {
       // Try Strava if Garmin not found
-      const { data: stravaActivity, error: stravaError } = await supabase
+      const { data: stravaActivity } = await supabase
         .from('strava_activities')
         .select('*')
         .eq('user_id', user.id)
@@ -117,6 +117,48 @@ serve(async (req) => {
         };
         activitySource = 'strava';
         console.log('🔍 Found Strava activity for analysis');
+      } else {
+        // Try Polar if Strava not found
+        // First by internal UUID
+        let { data: polarActivity } = await supabase
+          .from('polar_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('id', activityId)
+          .maybeSingle();
+        
+        // If not found, try by external activity_id
+        if (!polarActivity) {
+          const byExternal = await supabase
+            .from('polar_activities')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('activity_id', activityId)
+            .maybeSingle();
+          polarActivity = byExternal.data;
+        }
+        
+        if (polarActivity) {
+          const durationVal = typeof polarActivity.duration === 'number' 
+            ? polarActivity.duration 
+            : (!isNaN(Number(polarActivity.duration)) ? Number(polarActivity.duration) : null);
+
+          activity = {
+            activity_type: polarActivity.sport || polarActivity.activity_type,
+            duration_in_seconds: durationVal,
+            distance_in_meters: polarActivity.distance ? Number(polarActivity.distance) : null,
+            average_heart_rate_in_beats_per_minute: null,
+            max_heart_rate_in_beats_per_minute: null,
+            average_speed_in_meters_per_second: null,
+            max_speed_in_meters_per_second: null,
+            active_kilocalories: polarActivity.calories,
+            total_elevation_gain_in_meters: null,
+            activity_id: polarActivity.id,
+            activity_name: polarActivity.sport || 'Polar Workout',
+          };
+          activitySource = 'polar';
+          console.log('🔍 Found Polar activity for analysis');
+        }
       }
     }
 

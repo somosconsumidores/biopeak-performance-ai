@@ -5,18 +5,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper function to safely convert duration to seconds
+// Helper function to safely convert duration to seconds (supports numeric and ISO8601 like PT1H2M3S)
 function getDurationInSeconds(duration: any): number | null {
   if (!duration) return null
   
-  // If it's already a number (seconds), return it
-  if (typeof duration === 'number') {
-    return duration
-  }
+  if (typeof duration === 'number') return duration
   
-  // If it's a string that represents a number
-  if (typeof duration === 'string' && !isNaN(Number(duration))) {
-    return Number(duration)
+  if (typeof duration === 'string') {
+    // Numeric string
+    if (!isNaN(Number(duration))) return Number(duration)
+
+    // ISO8601 duration e.g., PT1H30M20S
+    if (duration.startsWith('P')) {
+      try {
+        const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+        if (match) {
+          const hours = parseInt(match[1] || '0', 10)
+          const minutes = parseInt(match[2] || '0', 10)
+          const seconds = parseInt(match[3] || '0', 10)
+          return hours * 3600 + minutes * 60 + seconds
+        }
+      } catch (_) { /* ignore */ }
+    }
   }
   
   return null
@@ -31,7 +41,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     const { activity_id, user_id } = await req.json()
@@ -42,13 +52,24 @@ Deno.serve(async (req) => {
 
     console.log('🔄 Calculating Polar performance metrics for activity:', activity_id, 'user:', user_id)
 
-    // Get Polar activity data using UUID
-    const { data: activity, error: activityError } = await supabase
+    // Get Polar activity data using UUID, fallback to external activity_id
+    let { data: activity, error: activityError } = await supabase
       .from('polar_activities')
       .select('*')
       .eq('id', activity_id)
       .eq('user_id', user_id)
       .maybeSingle()
+
+    if (!activity && !activityError) {
+      const fallback = await supabase
+        .from('polar_activities')
+        .select('*')
+        .eq('activity_id', activity_id)
+        .eq('user_id', user_id)
+        .maybeSingle()
+      activity = fallback.data
+      activityError = fallback.error as any
+    }
 
     if (activityError) {
       console.error('❌ Error fetching Polar activity:', activityError)
