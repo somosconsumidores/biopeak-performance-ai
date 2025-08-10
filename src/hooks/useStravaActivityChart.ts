@@ -5,6 +5,7 @@ interface StravaChartData {
   distance_km: number;
   pace_min_per_km: number | null;
   time_seconds: number;
+  heart_rate: number | null;
 }
 
 interface UseStravaActivityChartReturn {
@@ -36,7 +37,7 @@ export const useStravaActivityChart = (stravaActivityId: number | null): UseStra
 
         const { data: rawData, error } = await supabase
           .from('strava_activity_details')
-          .select('distance, time_seconds, velocity_smooth')
+          .select('distance, time_seconds, velocity_smooth, heartrate')
           .eq('strava_activity_id', stravaActivityId)
           .not('distance', 'is', null)
           .not('velocity_smooth', 'is', null)
@@ -68,6 +69,7 @@ export const useStravaActivityChart = (stravaActivityId: number | null): UseStra
             distance_km: distanceKm,
             pace_min_per_km: paceMinPerKm,
             time_seconds: point.time_seconds || 0,
+            heart_rate: point.heartrate ?? null,
           };
         });
 
