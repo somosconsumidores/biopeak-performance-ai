@@ -39,9 +39,6 @@ export const useStravaActivityChart = (stravaActivityId: number | null): UseStra
           .from('strava_activity_details')
           .select('distance, time_seconds, velocity_smooth, heartrate')
           .eq('strava_activity_id', stravaActivityId)
-          .not('distance', 'is', null)
-          .not('velocity_smooth', 'is', null)
-          .gt('velocity_smooth', 0) // Filter out stopped periods
           .order('time_index');
 
         if (error) {
@@ -73,17 +70,16 @@ export const useStravaActivityChart = (stravaActivityId: number | null): UseStra
           };
         });
 
-        // Filter out invalid pace values and sample data for performance
-        const validData = processedData.filter(point => 
-          point.pace_min_per_km !== null && 
-          point.pace_min_per_km > 0 && 
-          point.pace_min_per_km < 20 // Filter out unrealistic pace values
-        );
+        // Sanitize pace values but keep all points (to show full distance and HR)
+        const sanitizedData = processedData.map(p => ({
+          ...p,
+          pace_min_per_km: p.pace_min_per_km && p.pace_min_per_km > 0 && p.pace_min_per_km < 20 ? p.pace_min_per_km : null,
+        }));
 
-        // Sample data to improve performance (every 10th point for large datasets)
-        const sampledData = validData.length > 1000 
-          ? validData.filter((_, index) => index % 10 === 0)
-          : validData;
+        // Sample data for performance but ensure last point is included
+        const sampledData = sanitizedData.length > 2000 
+          ? sanitizedData.filter((_, index) => index % 5 === 0 || index === sanitizedData.length - 1)
+          : sanitizedData;
 
         console.log(`Processed ${sampledData.length} valid Strava data points`);
         setData(sampledData);
