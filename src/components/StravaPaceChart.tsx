@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { Timer, AlertCircle } from 'lucide-react';
 import { useStravaActivityChart } from '@/hooks/useStravaActivityChart';
 import { useScreenSize } from '@/hooks/use-mobile';
@@ -139,6 +139,7 @@ export const StravaPaceChart = ({ stravaActivityId }: StravaPaceChartProps) => {
                 tick={{ fontSize: isMobile ? 9 : 12 }}
                 width={isMobile ? 40 : 50}
               />
+              <Legend verticalAlign="top" height={isMobile ? 20 : 26} wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
               <Tooltip content={<CustomTooltip />} />
 
               {/* Linha de referência para ritmo médio (oculta no mobile) */}
