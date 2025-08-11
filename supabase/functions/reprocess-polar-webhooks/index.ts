@@ -81,16 +81,62 @@ async function handlePolarEvent(
   if (!userId) throw new Error("Unable to resolve user_id for log " + log.id);
 
   if (type === "exercise") {
+    // Fetch active Polar access token for this user
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("polar_tokens")
+      .select("access_token, x_user_id, polar_user_id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (tokenError || !tokenData?.access_token) {
+      throw new Error(`No active Polar access token found for user ${userId}`);
+    }
+
+    const polarUserId =
+      (typeof tokenData.x_user_id === "number" ? tokenData.x_user_id : null) ??
+      (tokenData.polar_user_id ? Number(tokenData.polar_user_id) : null);
+
     const { error } = await supabase.functions.invoke("sync-polar-activities", {
-      body: { user_id: userId },
+      body: {
+        user_id: userId,
+        polar_user_id: polarUserId,
+        access_token: tokenData.access_token,
+        webhook_payload: log.payload ?? {},
+      },
     });
     if (error) throw new Error(`sync-polar-activities failed: ${error.message || JSON.stringify(error)}`);
     return;
   }
 
   if (type === "sleep") {
+    // Fetch active Polar access token for this user
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("polar_tokens")
+      .select("access_token, x_user_id, polar_user_id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (tokenError || !tokenData?.access_token) {
+      throw new Error(`No active Polar access token found for user ${userId}`);
+    }
+
+    const polarUserId =
+      (typeof tokenData.x_user_id === "number" ? tokenData.x_user_id : null) ??
+      (tokenData.polar_user_id ? Number(tokenData.polar_user_id) : null);
+
     const { error } = await supabase.functions.invoke("sync-polar-sleep", {
-      body: { user_id: userId },
+      body: {
+        user_id: userId,
+        polar_user_id: polarUserId,
+        access_token: tokenData.access_token,
+        webhook_payload: log.payload ?? {},
+      },
     });
     if (error) throw new Error(`sync-polar-sleep failed: ${error.message || JSON.stringify(error)}`);
     return;
