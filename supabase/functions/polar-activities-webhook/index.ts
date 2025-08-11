@@ -57,6 +57,7 @@ serve(async (req) => {
 
     const payloadText = await req.text();
     const payload: PolarWebhookPayload = JSON.parse(payloadText);
+    const incomingUserId: any = (payload as any).user_id ?? (payload as any).userId; const xUserId = incomingUserId != null ? Number(incomingUserId) : null;
     console.log('[polar-activities-webhook] Payload:', JSON.stringify(payload, null, 2));
     
     // Handle PING events immediately
@@ -77,7 +78,7 @@ serve(async (req) => {
     const { data: tokenData, error: tokenError } = await supabase
       .from('polar_tokens')
       .select('user_id, access_token, x_user_id, polar_user_id')
-      .eq('x_user_id', payload.user_id)
+      .eq('x_user_id', xUserId)
       .eq('is_active', true)
       .single();
 
@@ -112,7 +113,7 @@ serve(async (req) => {
         .from('polar_webhook_logs')
         .insert({
           user_id: tokenData?.user_id || null,
-          polar_user_id: payload.user_id,
+          polar_user_id: xUserId,
           webhook_type: payload.event?.toLowerCase() || 'activities',
           payload: payload,
           status: 'received',
@@ -129,7 +130,7 @@ serve(async (req) => {
     }
 
     if (tokenError || !tokenData) {
-      console.error('[polar-activities-webhook] No active token found for Polar user:', payload.user_id);
+      console.error('[polar-activities-webhook] No active token found for Polar user:', xUserId);
       
       // Update log status to failed
       if (logId) {
@@ -182,7 +183,7 @@ serve(async (req) => {
         const { error: actError } = await supabase.functions.invoke('sync-polar-activities', {
           body: {
             user_id: tokenData.user_id,
-            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            polar_user_id: tokenData.polar_user_id || xUserId,
             access_token: tokenData.access_token,
             webhook_payload: payload,
           },
@@ -227,7 +228,7 @@ serve(async (req) => {
         const { error: slpError } = await supabase.functions.invoke('sync-polar-sleep', {
           body: {
             user_id: tokenData.user_id,
-            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            polar_user_id: tokenData.polar_user_id || xUserId,
             access_token: tokenData.access_token,
             webhook_payload: payload,
           },
@@ -258,7 +259,7 @@ serve(async (req) => {
         const body: any = payload as any;
         const { error: insertErr } = await supabase.from('polar_continuous_hr_events').insert({
           user_id: tokenData.user_id,
-          polar_user_id: payload.user_id,
+          polar_user_id: xUserId,
           event_date: eventDateIso,
           window_start: body.window_start || body.start_time || null,
           window_end: body.window_end || body.end_time || null,
@@ -275,7 +276,7 @@ serve(async (req) => {
         const { error: chrError } = await supabase.functions.invoke('sync-polar-continuous-hr', {
           body: {
             user_id: tokenData.user_id,
-            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            polar_user_id: tokenData.polar_user_id || xUserId,
             access_token: tokenData.access_token,
             date: dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : undefined,
             url: body?.url,
@@ -306,7 +307,7 @@ serve(async (req) => {
         const dateIso = body.calendar_date || (payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString());
         const upsertData = {
           user_id: tokenData.user_id,
-          polar_user_id: payload.user_id,
+           polar_user_id: xUserId,
           calendar_date: dateIso,
           bedtime_start: body.bedtime_start || null,
           bedtime_end: body.bedtime_end || null,
@@ -335,7 +336,7 @@ serve(async (req) => {
           .from('polar_sleepwise_alertness')
           .upsert({
             user_id: tokenData.user_id,
-            polar_user_id: payload.user_id,
+            polar_user_id: xUserId,
             calendar_date: dateIso,
             predictions,
             payload: payload as unknown as object,

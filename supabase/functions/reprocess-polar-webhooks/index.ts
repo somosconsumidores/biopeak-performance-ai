@@ -57,10 +57,14 @@ function getServiceClient() {
 
 async function resolveUserIdForPolar(supabase: ReturnType<typeof getServiceClient>, log: PolarWebhookLog): Promise<string | null> {
   if (log.user_id) return log.user_id;
-  const payloadUserId = log?.payload?.user_id;
-  if (payloadUserId) return payloadUserId;
+  const payloadUserId = log?.payload?.user_id ?? log?.payload?.userId;
+  if (payloadUserId) return String(payloadUserId);
 
-  const polarId = log.polar_user_id ?? log?.payload?.user_id ?? log?.payload?.polar_user_id ?? log?.payload?.user?.user_id;
+  const polarId =
+    log.polar_user_id ??
+    log?.payload?.user_id ?? log?.payload?.userId ??
+    log?.payload?.polar_user_id ??
+    log?.payload?.user?.user_id ?? log?.payload?.user?.userId;
   if (polarId == null) return null;
 
   const { data, error } = await supabase.rpc("find_user_by_polar_id", { polar_user_id_param: Number(polarId) });
