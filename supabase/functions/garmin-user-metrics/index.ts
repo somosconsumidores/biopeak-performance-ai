@@ -65,13 +65,29 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    console.log('[garmin-user-metrics] Received userMetrics items:', payload.userMetrics.length);
     const rows = [];
-    const logs = [];
+    const logs: any[] = [];
+    const userIdCache = new Map<string, string | null>();
 
     for (const item of payload.userMetrics) {
       if (!item?.userId || !item?.calendarDate) {
         console.warn('[garmin-user-metrics] Skipping invalid item (missing userId or calendarDate):', item);
         continue;
+      }
+
+      // Resolve internal user_id from garmin_user_id (cached per unique userId)
+      let resolvedUserId: string | null = null;
+      if (userIdCache.has(item.userId)) {
+        resolvedUserId = userIdCache.get(item.userId) ?? null;
+      } else {
+        const { data: userIdResolved, error: resolveError } = await supabase
+          .rpc('find_user_by_garmin_id', { garmin_user_id_param: item.userId });
+        if (resolveError) {
+          console.error('[garmin-user-metrics] Error resolving user_id for garmin_user_id:', item.userId, resolveError);
+        }
+        resolvedUserId = userIdResolved ?? null;
+        userIdCache.set(item.userId, resolvedUserId);
       }
 
       rows.push({
@@ -85,6 +101,7 @@ Deno.serve(async (req: Request) => {
       logs.push({
         webhook_type: 'user_metrics',
         garmin_user_id: item.userId,
+        user_id: resolvedUserId,
         payload: item as unknown as object,
         status: 'success',
       });
@@ -105,7 +122,8 @@ Deno.serve(async (req: Request) => {
 
     if (upsertError) {
       console.error('[garmin-user-metrics] Upsert error:', upsertError);
-      // Still proceed to log error; do not fail webhook response
+    } else {
+      console.log(`[garmin-user-metrics] Upserted ${rows.length} vo2max rows successfully`);
     }
 
     // Best-effort logging (do not block or fail the response if it errors)
@@ -113,6 +131,7 @@ Deno.serve(async (req: Request) => {
       logs.map((l) => ({
         webhook_type: l.webhook_type,
         garmin_user_id: l.garmin_user_id,
+        user_id: l.user_id ?? null,
         payload: l.payload,
         status: upsertError ? 'error' : 'success',
         error_message: upsertError ? String(upsertError.message ?? 'Upsert error') : null,
@@ -121,6 +140,8 @@ Deno.serve(async (req: Request) => {
 
     if (logError) {
       console.error('[garmin-user-metrics] Log insert error:', logError);
+    } else {
+      console.log(`[garmin-user-metrics] Inserted ${logs.length} webhook log entries`);
     }
 
     // Respond fast and always 200
