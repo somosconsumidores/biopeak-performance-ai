@@ -69,9 +69,25 @@ serve(async (req) => {
     });
 
     if (!polarResponse.ok) {
+      const status = polarResponse.status;
       const errorText = await polarResponse.text();
-      console.error('[sync-polar-sleep] Polar API error:', errorText);
-      throw new Error(`Polar API error: ${polarResponse.status} - ${errorText}`);
+      console.error('[sync-polar-sleep] Polar API error:', status, errorText);
+      if (status === 404) {
+        return new Response(JSON.stringify({ success: true, message: 'No sleep data for date range', status }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+      if (status === 401 || status === 403 || status === 429) {
+        return new Response(JSON.stringify({ success: false, status, error: errorText || 'Unauthorized/Rate limited' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({ success: false, status, error: errorText || 'Unexpected error' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
     const nights = await polarResponse.json();
@@ -149,7 +165,7 @@ serve(async (req) => {
       error: error.message
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400
+      status: 200
     });
   }
 });

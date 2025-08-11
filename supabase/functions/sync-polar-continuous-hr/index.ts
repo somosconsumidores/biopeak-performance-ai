@@ -26,6 +26,21 @@ function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+function isValidTime(t: string): boolean {
+  return /^\d{2}:\d{2}:\d{2}$/.test(t);
+}
+
+function isValidHeartRate(hr: number): boolean {
+  return Number.isFinite(hr) && hr >= 20 && hr <= 250;
+}
+
+function toTimestamp(dateStr: string, timeStr: string): string | null {
+  if (!isValidTime(timeStr)) return null;
+  const iso = `${dateStr}T${timeStr}Z`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function getServiceClient() {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -175,27 +190,33 @@ serve(async (req) => {
       );
     }
 
-    // 4) Persistir com upsert idempotente
-    const rows = (samples as Array<any>)
-      .filter((s) => typeof s?.heart_rate === "number" && typeof s?.sample_time === "string")
+    // 4) Persist with idempotent upsert, with validation and timestamps
+    const allSamples = Array.isArray(samples) ? samples : [];
+    const validRows = (allSamples as Array<any>)
+      .filter((s) => typeof s?.heart_rate === "number" && typeof s?.sample_time === "string" && isValidTime(s.sample_time) && isValidHeartRate(s.heart_rate))
       .map((s) => ({
         user_id: userId,
         polar_user_id: resolvedPolarUserId,
         calendar_date: calendarDate,
-        sample_time: s.sample_time, // formato HH:MM:SS
-        heart_rate: s.heart_rate,
+        sample_time: s.sample_time,
+        sample_timestamp: toTimestamp(calendarDate, s.sample_time),
+        heart_rate: Math.round(s.heart_rate as number),
       }));
 
-    if (rows.length === 0) {
+    const ignored = (allSamples as Array<any>).length - validRows.length;
+
+    console.log("[sync-polar-continuous-hr] Valid:", validRows.length, "Ignored:", ignored, "Date:", calendarDate, "PolarUserId:", resolvedPolarUserId);
+
+    if (validRows.length === 0) {
       return new Response(
-        JSON.stringify({ message: "No valid samples in payload", date: calendarDate }),
+        JSON.stringify({ message: "No valid samples in payload", date: calendarDate, ignored_samples: ignored }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
 
     const { error: upsertError } = await supabase
       .from("polar_continuous_hr_samples")
-      .upsert(rows, { onConflict: "user_id,calendar_date,sample_time" });
+      .upsert(validRows, { onConflict: "user_id,calendar_date,sample_time" });
 
     if (upsertError) {
       console.error("[sync-polar-continuous-hr] Upsert error:", upsertError);
@@ -209,7 +230,9 @@ serve(async (req) => {
       JSON.stringify({
         message: "CHR samples synced",
         date: calendarDate,
-        inserted_or_updated: rows.length,
+        inserted_or_updated: validRows.length,
+        ignored_samples: ignored,
+        rate_limit_reset: rateLimitReset,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );

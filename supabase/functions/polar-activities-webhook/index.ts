@@ -179,22 +179,17 @@ serve(async (req) => {
           console.error('[polar-activities-webhook] Failed to log activities sync attempt:', syncError);
         }
 
-        const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-polar-activities`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        const { error: actError } = await supabase.functions.invoke('sync-polar-activities', {
+          body: {
             user_id: tokenData.user_id,
             polar_user_id: tokenData.polar_user_id || payload.user_id,
             access_token: tokenData.access_token,
             webhook_payload: payload,
-          }),
+          },
         });
 
-        if (!syncResponse.ok) {
-          throw new Error(`Activities sync failed: ${syncResponse.statusText}`);
+        if (actError) {
+          throw new Error(`Activities sync failed: ${actError.message || JSON.stringify(actError)}`);
         }
 
         console.log('[polar-activities-webhook] Activities sync triggered successfully');
@@ -229,22 +224,17 @@ serve(async (req) => {
           console.error('[polar-activities-webhook] Failed to log sleep sync attempt:', syncError);
         }
 
-        const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-polar-sleep`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        const { error: slpError } = await supabase.functions.invoke('sync-polar-sleep', {
+          body: {
             user_id: tokenData.user_id,
             polar_user_id: tokenData.polar_user_id || payload.user_id,
             access_token: tokenData.access_token,
             webhook_payload: payload,
-          }),
+          },
         });
 
-        if (!syncResponse.ok) {
-          throw new Error(`Sleep sync failed: ${syncResponse.statusText}`);
+        if (slpError) {
+          throw new Error(`Sleep sync failed: ${slpError.message || JSON.stringify(slpError)}`);
         }
 
         console.log('[polar-activities-webhook] Sleep sync triggered successfully');
