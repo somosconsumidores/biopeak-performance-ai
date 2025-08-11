@@ -120,3 +120,6 @@ verify_jwt = false
 
 [functions.garmin-user-metrics]
 verify_jwt = false
+
+[functions.run-polar-chr-manual]
+verify_jwt = true
