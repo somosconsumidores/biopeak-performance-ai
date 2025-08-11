@@ -31,7 +31,9 @@ async function verifySignature(payload: string, signature: string, secretKey: st
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
-    return calculatedHex === signature;
+    // Compare de forma case-insensitive
+    const headerSig = (signature || '').toLowerCase();
+    return calculatedHex === headerSig;
   } catch (error) {
     console.error('[polar-activities-webhook] Error verifying signature:', error);
     return false;
@@ -275,13 +277,40 @@ serve(async (req) => {
         if (insertErr) {
           throw insertErr;
         }
+
+        // NEW: trigger CHR daily sync using the official endpoint for the date in payload.url
+        const dateFromUrl =
+          (typeof body?.url === 'string' && body.url.split('/').pop()) || null;
+
+        const { error: chrError } = await supabase.functions.invoke('sync-polar-continuous-hr', {
+          body: {
+            user_id: tokenData.user_id,
+            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            access_token: tokenData.access_token,
+            date: dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : undefined,
+            url: body?.url,
+            webhook_payload: payload,
+          },
+        });
+
+        if (chrError) {
+          console.error('[polar-activities-webhook] CHR sync invoke error:', chrError);
+          if (logId) {
+            await supabase
+              .from('polar_webhook_logs')
+              .update({ status: 'failed', error_message: String(chrError?.message || chrError), processed_at: new Date().toISOString() })
+              .eq('id', logId);
+          }
+          throw new Error(`CHR sync failed: ${chrError.message || JSON.stringify(chrError)}`);
+        }
+
         if (logId) {
           await supabase
             .from('polar_webhook_logs')
             .update({ status: 'success', processed_at: new Date().toISOString() })
             .eq('id', logId);
         }
-        console.log('[polar-activities-webhook] Stored continuous HR event');
+        console.log('[polar-activities-webhook] Stored continuous HR event and triggered daily CHR sync');
       } else if (eventLower === 'sleep_wise_circadian_bedtime') {
         const body: any = payload as any;
         const dateIso = body.calendar_date || (payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString());

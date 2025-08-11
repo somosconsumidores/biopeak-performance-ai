@@ -143,16 +143,36 @@ async function handlePolarEvent(
   }
 
   if (type === "continuous_heart_rate") {
-    const insertPayload = {
-      user_id: userId,
-      polar_user_id: log.polar_user_id ?? log?.payload?.user_id ?? null,
-      payload: log.payload ?? {},
-      event_date: log?.payload?.date ? new Date(log.payload.date) : new Date(),
-      window_start: log?.payload?.window_start ? new Date(log.payload.window_start) : null,
-      window_end: log?.payload?.window_end ? new Date(log.payload.window_end) : null,
-    };
-    const { error } = await supabase.from("polar_continuous_hr_events").insert([insertPayload]);
-    if (error) throw new Error(`insert polar_continuous_hr_events failed: ${error.message}`);
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("polar_tokens")
+      .select("access_token, x_user_id, polar_user_id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (tokenError || !tokenData?.access_token) {
+      throw new Error(`No active Polar access token found for user ${userId}`);
+    }
+
+    const polarUserId =
+      (typeof tokenData.x_user_id === "number" ? tokenData.x_user_id : null) ??
+      (tokenData.polar_user_id ? Number(tokenData.polar_user_id) : null);
+
+    const dateFromUrl = (typeof log?.payload?.url === "string" && log.payload.url.split("/").pop()) || undefined;
+
+    const { error } = await supabase.functions.invoke("sync-polar-continuous-hr", {
+      body: {
+        user_id: userId,
+        polar_user_id: polarUserId,
+        access_token: tokenData.access_token,
+        date: dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : undefined,
+        url: log?.payload?.url,
+        webhook_payload: log.payload ?? {},
+      },
+    });
+    if (error) throw new Error(`sync-polar-continuous-hr failed: ${error.message || JSON.stringify(error)}`);
     return;
   }
 

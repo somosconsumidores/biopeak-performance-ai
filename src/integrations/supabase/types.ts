@@ -1398,6 +1398,42 @@ export type Database = {
         }
         Relationships: []
       }
+      polar_continuous_hr_samples: {
+        Row: {
+          calendar_date: string
+          created_at: string
+          heart_rate: number
+          id: string
+          polar_user_id: number | null
+          sample_time: string
+          sample_timestamp: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_date: string
+          created_at?: string
+          heart_rate: number
+          id?: string
+          polar_user_id?: number | null
+          sample_time: string
+          sample_timestamp?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_date?: string
+          created_at?: string
+          heart_rate?: number
+          id?: string
+          polar_user_id?: number | null
+          sample_time?: string
+          sample_timestamp?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       polar_sleep: {
         Row: {
           created_at: string
