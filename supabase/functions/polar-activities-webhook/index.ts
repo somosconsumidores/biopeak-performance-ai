@@ -145,6 +145,7 @@ serve(async (req) => {
     }
 
     console.log('[polar-activities-webhook] Found user:', tokenData.user_id);
+    const eventLower = (payload.event || '').toLowerCase();
 
     // Update log status to processing
     if (logId) {
@@ -157,88 +158,194 @@ serve(async (req) => {
         .eq('id', logId);
     }
 
-    // Log the sync attempt
-    const { data: syncData, error: syncError } = await supabase
-      .from('polar_sync_control')
-      .insert({
-        user_id: tokenData.user_id,
-        sync_type: 'activities',
-        triggered_by: 'webhook',
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (syncError) {
-      console.error('[polar-activities-webhook] Failed to log sync attempt:', syncError);
-    }
-
-    // Call sync function to fetch the new activities
+    // Route handling by event type
     try {
-      const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-polar-activities`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      if (eventLower === 'exercise') {
+        // Log the sync attempt for activities
+        const { data: syncData, error: syncError } = await supabase
+          .from('polar_sync_control')
+          .insert({
+            user_id: tokenData.user_id,
+            sync_type: 'activities',
+            triggered_by: 'webhook',
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (syncError) {
+          console.error('[polar-activities-webhook] Failed to log activities sync attempt:', syncError);
+        }
+
+        const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-polar-activities`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: tokenData.user_id,
+            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            access_token: tokenData.access_token,
+            webhook_payload: payload,
+          }),
+        });
+
+        if (!syncResponse.ok) {
+          throw new Error(`Activities sync failed: ${syncResponse.statusText}`);
+        }
+
+        console.log('[polar-activities-webhook] Activities sync triggered successfully');
+
+        if (syncData) {
+          await supabase
+            .from('polar_sync_control')
+            .update({ status: 'completed', last_sync_at: new Date().toISOString() })
+            .eq('id', syncData.id);
+        }
+
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
+      } else if (eventLower === 'sleep') {
+        // Log the sync attempt for sleep
+        const { data: syncData, error: syncError } = await supabase
+          .from('polar_sync_control')
+          .insert({
+            user_id: tokenData.user_id,
+            sync_type: 'sleep',
+            triggered_by: 'webhook',
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (syncError) {
+          console.error('[polar-activities-webhook] Failed to log sleep sync attempt:', syncError);
+        }
+
+        const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-polar-sleep`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: tokenData.user_id,
+            polar_user_id: tokenData.polar_user_id || payload.user_id,
+            access_token: tokenData.access_token,
+            webhook_payload: payload,
+          }),
+        });
+
+        if (!syncResponse.ok) {
+          throw new Error(`Sleep sync failed: ${syncResponse.statusText}`);
+        }
+
+        console.log('[polar-activities-webhook] Sleep sync triggered successfully');
+
+        if (syncData) {
+          await supabase
+            .from('polar_sync_control')
+            .update({ status: 'completed', last_sync_at: new Date().toISOString() })
+            .eq('id', syncData.id);
+        }
+
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
+      } else if (eventLower === 'continuous_heart_rate') {
+        // Store raw continuous HR event for later processing
+        const eventDateIso = payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString();
+        const body: any = payload as any;
+        const { error: insertErr } = await supabase.from('polar_continuous_hr_events').insert({
           user_id: tokenData.user_id,
-          polar_user_id: tokenData.polar_user_id || payload.user_id,
-          access_token: tokenData.access_token,
-          webhook_payload: payload,
-        }),
-      });
-
-      if (!syncResponse.ok) {
-        throw new Error(`Sync failed: ${syncResponse.statusText}`);
+          polar_user_id: payload.user_id,
+          event_date: eventDateIso,
+          window_start: body.window_start || body.start_time || null,
+          window_end: body.window_end || body.end_time || null,
+          payload: payload as unknown as object,
+        });
+        if (insertErr) {
+          throw insertErr;
+        }
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
+        console.log('[polar-activities-webhook] Stored continuous HR event');
+      } else if (eventLower === 'sleep_wise_circadian_bedtime') {
+        const body: any = payload as any;
+        const dateIso = body.calendar_date || (payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString());
+        const upsertData = {
+          user_id: tokenData.user_id,
+          polar_user_id: payload.user_id,
+          calendar_date: dateIso,
+          bedtime_start: body.bedtime_start || null,
+          bedtime_end: body.bedtime_end || null,
+          confidence: body.confidence ?? body.score ?? null,
+          timezone: body.timezone || body.tz || null,
+          payload: payload as unknown as object,
+        };
+        const { error: upsertErr } = await supabase
+          .from('polar_sleepwise_bedtime')
+          .upsert(upsertData, { onConflict: 'user_id,calendar_date' });
+        if (upsertErr) {
+          throw upsertErr;
+        }
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
+        console.log('[polar-activities-webhook] Upserted SleepWise bedtime');
+      } else if (eventLower === 'sleep_wise_alertness') {
+        const body: any = payload as any;
+        const dateIso = body.calendar_date || (payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString());
+        const predictions = body.predictions || body.alertness || [];
+        const { error: upsertErr } = await supabase
+          .from('polar_sleepwise_alertness')
+          .upsert({
+            user_id: tokenData.user_id,
+            polar_user_id: payload.user_id,
+            calendar_date: dateIso,
+            predictions,
+            payload: payload as unknown as object,
+          }, { onConflict: 'user_id,calendar_date' });
+        if (upsertErr) {
+          throw upsertErr;
+        }
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
+        console.log('[polar-activities-webhook] Upserted SleepWise alertness');
+      } else {
+        console.log('[polar-activities-webhook] Unhandled Polar event type, marking as success:', eventLower);
+        if (logId) {
+          await supabase
+            .from('polar_webhook_logs')
+            .update({ status: 'success', processed_at: new Date().toISOString() })
+            .eq('id', logId);
+        }
       }
-
-      console.log('[polar-activities-webhook] Sync triggered successfully');
-
-      // Update sync status to completed
-      if (syncData) {
-        await supabase
-          .from('polar_sync_control')
-          .update({
-            status: 'completed',
-            last_sync_at: new Date().toISOString(),
-          })
-          .eq('id', syncData.id);
-      }
-
-      // Update webhook log status to success
+    } catch (syncOrStoreErr) {
+      console.error('[polar-activities-webhook] Processing error:', syncOrStoreErr);
       if (logId) {
         await supabase
           .from('polar_webhook_logs')
-          .update({
-            status: 'success',
-            processed_at: new Date().toISOString(),
-          })
-          .eq('id', logId);
-      }
-
-    } catch (syncError) {
-      console.error('[polar-activities-webhook] Sync error:', syncError);
-      
-      // Update sync status to failed
-      if (syncData) {
-        await supabase
-          .from('polar_sync_control')
-          .update({
-            status: 'failed',
-          })
-          .eq('id', syncData.id);
-      }
-
-      // Update webhook log status to failed
-      if (logId) {
-        await supabase
-          .from('polar_webhook_logs')
-          .update({
-            status: 'failed',
-            error_message: syncError.message,
-            processed_at: new Date().toISOString(),
-          })
+          .update({ status: 'failed', error_message: String(syncOrStoreErr?.message || syncOrStoreErr), processed_at: new Date().toISOString() })
           .eq('id', logId);
       }
     }

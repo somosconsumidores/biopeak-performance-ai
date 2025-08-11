@@ -1362,6 +1362,42 @@ export type Database = {
         }
         Relationships: []
       }
+      polar_continuous_hr_events: {
+        Row: {
+          created_at: string
+          event_date: string | null
+          id: string
+          payload: Json
+          polar_user_id: number | null
+          updated_at: string
+          user_id: string
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          updated_at?: string
+          user_id: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          updated_at?: string
+          user_id?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       polar_sleep: {
         Row: {
           created_at: string
@@ -1411,6 +1447,81 @@ export type Database = {
           sleep_start_time?: string | null
           synced_at?: string
           total_sleep?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      polar_sleepwise_alertness: {
+        Row: {
+          calendar_date: string
+          created_at: string
+          id: string
+          payload: Json
+          polar_user_id: number | null
+          predictions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_date: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          predictions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_date?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          predictions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      polar_sleepwise_bedtime: {
+        Row: {
+          bedtime_end: string | null
+          bedtime_start: string | null
+          calendar_date: string
+          confidence: number | null
+          created_at: string
+          id: string
+          payload: Json
+          polar_user_id: number | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bedtime_end?: string | null
+          bedtime_start?: string | null
+          calendar_date: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bedtime_end?: string | null
+          bedtime_start?: string | null
+          calendar_date?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          polar_user_id?: number | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2120,6 +2231,10 @@ export type Database = {
       }
       find_user_by_garmin_id: {
         Args: { garmin_user_id_param: string }
+        Returns: string
+      }
+      find_user_by_polar_id: {
+        Args: { polar_user_id_param: number }
         Returns: string
       }
       force_renew_expired_tokens: {
