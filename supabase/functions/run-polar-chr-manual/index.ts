@@ -179,7 +179,6 @@ serve(async (req) => {
         polar_user_id: resolvedPolarUserId,
         calendar_date: calendarDate,
         sample_time: s.sample_time,
-        sample_timestamp: toTimestamp(calendarDate, s.sample_time),
         heart_rate: Math.round(s.heart_rate as number),
       }));
 
