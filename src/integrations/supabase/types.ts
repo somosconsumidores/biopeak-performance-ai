@@ -910,6 +910,36 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_vo2max: {
+        Row: {
+          calendar_date: string
+          created_at: string
+          fitness_age: number | null
+          garmin_user_id: string
+          id: string
+          vo2_max_cycling: number | null
+          vo2_max_running: number | null
+        }
+        Insert: {
+          calendar_date: string
+          created_at?: string
+          fitness_age?: number | null
+          garmin_user_id: string
+          id?: string
+          vo2_max_cycling?: number | null
+          vo2_max_running?: number | null
+        }
+        Update: {
+          calendar_date?: string
+          created_at?: string
+          fitness_age?: number | null
+          garmin_user_id?: string
+          id?: string
+          vo2_max_cycling?: number | null
+          vo2_max_running?: number | null
+        }
+        Relationships: []
+      }
       garmin_webhook_logs: {
         Row: {
           created_at: string | null

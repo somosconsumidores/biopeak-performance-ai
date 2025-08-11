@@ -1,0 +1,144 @@
+/**
+ * Supabase Edge Function: garmin-user-metrics
+ * Public webhook for Garmin Health API userMetrics push notifications.
+ * - Accepts POST application/json with body { userMetrics: [ ... ] }
+ * - Upserts into public.garmin_vo2max (idempotent via unique (garmin_user_id, calendar_date))
+ * - Logs each notification into public.garmin_webhook_logs
+ * - Always returns 200 quickly and logs errors without delaying the response
+ */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.4';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
+type UserMetricItem = {
+  userId: string;
+  summaryId?: string;
+  calendarDate: string;
+  vo2MaxRunning?: number | null;
+  vo2MaxCycling?: number | null;
+  fitnessAge?: number | null;
+};
+
+type IncomingPayload = {
+  userMetrics?: UserMetricItem[];
+};
+
+Deno.serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    // Keep it simple and safe; Garmin will POST real data
+    return new Response(JSON.stringify({ ok: true, message: 'Only POST is supported' }), {
+      headers: corsHeaders,
+      status: 200,
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  let payload: IncomingPayload | null = null;
+
+  try {
+    // Content-Type check (not strictly required by Garmin but keeps API tidy)
+    const contentType = req.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      console.warn('[garmin-user-metrics] Non-JSON Content-Type received:', contentType);
+    }
+
+    payload = await req.json().catch(() => null);
+    if (!payload || !Array.isArray(payload.userMetrics)) {
+      console.warn('[garmin-user-metrics] Invalid or empty body, responding OK to satisfy webhook requirement');
+      return new Response(JSON.stringify({ ok: true, received: 0 }), {
+        headers: corsHeaders,
+        status: 200,
+      });
+    }
+
+    const rows = [];
+    const logs = [];
+
+    for (const item of payload.userMetrics) {
+      if (!item?.userId || !item?.calendarDate) {
+        console.warn('[garmin-user-metrics] Skipping invalid item (missing userId or calendarDate):', item);
+        continue;
+      }
+
+      rows.push({
+        garmin_user_id: item.userId,
+        calendar_date: item.calendarDate, // YYYY-MM-DD
+        vo2_max_running: item.vo2MaxRunning ?? null,
+        vo2_max_cycling: item.vo2MaxCycling ?? null,
+        fitness_age: item.fitnessAge ?? null,
+      });
+
+      logs.push({
+        webhook_type: 'user_metrics',
+        garmin_user_id: item.userId,
+        payload: item as unknown as object,
+        status: 'success',
+      });
+    }
+
+    if (rows.length === 0) {
+      console.warn('[garmin-user-metrics] No valid items to upsert, responding OK');
+      return new Response(JSON.stringify({ ok: true, received: 0 }), {
+        headers: corsHeaders,
+        status: 200,
+      });
+    }
+
+    // Idempotent upsert (unique: garmin_user_id + calendar_date)
+    const { error: upsertError } = await supabase
+      .from('garmin_vo2max')
+      .upsert(rows, { onConflict: 'garmin_user_id,calendar_date' });
+
+    if (upsertError) {
+      console.error('[garmin-user-metrics] Upsert error:', upsertError);
+      // Still proceed to log error; do not fail webhook response
+    }
+
+    // Best-effort logging (do not block or fail the response if it errors)
+    const { error: logError } = await supabase.from('garmin_webhook_logs').insert(
+      logs.map((l) => ({
+        webhook_type: l.webhook_type,
+        garmin_user_id: l.garmin_user_id,
+        payload: l.payload,
+        status: upsertError ? 'error' : 'success',
+        error_message: upsertError ? String(upsertError.message ?? 'Upsert error') : null,
+      }))
+    );
+
+    if (logError) {
+      console.error('[garmin-user-metrics] Log insert error:', logError);
+    }
+
+    // Respond fast and always 200
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        received: rows.length,
+        upserted: upsertError ? 0 : rows.length,
+      }),
+      { headers: corsHeaders, status: 200 }
+    );
+  } catch (e) {
+    console.error('[garmin-user-metrics] Unexpected error:', e);
+
+    // Never block or return non-200 to Garmin
+    return new Response(JSON.stringify({ ok: true, error: 'logged' }), {
+      headers: corsHeaders,
+      status: 200,
+    });
+  }
+});

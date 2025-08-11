@@ -117,3 +117,6 @@ verify_jwt = false
 
 [functions.strava-webhook]
 verify_jwt = false
+
+[functions.garmin-user-metrics]
+verify_jwt = false
