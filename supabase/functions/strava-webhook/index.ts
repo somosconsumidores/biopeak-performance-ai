@@ -84,26 +84,30 @@ Deno.serve(async (req) => {
     if (req.method === 'POST') {
       const signature = req.headers.get('X-Strava-Signature') || req.headers.get('x-strava-signature')
       const rawBody = await req.text()
-      const valid = await verifyStravaSignature(rawBody, signature)
-      if (!valid) {
-        const hasSecret = Boolean(Deno.env.get('STRAVA_CLIENT_SECRET'))
-        const reason = !signature ? 'missing_signature_header' : (!hasSecret ? 'missing_client_secret' : 'mismatch')
-        console.warn('Invalid Strava signature', { reason })
-        try {
-          const parsed = JSON.parse(rawBody)
-          await serviceRoleClient
-            .from('strava_webhook_logs')
-            .insert({
-              webhook_type: parsed?.aspect_type || 'unknown',
-              payload: parsed,
-              status: 'invalid_signature',
-              error_message: reason
-            })
-        } catch (_) { /* ignore */ }
-        return new Response('Invalid signature', { status: 401, headers: corsHeaders })
+      const enforceSignature = (Deno.env.get('STRAVA_ENFORCE_SIGNATURE') || '').toLowerCase() === 'true'
+
+      if (signature) {
+        const valid = await verifyStravaSignature(rawBody, signature)
+        if (!valid) {
+          console.warn('Strava signature present but invalid; rejecting', { enforceSignature })
+          return new Response('Invalid signature', { status: 401, headers: corsHeaders })
+        }
+      } else {
+        if (enforceSignature) {
+          console.warn('Missing X-Strava-Signature header; strict mode enabled - rejecting')
+          return new Response('Signature required', { status: 401, headers: corsHeaders })
+        }
+        const headerNames = Array.from(req.headers.keys()).slice(0, 50)
+        console.warn('Missing X-Strava-Signature header; proceeding in compatibility mode', { headerNamesCount: headerNames.length, headerNames })
       }
 
-      const payload = JSON.parse(rawBody)
+      let payload: any
+      try {
+        payload = JSON.parse(rawBody)
+      } catch (_) {
+        console.warn('Failed to parse webhook body as JSON; storing raw body')
+        payload = { raw: rawBody }
+      }
       console.log('Strava webhook notification received (sanitized):', {
         aspect_type: payload.aspect_type,
         object_type: payload.object_type,
