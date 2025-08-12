@@ -43,12 +43,13 @@ Deno.serve(async (req) => {
     const metrics = calculatePerformanceMetrics(activity, details)
 
     // Save metrics to database
-    const { error: saveError } = await supabase
+  const { error: saveError } = await supabase
       .from('performance_metrics')
       .upsert({
         ...metrics,
         user_id,
         activity_id: activity.id,
+        activity_source: 'strava',
         calculated_at: new Date().toISOString()
       })
 
@@ -201,7 +202,7 @@ function calculatePerformanceMetrics(activity: any, details: any[]) {
 
   // Heart Rate calculations
   if (activity.average_heartrate) {
-    metrics.average_hr = activity.average_heartrate
+    metrics.average_hr = Math.round(activity.average_heartrate)
     if (activity.max_heartrate) {
       metrics.relative_intensity = Number(((activity.average_heartrate / activity.max_heartrate) * 100).toFixed(1))
       const estimatedMaxHr = activity.max_heartrate

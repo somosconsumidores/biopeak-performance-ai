@@ -230,32 +230,26 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
     calories: dbMetrics.calories,
     duration: dbMetrics.duration_seconds,
     efficiency: {
-      powerPerBeat: isStravaActivity ? null : dbMetrics.power_per_beat,
-      distancePerMinute: dbMetrics.movement_efficiency || dbMetrics.distance_per_minute,
+      powerPerBeat: dbMetrics.power_per_beat ?? null,
+      distancePerMinute: dbMetrics.movement_efficiency ?? dbMetrics.distance_per_minute ?? null,
       comment: dbMetrics.efficiency_comment || "Sem dados suficientes"
     },
     pace: {
-      averageSpeedKmh: dbMetrics.average_speed_kmh,
-      paceVariationCoefficient: isStravaActivity ? dbMetrics.pace_consistency : dbMetrics.pace_variation_coefficient,
+      averageSpeedKmh: dbMetrics.average_speed_kmh ?? null,
+      paceVariationCoefficient: dbMetrics.pace_variation_coefficient ?? dbMetrics.pace_consistency ?? null,
       comment: dbMetrics.pace_comment || "Sem dados suficientes"
     },
     heartRate: {
-      averageHr: isPolarActivity ? dbMetrics.average_hr : (isStravaActivity ? null : dbMetrics.average_hr),
-      maxHr: isPolarActivity ? dbMetrics.max_hr : (isStravaActivity ? null : dbMetrics.max_hr),
-      relativeIntensity: isPolarActivity ? dbMetrics.relative_intensity : (isStravaActivity ? null : dbMetrics.relative_intensity),
-      relativeReserve: isPolarActivity ? dbMetrics.relative_reserve : (isStravaActivity ? null : dbMetrics.relative_reserve),
+      averageHr: dbMetrics.average_hr ?? null,
+      maxHr: dbMetrics.max_hr ?? null,
+      relativeIntensity: dbMetrics.relative_intensity ?? null,
+      relativeReserve: dbMetrics.relative_reserve ?? null,
       comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
     },
     effortDistribution: {
-      beginning: isStravaActivity ? dbMetrics.pace_distribution_beginning : 
-                 isPolarActivity ? dbMetrics.effort_beginning_bpm : 
-                 dbMetrics.effort_beginning_bpm,
-      middle: isStravaActivity ? dbMetrics.pace_distribution_middle : 
-              isPolarActivity ? dbMetrics.effort_middle_bpm : 
-              dbMetrics.effort_middle_bpm,
-      end: isStravaActivity ? dbMetrics.pace_distribution_end : 
-           isPolarActivity ? dbMetrics.effort_end_bpm : 
-           dbMetrics.effort_end_bpm,
+      beginning: dbMetrics.effort_beginning_bpm ?? dbMetrics.pace_distribution_beginning ?? null,
+      middle: dbMetrics.effort_middle_bpm ?? dbMetrics.pace_distribution_middle ?? null,
+      end: dbMetrics.effort_end_bpm ?? dbMetrics.pace_distribution_end ?? null,
       comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
     }
   };
