@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { XMLParser } from 'https://esm.sh/fast-xml-parser@4.3.5'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +57,7 @@ Deno.serve(async (req) => {
     const activityType = body?.activity_type as string | undefined
     const nameInput = body?.name as string | undefined
 
+    console.log('[import-strava-gpx] request', { userId: user.id, filePath, activityType, hasName: !!nameInput });
     if (!filePath) {
       return new Response(JSON.stringify({ error: 'file_path is required' }), {
         status: 400,
@@ -73,22 +75,36 @@ Deno.serve(async (req) => {
     }
 
     const gpxText = await gpxBlob.text()
-
-    // Parse GPX 1.1
-    const parser = new DOMParser()
-    const xml = parser.parseFromString(gpxText, 'application/xml')
-    if (!xml || xml.querySelector('parsererror')) {
+    console.log('[import-strava-gpx] downloaded GPX', { bytes: (gpxBlob as any).size ?? gpxText.length });
+    // Parse GPX 1.1 using fast-xml-parser (DOMParser not available in Edge runtime)
+    const fxp = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' })
+    let gpxObj: any
+    try {
+      gpxObj = fxp.parse(gpxText)
+    } catch (_e) {
       return new Response(JSON.stringify({ error: 'Invalid GPX XML' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const nameNode = xml.querySelector('gpx > trk > name') || xml.querySelector('trk > name')
-    const activityName = nameInput || nameNode?.textContent || 'Atividade GPX'
+    const gpxRoot = gpxObj?.gpx ?? gpxObj
+    const trk = Array.isArray(gpxRoot?.trk) ? gpxRoot.trk[0] : gpxRoot?.trk
+    const activityName = nameInput || trk?.name || 'Atividade GPX'
 
-    const trkpts = Array.from(xml.getElementsByTagName('trkpt'))
-    if (trkpts.length < 2) {
+    const trksegs = trk?.trkseg
+      ? (Array.isArray(trk.trkseg) ? trk.trkseg : [trk.trkseg])
+      : []
+
+    const trkptsArr: any[] = trksegs.flatMap((seg: any) => {
+      const pts = seg?.trkpt
+        ? (Array.isArray(seg.trkpt) ? seg.trkpt : [seg.trkpt])
+        : []
+      return pts
+    })
+
+    console.log('[import-strava-gpx] parsed trkpts', { count: trkptsArr.length });
+    if (trkptsArr.length < 2) {
       return new Response(JSON.stringify({ error: 'GPX must contain at least 2 track points' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -111,24 +127,21 @@ Deno.serve(async (req) => {
     let hrCount = 0
     let hrMax = 0
 
-    for (const el of trkpts) {
-      const lat = parseFloat(el.getAttribute('lat') || '0')
-      const lon = parseFloat(el.getAttribute('lon') || '0')
-      const ele = el.getElementsByTagName('ele')?.[0]?.textContent ? parseFloat(el.getElementsByTagName('ele')[0].textContent as string) : undefined
-      const timeStr = el.getElementsByTagName('time')?.[0]?.textContent || undefined
+    for (const el of trkptsArr) {
+      const lat = parseFloat(String(el.lat ?? el.latitude ?? el.attributes?.lat ?? 0))
+      const lon = parseFloat(String(el.lon ?? el.longitude ?? el.attributes?.lon ?? 0))
+      const eleVal = (el.ele ?? el.elevation ?? el['ele'])
+      const ele = typeof eleVal !== 'undefined' ? parseFloat(String(eleVal)) : undefined
+      const timeStr: string | undefined = (el.time ?? el.timestamp ?? el['time']) || undefined
 
-      // HR can be in gpxtpx:hr or hr (handle namespace too)
+      // HR from Garmin TrackPointExtension or plain hr
       let hr: number | undefined
-      let hrNode = el.getElementsByTagName('gpxtpx:hr')[0] || el.getElementsByTagName('hr')[0]
-      if (!hrNode && (el as any).getElementsByTagNameNS) {
-        try {
-          hrNode = (el as any).getElementsByTagNameNS('http://www.garmin.com/xmlschemas/TrackPointExtension/v1', 'hr')[0]
-        } catch (_) {
-          // ignore namespace lookup failures
-        }
-      }
-      if (hrNode && hrNode.textContent) {
-        const v = parseInt(hrNode.textContent)
+      const extensions = (el.extensions ?? el.extension ?? {}) as any
+      const tpx = (extensions['gpxtpx:TrackPointExtension'] ?? extensions['TrackPointExtension'] ?? el['gpxtpx:TrackPointExtension'] ?? {}) as any
+      let hrRaw: any = (tpx?.['gpxtpx:hr'] ?? tpx?.hr ?? el['gpxtpx:hr'] ?? el.hr)
+      if (Array.isArray(hrRaw)) hrRaw = hrRaw[0]
+      if (hrRaw !== undefined && hrRaw !== null) {
+        const v = parseInt(String(hrRaw))
         if (!isNaN(v)) {
           hr = v
           hrSum += v
@@ -139,7 +152,7 @@ Deno.serve(async (req) => {
 
       // Segment distance and elevation
       let dSeg = 0
-      if (lastLat !== null && lastLon !== null) {
+      if (lastLat !== null && lastLon !== null && !isNaN(lat) && !isNaN(lon)) {
         dSeg = haversineDistance(lastLat, lastLon, lat, lon)
         totalDistance += dSeg
       }
@@ -163,8 +176,8 @@ Deno.serve(async (req) => {
       // Save sample with cumulative distance
       samples.push({ lat, lon, ele, time: timeStr || undefined, hr, dist: totalDistance })
 
-      lastLat = lat
-      lastLon = lon
+      lastLat = isNaN(lat) ? lastLat : lat
+      lastLon = isNaN(lon) ? lastLon : lon
       if (ele !== undefined) lastEle = ele
       lastTs = ts ?? lastTs
     }
@@ -202,6 +215,8 @@ Deno.serve(async (req) => {
       .select('activity_id')
       .single()
 
+    console.log('[import-strava-gpx] summary saved', { activity_id: activityId });
+
     if (summaryError || !summaryInsert) {
       return new Response(JSON.stringify({ error: 'Failed to save summary', details: summaryError?.message }), {
         status: 500,
@@ -236,6 +251,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log('[import-strava-gpx] details inserted', { rows: detailRows.length });
+
     return new Response(JSON.stringify({
       success: true,
       activity_id: summaryInsert.activity_id,
@@ -252,7 +269,8 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Internal server error', details: error?.message }), {
+    console.error('[import-strava-gpx] error', error)
+    return new Response(JSON.stringify({ error: 'Internal server error', details: (error as any)?.message ?? String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
