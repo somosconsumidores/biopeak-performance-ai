@@ -319,15 +319,23 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="heart_rate" 
               />
-              {/* Show Strava pace chart if it's a Strava activity, otherwise show Garmin chart */}
-              {(currentActivity as any)?.source === 'STRAVA' && (currentActivity as any)?.strava_activity_id ? (
-                <StravaPaceChart stravaActivityId={(currentActivity as any).strava_activity_id} />
+              {/* Ocultar gráficos para atividades Polar */}
+              {(currentActivity as any)?.source === 'POLAR' ? (
+                <Card className="glass-card border-glass-border">
+                  <CardContent className="py-6 text-center text-muted-foreground text-sm">
+                    Gráficos de ritmo e frequência cardíaca não estão disponíveis para atividades Polar no momento.
+                  </CardContent>
+                </Card>
               ) : (
-                <HeartRatePaceChart 
-                  activityId={currentActivity.activity_id} 
-                  activityStartTime={currentActivity.start_time_in_seconds}
-                  activityDate={currentActivity.activity_date}
-                />
+                ((currentActivity as any)?.source === 'STRAVA' && (currentActivity as any)?.strava_activity_id) ? (
+                  <StravaPaceChart stravaActivityId={(currentActivity as any).strava_activity_id} />
+                ) : (
+                  <HeartRatePaceChart 
+                    activityId={currentActivity.activity_id} 
+                    activityStartTime={currentActivity.start_time_in_seconds}
+                    activityDate={currentActivity.activity_date}
+                  />
+                )
               )}
             </div>
           </ScrollReveal>
