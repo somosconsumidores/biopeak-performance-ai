@@ -268,9 +268,6 @@ export const LandingPage = () => {
                     <ArrowRight className="ml-1 h-4 w-4 flex-shrink-0" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="glass-card border-glass-border text-sm sm:text-base px-4 sm:px-6 py-3 min-h-[3rem] max-w-[200px] sm:max-w-none">
-                  <span className="truncate">{t('talkToExpert')}</span>
-                </Button>
               </div>
             </div>
           </ScrollReveal>
