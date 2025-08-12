@@ -184,17 +184,20 @@ Deno.serve(async (req) => {
       .insert({
         user_id: user.id,
         activity_id: activityId,
+        source: 'STRAVA_GPX',
         name: activityName,
         activity_type: activityType || 'RUNNING',
         start_time: startTimeIso,
+        end_time: endTimeIso,
         duration_in_seconds: durationSec,
         distance_in_meters: Math.round(totalDistance),
         average_heart_rate: avgHr,
         max_heart_rate: hrMax || null,
         total_elevation_gain_in_meters: Math.round(totalGain),
         total_elevation_loss_in_meters: Math.round(totalLoss),
-        average_speed_mps: avgSpeed,
-        average_pace_min_km: avgPace,
+        average_speed_in_meters_per_second: avgSpeed,
+        average_pace_in_minutes_per_kilometer: avgPace,
+        file_path: filePath,
       })
       .select('activity_id')
       .single()
