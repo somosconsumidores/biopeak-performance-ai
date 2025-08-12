@@ -117,9 +117,16 @@ Deno.serve(async (req) => {
       const ele = el.getElementsByTagName('ele')?.[0]?.textContent ? parseFloat(el.getElementsByTagName('ele')[0].textContent as string) : undefined
       const timeStr = el.getElementsByTagName('time')?.[0]?.textContent || undefined
 
-      // HR can be in gpxtpx:hr or hr
+      // HR can be in gpxtpx:hr or hr (handle namespace too)
       let hr: number | undefined
-      const hrNode = el.getElementsByTagName('gpxtpx:hr')[0] || el.getElementsByTagName('hr')[0]
+      let hrNode = el.getElementsByTagName('gpxtpx:hr')[0] || el.getElementsByTagName('hr')[0]
+      if (!hrNode && (el as any).getElementsByTagNameNS) {
+        try {
+          hrNode = (el as any).getElementsByTagNameNS('http://www.garmin.com/xmlschemas/TrackPointExtension/v1', 'hr')[0]
+        } catch (_) {
+          // ignore namespace lookup failures
+        }
+      }
       if (hrNode && hrNode.textContent) {
         const v = parseInt(hrNode.textContent)
         if (!isNaN(v)) {
@@ -145,7 +152,7 @@ Deno.serve(async (req) => {
       // Time bounds
       let ts: number | null = null
       if (timeStr) {
-        const parsed = Date.parse(timeStr)
+        const parsed = new Date(timeStr).getTime()
         if (!isNaN(parsed)) {
           ts = parsed
           if (minTime === null || parsed < minTime) minTime = parsed
@@ -158,14 +165,14 @@ Deno.serve(async (req) => {
 
       lastLat = lat
       lastLon = lon
-      lastEle = ele ?? lastEle
+      if (ele !== undefined) lastEle = ele
       lastTs = ts ?? lastTs
     }
 
     const durationSec = maxTime && minTime ? Math.max(1, Math.round((maxTime - minTime) / 1000)) : null
     const avgHr = hrCount > 0 ? Math.round(hrSum / hrCount) : null
     const avgSpeed = durationSec && totalDistance > 0 ? totalDistance / durationSec : null
-    const avgPace = avgSpeed && avgSpeed > 0 ? (1000 / (avgSpeed * 60)) : null // min/km
+    const avgPace = avgSpeed && avgSpeed > 0 ? (1000 / avgSpeed) / 60 : null // min/km
 
     const startTimeIso = minTime ? new Date(minTime).toISOString() : null
     const endTimeIso = maxTime ? new Date(maxTime).toISOString() : null
