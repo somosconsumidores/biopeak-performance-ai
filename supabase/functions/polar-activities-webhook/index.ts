@@ -230,6 +230,7 @@ serve(async (req) => {
             user_id: tokenData.user_id,
             polar_user_id: tokenData.polar_user_id || xUserId,
             access_token: tokenData.access_token,
+            url: payload.url,
             webhook_payload: payload,
           },
         });
