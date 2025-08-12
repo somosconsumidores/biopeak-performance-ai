@@ -1994,6 +1994,126 @@ export type Database = {
         }
         Relationships: []
       }
+      strava_gpx_activities: {
+        Row: {
+          activity_date: string | null
+          activity_id: string
+          activity_type: string | null
+          average_heart_rate: number | null
+          average_pace_in_minutes_per_kilometer: number | null
+          average_speed_in_meters_per_second: number | null
+          calories: number | null
+          created_at: string
+          distance_in_meters: number | null
+          duration_in_seconds: number | null
+          end_time: string | null
+          file_path: string | null
+          id: string
+          max_heart_rate: number | null
+          name: string | null
+          source: string
+          start_time: string | null
+          synced_at: string
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string | null
+          activity_id?: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          average_pace_in_minutes_per_kilometer?: number | null
+          average_speed_in_meters_per_second?: number | null
+          calories?: number | null
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          end_time?: string | null
+          file_path?: string | null
+          id?: string
+          max_heart_rate?: number | null
+          name?: string | null
+          source?: string
+          start_time?: string | null
+          synced_at?: string
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string | null
+          activity_id?: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          average_pace_in_minutes_per_kilometer?: number | null
+          average_speed_in_meters_per_second?: number | null
+          calories?: number | null
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          end_time?: string | null
+          file_path?: string | null
+          id?: string
+          max_heart_rate?: number | null
+          name?: string | null
+          source?: string
+          start_time?: string | null
+          synced_at?: string
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      strava_gpx_activity_details: {
+        Row: {
+          activity_id: string
+          activity_name: string | null
+          activity_summary: Json | null
+          created_at: string
+          device_name: string | null
+          duration_in_seconds: number | null
+          id: string
+          samples: Json | null
+          start_time: string | null
+          total_distance_in_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          id?: string
+          samples?: Json | null
+          start_time?: string | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          id?: string
+          samples?: Json | null
+          start_time?: string | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       strava_sync_status: {
         Row: {
           created_at: string
