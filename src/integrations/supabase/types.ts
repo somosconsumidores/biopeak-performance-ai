@@ -2077,8 +2077,14 @@ export type Database = {
           created_at: string
           device_name: string | null
           duration_in_seconds: number | null
+          elevation_in_meters: number | null
+          heart_rate: number | null
           id: string
+          latitude_in_degree: number | null
+          longitude_in_degree: number | null
+          sample_timestamp: string | null
           samples: Json | null
+          speed_meters_per_second: number | null
           start_time: string | null
           total_distance_in_meters: number | null
           updated_at: string
@@ -2091,8 +2097,14 @@ export type Database = {
           created_at?: string
           device_name?: string | null
           duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
           id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: string | null
           samples?: Json | null
+          speed_meters_per_second?: number | null
           start_time?: string | null
           total_distance_in_meters?: number | null
           updated_at?: string
@@ -2105,8 +2117,14 @@ export type Database = {
           created_at?: string
           device_name?: string | null
           duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
           id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: string | null
           samples?: Json | null
+          speed_meters_per_second?: number | null
           start_time?: string | null
           total_distance_in_meters?: number | null
           updated_at?: string
