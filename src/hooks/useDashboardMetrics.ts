@@ -797,16 +797,38 @@ export function useDashboardMetrics() {
   };
 
   // Helpers para normalizar dados do Polar
-  function parseISODurationToSeconds(iso: string | null | undefined): number | null {
-    if (!iso) return null;
+  function parseISODurationToSeconds(iso: string | number | null | undefined): number | null {
+    if (iso == null) return null;
     try {
-      const match = iso.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
-      if (!match) return null;
-      const days = parseInt(match[1] || '0', 10);
-      const hours = parseInt(match[2] || '0', 10);
-      const minutes = parseInt(match[3] || '0', 10);
-      const seconds = parseFloat(match[4] || '0');
-      return Math.round(days * 86400 + hours * 3600 + minutes * 60 + seconds);
+      if (typeof iso === 'number') return Math.round(iso);
+      const s = String(iso).trim();
+      if (!s) return null;
+
+      // Caso 1: segundos em string (ex: "1313" ou "1313.5")
+      if (/^\d+(?:\.\d+)?$/.test(s)) {
+        return Math.round(parseFloat(s));
+      }
+
+      // Caso 2: formato HH:MM:SS
+      const hms = s.match(/^(\d{1,2}):([0-5]?\d):([0-5]?\d)$/);
+      if (hms) {
+        const h = parseInt(hms[1], 10);
+        const m = parseInt(hms[2], 10);
+        const sec = parseInt(hms[3], 10);
+        return h * 3600 + m * 60 + sec;
+      }
+
+      // Caso 3: ISO8601 (ex: PT54.649S, PT20M10S, PT1H)
+      const match = s.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+      if (match) {
+        const days = parseInt(match[1] || '0', 10);
+        const hours = parseInt(match[2] || '0', 10);
+        const minutes = parseInt(match[3] || '0', 10);
+        const seconds = parseFloat(match[4] || '0');
+        return Math.round(days * 86400 + hours * 3600 + minutes * 60 + seconds);
+      }
+
+      return null;
     } catch {
       return null;
     }
