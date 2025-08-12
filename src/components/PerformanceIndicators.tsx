@@ -219,11 +219,11 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     {
       icon: <Zap className="h-6 w-6" />,
       title: 'Eficiência',
-      mainValue: metrics.efficiency.distancePerMinute 
+      mainValue: metrics.efficiency.distancePerMinute != null 
         ? `${metrics.efficiency.distancePerMinute.toFixed(2)}`
         : 'N/A',
       mainLabel: hasHeartRateData ? 'm/min' : 'km/min',
-      secondaryValue: hasHeartRateData && metrics.efficiency.powerPerBeat 
+      secondaryValue: hasHeartRateData && metrics.efficiency.powerPerBeat != null
         ? `${metrics.efficiency.powerPerBeat.toFixed(1)} W/bpm` 
         : undefined,
       secondaryLabel: 'Potência/FC',
@@ -236,11 +236,11 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     {
       icon: <Gauge className="h-6 w-6" />,
       title: 'Ritmo & Velocidade',
-      mainValue: metrics.pace.averageSpeedKmh 
+      mainValue: metrics.pace.averageSpeedKmh != null
         ? `${metrics.pace.averageSpeedKmh.toFixed(1)}`
         : 'N/A',
       mainLabel: 'km/h',
-      secondaryValue: metrics.pace.paceVariationCoefficient 
+      secondaryValue: metrics.pace.paceVariationCoefficient != null
         ? `${metrics.pace.paceVariationCoefficient.toFixed(1)}%`
         : undefined,
       secondaryLabel: hasHeartRateData ? 'Variação' : 'Consistência',
@@ -278,29 +278,29 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     {
       icon: isPolarActivity ? <Heart className="h-6 w-6" /> : <TrendingUp className="h-6 w-6" />,
       title: isPolarActivity ? 'Intensidade Cardíaca' : 'Distribuição do Esforço',
-      mainValue: isPolarActivity && metrics.heartRate.averageHr
+      mainValue: isPolarActivity && metrics.heartRate.averageHr != null
         ? `${metrics.heartRate.averageHr}`
         : (metrics.heartRate.averageHr != null && metrics.effortDistribution.middle != null
           ? `${metrics.effortDistribution.middle}`
           : 'N/A'),
       mainLabel: isPolarActivity ? 'bpm médio' : 'bpm médio',
       distributionValues: isPolarActivity ? {
-        beginning: metrics.heartRate.averageHr ? `${metrics.heartRate.averageHr}` : undefined,
-        middle: metrics.heartRate.maxHr ? `${metrics.heartRate.maxHr}` : undefined,
+        beginning: metrics.heartRate.averageHr != null ? `${metrics.heartRate.averageHr}` : undefined,
+        middle: metrics.heartRate.maxHr != null ? `${metrics.heartRate.maxHr}` : undefined,
         end: metrics.heartRate.relativeIntensity != null ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%` : undefined,
         unit: 'zona'
       } : {
-        beginning: metrics.effortDistribution.beginning 
+        beginning: metrics.effortDistribution.beginning != null 
           ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.beginning}`
             : `${metrics.effortDistribution.beginning.toFixed(2)}`)
           : undefined,
-        middle: metrics.effortDistribution.middle 
+        middle: metrics.effortDistribution.middle != null
           ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.middle}`
             : `${metrics.effortDistribution.middle.toFixed(2)}`)
           : undefined,
-        end: metrics.effortDistribution.end 
+        end: metrics.effortDistribution.end != null
           ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.end}`
             : `${metrics.effortDistribution.end.toFixed(2)}`)
@@ -308,7 +308,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         unit: metrics.heartRate.averageHr != null ? 'bpm' : 'min/km'
       },
       comment: isPolarActivity 
-        ? `Zona de intensidade: ${metrics.heartRate.averageHr && metrics.heartRate.maxHr ? 
+        ? `Zona de intensidade: ${metrics.heartRate.averageHr != null && metrics.heartRate.maxHr != null ? 
             ((metrics.heartRate.averageHr / metrics.heartRate.maxHr) * 100).toFixed(0) + '% da FC máxima' : 
             'Dados insuficientes'}`
         : metrics.effortDistribution.comment,

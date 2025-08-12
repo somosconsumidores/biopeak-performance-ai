@@ -63,144 +63,142 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           throw new Error('User not authenticated');
         }
 
-        // Fetch pre-calculated metrics from performance_metrics table
-        console.log('📋 SQL Query for metrics:', `SELECT * FROM performance_metrics WHERE activity_id = '${activityId}' AND user_id = '${user.id}'`);
-        
+        // 1) Detect source and normalize the activity ID up-front (prevents N/A due to ID mismatch)
+        console.log('🔍 Detecting activity source. Activity ID:', activityId, 'User ID:', user.id);
+        let stravaActivity: any = null;
+        let polarActivity: any = null;
+        let stravaCheckError: any = null;
+        let polarCheckError: any = null;
+
+        if (activityId.includes('-')) {
+          // UUID provided: look up by our internal ID
+          const stravaResult = await supabase
+            .from('strava_activities')
+            .select('id, strava_activity_id, moving_time, distance, average_speed, has_heartrate, average_heartrate')
+            .eq('id', activityId)
+            .eq('user_id', user.id)
+            .single();
+          stravaActivity = stravaResult.data;
+          stravaCheckError = stravaResult.error;
+
+          const polarResult = await supabase
+            .from('polar_activities')
+            .select('id, activity_id')
+            .eq('id', activityId)
+            .eq('user_id', user.id)
+            .single();
+          polarActivity = polarResult.data;
+          polarCheckError = polarResult.error;
+        } else {
+          // Numeric provided: look up by external IDs
+          const stravaResult = await supabase
+            .from('strava_activities')
+            .select('id, strava_activity_id, moving_time, distance, average_speed, has_heartrate, average_heartrate')
+            .eq('strava_activity_id', parseInt(activityId))
+            .eq('user_id', user.id)
+            .single();
+          stravaActivity = stravaResult.data;
+          stravaCheckError = stravaResult.error;
+
+          const polarResult = await supabase
+            .from('polar_activities')
+            .select('id, activity_id')
+            .eq('activity_id', activityId)
+            .eq('user_id', user.id)
+            .single();
+          polarActivity = polarResult.data;
+          polarCheckError = polarResult.error;
+        }
+
+        console.log('🔍 Activity source check results:', { 
+          stravaActivity, stravaCheckError, polarActivity, polarCheckError 
+        });
+
+        // Prefer our canonical UUID when available
+        const candidateIds = Array.from(new Set([
+          activityId,
+          stravaActivity?.id,
+          polarActivity?.id
+        ].filter(Boolean)));
+
+        // 2) Try to load pre-calculated metrics using any known candidate ID for this activity
+        console.log('📋 SQL Query for metrics (candidates):', candidateIds);
         const { data: metricsData, error: metricsError } = await supabase
           .from('performance_metrics')
           .select('*')
-          .eq('activity_id', activityId)
+          .in('activity_id', candidateIds as string[])
           .eq('user_id', user.id)
-          .single();
+          .limit(1)
+          .maybeSingle();
 
-        if (metricsError) {
+        if (!metricsError && metricsData) {
+          const formatted = formatMetricsFromDB(metricsData);
+          const enriched = await hydratePolarMissingFields(formatted, metricsData.activity_id, user.id);
+          setMetrics(enriched);
+        } else {
           // If no pre-calculated metrics found, trigger calculation
-          if (metricsError.code === 'PGRST116') {
-            console.log('⚡ No pre-calculated metrics found. Detecting activity source...');
-            
-            // Try to detect activity source (Strava, Polar, or Garmin)
-            console.log('🔍 Detecting activity source. Activity ID:', activityId, 'User ID:', user.id);
-            
-            // Check if activityId is a UUID (contains hyphens) or a number
-            let stravaActivity = null;
-            let polarActivity = null;
-            let stravaCheckError = null;
-            let polarCheckError = null;
-            
-            if (activityId.includes('-')) {
-              // It's a UUID, check by our internal ID
-              const stravaResult = await supabase
-                .from('strava_activities')
-                .select('strava_activity_id, id')
-                .eq('id', activityId)
-                .eq('user_id', user.id)
-                .single();
-              stravaActivity = stravaResult.data;
-              stravaCheckError = stravaResult.error;
-
-              // Also check for Polar activity
-              const polarResult = await supabase
-                .from('polar_activities')
-                .select('activity_id, id')
-                .eq('id', activityId)
-                .eq('user_id', user.id)
-                .single();
-              polarActivity = polarResult.data;
-              polarCheckError = polarResult.error;
-            } else {
-              // It's a number, check by strava_activity_id and polar activity_id
-              const stravaResult = await supabase
-                .from('strava_activities')
-                .select('strava_activity_id, id')
-                .eq('strava_activity_id', parseInt(activityId))
-                .eq('user_id', user.id)
-                .single();
-              stravaActivity = stravaResult.data;
-              stravaCheckError = stravaResult.error;
-
-              // Also check for Polar activity by activity_id (numeric)
-              const polarResult = await supabase
-                .from('polar_activities')
-                .select('activity_id, id')
-                .eq('activity_id', activityId)
-                .eq('user_id', user.id)
-                .single();
-              polarActivity = polarResult.data;
-              polarCheckError = polarResult.error;
-            }
-            
-            console.log('🔍 Activity source check results:', { 
-              stravaActivity, 
-              stravaCheckError,
-              polarActivity,
-              polarCheckError 
-            });
+          if (metricsError?.code === 'PGRST116') {
+            console.log('⚡ No pre-calculated metrics found. Proceeding to calculate...');
 
             let functionName = 'calculate-performance-metrics';
-            let activityIdForFunction = activityId;
-            
+            // Use canonical UUID when available for the function
+            let activityIdForFunction: string = (stravaActivity?.id || polarActivity?.id || activityId);
+
             if (stravaActivity) {
               console.log('🎯 Detected Strava activity, using Strava-specific metrics');
               functionName = 'calculate-strava-performance-metrics';
-              // Always use the UUID for the function call
-              activityIdForFunction = stravaActivity.id;
             } else if (polarActivity) {
               console.log('🎯 Detected Polar activity, using Polar-specific metrics');
               functionName = 'calculate-polar-performance-metrics';
-              // Always use the UUID for the function call
-              activityIdForFunction = polarActivity.id;
             }
-            
+
             console.log('📞 Calling function:', functionName, 'with activity ID:', activityIdForFunction);
-            
             const { error: functionError } = await supabase.functions.invoke(functionName, {
-              body: { 
-                activity_id: activityIdForFunction, 
-                user_id: user.id 
-              }
+              body: { activity_id: activityIdForFunction, user_id: user.id }
             });
 
             if (functionError) {
-              console.log('⚠️ Function failed, calculating metrics locally as fallback');
-              
-              // Fallback: Calculate basic metrics locally for Strava or Polar activities
-              if (stravaActivity) {
-                const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
-                if (basicMetrics) {
-                  setMetrics(basicMetrics);
-                  return;
+              const msg = functionError.message || '';
+              const isDuplicate = msg.includes('duplicate key') || msg.includes('already exists');
+              if (isDuplicate) {
+                console.log('ℹ️ Metrics already exist. Fetching stored metrics instead.');
+                const { data: retryExisting, error: retryExistingErr } = await supabase
+                  .from('performance_metrics')
+                  .select('*')
+                  .eq('activity_id', activityIdForFunction)
+                  .eq('user_id', user.id)
+                  .single();
+                if (retryExistingErr) throw retryExistingErr;
+                const formatted = formatMetricsFromDB(retryExisting);
+                const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
+                setMetrics(enriched);
+              } else {
+                console.log('⚠️ Function failed, calculating metrics locally as fallback');
+                if (stravaActivity) {
+                  const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
+                  if (basicMetrics) { setMetrics(basicMetrics); return; }
+                } else if (polarActivity) {
+                  const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
+                  if (basicMetrics) { setMetrics(basicMetrics); return; }
                 }
-              } else if (polarActivity) {
-                const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
-                if (basicMetrics) {
-                  setMetrics(basicMetrics);
-                  return;
-                }
+                throw new Error(`Failed to calculate metrics: ${functionError.message}`);
               }
-              
-              throw new Error(`Failed to calculate metrics: ${functionError.message}`);
+            } else {
+              // Retry fetching after successful calculation
+              const { data: retryMetricsData, error: retryError } = await supabase
+                .from('performance_metrics')
+                .select('*')
+                .eq('activity_id', activityIdForFunction)
+                .eq('user_id', user.id)
+                .single();
+              if (retryError) throw retryError;
+              const formatted = formatMetricsFromDB(retryMetricsData);
+              const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
+              setMetrics(enriched);
             }
-
-            // Retry fetching after calculation (ensure we use the same ID used in upsert)
-            const { data: retryMetricsData, error: retryError } = await supabase
-              .from('performance_metrics')
-              .select('*')
-              .eq('activity_id', activityIdForFunction)
-              .eq('user_id', user.id)
-              .single();
-
-            if (retryError) throw retryError;
-            
-            const formatted = formatMetricsFromDB(retryMetricsData);
-            const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
-            setMetrics(enriched);
-          } else {
+          } else if (metricsError) {
             throw metricsError;
           }
-        } else {
-          const formatted = formatMetricsFromDB(metricsData);
-          const enriched = await hydratePolarMissingFields(formatted, activityId, user.id);
-          setMetrics(enriched);
         }
         
         const endTime = Date.now();
