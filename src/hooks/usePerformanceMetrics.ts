@@ -131,16 +131,15 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           .limit(1)
           .maybeSingle();
 
-        if (!metricsError && metricsData) {
+        if (metricsData) {
           const formatted = formatMetricsFromDB(metricsData);
           const filled = enrichStravaUsingSummary(formatted, stravaActivity);
           const enriched = await hydratePolarMissingFields(filled, metricsData.activity_id, user.id);
           setMetrics(enriched);
         } else {
-          // If no pre-calculated metrics found, trigger calculation
-          if (metricsError?.code === 'PGRST116') {
-            console.log('⚡ No pre-calculated metrics found. Proceeding to calculate...');
-
+          // If no pre-calculated metrics found (no rows or PGRST116), trigger calculation
+          const noRows = !metricsError || metricsError?.code === 'PGRST116';
+          if (noRows) {
             let functionName = 'calculate-performance-metrics';
             // Use canonical UUID when available for the function
             let activityIdForFunction: string = (stravaActivity?.id || polarActivity?.id || activityId);
@@ -273,6 +272,8 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
 function enrichStravaUsingSummary(m: PerformanceMetrics, summary?: any): PerformanceMetrics {
   if (!summary) return m;
   const cloned = { ...m, efficiency: { ...m.efficiency }, pace: { ...m.pace }, heartRate: { ...m.heartRate } } as PerformanceMetrics;
+  // Ensure source tag for downstream UI logic
+  if (!cloned.activity_source) cloned.activity_source = 'strava';
 
   // Fill efficiency.distancePerMinute from distance/moving_time
   if (cloned.efficiency.distancePerMinute == null && typeof summary.distance === 'number' && typeof summary.moving_time === 'number' && summary.moving_time > 0) {
@@ -317,7 +318,8 @@ async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) 
 
     const movementEfficiency = durationMinutes > 0 ? distanceKm / durationMinutes : null;
 
-    const basicMetrics = {
+    const basicMetrics: PerformanceMetrics = {
+      activity_source: 'strava',
       efficiency: {
         powerPerBeat: null,
         distancePerMinute: movementEfficiency,
@@ -329,10 +331,10 @@ async function calculateBasicStravaMetrics(stravaActivity: any, userId: string) 
         comment: `Pace médio: ${avgPaceMinKm ? avgPaceMinKm.toFixed(2) + ' min/km' : 'Dados indisponíveis'}`
       },
       heartRate: {
-        averageHr: null,
+        averageHr: typeof stravaActivity.average_heartrate === 'number' ? stravaActivity.average_heartrate : null,
         relativeIntensity: null,
         relativeReserve: null,
-        comment: "Análise sem dados de frequência cardíaca"
+        comment: typeof stravaActivity.average_heartrate === 'number' ? `FC média: ${stravaActivity.average_heartrate} bpm` : 'Análise sem dados de frequência cardíaca'
       },
       effortDistribution: {
         beginning: null,

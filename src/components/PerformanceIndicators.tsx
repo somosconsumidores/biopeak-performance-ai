@@ -222,7 +222,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       mainValue: metrics.efficiency.distancePerMinute != null 
         ? `${metrics.efficiency.distancePerMinute.toFixed(2)}`
         : 'N/A',
-      mainLabel: hasHeartRateData ? 'm/min' : 'km/min',
+      mainLabel: 'km/min',
       secondaryValue: hasHeartRateData && metrics.efficiency.powerPerBeat != null
         ? `${metrics.efficiency.powerPerBeat.toFixed(1)} W/bpm` 
         : undefined,
