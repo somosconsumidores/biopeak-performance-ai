@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    type Sample = { lat: number, lon: number, ele?: number, time?: string, hr?: number }
+    type Sample = { lat: number, lon: number, ele?: number, time?: string, hr?: number, dist?: number, speed?: number }
     const samples: Sample[] = []
 
     let totalDistance = 0
@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     let lastEle: number | null = null
     let minTime: number | null = null
     let maxTime: number | null = null
+    let lastTs: number | null = null
     let hrSum = 0
     let hrCount = 0
     let hrMax = 0
@@ -129,10 +130,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      samples.push({ lat, lon, ele, time: timeStr || undefined, hr })
-
+      // Segment distance and elevation
+      let dSeg = 0
       if (lastLat !== null && lastLon !== null) {
-        totalDistance += haversineDistance(lastLat, lastLon, lat, lon)
+        dSeg = haversineDistance(lastLat, lastLon, lat, lon)
+        totalDistance += dSeg
       }
       if (ele !== undefined && lastEle !== null) {
         const delta = ele - lastEle
@@ -140,17 +142,24 @@ Deno.serve(async (req) => {
         else totalLoss += Math.abs(delta)
       }
 
+      // Time bounds
+      let ts: number | null = null
       if (timeStr) {
-        const ts = Date.parse(timeStr)
-        if (!isNaN(ts)) {
-          if (minTime === null || ts < minTime) minTime = ts
-          if (maxTime === null || ts > maxTime) maxTime = ts
+        const parsed = Date.parse(timeStr)
+        if (!isNaN(parsed)) {
+          ts = parsed
+          if (minTime === null || parsed < minTime) minTime = parsed
+          if (maxTime === null || parsed > maxTime) maxTime = parsed
         }
       }
+
+      // Save sample with cumulative distance
+      samples.push({ lat, lon, ele, time: timeStr || undefined, hr, dist: totalDistance })
 
       lastLat = lat
       lastLon = lon
       lastEle = ele ?? lastEle
+      lastTs = ts ?? lastTs
     }
 
     const durationSec = maxTime && minTime ? Math.max(1, Math.round((maxTime - minTime) / 1000)) : null
@@ -162,28 +171,25 @@ Deno.serve(async (req) => {
     const endTimeIso = maxTime ? new Date(maxTime).toISOString() : null
 
     // Insert summary
+    const activityId = crypto.randomUUID()
     const { data: summaryInsert, error: summaryError } = await service
       .from('strava_gpx_activities')
       .insert({
         user_id: user.id,
-        activity_id: crypto.randomUUID(),
-        source: 'strava_gpx',
+        activity_id: activityId,
         name: activityName,
         activity_type: activityType || 'RUNNING',
         start_time: startTimeIso,
-        end_time: endTimeIso,
         duration_in_seconds: durationSec,
         distance_in_meters: Math.round(totalDistance),
         average_heart_rate: avgHr,
         max_heart_rate: hrMax || null,
         total_elevation_gain_in_meters: Math.round(totalGain),
         total_elevation_loss_in_meters: Math.round(totalLoss),
-        calories: null,
-        average_speed_in_meters_per_second: avgSpeed,
-        average_pace_in_minutes_per_kilometer: avgPace,
-        file_path: filePath,
+        average_speed_mps: avgSpeed,
+        average_pace_min_km: avgPace,
       })
-      .select('id, activity_id')
+      .select('activity_id')
       .single()
 
     if (summaryError || !summaryInsert) {
@@ -193,30 +199,31 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Insert details
-    const { error: detailsError } = await service
-      .from('strava_gpx_activity_details')
-      .insert({
-        user_id: user.id,
-        activity_id: summaryInsert.activity_id,
-        activity_name: activityName,
-        start_time: startTimeIso,
-        duration_in_seconds: durationSec,
-        total_distance_in_meters: Math.round(totalDistance),
-        samples: samples,
-        activity_summary: {
-          avg_hr: avgHr,
-          max_hr: hrMax || null,
-          total_gain_m: Math.round(totalGain),
-          total_loss_m: Math.round(totalLoss)
-        }
-      })
+    // Insert details (trackpoints)
+    const detailRows = samples.map((s) => ({
+      user_id: user.id,
+      activity_id: summaryInsert.activity_id,
+      sample_timestamp: s.time ?? null,
+      latitude_in_degree: s.lat,
+      longitude_in_degree: s.lon,
+      elevation_in_meters: s.ele ?? null,
+      heart_rate: s.hr ?? null,
+      total_distance_in_meters: s.dist ?? null,
+      speed_meters_per_second: s.speed ?? null,
+    }))
 
-    if (detailsError) {
-      return new Response(JSON.stringify({ error: 'Failed to save details', details: detailsError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // Batch insert to avoid payload limits
+    for (let i = 0; i < detailRows.length; i += 1000) {
+      const chunk = detailRows.slice(i, i + 1000)
+      const { error: detErr } = await service
+        .from('strava_gpx_activity_details')
+        .insert(chunk)
+      if (detErr) {
+        return new Response(JSON.stringify({ error: 'Failed to save details', details: detErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     return new Response(JSON.stringify({
