@@ -72,6 +72,12 @@ export function useUnifiedActivityHistory(limit?: number) {
         .select('*')
         .eq('user_id', user.id);
 
+      // Buscar atividades importadas via GPX (Strava GPX)
+      const stravaGpxQuery = supabase
+        .from('strava_gpx_activities')
+        .select('*')
+        .eq('user_id', user.id);
+
       // Buscar sessões de treino do BioPeak AI Coach
       const trainingSessionsQuery = supabase
         .from('training_sessions')
@@ -79,16 +85,18 @@ export function useUnifiedActivityHistory(limit?: number) {
         .eq('user_id', user.id)
         .in('status', ['completed', 'paused']);
 
-      const [garminResult, stravaResult, polarResult, trainingSessionsResult] = await Promise.all([
+      const [garminResult, stravaResult, polarResult, stravaGpxResult, trainingSessionsResult] = await Promise.all([
         garminQuery,
         stravaQuery, 
         polarQuery,
+        stravaGpxQuery,
         trainingSessionsQuery
       ]);
 
       if (garminResult.error) throw garminResult.error;
       if (stravaResult.error) throw stravaResult.error;
       if (polarResult.error) throw polarResult.error;
+      if (stravaGpxResult.error) throw stravaGpxResult.error;
       if (trainingSessionsResult.error) throw trainingSessionsResult.error;
 
       // Normalizar dados do Garmin
@@ -152,6 +160,31 @@ export function useUnifiedActivityHistory(limit?: number) {
         detailed_sport_info: activity.detailed_sport_info
       }));
 
+      // Normalizar dados do Strava GPX
+      const stravaGpxActivities: UnifiedActivity[] = (stravaGpxResult.data || []).map((a: any) => ({
+        id: a.id,
+        activity_id: a.activity_id,
+        source: 'STRAVA' as const,
+        activity_type: a.activity_type,
+        activity_date: a.activity_date,
+        duration_in_seconds: a.duration_in_seconds,
+        distance_in_meters: a.distance_in_meters,
+        average_pace_in_minutes_per_kilometer: a.average_pace_in_minutes_per_kilometer,
+        average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+        max_heart_rate_in_beats_per_minute: a.max_heart_rate,
+        active_kilocalories: a.calories,
+        total_elevation_gain_in_meters: a.total_elevation_gain_in_meters,
+        total_elevation_loss_in_meters: a.total_elevation_loss_in_meters,
+        device_name: 'Strava GPX',
+        start_time_in_seconds: a.start_time ? Math.floor(new Date(a.start_time).getTime() / 1000) : null,
+        start_time_offset_in_seconds: null,
+        average_speed_in_meters_per_second: a.average_speed_in_meters_per_second,
+        max_speed_in_meters_per_second: null,
+        steps: null,
+        synced_at: a.synced_at,
+        name: a.name
+      }));
+
       // Normalizar dados das sessões de treino do BioPeak AI Coach
       const trainingSessionActivities: UnifiedActivity[] = (trainingSessionsResult.data || []).map(session => ({
         id: session.id,
@@ -178,7 +211,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       }));
 
       // Combinar todas as atividades e ordenar por data
-      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities, ...trainingSessionActivities];
+      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities, ...stravaGpxActivities, ...trainingSessionActivities];
       
       // Ordenar por data mais recente primeiro
       allActivities.sort((a, b) => {
@@ -216,9 +249,10 @@ export function useUnifiedActivityHistory(limit?: number) {
     const type = getActivityTypeLabel(activity.activity_type);
     const distance = activity.distance_in_meters ? `${(activity.distance_in_meters / 1000).toFixed(1)}km` : '';
     const duration = activity.duration_in_seconds ? formatDuration(activity.duration_in_seconds) : '';
-    const source = activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source;
-    
-    return `${date} - ${type} ${distance} ${duration} [${source}]`.trim();
+    const sourceLabel = activity.device_name === 'Strava GPX' 
+      ? 'Strava GPX' 
+      : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
+    return `${date} - ${type} ${distance} ${duration} [${sourceLabel}]`.trim();
   };
 
   const getActivityTypeLabel = (type: string | null): string => {

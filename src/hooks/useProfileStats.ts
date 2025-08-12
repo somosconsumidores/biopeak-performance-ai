@@ -54,21 +54,24 @@ export function useProfileStats() {
       setError(null);
 
       // Buscar atividades de todas as fontes
-      const [garminResult, stravaResult, polarResult] = await Promise.all([
+      const [garminResult, stravaResult, polarResult, stravaGpxResult] = await Promise.all([
         supabase.from('garmin_activities').select('*').eq('user_id', user.id),
         supabase.from('strava_activities').select('*').eq('user_id', user.id),
-        supabase.from('polar_activities').select('*').eq('user_id', user.id)
+        supabase.from('polar_activities').select('*').eq('user_id', user.id),
+        supabase.from('strava_gpx_activities').select('*').eq('user_id', user.id)
       ]);
 
       if (garminResult.error) throw garminResult.error;
       if (stravaResult.error) throw stravaResult.error;
       if (polarResult.error) throw polarResult.error;
+      if (stravaGpxResult.error) throw stravaGpxResult.error;
 
       // Normalizar e unificar atividades
       const unifiedActivities = unifyActivities(
         garminResult.data || [],
         stravaResult.data || [],
-        polarResult.data || []
+        polarResult.data || [],
+        stravaGpxResult.data || []
       );
 
       // Remover duplicatas baseado em timestamp e duração
@@ -226,7 +229,7 @@ export function useProfileStats() {
   };
 
   // Função para unificar atividades de todas as fontes
-  const unifyActivities = (garminData: any[], stravaData: any[], polarData: any[]): UnifiedActivity[] => {
+  const unifyActivities = (garminData: any[], stravaData: any[], polarData: any[], stravaGpxData: any[]): UnifiedActivity[] => {
     // Normalizar atividades do Garmin
     const garminActivities: UnifiedActivity[] = garminData.map(activity => ({
       ...activity,
@@ -242,7 +245,7 @@ export function useProfileStats() {
       activity_type: activity.type,
       activity_date: activity.start_date ? new Date(activity.start_date).toISOString().split('T')[0] : null,
       duration_in_seconds: activity.elapsed_time || activity.moving_time,
-      distance_in_meters: activity.distance ? activity.distance * 1000 : null,
+      distance_in_meters: activity.distance || null,
       average_pace_in_minutes_per_kilometer: activity.average_speed ? 
         (1000 / (activity.average_speed * 60)) : null,
       average_heart_rate_in_beats_per_minute: activity.average_heartrate ? Math.round(activity.average_heartrate) : null,
@@ -269,7 +272,7 @@ export function useProfileStats() {
       activity_type: activity.sport || activity.activity_type,
       activity_date: activity.start_time ? new Date(activity.start_time).toISOString().split('T')[0] : null,
       duration_in_seconds: activity.duration ? parsePolarDuration(activity.duration) : null,
-      distance_in_meters: activity.distance ? Number(activity.distance) * 1000 : null,
+      distance_in_meters: activity.distance ? Number(activity.distance) : null,
       average_pace_in_minutes_per_kilometer: null,
       average_heart_rate_in_beats_per_minute: null,
       max_heart_rate_in_beats_per_minute: null,
@@ -287,7 +290,32 @@ export function useProfileStats() {
       detailed_sport_info: activity.detailed_sport_info
     }));
 
-    return [...garminActivities, ...stravaActivities, ...polarActivities];
+    // Normalizar atividades do Strava GPX
+    const stravaGpxActivities: UnifiedActivity[] = stravaGpxData.map((a: any) => ({
+      id: a.id,
+      activity_id: a.activity_id,
+      source: 'STRAVA' as const,
+      activity_type: a.activity_type,
+      activity_date: a.activity_date,
+      duration_in_seconds: a.duration_in_seconds,
+      distance_in_meters: a.distance_in_meters,
+      average_pace_in_minutes_per_kilometer: a.average_pace_in_minutes_per_kilometer,
+      average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+      max_heart_rate_in_beats_per_minute: a.max_heart_rate,
+      active_kilocalories: a.calories,
+      total_elevation_gain_in_meters: a.total_elevation_gain_in_meters,
+      total_elevation_loss_in_meters: a.total_elevation_loss_in_meters,
+      device_name: 'Strava GPX',
+      start_time_in_seconds: a.start_time ? Math.floor(new Date(a.start_time).getTime() / 1000) : null,
+      start_time_offset_in_seconds: null,
+      average_speed_in_meters_per_second: a.average_speed_in_meters_per_second,
+      max_speed_in_meters_per_second: null,
+      steps: null,
+      synced_at: a.synced_at,
+      name: a.name
+    }));
+
+    return [...garminActivities, ...stravaActivities, ...polarActivities, ...stravaGpxActivities];
   };
 
   // Função para remover duplicatas
