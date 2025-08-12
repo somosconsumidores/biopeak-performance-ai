@@ -129,3 +129,9 @@ verify_jwt = true
 
 [functions.get-polar-config]
 verify_jwt = false
+
+[functions.calculate-strava-performance-metrics]
+verify_jwt = false
+
+[functions.strava-activity-streams]
+verify_jwt = false
