@@ -563,35 +563,66 @@ export function useDashboardMetrics() {
   };
 
   const calculatePeakPerformance = (activities: any[]): PeakPerformance => {
-    const vo2Activities = activities.filter(act => act.vo2_max);
-    
-    if (vo2Activities.length === 0) {
+    // Helper: estima VO2max para corridas quando não há vo2_max (ex.: Strava)
+    const estimateVo2Max = (act: any): number | null => {
+      const type = (act.activity_type || '').toLowerCase();
+      if (!type.includes('run')) return null; // apenas corrida
+
+      const paceMinPerKm = act.average_pace_in_minutes_per_kilometer;
+      const avgHr = act.average_heart_rate_in_beats_per_minute;
+      const maxHr = act.max_heart_rate_in_beats_per_minute;
+
+      if (!paceMinPerKm || paceMinPerKm <= 0 || !avgHr || avgHr <= 0 || !maxHr || maxHr <= 0) {
+        return null;
+      }
+
+      // Mesma lógica do DB function public.calculate_vo2_max
+      const calibrationFactor = 16;
+      const speedMPerMin = 1000 / Number(paceMinPerKm);
+      const vo2Theoretical = 3.5 * speedMPerMin;
+      const effortRatio = Number(avgHr) / Number(maxHr);
+      const vo2Result = vo2Theoretical / effortRatio / calibrationFactor;
+      return Math.round(vo2Result * 10) / 10; // 1 casa decimal
+    };
+
+    // Construir série de VO2 usando valor real ou estimado
+    const withVo2 = activities
+      .map((a) => {
+        const vo2 = (a.vo2_max != null ? Number(a.vo2_max) : estimateVo2Max(a));
+        const dateStr = a.activity_date || a.start_date || a.start_time;
+        const date = dateStr ? new Date(dateStr) : new Date(0);
+        return vo2 && vo2 > 0 ? { vo2, date } : null;
+      })
+      .filter(Boolean) as { vo2: number; date: Date }[];
+
+    if (withVo2.length === 0) {
       return {
         current: 0,
         prediction: 'Dados insuficientes',
-        potential: 0
+        potential: 0,
       };
     }
 
-    // Calcular tendência dos últimos VO₂ Max
-    const recentVo2 = vo2Activities.slice(0, 5);
-    const currentAvg = recentVo2.reduce((sum, act) => sum + act.vo2_max, 0) / recentVo2.length;
-    
-    // Estimar potencial baseado na tendência
-    const potential = Math.min(100, currentAvg * 1.15); // 15% de margem de melhora
+    // Ordenar por mais recente e usar os últimos 5
+    withVo2.sort((a, b) => b.date.getTime() - a.date.getTime());
+    const recent = withVo2.slice(0, 5);
+    const currentAvg = recent.reduce((sum, x) => sum + x.vo2, 0) / recent.length;
+
+    // Mantém mesma regra do cálculo existente (15% potencial)
+    const potential = Math.min(100, currentAvg * 1.15);
     const currentPercentage = (currentAvg / potential) * 100;
 
-    // Prever quando atingir o pico
-    const growth = recentVo2.length > 1 ? (recentVo2[0].vo2_max - recentVo2[recentVo2.length - 1].vo2_max) / recentVo2.length : 0;
+    // Tendência de crescimento baseada na série recente
+    const growth = recent.length > 1 ? (recent[0].vo2 - recent[recent.length - 1].vo2) / recent.length : 0;
     const weeksToTarget = growth > 0 ? Math.ceil((potential - currentAvg) / growth) : 12;
-    
+
     const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + (weeksToTarget * 7));
+    targetDate.setDate(targetDate.getDate() + weeksToTarget * 7);
 
     return {
       current: Math.round(currentPercentage),
       prediction: targetDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
-      potential: Math.round(potential)
+      potential: Math.round(potential),
     };
   };
 
