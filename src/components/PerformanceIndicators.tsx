@@ -288,22 +288,24 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
             </div>
             
             <div className={`flex items-center ${isMobile ? 'w-full justify-between' : 'gap-3'}`}>
-              <Badge 
-                variant={hasHeartRateData ? "default" : "secondary"} 
-                className={`font-medium px-3 py-1 ${isMobile ? 'text-xs' : 'text-sm'}`}
-              >
-                {hasHeartRateData ? (
-                  <>
-                    <Heart className="h-3 w-3 mr-1" />
-                    COM FC
-                  </>
-                ) : (
-                  <>
-                    <Activity className="h-3 w-3 mr-1" />
-                    SEM FC
-                  </>
-                )}
-              </Badge>
+              {!isPolarActivity && (
+                <Badge 
+                  variant={hasHeartRateData ? "default" : "secondary"} 
+                  className={`font-medium px-3 py-1 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
+                  {hasHeartRateData ? (
+                    <>
+                      <Heart className="h-3 w-3 mr-1" />
+                      COM FC
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="h-3 w-3 mr-1" />
+                      SEM FC
+                    </>
+                  )}
+                </Badge>
+              )}
               
               <Button
                 variant="outline"
