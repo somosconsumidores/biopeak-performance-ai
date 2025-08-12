@@ -235,35 +235,67 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
 // Format metrics from database format to component format
 function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
-  const isStravaActivity = dbMetrics.activity_source === 'strava';
-  const isPolarActivity = dbMetrics.activity_source === 'polar';
-  
+  // Normalize distance per minute to km/min
+  const rawDpm = dbMetrics.distance_per_minute ?? dbMetrics.movement_efficiency ?? null;
+  let distancePerMinute: number | null = rawDpm != null ? Number(rawDpm) : null;
+  if (distancePerMinute != null && !isNaN(distancePerMinute)) {
+    // Heuristic: values > 5 are likely m/min -> convert to km/min
+    distancePerMinute = distancePerMinute > 5 ? distancePerMinute / 1000 : distancePerMinute;
+  } else {
+    distancePerMinute = null;
+  }
+
+  const averageSpeedKmh: number | null = dbMetrics.average_speed_kmh ?? null;
+  const paceVar: number | null = dbMetrics.pace_variation_coefficient ?? dbMetrics.pace_consistency ?? null;
+  const avgHr: number | null = dbMetrics.average_hr ?? null;
+  const maxHr: number | null = dbMetrics.max_hr ?? null;
+  const relIntensity: number | null = dbMetrics.relative_intensity ?? null;
+  const relReserve: number | null = dbMetrics.relative_reserve ?? null;
+
+  // Auto-generate helpful comments when absent
+  let efficiencyComment: string = dbMetrics.efficiency_comment || '';
+  if ((!efficiencyComment || efficiencyComment === 'Sem dados suficientes') && distancePerMinute != null) {
+    efficiencyComment = `Eficiência de movimento: ${distancePerMinute.toFixed(2)} km/min`;
+  }
+
+  let paceComment: string = dbMetrics.pace_comment || '';
+  if ((!paceComment || paceComment === 'Sem dados suficientes') && typeof averageSpeedKmh === 'number') {
+    const avgSpeedMs = averageSpeedKmh / 3.6;
+    const avgPaceMinKm = avgSpeedMs > 0 ? (1000 / avgSpeedMs) / 60 : null;
+    if (avgPaceMinKm != null) paceComment = `Pace médio: ${avgPaceMinKm.toFixed(2)} min/km`;
+  }
+
+  let hrComment: string = dbMetrics.heart_rate_comment || '';
+  if ((!hrComment || hrComment === 'Sem dados suficientes') && avgHr != null) {
+    hrComment = `FC média: ${avgHr} bpm`;
+  }
+
   return {
     activity_source: dbMetrics.activity_source,
     calories: dbMetrics.calories,
     duration: dbMetrics.duration_seconds,
     efficiency: {
       powerPerBeat: dbMetrics.power_per_beat ?? null,
-      distancePerMinute: dbMetrics.movement_efficiency ?? dbMetrics.distance_per_minute ?? null,
-      comment: dbMetrics.efficiency_comment || "Sem dados suficientes"
+      distancePerMinute,
+      comment: efficiencyComment || 'Sem dados suficientes'
     },
     pace: {
-      averageSpeedKmh: dbMetrics.average_speed_kmh ?? null,
-      paceVariationCoefficient: dbMetrics.pace_variation_coefficient ?? dbMetrics.pace_consistency ?? null,
-      comment: dbMetrics.pace_comment || "Sem dados suficientes"
+      averageSpeedKmh,
+      paceVariationCoefficient: paceVar,
+      comment: paceComment || 'Sem dados suficientes'
     },
     heartRate: {
-      averageHr: dbMetrics.average_hr ?? null,
-      maxHr: dbMetrics.max_hr ?? null,
-      relativeIntensity: dbMetrics.relative_intensity ?? null,
-      relativeReserve: dbMetrics.relative_reserve ?? null,
-      comment: dbMetrics.heart_rate_comment || "Sem dados suficientes"
+      averageHr: avgHr,
+      maxHr: maxHr,
+      relativeIntensity: relIntensity,
+      relativeReserve: relReserve,
+      comment: hrComment || 'Sem dados suficientes'
     },
     effortDistribution: {
       beginning: dbMetrics.effort_beginning_bpm ?? dbMetrics.pace_distribution_beginning ?? null,
       middle: dbMetrics.effort_middle_bpm ?? dbMetrics.pace_distribution_middle ?? null,
       end: dbMetrics.effort_end_bpm ?? dbMetrics.pace_distribution_end ?? null,
-      comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
+      comment: dbMetrics.effort_distribution_comment || 'Sem dados suficientes'
     }
   };
 }
