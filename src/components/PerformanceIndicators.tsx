@@ -174,7 +174,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     // Eficiência / Eficiência de Movimento
     {
       icon: <Zap className="h-6 w-6" />,
-      title: hasHeartRateData ? 'Eficiência' : 'Eficiência de Movimento',
+      title: 'Eficiência',
       mainValue: metrics.efficiency.distancePerMinute 
         ? `${metrics.efficiency.distancePerMinute.toFixed(2)}`
         : 'N/A',
@@ -205,19 +205,19 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       iconColor: 'bg-blue-400'
     },
     
-    // Frequência Cardíaca / Gestão de Terreno / Eficiência Calórica
+    // Frequência Cardíaca (sempre para Strava) / Eficiência Calórica (Polar)
     {
-      icon: isPolarActivity ? <Zap className="h-6 w-6" /> : (hasHeartRateData ? <Heart className="h-6 w-6" /> : <Mountain className="h-6 w-6" />),
-      title: isPolarActivity ? 'Eficiência Calórica' : (hasHeartRateData ? 'Frequência Cardíaca' : 'Gestão de Terreno'),
+      icon: isPolarActivity ? <Zap className="h-6 w-6" /> : <Heart className="h-6 w-6" />,
+      title: isPolarActivity ? 'Eficiência Calórica' : 'Frequência Cardíaca',
       mainValue: isPolarActivity
         ? (calPerKm != null ? `${calPerKm.toFixed(0)}` : 'N/A')
-        : (hasHeartRateData && metrics.heartRate.averageHr 
+        : (metrics.heartRate.averageHr != null 
           ? `${metrics.heartRate.averageHr}`
-          : hasHeartRateData ? 'N/A' : 'Auto'),
-      mainLabel: isPolarActivity ? 'cal/km' : (hasHeartRateData ? 'bpm' : 'Adaptação'),
+          : 'N/A'),
+      mainLabel: isPolarActivity ? 'cal/km' : 'bpm',
       secondaryValue: isPolarActivity 
         ? (calPerHour != null ? `${calPerHour.toFixed(0)} cal/h` : undefined)
-        : (hasHeartRateData && metrics.heartRate.relativeIntensity 
+        : (metrics.heartRate.relativeIntensity != null 
           ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%`
           : undefined),
       secondaryLabel: isPolarActivity ? 'Gasto/hora' : 'Intensidade',
@@ -226,46 +226,42 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         : metrics.heartRate.comment,
       gradient: isPolarActivity 
         ? 'bg-gradient-to-br from-orange-400/20 to-red-500/20'
-        : (hasHeartRateData 
-          ? 'bg-gradient-to-br from-red-400/20 to-pink-500/20'
-          : 'bg-gradient-to-br from-green-400/20 to-emerald-500/20'),
-      iconColor: isPolarActivity ? 'bg-orange-400' : (hasHeartRateData ? 'bg-red-400' : 'bg-green-400')
+        : 'bg-gradient-to-br from-red-400/20 to-pink-500/20',
+      iconColor: isPolarActivity ? 'bg-orange-400' : 'bg-red-400'
     },
     
-    // Intensidade Cardíaca / Distribuição do Esforço / Distribuição do Pace
+    // Distribuição do Esforço (Strava) / Intensidade Cardíaca (Polar)
     {
       icon: isPolarActivity ? <Heart className="h-6 w-6" /> : <TrendingUp className="h-6 w-6" />,
-      title: isPolarActivity ? 'Intensidade Cardíaca' : (hasHeartRateData ? 'Distribuição do Esforço' : 'Distribuição do Pace'),
+      title: isPolarActivity ? 'Intensidade Cardíaca' : 'Distribuição do Esforço',
       mainValue: isPolarActivity && metrics.heartRate.averageHr
         ? `${metrics.heartRate.averageHr}`
-        : (metrics.effortDistribution.middle 
-          ? hasHeartRateData 
-            ? `${metrics.effortDistribution.middle}`
-            : `${metrics.effortDistribution.middle.toFixed(2)}`
+        : (metrics.heartRate.averageHr != null && metrics.effortDistribution.middle != null
+          ? `${metrics.effortDistribution.middle}`
           : 'N/A'),
-      mainLabel: isPolarActivity ? 'bpm médio' : (hasHeartRateData ? 'bpm médio' : 'min/km médio'),
+      mainLabel: isPolarActivity ? 'bpm médio' : 'bpm médio',
       distributionValues: isPolarActivity ? {
         beginning: metrics.heartRate.averageHr ? `${metrics.heartRate.averageHr}` : undefined,
         middle: metrics.heartRate.maxHr ? `${metrics.heartRate.maxHr}` : undefined,
-        end: metrics.heartRate.relativeIntensity ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%` : undefined,
+        end: metrics.heartRate.relativeIntensity != null ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%` : undefined,
         unit: 'zona'
       } : {
         beginning: metrics.effortDistribution.beginning 
-          ? hasHeartRateData 
+          ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.beginning}`
-            : `${metrics.effortDistribution.beginning.toFixed(2)}`
+            : `${metrics.effortDistribution.beginning.toFixed(2)}`)
           : undefined,
         middle: metrics.effortDistribution.middle 
-          ? hasHeartRateData 
+          ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.middle}`
-            : `${metrics.effortDistribution.middle.toFixed(2)}`
+            : `${metrics.effortDistribution.middle.toFixed(2)}`)
           : undefined,
         end: metrics.effortDistribution.end 
-          ? hasHeartRateData 
+          ? (metrics.heartRate.averageHr != null 
             ? `${metrics.effortDistribution.end}`
-            : `${metrics.effortDistribution.end.toFixed(2)}`
+            : `${metrics.effortDistribution.end.toFixed(2)}`)
           : undefined,
-        unit: hasHeartRateData ? 'bpm' : 'min/km'
+        unit: metrics.heartRate.averageHr != null ? 'bpm' : 'min/km'
       },
       comment: isPolarActivity 
         ? `Zona de intensidade: ${metrics.heartRate.averageHr && metrics.heartRate.maxHr ? 
