@@ -64,6 +64,8 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           activityDetails = stravaDetails;
         }
       } else {
+        // Try Garmin details first; if none, fallback to Strava GPX details
+        let details: any[] = [];
         const { data: garminDetails, error: garminErr } = await supabase
           .from('garmin_activity_details')
           .select('heart_rate, sample_timestamp')
@@ -71,7 +73,18 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           .eq('activity_id', id)
           .order('sample_timestamp', { ascending: true });
         if (garminErr) throw garminErr;
-        activityDetails = garminDetails || [];
+        if (garminDetails && garminDetails.length > 0) {
+          details = garminDetails;
+        } else {
+          const { data: gpxDetails, error: gpxErr } = await supabase
+            .from('strava_gpx_activity_details')
+            .select('heart_rate, sample_timestamp')
+            .eq('activity_id', id)
+            .order('sample_timestamp', { ascending: true });
+          if (gpxErr) throw gpxErr;
+          details = gpxDetails || [];
+        }
+        activityDetails = details;
       }
 
       console.log('🔍 ZONES: Raw query results:', {
@@ -91,7 +104,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           const hr: number | null = isStrava ? (d.heartrate ?? null) : (d.heart_rate ?? null);
           const t: number | undefined = isStrava
             ? (typeof d.time_seconds === 'number' ? d.time_seconds : (typeof d.time_index === 'number' ? d.time_index : undefined))
-            : (typeof d.sample_timestamp === 'number' ? d.sample_timestamp : undefined);
+            : (d.sample_timestamp ? Math.floor(new Date(d.sample_timestamp).getTime() / 1000) : undefined);
           return hr != null ? { hr: Number(hr), t } : null;
         })
         .filter(Boolean) as Sample[];

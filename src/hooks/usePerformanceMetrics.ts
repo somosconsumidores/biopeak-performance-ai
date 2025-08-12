@@ -67,6 +67,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         console.log('🔍 Detecting activity source. Activity ID:', activityId, 'User ID:', user.id);
         let stravaActivity: any = null;
         let polarActivity: any = null;
+        let gpxActivity: any = null;
         let stravaCheckError: any = null;
         let polarCheckError: any = null;
 
@@ -74,7 +75,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           // UUID provided: look up by our internal ID
           const stravaResult = await supabase
             .from('strava_activities')
-            .select('id, strava_activity_id, moving_time, distance, average_speed')
+            .select('id, strava_activity_id, moving_time, distance, average_speed, average_heartrate')
             .eq('id', activityId)
             .eq('user_id', user.id)
             .single();
@@ -89,11 +90,19 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             .single();
           polarActivity = polarResult.data;
           polarCheckError = polarResult.error;
+
+          const gpxResult = await supabase
+            .from('strava_gpx_activities')
+            .select('*')
+            .eq('activity_id', activityId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+          gpxActivity = gpxResult.data;
         } else {
           // Numeric provided: look up by external IDs
           const stravaResult = await supabase
             .from('strava_activities')
-            .select('id, strava_activity_id, moving_time, distance, average_speed')
+            .select('id, strava_activity_id, moving_time, distance, average_speed, average_heartrate')
             .eq('strava_activity_id', parseInt(activityId))
             .eq('user_id', user.id)
             .single();
@@ -108,17 +117,26 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             .single();
           polarActivity = polarResult.data;
           polarCheckError = polarResult.error;
+
+          const gpxResult = await supabase
+            .from('strava_gpx_activities')
+            .select('*')
+            .eq('activity_id', activityId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+          gpxActivity = gpxResult.data;
         }
 
         console.log('🔍 Activity source check results:', { 
-          stravaActivity, stravaCheckError, polarActivity, polarCheckError 
+          stravaActivity, stravaCheckError, polarActivity, polarCheckError, hasGpx: !!gpxActivity 
         });
 
         // Prefer our canonical UUID when available
         const candidateIds = Array.from(new Set([
           activityId,
           stravaActivity?.id,
-          polarActivity?.id
+          polarActivity?.id,
+          gpxActivity?.activity_id
         ].filter(Boolean)));
 
         // 2) Try to load pre-calculated metrics using any known candidate ID for this activity
