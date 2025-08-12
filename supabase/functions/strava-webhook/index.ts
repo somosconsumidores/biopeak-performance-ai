@@ -5,6 +5,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+async function verifyStravaSignature(rawBody: string, signature: string | null): Promise<boolean> {
+  try {
+    if (!signature) return false;
+    // Support formats like "sha256=<hex>" or plain hex
+    const provided = signature.startsWith('sha256=') ? signature.slice(7) : signature;
+    const secret = Deno.env.get('STRAVA_CLIENT_SECRET') ?? '';
+    if (!secret) return false;
+
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const mac = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody));
+    const expected = Array.from(new Uint8Array(mac))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    return expected === provided.toLowerCase();
+  } catch (_) {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,22 +56,45 @@ Deno.serve(async (req) => {
       
       console.log('Strava webhook verification:', { hubMode, hubChallenge, hubVerifyToken })
       
-      // Verify the token matches what we expect
-      if (hubMode === 'subscribe' && hubVerifyToken === 'biopeak-strava-webhook-2025') {
+      // Verify the token using secret from environment
+      const expectedToken = Deno.env.get('STRAVA_VERIFY_TOKEN') ?? ''
+      if (hubMode === 'subscribe' && expectedToken && hubVerifyToken === expectedToken) {
         console.log('Webhook verification successful')
-        return new Response(JSON.stringify({ "hub.challenge": hubChallenge }), {
+        return new Response(JSON.stringify({ 'hub.challenge': hubChallenge }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       } else {
         console.log('Webhook verification failed')
-        return new Response('Forbidden', { status: 403 })
+        return new Response('Forbidden', { status: 403, headers: corsHeaders })
       }
     }
 
     // Handle webhook notifications (POST request)
     if (req.method === 'POST') {
-      const payload = await req.json()
-      console.log('Strava webhook notification received:', payload)
+      const signature = req.headers.get('X-Strava-Signature') || req.headers.get('x-strava-signature')
+      const rawBody = await req.text()
+      const valid = await verifyStravaSignature(rawBody, signature)
+      if (!valid) {
+        console.warn('Invalid Strava signature')
+        try {
+          const parsed = JSON.parse(rawBody)
+          await serviceRoleClient
+            .from('strava_webhook_logs')
+            .insert({
+              webhook_type: parsed?.aspect_type || 'unknown',
+              payload: parsed,
+              status: 'invalid_signature'
+            })
+        } catch (_) { /* ignore */ }
+        return new Response('Invalid signature', { status: 401, headers: corsHeaders })
+      }
+
+      const payload = JSON.parse(rawBody)
+      console.log('Strava webhook notification received (sanitized):', {
+        aspect_type: payload.aspect_type,
+        object_type: payload.object_type,
+        object_id: payload.object_id
+      })
 
       // Store webhook log
       await serviceRoleClient

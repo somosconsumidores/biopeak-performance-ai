@@ -427,7 +427,7 @@ export const useGarminAuth = () => {
         scope: data.scope || ''
       };
 
-      storeTokens(newTokens);
+      // No local storage of tokens for security
       setTokens(newTokens);
       
       console.log('[useGarminAuth] Token refreshed successfully');
@@ -440,7 +440,7 @@ export const useGarminAuth = () => {
   }, [disconnect]);
 
   const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!tokens || isTokenExpired(tokens)) {
+    if (!tokens || Date.now() >= tokens.expires_at) {
       // Try to refresh token
       if (tokens?.refresh_token) {
         try {
