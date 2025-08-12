@@ -34,7 +34,32 @@ Deno.serve(async (req) => {
       verify_token: verifyToken
     })
 
-    // Register webhook with Strava API
+    // 1) Verificar inscrições existentes e reutilizar se já houver
+    const listUrl = `https://www.strava.com/api/v3/push_subscriptions?client_id=${stravaClientId}&client_secret=${stravaClientSecret}`
+    const listRes = await fetch(listUrl)
+    let existingSubs: any[] = []
+    try {
+      existingSubs = await listRes.json()
+    } catch (_) {
+      existingSubs = []
+    }
+
+    if (listRes.ok && Array.isArray(existingSubs) && existingSubs.length > 0) {
+      const existing = existingSubs.find((s: any) => s.callback_url === callbackUrl) ?? existingSubs[0]
+      console.log('Found existing Strava subscription, reusing:', existing)
+      return new Response(JSON.stringify({
+        success: true,
+        reused: true,
+        subscription: existing,
+        callback_url: callbackUrl,
+        verify_token: verifyToken,
+        message: 'Assinatura de webhook já existe. Reutilizando a inscrição atual.'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // 2) Registrar webhook com a Strava (caso não exista)
     const response = await fetch('https://www.strava.com/api/v3/push_subscriptions', {
       method: 'POST',
       headers: {
@@ -51,6 +76,28 @@ Deno.serve(async (req) => {
     const responseData = await response.json()
 
     if (!response.ok) {
+      // Se já existir, retornar a atual
+      const alreadyExists = responseData?.errors?.some((e: any) => e?.code === 'already exists')
+      if (response.status === 400 && alreadyExists) {
+        const listRes2 = await fetch(listUrl)
+        let subs2: any[] = []
+        try { subs2 = await listRes2.json() } catch (_) { subs2 = [] }
+        const existing = Array.isArray(subs2) && subs2.length > 0
+          ? (subs2.find((s: any) => s.callback_url === callbackUrl) ?? subs2[0])
+          : null
+        console.warn('Strava subscription already exists, reusing:', existing)
+        return new Response(JSON.stringify({
+          success: true,
+          reused: true,
+          subscription: existing,
+          callback_url: callbackUrl,
+          verify_token: verifyToken,
+          message: 'Assinatura de webhook já existia e foi reutilizada.'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       console.error('Strava webhook registration failed:', responseData)
       return new Response(JSON.stringify({ 
         error: 'Failed to register webhook',
@@ -66,6 +113,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true,
+      reused: false,
       subscription: responseData,
       callback_url: callbackUrl,
       verify_token: verifyToken,
