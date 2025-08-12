@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
     // Construct the callback URL for the webhook endpoint
     const callbackUrl = `${supabaseUrl}/functions/v1/strava-webhook`
-    const verifyToken = 'biopeak-strava-webhook-2025'
+    const verifyToken = Deno.env.get('STRAVA_VERIFY_TOKEN') || 'biopeak-strava-webhook-2025'
 
     console.log('Registering Strava webhook:', {
       client_id: stravaClientId,
