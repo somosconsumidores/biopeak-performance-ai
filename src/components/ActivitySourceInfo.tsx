@@ -11,27 +11,7 @@ export const ActivitySourceInfo = ({ activity, feature }: ActivitySourceInfoProp
   const getAlertContent = () => {
     switch (activity.source) {
       case 'STRAVA':
-        if (feature === 'heart_rate' && !activity.average_heart_rate_in_beats_per_minute) {
-          return {
-            icon: <Heart className="h-4 w-4" />,
-            title: 'Dados de Frequência Cardíaca Limitados',
-            description: 'Esta atividade do Strava pode não incluir dados detalhados de frequência cardíaca. Para análises completas, conecte um monitor de FC durante o treino.'
-          };
-        }
-        if (feature === 'detailed_metrics') {
-          return {
-            icon: <Activity className="h-4 w-4" />,
-            title: 'Métricas Limitadas - Fonte Strava',
-            description: 'Algumas métricas avançadas podem não estar disponíveis para atividades do Strava. Dados básicos como distância, tempo e pace estão disponíveis.'
-          };
-        }
-        if (feature === 'performance_analysis') {
-          return {
-            icon: <Info className="h-4 w-4" />,
-            title: 'Análise de Performance Limitada',
-            description: 'A análise completa de performance requer dados detalhados que podem não estar disponíveis nesta atividade do Strava.'
-          };
-        }
+        return null;
         break;
         
       case 'POLAR':
