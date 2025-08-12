@@ -139,19 +139,19 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
         if (activityId.includes('-')) {
           const res = await supabase
             .from('strava_activities')
-            .select('has_heartrate, average_heartrate')
+            .select('max_heartrate')
             .eq('id', activityId)
             .maybeSingle();
           data = res.data;
         } else {
           const res = await supabase
             .from('strava_activities')
-            .select('has_heartrate, average_heartrate')
+            .select('max_heartrate')
             .eq('strava_activity_id', parseInt(activityId))
             .maybeSingle();
           data = res.data;
         }
-        if (data && (data.has_heartrate === true || data.average_heartrate != null)) {
+        if (data && (data.max_heartrate != null)) {
           setHrOverride(true);
         } else {
           setHrOverride(false);

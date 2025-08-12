@@ -74,7 +74,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           // UUID provided: look up by our internal ID
           const stravaResult = await supabase
             .from('strava_activities')
-            .select('id, strava_activity_id, moving_time, distance, average_speed, has_heartrate, average_heartrate')
+            .select('id, strava_activity_id, moving_time, distance, average_speed')
             .eq('id', activityId)
             .eq('user_id', user.id)
             .single();
@@ -93,7 +93,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           // Numeric provided: look up by external IDs
           const stravaResult = await supabase
             .from('strava_activities')
-            .select('id, strava_activity_id, moving_time, distance, average_speed, has_heartrate, average_heartrate')
+            .select('id, strava_activity_id, moving_time, distance, average_speed')
             .eq('strava_activity_id', parseInt(activityId))
             .eq('user_id', user.id)
             .single();
