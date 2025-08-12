@@ -7,29 +7,40 @@ const corsHeaders = {
 
 async function verifyStravaSignature(rawBody: string, signature: string | null): Promise<boolean> {
   try {
-    if (!signature) return false;
+    if (!signature) {
+      console.warn('Missing X-Strava-Signature header')
+      return false
+    }
     // Support formats like "sha256=<hex>" or plain hex
-    const provided = signature.startsWith('sha256=') ? signature.slice(7) : signature;
-    const secret = Deno.env.get('STRAVA_CLIENT_SECRET') ?? '';
-    if (!secret) return false;
+    const provided = signature.startsWith('sha256=') ? signature.slice(7) : signature
+    const secret = Deno.env.get('STRAVA_CLIENT_SECRET') ?? ''
+    if (!secret) {
+      console.error('STRAVA_CLIENT_SECRET not configured')
+      return false
+    }
 
-    const enc = new TextEncoder();
+    const enc = new TextEncoder()
     const key = await crypto.subtle.importKey(
       'raw',
       enc.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
-    );
+    )
 
-    const mac = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody));
+    const mac = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody))
     const expected = Array.from(new Uint8Array(mac))
       .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
+      .join('')
 
-    return expected === provided.toLowerCase();
-  } catch (_) {
-    return false;
+    const ok = expected === provided.toLowerCase()
+    if (!ok) {
+      console.warn('Strava signature mismatch', { providedLen: provided.length, expectedLen: expected.length })
+    }
+    return ok
+  } catch (e) {
+    console.error('Signature verification error', e)
+    return false
   }
 }
 
@@ -75,7 +86,9 @@ Deno.serve(async (req) => {
       const rawBody = await req.text()
       const valid = await verifyStravaSignature(rawBody, signature)
       if (!valid) {
-        console.warn('Invalid Strava signature')
+        const hasSecret = Boolean(Deno.env.get('STRAVA_CLIENT_SECRET'))
+        const reason = !signature ? 'missing_signature_header' : (!hasSecret ? 'missing_client_secret' : 'mismatch')
+        console.warn('Invalid Strava signature', { reason })
         try {
           const parsed = JSON.parse(rawBody)
           await serviceRoleClient
@@ -83,7 +96,8 @@ Deno.serve(async (req) => {
             .insert({
               webhook_type: parsed?.aspect_type || 'unknown',
               payload: parsed,
-              status: 'invalid_signature'
+              status: 'invalid_signature',
+              error_message: reason
             })
         } catch (_) { /* ignore */ }
         return new Response('Invalid signature', { status: 401, headers: corsHeaders })
