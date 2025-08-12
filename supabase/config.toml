@@ -123,3 +123,6 @@ verify_jwt = false
 
 [functions.run-polar-chr-manual]
 verify_jwt = true
+
+[functions.import-strava-gpx]
+verify_jwt = true

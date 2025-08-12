@@ -21,7 +21,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
-
+import { StravaGpxImport } from '@/components/StravaGpxImport';
 
 import { 
   Watch, 
@@ -562,6 +562,13 @@ export function GarminSync() {
           </div>
 
 
+
+          {/* Import GPX Section */}
+          <div className="mb-8">
+            <ScrollReveal delay={220}>
+              <StravaGpxImport />
+            </ScrollReveal>
+          </div>
 
           {/* Connection Status - Show for connected devices */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
