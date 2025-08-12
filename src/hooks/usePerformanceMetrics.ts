@@ -191,12 +191,16 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
             if (retryError) throw retryError;
             
-            setMetrics(formatMetricsFromDB(retryMetricsData));
+            const formatted = formatMetricsFromDB(retryMetricsData);
+            const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
+            setMetrics(enriched);
           } else {
             throw metricsError;
           }
         } else {
-          setMetrics(formatMetricsFromDB(metricsData));
+          const formatted = formatMetricsFromDB(metricsData);
+          const enriched = await hydratePolarMissingFields(formatted, activityId, user.id);
+          setMetrics(enriched);
         }
         
         const endTime = Date.now();
@@ -363,6 +367,85 @@ async function calculateBasicPolarMetrics(activityUuidOrExternalId: string, user
     } as PerformanceMetrics;
   } catch (error) {
     console.error('Error calculating basic polar metrics:', error);
+    return null;
+  }
+}
+
+// Enrich Polar metrics with missing calories/duration from polar_activities if absent
+async function hydratePolarMissingFields(
+  m: PerformanceMetrics,
+  activityId: string,
+  userId: string
+): Promise<PerformanceMetrics> {
+  try {
+    if (m?.activity_source !== 'polar' || (m.calories != null && m.duration != null)) {
+      return m;
+    }
+
+    // Try by UUID first
+    let { data: activity } = await supabase
+      .from('polar_activities')
+      .select('calories, duration')
+      .eq('id', activityId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!activity) {
+      const fallback = await supabase
+        .from('polar_activities')
+        .select('calories, duration')
+        .eq('activity_id', activityId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      activity = fallback.data;
+    }
+
+    if (!activity) return m;
+
+    const parsedDuration = parseDurationToSeconds(activity.duration);
+
+    return {
+      ...m,
+      calories: m.calories ?? (typeof activity.calories === 'number' ? activity.calories : null),
+      duration: m.duration ?? parsedDuration ?? null,
+    };
+  } catch (e) {
+    console.warn('hydratePolarMissingFields failed:', e);
+    return m;
+  }
+}
+
+function parseDurationToSeconds(iso: string | number | null | undefined): number | null {
+  if (iso == null) return null;
+  try {
+    if (typeof iso === 'number') return Math.round(iso);
+    const s = String(iso).trim();
+    if (!s) return null;
+
+    // seconds string
+    if (/^\d+(?:\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+
+    // HH:MM:SS
+    const hms = s.match(/^(\d{1,2}):([0-5]?\d):([0-5]?\d)$/);
+    if (hms) {
+      const h = parseInt(hms[1], 10);
+      const m = parseInt(hms[2], 10);
+      const sec = parseInt(hms[3], 10);
+      return h * 3600 + m * 60 + sec;
+    }
+
+    // ISO8601 duration
+    const match = s.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+    if (match) {
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const minutes = parseInt(match[3] || '0', 10);
+      const seconds = parseFloat(match[4] || '0');
+      return Math.round(days * 86400 + hours * 3600 + minutes * 60 + seconds);
+    }
+
+    return null;
+  } catch {
     return null;
   }
 }

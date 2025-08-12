@@ -119,6 +119,18 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
   const isPolarActivity = metrics?.activity_source === 'polar';
   const hasHeartRateData = metrics?.heartRate?.averageHr !== null;
 
+  // Derived values for Polar caloric efficiency
+  const durationSeconds = metrics?.duration ?? null;
+  const distanceKmDerived = (isPolarActivity && metrics.efficiency?.distancePerMinute && durationSeconds)
+    ? metrics.efficiency.distancePerMinute * (durationSeconds / 60)
+    : null;
+  const calPerKm = (isPolarActivity && metrics?.calories != null && distanceKmDerived && distanceKmDerived > 0)
+    ? metrics!.calories! / distanceKmDerived
+    : null;
+  const calPerHour = (isPolarActivity && metrics?.calories != null && durationSeconds && durationSeconds > 0)
+    ? (metrics!.calories! * 3600) / durationSeconds
+    : null;
+
   if (loading) {
     return (
       <Card className="w-full glass-card border-glass-border">
@@ -197,20 +209,20 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     {
       icon: isPolarActivity ? <Zap className="h-6 w-6" /> : (hasHeartRateData ? <Heart className="h-6 w-6" /> : <Mountain className="h-6 w-6" />),
       title: isPolarActivity ? 'Eficiência Calórica' : (hasHeartRateData ? 'Frequência Cardíaca' : 'Gestão de Terreno'),
-      mainValue: isPolarActivity && metrics.calories 
-        ? `${(metrics.calories / (metrics.efficiency.distancePerMinute ? (metrics.efficiency.distancePerMinute * (metrics.duration || 60)) : 1)).toFixed(0)}`
+      mainValue: isPolarActivity
+        ? (calPerKm != null ? `${calPerKm.toFixed(0)}` : 'N/A')
         : (hasHeartRateData && metrics.heartRate.averageHr 
           ? `${metrics.heartRate.averageHr}`
           : hasHeartRateData ? 'N/A' : 'Auto'),
       mainLabel: isPolarActivity ? 'cal/km' : (hasHeartRateData ? 'bpm' : 'Adaptação'),
-      secondaryValue: isPolarActivity && metrics.calories 
-        ? `${(metrics.calories / ((metrics.duration || 60) / 60)).toFixed(0)} cal/h`
+      secondaryValue: isPolarActivity 
+        ? (calPerHour != null ? `${calPerHour.toFixed(0)} cal/h` : undefined)
         : (hasHeartRateData && metrics.heartRate.relativeIntensity 
           ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%`
           : undefined),
       secondaryLabel: isPolarActivity ? 'Gasto/hora' : 'Intensidade',
       comment: isPolarActivity 
-        ? `Eficiência energética: ${metrics.calories ? (metrics.calories / (metrics.efficiency.distancePerMinute ? (metrics.efficiency.distancePerMinute * (metrics.duration || 60)) : 1)).toFixed(0) + ' cal/km' : 'Dados insuficientes'}`
+        ? `Eficiência energética: ${calPerKm != null ? calPerKm.toFixed(0) + ' cal/km' : 'Dados insuficientes'}`
         : metrics.heartRate.comment,
       gradient: isPolarActivity 
         ? 'bg-gradient-to-br from-orange-400/20 to-red-500/20'
