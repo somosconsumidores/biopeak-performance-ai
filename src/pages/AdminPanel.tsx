@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserRegistrationChart } from '@/components/UserRegistrationChart';
+import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
 
 interface TokenStats {
   total: number;
@@ -328,6 +329,9 @@ export const AdminPanel = () => {
 
           {/* Gráfico de Registros de Usuários */}
           <UserRegistrationChart />
+
+          {/* Logins Únicos por Dia */}
+          <UserUniqueLoginsChart />
 
           {/* Actions */}
           <Card>

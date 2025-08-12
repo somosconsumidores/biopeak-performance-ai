@@ -2356,6 +2356,13 @@ export type Database = {
           users_with_strava_activities: number
         }[]
       }
+      get_unique_logins_by_date: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          date: string
+          users: number
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string
