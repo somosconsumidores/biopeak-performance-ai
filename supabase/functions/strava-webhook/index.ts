@@ -263,6 +263,36 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       console.error('Failed to call activity streams function:', streamsError)
     }
 
+    // Calculate performance metrics for Strava activity (parity with Garmin)
+    try {
+      // Resolve internal UUID for the activity we just upserted
+      const { data: actRow, error: actErr } = await serviceRoleClient
+        .from('strava_activities')
+        .select('id')
+        .eq('user_id', userData.user_id)
+        .eq('strava_activity_id', payload.object_id)
+        .maybeSingle()
+      if (actErr) {
+        console.warn('Could not resolve internal strava activity id:', actErr)
+      }
+
+      const activityIdentifier = actRow?.id ? actRow.id : String(payload.object_id)
+      const metricsResp = await serviceRoleClient.functions.invoke('calculate-strava-performance-metrics', {
+        body: {
+          activity_id: activityIdentifier,
+          user_id: userData.user_id
+        }
+      })
+
+      if (metricsResp.error || !metricsResp.data?.success) {
+        console.error('Error calculating Strava performance metrics:', metricsResp.error || metricsResp.data)
+      } else {
+        console.log('Calculated Strava performance metrics for activity:', payload.object_id)
+      }
+    } catch (metricsError) {
+      console.error('Failed to calculate Strava performance metrics:', metricsError)
+    }
+
     // Update webhook log
     await serviceRoleClient
       .from('strava_webhook_logs')
