@@ -238,34 +238,13 @@ export const LandingPage = () => {
             </ScrollReveal>
             
             <ScrollReveal delay={300}>
-              <div className="glass-card p-8 space-y-6">
-                <div className="metric-card">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-muted-foreground">VO2 Max</span>
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold">58.4 ml/kg/min</div>
-                  <div className="text-sm text-primary">+12% este mês</div>
-                </div>
-                
-                <div className="metric-card">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-muted-foreground">Zona Ótima</span>
-                    <Target className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold">Zona 3-4</div>
-                  <div className="text-sm text-primary">85% do tempo</div>
-                </div>
-                
-                <div className="metric-card">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-muted-foreground">Recuperação</span>
-                    <Activity className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold">94%</div>
-                  <div className="text-sm text-primary">Pronto para treino</div>
-                </div>
-              </div>
+              <img
+                src="https://static.wixstatic.com/media/a025ad_8a38f7c5df5349a1b82fe1b45c0602a9~mv2.gif"
+                alt="Demonstração BioPeak: métricas de treino em ação (GIF)"
+                className="w-full h-auto rounded-xl object-contain"
+                loading="lazy"
+                decoding="async"
+              />
             </ScrollReveal>
           </div>
         </div>
