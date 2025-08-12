@@ -215,8 +215,39 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
                     const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
                     if (basicMetrics) { setMetrics(basicMetrics); return; }
                   } else if (gpxActivity) {
-                    const basicMetrics = await calculateBasicGpxMetrics(gpxActivity, user.id);
-                    if (basicMetrics) { setMetrics(basicMetrics); return; }
+                    let basicMetrics = await calculateBasicGpxMetrics(gpxActivity, user.id);
+                    if (basicMetrics) {
+                      // Fallback: compute effort distribution from GPX detail HR stream
+                      const { data: rows } = await supabase
+                        .from('strava_gpx_activity_details')
+                        .select('heart_rate')
+                        .eq('activity_id', gpxActivity.activity_id)
+                        .order('sample_timestamp', { ascending: true });
+                      if (rows && rows.length >= 3) {
+                        const hrs = rows
+                          .map((r: any) => r.heart_rate)
+                          .filter((hr: any) => typeof hr === 'number' && hr > 0);
+                        if (hrs.length >= 3) {
+                          const third = Math.floor(hrs.length / 3);
+                          const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+                          const beginning = avg(hrs.slice(0, third));
+                          const middle = avg(hrs.slice(third, 2 * third));
+                          const end = avg(hrs.slice(2 * third));
+                          const maxEffort = Math.max(beginning, middle, end);
+                          const minEffort = Math.min(beginning, middle, end);
+                          let comment = 'Sem dados suficientes';
+                          if (maxEffort - minEffort <= 10) comment = 'Esforço muito consistente';
+                          else if (maxEffort - minEffort <= 20) comment = 'Esforço moderadamente consistente';
+                          else comment = 'Esforço variável';
+                          basicMetrics = {
+                            ...basicMetrics,
+                            effortDistribution: { beginning, middle, end, comment }
+                          } as PerformanceMetrics;
+                        }
+                      }
+                      setMetrics(basicMetrics);
+                      return;
+                    }
                   }
                   throw new Error(`Failed to calculate metrics: ${functionError.message}`);
                 }

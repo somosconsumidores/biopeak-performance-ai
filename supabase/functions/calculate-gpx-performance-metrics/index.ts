@@ -44,8 +44,8 @@ Deno.serve(async (req) => {
     // Calculate metrics (parity with Strava calculation but using GPX fields)
     const metrics = calculatePerformanceMetricsFromGpx(activity, details)
 
-    // Save metrics (strip unsupported columns like duration_seconds to avoid schema mismatches)
-    const { duration_seconds, ...sanitized } = (metrics as any)
+    // Save metrics (strip unsupported columns like duration_seconds/calories to avoid schema mismatches)
+    const { duration_seconds, calories, ...sanitized } = (metrics as any)
 
     const payload = {
       ...sanitized,
