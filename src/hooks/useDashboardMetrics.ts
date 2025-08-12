@@ -107,18 +107,39 @@ export function useDashboardMetrics() {
       setLoading(true);
       setError(null);
 
-      // Buscar atividades dos últimos 60 dias
+      // Buscar atividades dos últimos 60 dias das fontes Garmin e Polar
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      const { data: activities, error: activitiesError } = await supabase
-        .from('garmin_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0])
-        .order('activity_date', { ascending: false });
+      const [garminRes, polarRes] = await Promise.all([
+        supabase
+          .from('garmin_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('activity_date', sinceDateStr)
+          .order('activity_date', { ascending: false }),
+        supabase
+          .from('polar_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('start_time', sixtyDaysAgo.toISOString())
+          .order('start_time', { ascending: false })
+      ]);
 
-      if (activitiesError) throw activitiesError;
+      if (garminRes.error) throw garminRes.error;
+      if (polarRes.error) throw polarRes.error;
+
+      const garminActivities = garminRes.data ?? [];
+      const polarActivitiesRaw = polarRes.data ?? [];
+
+      const normalizedPolar = polarActivitiesRaw.map(normalizePolarActivity);
+
+      const activities = [...garminActivities, ...normalizedPolar].sort((a, b) => {
+        const da = new Date(a.activity_date).getTime();
+        const db = new Date(b.activity_date).getTime();
+        return db - da;
+      });
 
       if (!activities || activities.length === 0) {
         setMetrics(null);
@@ -181,8 +202,8 @@ export function useDashboardMetrics() {
     }
 
     try {
-      // Buscar dados de sono mais recentes
-      const { data: sleepData, error } = await supabase
+      // 1) Tenta Garmin primeiro
+      const { data: garminSleep, error: garminError } = await supabase
         .from('garmin_sleep_summaries')
         .select('*')
         .eq('user_id', user.id)
@@ -190,7 +211,55 @@ export function useDashboardMetrics() {
         .limit(1)
         .maybeSingle();
 
-      if (error || !sleepData) {
+      if (!garminError && garminSleep) {
+        const totalSleepSeconds = garminSleep.sleep_time_in_seconds || 0;
+        const hours = Math.floor(totalSleepSeconds / 3600);
+        const minutes = Math.floor((totalSleepSeconds % 3600) / 60);
+        const hoursSlept = `${hours}h ${minutes}m`;
+
+        const deepSeconds = garminSleep.deep_sleep_duration_in_seconds || 0;
+        const lightSeconds = garminSleep.light_sleep_duration_in_seconds || 0;
+        const remSeconds = garminSleep.rem_sleep_duration_in_seconds || 0;
+        const totalSeconds = deepSeconds + lightSeconds + remSeconds;
+
+        const deepPercentage = totalSeconds > 0 ? Math.round((deepSeconds / totalSeconds) * 100) : 0;
+        const lightPercentage = totalSeconds > 0 ? Math.round((lightSeconds / totalSeconds) * 100) : 0;
+        const remPercentage = totalSeconds > 0 ? Math.round((remSeconds / totalSeconds) * 100) : 0;
+
+        const sleepScore = garminSleep.sleep_score || 0;
+        let qualityComment = '';
+        if (sleepScore >= 80) qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
+        else if (sleepScore >= 70) qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
+        else if (sleepScore >= 60) qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
+        else if (sleepScore > 0) qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
+        else qualityComment = 'Score de sono não disponível para esta noite.';
+
+        const lastSleepDate = new Date(garminSleep.calendar_date).toLocaleDateString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        return {
+          sleepScore,
+          lastSleepDate,
+          hoursSlept,
+          qualityComment,
+          deepSleepPercentage: deepPercentage,
+          lightSleepPercentage: lightPercentage,
+          remSleepPercentage: remPercentage,
+          totalSleepMinutes: Math.round(totalSleepSeconds / 60),
+        };
+      }
+
+      // 2) Fallback para Polar
+      const { data: polarSleep, error: polarError } = await supabase
+        .from('polar_sleep')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (polarError || !polarSleep) {
         return {
           sleepScore: null,
           lastSleepDate: null,
@@ -203,43 +272,33 @@ export function useDashboardMetrics() {
         };
       }
 
-      // Calcular horas dormidas
-      const totalSleepSeconds = sleepData.sleep_time_in_seconds || 0;
-      const hours = Math.floor(totalSleepSeconds / 3600);
-      const minutes = Math.floor((totalSleepSeconds % 3600) / 60);
+      const deepMin = polarSleep.deep_sleep || 0;
+      const lightMin = polarSleep.light_sleep || 0;
+      const remMin = polarSleep.rem_sleep || 0;
+      const stagesTotal = deepMin + lightMin + remMin;
+
+      // total_sleep pode já estar em minutos. Se ausente, somamos as fases.
+      let totalMinutes: number = polarSleep.total_sleep || 0;
+      if (!totalMinutes || totalMinutes <= 0) totalMinutes = stagesTotal;
+
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
       const hoursSlept = `${hours}h ${minutes}m`;
 
-      // Calcular percentuais dos tipos de sono
-      const deepSeconds = sleepData.deep_sleep_duration_in_seconds || 0;
-      const lightSeconds = sleepData.light_sleep_duration_in_seconds || 0;
-      const remSeconds = sleepData.rem_sleep_duration_in_seconds || 0;
-      const totalSeconds = deepSeconds + lightSeconds + remSeconds;
+      const deepPercentage = stagesTotal > 0 ? Math.round((deepMin / stagesTotal) * 100) : 0;
+      const lightPercentage = stagesTotal > 0 ? Math.round((lightMin / stagesTotal) * 100) : 0;
+      const remPercentage = stagesTotal > 0 ? Math.round((remMin / stagesTotal) * 100) : 0;
 
-      const deepPercentage = totalSeconds > 0 ? Math.round((deepSeconds / totalSeconds) * 100) : 0;
-      const lightPercentage = totalSeconds > 0 ? Math.round((lightSeconds / totalSeconds) * 100) : 0;
-      const remPercentage = totalSeconds > 0 ? Math.round((remSeconds / totalSeconds) * 100) : 0;
-
-      // Gerar comentário de qualidade baseado no score
-      const sleepScore = sleepData.sleep_score || 0;
+      const sleepScore = polarSleep.sleep_score || 0;
       let qualityComment = '';
-      
-      if (sleepScore >= 80) {
-        qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
-      } else if (sleepScore >= 70) {
-        qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
-      } else if (sleepScore >= 60) {
-        qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
-      } else if (sleepScore > 0) {
-        qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
-      } else {
-        qualityComment = 'Score de sono não disponível para esta noite.';
-      }
+      if (sleepScore >= 80) qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
+      else if (sleepScore >= 70) qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
+      else if (sleepScore >= 60) qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
+      else if (sleepScore > 0) qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
+      else qualityComment = 'Score de sono não disponível para esta noite.';
 
-      // Formatar data
-      const lastSleepDate = new Date(sleepData.calendar_date).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+      const lastSleepDate = new Date(polarSleep.date).toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
       });
 
       return {
@@ -250,7 +309,7 @@ export function useDashboardMetrics() {
         deepSleepPercentage: deepPercentage,
         lightSleepPercentage: lightPercentage,
         remSleepPercentage: remPercentage,
-        totalSleepMinutes: Math.round(totalSleepSeconds / 60),
+        totalSleepMinutes: totalMinutes,
       };
 
     } catch (error) {
@@ -736,6 +795,46 @@ export function useDashboardMetrics() {
     console.log('getConsecutiveTrainingDays - Max consecutive days:', maxConsecutive);
     return maxConsecutive;
   };
+
+  // Helpers para normalizar dados do Polar
+  function parseISODurationToSeconds(iso: string | null | undefined): number | null {
+    if (!iso) return null;
+    try {
+      const match = iso.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+      if (!match) return null;
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const minutes = parseInt(match[3] || '0', 10);
+      const seconds = parseFloat(match[4] || '0');
+      return Math.round(days * 86400 + hours * 3600 + minutes * 60 + seconds);
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizePolarActivity(p: any) {
+    const activity_date = p.start_time ? new Date(p.start_time).toISOString().split('T')[0] : null;
+    const duration_in_seconds = parseISODurationToSeconds(p.duration) ?? null;
+    const distance_in_meters = p.distance != null ? Number(p.distance) : null;
+    const average_speed_in_meters_per_second = duration_in_seconds && distance_in_meters
+      ? distance_in_meters / duration_in_seconds
+      : null;
+
+    const typeRaw = p.activity_type || p.sport || p.detailed_sport_info || 'Outros';
+
+    return {
+      ...p,
+      activity_date,
+      duration_in_seconds,
+      distance_in_meters,
+      average_speed_in_meters_per_second: average_speed_in_meters_per_second ?? undefined,
+      average_heart_rate_in_beats_per_minute: p.average_heart_rate_bpm ?? null,
+      max_heart_rate_in_beats_per_minute: p.maximum_heart_rate_bpm ?? null,
+      active_kilocalories: p.calories ?? null,
+      activity_type: typeRaw,
+      vo2_max: null,
+    };
+  }
 
   return {
     metrics,
