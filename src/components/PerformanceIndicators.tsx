@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useRecalculateMetrics } from '@/hooks/useRecalculateMetrics';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 
 interface PerformanceIndicatorsProps {
@@ -117,7 +118,50 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
 
   // Detect if this is a Polar activity
   const isPolarActivity = metrics?.activity_source === 'polar';
-  const hasHeartRateData = metrics?.heartRate?.averageHr !== null;
+  const [hrOverride, setHrOverride] = useState<boolean | null>(null);
+  const hasHeartRateData = (
+    metrics?.heartRate?.averageHr != null ||
+    metrics?.heartRate?.maxHr != null ||
+    metrics?.heartRate?.relativeIntensity != null ||
+    hrOverride === true
+  );
+
+  // If metrics didn't bring HR but the source is Strava, probe the activity for HR flags
+  useEffect(() => {
+    setHrOverride(null);
+    if (!metrics) return;
+    if (metrics.activity_source !== 'strava') return;
+    if (metrics.heartRate?.averageHr != null || metrics.heartRate?.maxHr != null || metrics.heartRate?.relativeIntensity != null) return;
+
+    const run = async () => {
+      try {
+        let data: any = null;
+        if (activityId.includes('-')) {
+          const res = await supabase
+            .from('strava_activities')
+            .select('has_heartrate, average_heartrate')
+            .eq('id', activityId)
+            .maybeSingle();
+          data = res.data;
+        } else {
+          const res = await supabase
+            .from('strava_activities')
+            .select('has_heartrate, average_heartrate')
+            .eq('strava_activity_id', parseInt(activityId))
+            .maybeSingle();
+          data = res.data;
+        }
+        if (data && (data.has_heartrate === true || data.average_heartrate != null)) {
+          setHrOverride(true);
+        } else {
+          setHrOverride(false);
+        }
+      } catch {
+        setHrOverride(null);
+      }
+    };
+    run();
+  }, [activityId, metrics]);
 
   // Derived values for Polar caloric efficiency
   const durationSeconds = metrics?.duration ?? null;
