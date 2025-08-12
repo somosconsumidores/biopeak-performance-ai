@@ -131,7 +131,7 @@ export const LandingPage = () => {
               {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
-              <img src="https://static.wixstatic.com/media/a025ad_cf5ff4a4d6074fb7b479925857fd7130~mv2.png" alt="BioPeak Hero" className="max-h-56 sm:max-h-80 w-auto max-w-full object-contain" />
+              <img src="https://static.wixstatic.com/media/a025ad_cf5ff4a4d6074fb7b479925857fd7130~mv2.png" alt="BioPeak Hero" className="max-h-80 sm:max-h-96 md:max-h-[28rem] lg:max-h-[32rem] w-auto max-w-full object-contain" />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
