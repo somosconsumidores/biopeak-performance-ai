@@ -112,7 +112,7 @@ export function useDashboardMetrics() {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      const [garminRes, polarRes, stravaRes] = await Promise.all([
+      const [garminRes, polarRes, stravaRes, gpxRes] = await Promise.all([
         supabase
           .from('garmin_activities')
           .select('*')
@@ -130,21 +130,30 @@ export function useDashboardMetrics() {
           .select('*')
           .eq('user_id', user.id)
           .gte('start_date', sixtyDaysAgo.toISOString())
-          .order('start_date', { ascending: false })
+          .order('start_date', { ascending: false }),
+        supabase
+          .from('strava_gpx_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('start_time', sixtyDaysAgo.toISOString())
+          .order('start_time', { ascending: false })
       ]);
 
       if (garminRes.error) throw garminRes.error;
       if (polarRes.error) throw polarRes.error;
       if (stravaRes.error) throw stravaRes.error;
+      if (gpxRes.error) throw gpxRes.error;
 
       const garminActivities = garminRes.data ?? [];
       const polarActivitiesRaw = polarRes.data ?? [];
       const stravaActivitiesRaw = stravaRes.data ?? [];
+      const gpxActivitiesRaw = gpxRes.data ?? [];
 
       const normalizedPolar = polarActivitiesRaw.map(normalizePolarActivity);
       const normalizedStrava = stravaActivitiesRaw.map(normalizeStravaActivity);
+      const normalizedGpx = gpxActivitiesRaw.map(normalizeGpxActivity);
 
-      const activities = [...garminActivities, ...normalizedPolar, ...normalizedStrava].sort((a, b) => {
+      const activities = [...garminActivities, ...normalizedPolar, ...normalizedStrava, ...normalizedGpx].sort((a, b) => {
         const da = new Date(a.activity_date).getTime();
         const db = new Date(b.activity_date).getTime();
         return db - da;
@@ -922,6 +931,39 @@ export function useDashboardMetrics() {
       max_heart_rate_in_beats_per_minute: s.max_heartrate ?? null,
       active_kilocalories: s.calories ?? null,
       activity_type: typeRaw,
+      vo2_max: null,
+    };
+  }
+
+  function normalizeGpxActivity(g: any) {
+    const activity_date = g.start_time ? new Date(g.start_time).toISOString().split('T')[0] : null;
+    const duration_in_seconds = g.duration_in_seconds != null ? Number(g.duration_in_seconds) : null;
+    const distance_in_meters = g.distance_in_meters != null ? Number(g.distance_in_meters) : null;
+
+    let average_speed_in_meters_per_second = g.average_speed_in_meters_per_second != null
+      ? Number(g.average_speed_in_meters_per_second)
+      : null;
+    if (!average_speed_in_meters_per_second && duration_in_seconds && distance_in_meters) {
+      average_speed_in_meters_per_second = distance_in_meters / duration_in_seconds;
+    }
+
+    const average_pace_in_minutes_per_kilometer = g.average_pace_in_minutes_per_kilometer != null
+      ? Number(g.average_pace_in_minutes_per_kilometer)
+      : (average_speed_in_meters_per_second && average_speed_in_meters_per_second > 0
+        ? (1000 / 60) / average_speed_in_meters_per_second
+        : null);
+
+    return {
+      ...g,
+      activity_date,
+      duration_in_seconds,
+      distance_in_meters,
+      average_speed_in_meters_per_second: average_speed_in_meters_per_second ?? undefined,
+      average_pace_in_minutes_per_kilometer,
+      average_heart_rate_in_beats_per_minute: g.average_heart_rate ?? null,
+      max_heart_rate_in_beats_per_minute: g.max_heart_rate ?? null,
+      active_kilocalories: g.calories ?? null,
+      activity_type: g.activity_type || 'Outros',
       vo2_max: null,
     };
   }
