@@ -44,16 +44,20 @@ Deno.serve(async (req) => {
     // Calculate metrics (parity with Strava calculation but using GPX fields)
     const metrics = calculatePerformanceMetricsFromGpx(activity, details)
 
-    // Save metrics
+    // Save metrics (strip unsupported columns like duration_seconds to avoid schema mismatches)
+    const { duration_seconds, ...sanitized } = (metrics as any)
+
+    const payload = {
+      ...sanitized,
+      user_id,
+      activity_id: activity.activity_id,
+      activity_source: 'gpx',
+      calculated_at: new Date().toISOString(),
+    }
+
     const { error: saveError } = await supabase
       .from('performance_metrics')
-      .upsert({
-        ...metrics,
-        user_id,
-        activity_id: activity.activity_id,
-        activity_source: 'strava',
-        calculated_at: new Date().toISOString()
-      })
+      .upsert(payload)
 
     if (saveError) {
       console.error('❌ Error saving GPX performance metrics:', saveError)

@@ -214,6 +214,9 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
                   } else if (polarActivity) {
                     const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
                     if (basicMetrics) { setMetrics(basicMetrics); return; }
+                  } else if (gpxActivity) {
+                    const basicMetrics = await calculateBasicGpxMetrics(gpxActivity, user.id);
+                    if (basicMetrics) { setMetrics(basicMetrics); return; }
                   }
                   throw new Error(`Failed to calculate metrics: ${functionError.message}`);
                 }
@@ -547,6 +550,59 @@ function parseDurationToSeconds(iso: string | number | null | undefined): number
 
     return null;
   } catch {
+    return null;
+  }
+}
+
+// Basic fallback metrics for GPX activities (uses summary fields from strava_gpx_activities)
+async function calculateBasicGpxMetrics(gpxActivity: any, userId: string) {
+  try {
+    const durationSeconds = typeof gpxActivity.duration_in_seconds === 'number'
+      ? gpxActivity.duration_in_seconds
+      : parseDurationToSeconds(gpxActivity.duration);
+
+    const distanceKm = typeof gpxActivity.distance_in_meters === 'number'
+      ? gpxActivity.distance_in_meters / 1000
+      : (typeof gpxActivity.total_distance_m === 'number' ? gpxActivity.total_distance_m / 1000 : null);
+
+    const avgSpeedKmh = typeof gpxActivity.average_speed_in_meters_per_second === 'number'
+      ? gpxActivity.average_speed_in_meters_per_second * 3.6
+      : (durationSeconds && distanceKm ? (distanceKm / (durationSeconds / 3600)) : null);
+
+    const avgPaceMinKm = avgSpeedKmh ? 60 / avgSpeedKmh : null;
+    const durationMinutes = durationSeconds ? durationSeconds / 60 : null;
+    const movementEfficiency = (distanceKm && durationMinutes) ? distanceKm / durationMinutes : null;
+
+    return {
+      activity_source: 'gpx',
+      calories: typeof gpxActivity.calories === 'number' ? gpxActivity.calories : null,
+      duration: durationSeconds ?? null,
+      efficiency: {
+        powerPerBeat: null,
+        distancePerMinute: movementEfficiency,
+        comment: movementEfficiency ? `Eficiência de movimento: ${movementEfficiency.toFixed(2)} km/min` : 'Dados insuficientes'
+      },
+      pace: {
+        averageSpeedKmh: avgSpeedKmh ?? null,
+        paceVariationCoefficient: null,
+        comment: avgPaceMinKm ? `Pace médio: ${avgPaceMinKm.toFixed(2)} min/km` : 'Dados indisponíveis'
+      },
+      heartRate: {
+        averageHr: typeof gpxActivity.average_heart_rate === 'number' ? Math.round(gpxActivity.average_heart_rate) : null,
+        maxHr: typeof gpxActivity.max_heart_rate === 'number' ? Math.round(gpxActivity.max_heart_rate) : null,
+        relativeIntensity: null,
+        relativeReserve: null,
+        comment: typeof gpxActivity.average_heart_rate === 'number' ? `FC média: ${Math.round(gpxActivity.average_heart_rate)} bpm` : 'Sem dados de FC para análise detalhada'
+      },
+      effortDistribution: {
+        beginning: null,
+        middle: null,
+        end: null,
+        comment: 'Dados insuficientes para distribuição'
+      }
+    } as PerformanceMetrics;
+  } catch (e) {
+    console.error('Error calculating basic GPX metrics:', e);
     return null;
   }
 }
