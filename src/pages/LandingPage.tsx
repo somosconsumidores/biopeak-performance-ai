@@ -57,7 +57,7 @@ export const LandingPage = () => {
     },
     {
       icon: Activity,
-      title: t('garminIntegration'),
+      title: "Integração Multi Plataformas",
       description: t('garminDescription')
     },
     {
