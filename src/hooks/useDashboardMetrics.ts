@@ -112,7 +112,7 @@ export function useDashboardMetrics() {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      const [garminRes, polarRes] = await Promise.all([
+      const [garminRes, polarRes, stravaRes] = await Promise.all([
         supabase
           .from('garmin_activities')
           .select('*')
@@ -124,18 +124,27 @@ export function useDashboardMetrics() {
           .select('*')
           .eq('user_id', user.id)
           .gte('start_time', sixtyDaysAgo.toISOString())
-          .order('start_time', { ascending: false })
+          .order('start_time', { ascending: false }),
+        supabase
+          .from('strava_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('start_date', sixtyDaysAgo.toISOString())
+          .order('start_date', { ascending: false })
       ]);
 
       if (garminRes.error) throw garminRes.error;
       if (polarRes.error) throw polarRes.error;
+      if (stravaRes.error) throw stravaRes.error;
 
       const garminActivities = garminRes.data ?? [];
       const polarActivitiesRaw = polarRes.data ?? [];
+      const stravaActivitiesRaw = stravaRes.data ?? [];
 
       const normalizedPolar = polarActivitiesRaw.map(normalizePolarActivity);
+      const normalizedStrava = stravaActivitiesRaw.map(normalizeStravaActivity);
 
-      const activities = [...garminActivities, ...normalizedPolar].sort((a, b) => {
+      const activities = [...garminActivities, ...normalizedPolar, ...normalizedStrava].sort((a, b) => {
         const da = new Date(a.activity_date).getTime();
         const db = new Date(b.activity_date).getTime();
         return db - da;
@@ -853,6 +862,34 @@ export function useDashboardMetrics() {
       average_heart_rate_in_beats_per_minute: p.average_heart_rate_bpm ?? null,
       max_heart_rate_in_beats_per_minute: p.maximum_heart_rate_bpm ?? null,
       active_kilocalories: p.calories ?? null,
+      activity_type: typeRaw,
+      vo2_max: null,
+    };
+  }
+
+  function normalizeStravaActivity(s: any) {
+    const activity_date = s.start_date ? new Date(s.start_date).toISOString().split('T')[0] : null;
+    const duration_in_seconds = s.moving_time != null ? Number(s.moving_time) : null;
+    const distance_in_meters = s.distance != null ? Number(s.distance) : null;
+    const average_speed_in_meters_per_second = s.average_speed != null ? Number(s.average_speed) : (
+      duration_in_seconds && distance_in_meters ? distance_in_meters / duration_in_seconds : null
+    );
+    const average_pace_in_minutes_per_kilometer = average_speed_in_meters_per_second && average_speed_in_meters_per_second > 0
+      ? (1000 / 60) / average_speed_in_meters_per_second
+      : null;
+
+    const typeRaw = s.type || 'Outros';
+
+    return {
+      ...s,
+      activity_date,
+      duration_in_seconds,
+      distance_in_meters,
+      average_speed_in_meters_per_second: average_speed_in_meters_per_second ?? undefined,
+      average_pace_in_minutes_per_kilometer,
+      average_heart_rate_in_beats_per_minute: s.average_heartrate ?? null,
+      max_heart_rate_in_beats_per_minute: s.max_heartrate ?? null,
+      active_kilocalories: s.calories ?? null,
       activity_type: typeRaw,
       vo2_max: null,
     };
