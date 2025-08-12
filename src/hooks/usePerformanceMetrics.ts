@@ -160,7 +160,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
           if (noRows) {
             let functionName = 'calculate-performance-metrics';
             // Use canonical UUID when available for the function
-            let activityIdForFunction: string = (stravaActivity?.id || polarActivity?.id || activityId);
+            let activityIdForFunction: string = (stravaActivity?.id || polarActivity?.id || gpxActivity?.activity_id || activityId);
 
             if (stravaActivity) {
               console.log('🎯 Detected Strava activity, using Strava-specific metrics');
@@ -168,6 +168,9 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
             } else if (polarActivity) {
               console.log('🎯 Detected Polar activity, using Polar-specific metrics');
               functionName = 'calculate-polar-performance-metrics';
+            } else if (gpxActivity) {
+              console.log('🎯 Detected GPX activity, using GPX-specific metrics');
+              functionName = 'calculate-gpx-performance-metrics';
             }
 
             console.log('📞 Calling function:', functionName, 'with activity ID:', activityIdForFunction);
