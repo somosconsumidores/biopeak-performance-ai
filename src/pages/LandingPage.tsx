@@ -58,7 +58,7 @@ export const LandingPage = () => {
     {
       icon: Activity,
       title: "Integração Multi Plataformas",
-      description: t('garminDescription')
+      description: "Integração com Garmin, Polar e Strava"
     },
     {
       icon: TrendingUp,
