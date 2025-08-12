@@ -35,21 +35,7 @@ export const ActivitySourceInfo = ({ activity, feature }: ActivitySourceInfoProp
         break;
         
       case 'POLAR':
-        if (feature === 'heart_rate') {
-          return {
-            icon: <Heart className="h-4 w-4" />,
-            title: 'Dados Polar em Desenvolvimento',
-            description: 'A integração com Polar está em desenvolvimento. Alguns dados de frequência cardíaca podem não estar completamente disponíveis.'
-          };
-        }
-        if (feature === 'detailed_metrics') {
-          return {
-            icon: <Activity className="h-4 w-4" />,
-            title: 'Integração Polar em Desenvolvimento',
-            description: 'Estamos aprimorando a integração com Polar. Algumas métricas detalhadas podem estar temporariamente indisponíveis.'
-          };
-        }
-        break;
+        return null;
         
       case 'GARMIN':
       default:
