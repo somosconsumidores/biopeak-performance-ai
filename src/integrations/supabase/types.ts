@@ -2347,6 +2347,15 @@ export type Database = {
           start_time: string
         }[]
       }
+      get_provider_user_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          users_with_polar_tokens: number
+          users_with_polar_activities: number
+          users_with_strava_tokens: number
+          users_with_strava_activities: number
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string

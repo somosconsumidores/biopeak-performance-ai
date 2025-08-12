@@ -25,6 +25,13 @@ interface UserStats {
   usersWithCommitments: number;
 }
 
+interface ProviderStats {
+  polarTokenUsers: number;
+  polarActivityUsers: number;
+  stravaTokenUsers: number;
+  stravaActivityUsers: number;
+}
+
 export const AdminPanel = () => {
   const { renewExpiredTokens, loading } = useAdminActions();
   const { toast } = useToast();
@@ -40,6 +47,12 @@ export const AdminPanel = () => {
     usersWithActivities: 0,
     totalActivities: 0,
     usersWithCommitments: 0
+  });
+  const [providerStats, setProviderStats] = useState<ProviderStats>({
+    polarTokenUsers: 0,
+    polarActivityUsers: 0,
+    stravaTokenUsers: 0,
+    stravaActivityUsers: 0
   });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -84,16 +97,18 @@ export const AdminPanel = () => {
         { data: validTokensData, error: validTokensError },
         { data: activitiesUsersData, error: activitiesUsersError },
         { count: totalActivities, error: totalActivitiesError },
-        { data: commitmentsData, error: commitmentsError }
+        { data: commitmentsData, error: commitmentsError },
+        { data: providerData, error: providerError }
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
         supabase.from('garmin_activities').select('user_id'),
         supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
-        supabase.from('user_commitments').select('user_id')
+        supabase.from('user_commitments').select('user_id'),
+        supabase.rpc('get_provider_user_stats')
       ]);
 
-      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError) {
+      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError || providerError) {
         throw new Error('Erro ao buscar estatísticas dos usuários');
       }
 
@@ -109,6 +124,16 @@ export const AdminPanel = () => {
         totalActivities: totalActivities || 0,
         usersWithCommitments: uniqueCommitmentUsers
       });
+
+      if (providerData && providerData.length > 0) {
+        const p = providerData[0];
+        setProviderStats({
+          polarTokenUsers: p.users_with_polar_tokens || 0,
+          polarActivityUsers: p.users_with_polar_activities || 0,
+          stravaTokenUsers: p.users_with_strava_tokens || 0,
+          stravaActivityUsers: p.users_with_strava_activities || 0,
+        });
+      }
 
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -255,7 +280,53 @@ export const AdminPanel = () => {
             </div>
           </div>
 
-          {/* User Registration Chart */}
+          {/* Conexões por Provedor */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Conexões por Provedor</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com token Polar</CardTitle>
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerStats.polarTokenUsers}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com atividade Polar</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerStats.polarActivityUsers}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com token Strava</CardTitle>
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerStats.stravaTokenUsers}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários com atividades Strava</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerStats.stravaActivityUsers}</div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Gráfico de Registros de Usuários */}
           <UserRegistrationChart />
 
           {/* Actions */}
