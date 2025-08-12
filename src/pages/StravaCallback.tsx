@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { getProductionRedirectUrl } from '@/lib/utils';
 
 export default function StravaCallback() {
   const [searchParams] = useSearchParams();
@@ -40,6 +41,19 @@ export default function StravaCallback() {
     return () => clearInterval(interval);
   }, [syncStartTime, isSyncing]);
 
+  // Safety redirect: ensure callback is processed on production domain
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const host = window.location.hostname;
+    const isProdHost = host === 'biopeak-ai.com' || host === 'www.biopeak-ai.com';
+    if (code && state && !isProdHost) {
+      const target = `https://biopeak-ai.com/strava-callback${window.location.search}`;
+      console.log('[StravaCallback] Redirecting callback to production domain:', target);
+      window.location.replace(target);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Prevent multiple simultaneous executions
     if (isProcessing) {
@@ -69,7 +83,7 @@ export default function StravaCallback() {
         setMessage(`Erro na autorização: ${error}`);
         // Clear URL params before redirect
         window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => navigate('/sync'), 3000);
+        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
         return;
       }
 
@@ -79,7 +93,7 @@ export default function StravaCallback() {
         setMessage('Parâmetros de autorização ausentes');
         // Clear URL params before redirect
         window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => navigate('/sync'), 3000);
+        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
         return;
       }
 
@@ -99,7 +113,7 @@ export default function StravaCallback() {
           setMessage('Falha na autenticação com o Strava');
           // Clear URL params before redirect
           window.history.replaceState({}, '', '/strava-callback');
-          setTimeout(() => navigate('/sync'), 3000);
+          setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
           return;
         }
 
@@ -132,7 +146,7 @@ export default function StravaCallback() {
         }
         
         console.log('[StravaCallback] Redirecting to dashboard...');
-        setTimeout(() => navigate('/dashboard'), 2000);
+        setTimeout(() => window.location.replace(getProductionRedirectUrl('/dashboard')), 2000);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
@@ -140,7 +154,7 @@ export default function StravaCallback() {
         setMessage('Erro inesperado durante o processamento');
         // Clear URL params before redirect
         window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => navigate('/sync'), 3000);
+        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
       } finally {
         setIsProcessing(false);
       }
@@ -155,7 +169,7 @@ export default function StravaCallback() {
     } else if (!isProcessing) {
       // If no params and not processing, redirect to sync page
       console.log('[StravaCallback] No OAuth parameters found, redirecting to sync...');
-      navigate('/sync');
+      window.location.replace(getProductionRedirectUrl('/sync'));
     }
   }, [searchParams, handleCallback, navigate, isProcessing, syncActivities]);
 
