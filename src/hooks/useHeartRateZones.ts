@@ -29,16 +29,51 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         throw new Error('User not authenticated');
       }
 
-      // Query filtering by BOTH user_id AND activity_id
-      const { data: activityDetails, error } = await supabase
-        .from('garmin_activity_details')
-        .select('heart_rate')
-        .eq('user_id', user.id)
-        .eq('activity_id', id)
-        .order('sample_timestamp', { ascending: true });
+      // Detect source by activityId format: numeric => Strava, otherwise Garmin
+      const isStrava = /^\d+$/.test(id);
 
-      if (error) throw error;
-      
+      // Fetch details depending on source
+      let activityDetails: any[] | null = null;
+      if (isStrava) {
+        const stravaId = Number(id);
+        const { data: stravaDetails, error: stravaErr } = await supabase
+          .from('strava_activity_details')
+          .select('heartrate, time_seconds, time_index')
+          .eq('strava_activity_id', stravaId)
+          .order('time_index', { ascending: true });
+        if (stravaErr) throw stravaErr;
+
+        // If not found, try to fetch from Strava API and retry once
+        if (!stravaDetails || stravaDetails.length === 0) {
+          console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
+          try {
+            await supabase.functions.invoke('strava-activity-streams', {
+              body: { activity_id: stravaId }
+            });
+            const { data: retryDetails } = await supabase
+              .from('strava_activity_details')
+              .select('heartrate, time_seconds, time_index')
+              .eq('strava_activity_id', stravaId)
+              .order('time_index', { ascending: true });
+            activityDetails = retryDetails || [];
+          } catch (fetchErr) {
+            console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
+            activityDetails = [];
+          }
+        } else {
+          activityDetails = stravaDetails;
+        }
+      } else {
+        const { data: garminDetails, error: garminErr } = await supabase
+          .from('garmin_activity_details')
+          .select('heart_rate, sample_timestamp')
+          .eq('user_id', user.id)
+          .eq('activity_id', id)
+          .order('sample_timestamp', { ascending: true });
+        if (garminErr) throw garminErr;
+        activityDetails = garminDetails || [];
+      }
+
       console.log('🔍 ZONES: Raw query results:', {
         totalRecords: activityDetails?.length || 0,
         sampleData: activityDetails?.slice(0, 5)
@@ -49,18 +84,19 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         return;
       }
 
-      // Filter out null heart rates and check what we're losing
-      const validHRRecords = activityDetails.filter(d => d.heart_rate !== null);
-      const nullHRCount = activityDetails.length - validHRRecords.length;
-      
-      console.log('🔍 ZONES: HR Data Analysis:', {
-        totalRecords: activityDetails.length,
-        validHRRecords: validHRRecords.length,
-        nullHRRecords: nullHRCount,
-        nullPercentage: Math.round((nullHRCount / activityDetails.length) * 100) + '%'
-      });
+      // Normalize to a common [{ hr, t }] shape, where t = seconds from start if available
+      type Sample = { hr: number; t?: number };
+      const samples: Sample[] = activityDetails
+        .map((d: any) => {
+          const hr: number | null = isStrava ? (d.heartrate ?? null) : (d.heart_rate ?? null);
+          const t: number | undefined = isStrava
+            ? (typeof d.time_seconds === 'number' ? d.time_seconds : (typeof d.time_index === 'number' ? d.time_index : undefined))
+            : (typeof d.sample_timestamp === 'number' ? d.sample_timestamp : undefined);
+          return hr != null ? { hr: Number(hr), t } : null;
+        })
+        .filter(Boolean) as Sample[];
 
-      if (validHRRecords.length === 0) {
+      if (samples.length === 0) {
         setZones([]);
         return;
       }
@@ -77,110 +113,76 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       if (profile?.birth_date) {
         const birthDate = new Date(profile.birth_date);
         const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear() - 
-          (today.getMonth() < birthDate.getMonth() || 
+        const age = today.getFullYear() - birthDate.getFullYear() -
+          (today.getMonth() < birthDate.getMonth() ||
            (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
         theoreticalMaxHR = 220 - age;
         console.log('🔍 ZONES: User age:', age, 'Theoretical Max HR:', theoreticalMaxHR);
       }
 
-      // Calculate max HR from valid data only
-      const validHRValues = validHRRecords.map(d => d.heart_rate);
-      const dataMaxHR = Math.max(...validHRValues);
-      
-      // Use user-provided max HR, or theoretical max HR, or data max HR as fallback
-      const maxHR = userMaxHR || theoreticalMaxHR;
-      
-      console.log('🔍 ZONES: Max HR used for zones:', maxHR);
+      // Determine max HR basis
+      const dataMaxHR = Math.max(...samples.map(s => s.hr));
+      const maxHR = userMaxHR || theoreticalMaxHR || dataMaxHR;
+      console.log('🔍 ZONES: Max HR used for zones:', maxHR, '(data max:', dataMaxHR, ')');
 
-      // Get HR distribution for debugging
-      const allHRValues = activityDetails.map(d => d.heart_rate).sort((a, b) => a - b);
-      const minDataHR = Math.min(...allHRValues);
-      const maxDataHR = Math.max(...allHRValues);
-      
-      console.log('🔍 ZONES: HR Distribution Analysis:', {
-        totalRecords: activityDetails.length,
-        minHR: minDataHR,
-        maxHR: maxDataHR,
-        calculatedMaxHR: maxHR,
-        hrSample: allHRValues.slice(0, 10)
-      });
-
-      // Define heart rate zones based on % of max HR - expanded to capture all data
+      // Define heart rate zones based on % of max HR
       const zoneDefinitions = [
-        { zone: 'Zona 1', label: 'Recuperação', minPercent: 0, maxPercent: 60, color: 'bg-blue-500' },
-        { zone: 'Zona 2', label: 'Aeróbica', minPercent: 60, maxPercent: 70, color: 'bg-green-500' },
-        { zone: 'Zona 3', label: 'Limiar', minPercent: 70, maxPercent: 80, color: 'bg-yellow-500' },
-        { zone: 'Zona 4', label: 'Anaeróbica', minPercent: 80, maxPercent: 90, color: 'bg-orange-500' },
-        { zone: 'Zona 5', label: 'Máxima', minPercent: 90, maxPercent: 150, color: 'bg-red-500' } // Extended to capture all high HR
+        { zone: 'Zona 1', label: 'Recuperação', minPercent: 0,  maxPercent: 60,  color: 'bg-blue-500' },
+        { zone: 'Zona 2', label: 'Aeróbica',    minPercent: 60, maxPercent: 70,  color: 'bg-green-500' },
+        { zone: 'Zona 3', label: 'Limiar',      minPercent: 70, maxPercent: 80,  color: 'bg-yellow-500' },
+        { zone: 'Zona 4', label: 'Anaeróbica',  minPercent: 80, maxPercent: 90,  color: 'bg-orange-500' },
+        { zone: 'Zona 5', label: 'Máxima',      minPercent: 90, maxPercent: 150, color: 'bg-red-500' },
       ];
 
-      // Check if we have the expected 2,160 records for 36 minutes (2,160 seconds)
-      const totalRecords = validHRRecords.length;
-      const expectedSecondsFor36Min = 36 * 60; // 2,160 seconds
-      
-      // If we have exactly 2,160 records for 36 minutes, then 1 record = 1 second
-      const recordsPerSecond = totalRecords === expectedSecondsFor36Min ? 1 : (totalRecords / expectedSecondsFor36Min);
-      const actualDurationSeconds = Math.round(totalRecords / recordsPerSecond);
-      
-      console.log('🔍 ZONES: Time calculation:', {
-        totalRecords,
-        expectedRecordsFor36Min: expectedSecondsFor36Min,
-        recordsPerSecond,
-        calculatedDurationSeconds: actualDurationSeconds,
-        durationMinutes: Math.round(actualDurationSeconds / 60)
-      });
-      
-      let totalCounted = 0;
-      
+      // Compute per-sample durations (dt)
+      // If timestamps available, use differences; otherwise assume 1s per sample
+      let totalSeconds = 0;
+      const dts: number[] = new Array(samples.length).fill(1);
+      if (samples[0].t != null) {
+        for (let i = 0; i < samples.length; i++) {
+          const t0 = samples[i].t!;
+          const t1 = i < samples.length - 1 ? samples[i + 1].t! : t0 + 1;
+          const dt = Math.max(1, Math.round(t1 - t0));
+          dts[i] = dt;
+        }
+      }
+      totalSeconds = dts.reduce((a, b) => a + b, 0);
+
       const calculatedZones: HeartRateZone[] = zoneDefinitions.map((zoneDef, index) => {
         const minHR = Math.round((zoneDef.minPercent / 100) * maxHR);
         const maxHR_zone = Math.round((zoneDef.maxPercent / 100) * maxHR);
-        
-        // Count how many records fall within this zone
-        const recordsInZone = validHRRecords.filter(record => {
-          const hr = record.heart_rate;
-          if (index === zoneDefinitions.length - 1) {
-            // Last zone: capture everything >= minHR
-            return hr >= minHR;
-          } else {
-            // Other zones: minHR <= hr < maxHR_zone
-            return hr >= minHR && hr < maxHR_zone;
-          }
-        }).length;
 
-        // Convert records to actual time based on calculated records per second
-        const secondsInZone = Math.round(recordsInZone / recordsPerSecond);
-        totalCounted += recordsInZone;
-        
-        const percentage = totalRecords > 0 ? Math.round((recordsInZone / totalRecords) * 100) : 0;
+        let secondsInZone = 0;
+        for (let i = 0; i < samples.length; i++) {
+          const hr = samples[i].hr;
+          const inZone = index === zoneDefinitions.length - 1
+            ? hr >= minHR
+            : hr >= minHR && hr < maxHR_zone;
+          if (inZone) secondsInZone += dts[i];
+        }
 
+        const percentage = totalSeconds > 0 ? Math.round((secondsInZone / totalSeconds) * 100) : 0;
         return {
           zone: zoneDef.zone,
           label: zoneDef.label,
           minHR,
           maxHR: maxHR_zone,
           percentage,
-          timeInZone: secondsInZone, // Now converted to actual seconds
-          color: zoneDef.color
+          timeInZone: secondsInZone,
+          color: zoneDef.color,
         };
       });
 
       console.log('🔍 ZONES: Zone distribution:', calculatedZones.map(z => ({
         zone: z.zone,
         range: `${z.minHR}-${z.maxHR} bpm`,
-        records: Math.round(z.timeInZone * 5), // Back to records for verification
         seconds: z.timeInZone,
         percentage: z.percentage + '%'
       })));
 
-      console.log('🔍 ZONES: Verification:', {
-        totalRecords: totalRecords,
-        totalCounted: totalCounted,
-        uncountedRecords: totalRecords - totalCounted,
-        accountedPercentage: Math.round((totalCounted / totalRecords) * 100) + '%',
-        totalSecondsCalculated: calculatedZones.reduce((sum, zone) => sum + zone.timeInZone, 0),
-        expectedSeconds: Math.round(actualDurationSeconds)
+      console.log('🔍 ZONES: Totals:', {
+        totalSeconds,
+        sumSecondsZones: calculatedZones.reduce((sum, zone) => sum + zone.timeInZone, 0)
       });
 
       setZones(calculatedZones);
