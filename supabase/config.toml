@@ -8,7 +8,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.strava-token-refresh]
-verify_jwt = false
+verify_jwt = true
 
 [functions.welcome-email]
 verify_jwt = false
@@ -126,3 +126,6 @@ verify_jwt = true
 
 [functions.import-strava-gpx]
 verify_jwt = true
+
+[functions.get-polar-config]
+verify_jwt = false

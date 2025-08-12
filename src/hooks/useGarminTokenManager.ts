@@ -3,17 +3,15 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 
-interface GarminTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-  refresh_token_expires_at: string;
+interface GarminTokenStatus {
+  expires_at: string | null;
+  refresh_token_expires_at: string | null;
   is_active: boolean;
 }
 
 export const useGarminTokenManager = (user: User | null) => {
   const { toast } = useToast();
-  const [tokens, setTokens] = useState<GarminTokens | null>(null);
+  const [tokens, setTokens] = useState<GarminTokenStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -23,7 +21,7 @@ export const useGarminTokenManager = (user: User | null) => {
     try {
       const { data: tokenData, error } = await supabase
         .from('garmin_tokens')
-        .select('access_token, refresh_token, token_secret, expires_at, refresh_token_expires_at, is_active')
+        .select('expires_at, refresh_token_expires_at, is_active')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .maybeSingle();
@@ -39,20 +37,9 @@ export const useGarminTokenManager = (user: User | null) => {
         return;
       }
 
-      let refreshTokenValue = tokenData.refresh_token;
-      if (!refreshTokenValue && tokenData.token_secret) {
-        try {
-          refreshTokenValue = JSON.parse(atob(tokenData.token_secret)).refreshTokenValue;
-        } catch {
-          // Keep it null if parsing fails
-        }
-      }
-
-      const loadedTokens: GarminTokens = {
-        access_token: tokenData.access_token,
-        refresh_token: refreshTokenValue,
-        expires_at: tokenData.expires_at,
-        refresh_token_expires_at: tokenData.refresh_token_expires_at,
+      const loadedTokens: GarminTokenStatus = {
+        expires_at: tokenData.expires_at || null,
+        refresh_token_expires_at: tokenData.refresh_token_expires_at || null,
         is_active: tokenData.is_active,
       };
 
@@ -109,6 +96,7 @@ export const useGarminTokenManager = (user: User | null) => {
     if (!tokens) return;
 
     const now = new Date();
+    if (!tokens.expires_at) return;
     const expiresAt = new Date(tokens.expires_at);
     const minutesUntilExpiry = (expiresAt.getTime() - now.getTime()) / 60000;
 
@@ -116,6 +104,7 @@ export const useGarminTokenManager = (user: User | null) => {
       refreshTokenSafely();
     }
 
+    if (!tokens.refresh_token_expires_at) return;
     const refreshExpiresAt = new Date(tokens.refresh_token_expires_at);
     const daysUntilRefreshExpiry = (refreshExpiresAt.getTime() - now.getTime()) / 86400000;
 
