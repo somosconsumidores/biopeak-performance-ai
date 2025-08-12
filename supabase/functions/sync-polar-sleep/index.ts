@@ -72,7 +72,8 @@ serve(async (req) => {
         }
 
         const sleepData = await directResp.json();
-        // Map and upsert single day sleep
+
+        // Derivations
         const start = sleepData.sleep_start_time ? new Date(sleepData.sleep_start_time) : null;
         const end = sleepData.sleep_end_time ? new Date(sleepData.sleep_end_time) : null;
         const durationWindowSec = start && end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 1000)) : null;
@@ -80,6 +81,7 @@ serve(async (req) => {
         const efficiency_calc = durationWindowSec ? Math.round((total_sleep_calc / durationWindowSec) * 10000) / 100 : null; // percent with 2 decimals
         const deficit_calc = (sleepData.sleep_goal != null) ? (sleepData.sleep_goal - total_sleep_calc) : null;
 
+        // Upsert with new detailed columns
         const { error: upsertErrorSingle } = await supabase
           .from('polar_sleep')
           .upsert({
@@ -90,10 +92,26 @@ serve(async (req) => {
             sleep_charge: sleepData.sleep_charge ?? null,
             sleep_start_time: sleepData.sleep_start_time ?? null,
             sleep_end_time: sleepData.sleep_end_time ?? null,
-            total_sleep: total_sleep_calc || null,
+            total_sleep: (sleepData.total_sleep ?? null) ?? (total_sleep_calc || null),
             sleep_goal: sleepData.sleep_goal ?? null,
             sleep_deficit: deficit_calc,
-            sleep_efficiency: efficiency_calc,
+            sleep_efficiency: sleepData.sleep_efficiency ?? efficiency_calc,
+
+            // Novos campos detalhados
+            light_sleep: sleepData.light_sleep ?? null,
+            deep_sleep: sleepData.deep_sleep ?? null,
+            rem_sleep: sleepData.rem_sleep ?? null,
+            total_interruption_duration: sleepData.total_interruption_duration ?? null,
+            short_interruption_duration: sleepData.short_interruption_duration ?? null,
+            long_interruption_duration: sleepData.long_interruption_duration ?? null,
+            sleep_cycles: sleepData.sleep_cycles ?? null,
+            continuity: sleepData.continuity ?? null,
+            continuity_class: sleepData.continuity_class ?? null,
+            device_id: sleepData.device_id ?? null,
+            sleep_rating: sleepData.sleep_rating ?? null,
+            hypnogram: sleepData.hypnogram ?? null,
+            heart_rate_samples: sleepData.heart_rate_samples ?? null,
+
             synced_at: new Date().toISOString()
           }, { onConflict: 'user_id,date' });
 
@@ -105,7 +123,6 @@ serve(async (req) => {
           });
         }
 
-        // Log sync control entry
         const { error: syncControlErrorSingle } = await supabase
           .from('polar_sync_control')
           .insert({
@@ -183,6 +200,14 @@ serve(async (req) => {
 
     for (const night of nights) {
       try {
+        // Derivations for bulk items
+        const start = night.sleep_start_time ? new Date(night.sleep_start_time) : null;
+        const end = night.sleep_end_time ? new Date(night.sleep_end_time) : null;
+        const durationWindowSec = start && end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 1000)) : null;
+        const totalSleepFromPhases = (night.light_sleep || 0) + (night.deep_sleep || 0) + (night.rem_sleep || 0);
+        const efficiencyFromWindow = durationWindowSec ? Math.round((totalSleepFromPhases / durationWindowSec) * 10000) / 100 : null;
+        const deficitFromGoal = (night.sleep_goal != null) ? (totalSleepFromPhases - night.sleep_goal) : null;
+
         const { error: upsertError } = await supabase
           .from('polar_sleep')
           .upsert({
@@ -193,10 +218,26 @@ serve(async (req) => {
             sleep_charge: night.sleep_charge || null,
             sleep_start_time: night.sleep_start_time || null,
             sleep_end_time: night.sleep_end_time || null,
-            total_sleep: night.total_sleep || null,
+            total_sleep: (night.total_sleep ?? null) ?? (totalSleepFromPhases || null),
             sleep_goal: night.sleep_goal || null,
-            sleep_deficit: night.sleep_deficit || null,
-            sleep_efficiency: night.sleep_efficiency || null,
+            sleep_deficit: night.sleep_deficit ?? deficitFromGoal,
+            sleep_efficiency: night.sleep_efficiency ?? efficiencyFromWindow,
+
+            // Novos campos detalhados (se o endpoint listar, salvamos; caso contrário, ficam null)
+            light_sleep: night.light_sleep ?? null,
+            deep_sleep: night.deep_sleep ?? null,
+            rem_sleep: night.rem_sleep ?? null,
+            total_interruption_duration: night.total_interruption_duration ?? null,
+            short_interruption_duration: night.short_interruption_duration ?? null,
+            long_interruption_duration: night.long_interruption_duration ?? null,
+            sleep_cycles: night.sleep_cycles ?? null,
+            continuity: night.continuity ?? null,
+            continuity_class: night.continuity_class ?? null,
+            device_id: night.device_id ?? null,
+            sleep_rating: night.sleep_rating ?? null,
+            hypnogram: night.hypnogram ?? null,
+            heart_rate_samples: night.heart_rate_samples ?? null,
+
             synced_at: new Date().toISOString()
           }, { 
             onConflict: 'user_id,date'
@@ -241,9 +282,8 @@ serve(async (req) => {
       status: 200
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[sync-polar-sleep] Error:', error);
-    
     return new Response(JSON.stringify({
       success: false,
       error: error.message

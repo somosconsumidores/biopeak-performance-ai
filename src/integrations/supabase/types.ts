@@ -1436,52 +1436,91 @@ export type Database = {
       }
       polar_sleep: {
         Row: {
+          continuity: number | null
+          continuity_class: number | null
           created_at: string
           date: string
+          deep_sleep: number | null
+          device_id: string | null
+          heart_rate_samples: Json | null
+          hypnogram: Json | null
           id: string
+          light_sleep: number | null
+          long_interruption_duration: number | null
           polar_user_id: number | null
+          rem_sleep: number | null
+          short_interruption_duration: number | null
           sleep_charge: number | null
+          sleep_cycles: number | null
           sleep_deficit: number | null
           sleep_efficiency: number | null
           sleep_end_time: string | null
           sleep_goal: number | null
+          sleep_rating: number | null
           sleep_score: number | null
           sleep_start_time: string | null
           synced_at: string
+          total_interruption_duration: number | null
           total_sleep: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          continuity?: number | null
+          continuity_class?: number | null
           created_at?: string
           date: string
+          deep_sleep?: number | null
+          device_id?: string | null
+          heart_rate_samples?: Json | null
+          hypnogram?: Json | null
           id?: string
+          light_sleep?: number | null
+          long_interruption_duration?: number | null
           polar_user_id?: number | null
+          rem_sleep?: number | null
+          short_interruption_duration?: number | null
           sleep_charge?: number | null
+          sleep_cycles?: number | null
           sleep_deficit?: number | null
           sleep_efficiency?: number | null
           sleep_end_time?: string | null
           sleep_goal?: number | null
+          sleep_rating?: number | null
           sleep_score?: number | null
           sleep_start_time?: string | null
           synced_at?: string
+          total_interruption_duration?: number | null
           total_sleep?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          continuity?: number | null
+          continuity_class?: number | null
           created_at?: string
           date?: string
+          deep_sleep?: number | null
+          device_id?: string | null
+          heart_rate_samples?: Json | null
+          hypnogram?: Json | null
           id?: string
+          light_sleep?: number | null
+          long_interruption_duration?: number | null
           polar_user_id?: number | null
+          rem_sleep?: number | null
+          short_interruption_duration?: number | null
           sleep_charge?: number | null
+          sleep_cycles?: number | null
           sleep_deficit?: number | null
           sleep_efficiency?: number | null
           sleep_end_time?: string | null
           sleep_goal?: number | null
+          sleep_rating?: number | null
           sleep_score?: number | null
           sleep_start_time?: string | null
           synced_at?: string
+          total_interruption_duration?: number | null
           total_sleep?: number | null
           updated_at?: string
           user_id?: string
