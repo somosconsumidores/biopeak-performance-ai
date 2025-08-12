@@ -133,7 +133,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
         if (!metricsError && metricsData) {
           const formatted = formatMetricsFromDB(metricsData);
-          const enriched = await hydratePolarMissingFields(formatted, metricsData.activity_id, user.id);
+          const filled = enrichStravaUsingSummary(formatted, stravaActivity);
+          const enriched = await hydratePolarMissingFields(filled, metricsData.activity_id, user.id);
           setMetrics(enriched);
         } else {
           // If no pre-calculated metrics found, trigger calculation
@@ -170,18 +171,32 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
                   .single();
                 if (retryExistingErr) throw retryExistingErr;
                 const formatted = formatMetricsFromDB(retryExisting);
-                const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
+                const filled = enrichStravaUsingSummary(formatted, stravaActivity);
+                const enriched = await hydratePolarMissingFields(filled, activityIdForFunction, user.id);
                 setMetrics(enriched);
               } else {
-                console.log('⚠️ Function failed, calculating metrics locally as fallback');
-                if (stravaActivity) {
-                  const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
-                  if (basicMetrics) { setMetrics(basicMetrics); return; }
-                } else if (polarActivity) {
-                  const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
-                  if (basicMetrics) { setMetrics(basicMetrics); return; }
+                console.log('⚠️ Function failed. Trying to fetch existing metrics, then fallback to local calculation if needed');
+                const { data: maybeStored } = await supabase
+                  .from('performance_metrics')
+                  .select('*')
+                  .eq('activity_id', activityIdForFunction)
+                  .eq('user_id', user.id)
+                  .maybeSingle();
+                if (maybeStored) {
+                  const formatted = formatMetricsFromDB(maybeStored);
+                  const filled = enrichStravaUsingSummary(formatted, stravaActivity);
+                  const enriched = await hydratePolarMissingFields(filled, activityIdForFunction, user.id);
+                  setMetrics(enriched);
+                } else {
+                  if (stravaActivity) {
+                    const basicMetrics = await calculateBasicStravaMetrics(stravaActivity, user.id);
+                    if (basicMetrics) { setMetrics(basicMetrics); return; }
+                  } else if (polarActivity) {
+                    const basicMetrics = await calculateBasicPolarMetrics(activityIdForFunction, user.id);
+                    if (basicMetrics) { setMetrics(basicMetrics); return; }
+                  }
+                  throw new Error(`Failed to calculate metrics: ${functionError.message}`);
                 }
-                throw new Error(`Failed to calculate metrics: ${functionError.message}`);
               }
             } else {
               // Retry fetching after successful calculation
@@ -193,7 +208,8 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
                 .single();
               if (retryError) throw retryError;
               const formatted = formatMetricsFromDB(retryMetricsData);
-              const enriched = await hydratePolarMissingFields(formatted, activityIdForFunction, user.id);
+              const filled = enrichStravaUsingSummary(formatted, stravaActivity);
+              const enriched = await hydratePolarMissingFields(filled, activityIdForFunction, user.id);
               setMetrics(enriched);
             }
           } else if (metricsError) {
@@ -251,6 +267,44 @@ function formatMetricsFromDB(dbMetrics: any): PerformanceMetrics {
       comment: dbMetrics.effort_distribution_comment || "Sem dados suficientes"
     }
   };
+}
+
+// Enrich Strava metrics using activity summary if DB metrics have gaps
+function enrichStravaUsingSummary(m: PerformanceMetrics, summary?: any): PerformanceMetrics {
+  if (!summary) return m;
+  const cloned = { ...m, efficiency: { ...m.efficiency }, pace: { ...m.pace }, heartRate: { ...m.heartRate } } as PerformanceMetrics;
+
+  // Fill efficiency.distancePerMinute from distance/moving_time
+  if (cloned.efficiency.distancePerMinute == null && typeof summary.distance === 'number' && typeof summary.moving_time === 'number' && summary.moving_time > 0) {
+    const km = summary.distance / 1000;
+    const minutes = summary.moving_time / 60;
+    cloned.efficiency.distancePerMinute = minutes > 0 ? km / minutes : null;
+    if (!cloned.efficiency.comment || cloned.efficiency.comment === 'Sem dados suficientes') {
+      cloned.efficiency.comment = cloned.efficiency.distancePerMinute != null
+        ? `Eficiência de movimento: ${cloned.efficiency.distancePerMinute.toFixed(2)} km/min`
+        : 'Sem dados suficientes';
+    }
+  }
+
+  // Fill pace.averageSpeedKmh from average_speed (m/s)
+  if (cloned.pace.averageSpeedKmh == null && typeof summary.average_speed === 'number') {
+    cloned.pace.averageSpeedKmh = summary.average_speed * 3.6;
+    if (!cloned.pace.comment || cloned.pace.comment === 'Sem dados suficientes') {
+      const avgSpeedMs = summary.average_speed;
+      const avgPaceMinKm = avgSpeedMs > 0 ? (1000 / avgSpeedMs) / 60 : null;
+      cloned.pace.comment = avgPaceMinKm ? `Pace médio: ${avgPaceMinKm.toFixed(2)} min/km` : 'Sem dados suficientes';
+    }
+  }
+
+  // Fill heartRate.averageHr from summary average_heartrate
+  if ((cloned.heartRate.averageHr == null) && (typeof summary.average_heartrate === 'number')) {
+    cloned.heartRate.averageHr = summary.average_heartrate;
+    if (!cloned.heartRate.comment || cloned.heartRate.comment === 'Sem dados suficientes') {
+      cloned.heartRate.comment = `FC média: ${summary.average_heartrate} bpm`;
+    }
+  }
+
+  return cloned;
 }
 
 // Fallback function to calculate basic metrics locally for Strava
