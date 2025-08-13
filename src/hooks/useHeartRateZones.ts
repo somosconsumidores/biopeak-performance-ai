@@ -64,14 +64,21 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       }
 
       // Optional: trigger builder in background to speed up futuras visualizações
+      console.log('🔍 ZONES: Cache miss, triggering builder for activity:', id);
       supabase.functions.invoke('build-activity-chart-cache', {
         body: { activity_id: id, version: 1 }
-      }).catch((e) => console.warn('⚠️ ZONES builder invoke error:', e?.message || e));
+      }).then((result) => {
+        console.log('🔍 ZONES: Builder triggered successfully:', result);
+      }).catch((e) => {
+        console.warn('⚠️ ZONES builder invoke error:', e?.message || e);
+      });
 
       // Robust source detection: try Garmin first, then Strava, then GPX fallback
       let activityDetails: any[] | null = null;
+      console.log('🔍 ZONES: Starting source detection for activity:', id);
 
       // 1) Try Garmin details for this user/activity
+      console.log('🔍 ZONES: Trying Garmin details for activity:', id);
       const { data: garminDetails, error: garminErr } = await supabase
         .from('garmin_activity_details')
         .select('heart_rate, sample_timestamp')
@@ -80,12 +87,15 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         .order('sample_timestamp', { ascending: true });
       if (garminErr) throw garminErr;
 
+      console.log('🔍 ZONES: Garmin details found:', garminDetails?.length || 0, 'records');
       if (garminDetails && garminDetails.length > 0) {
         activityDetails = garminDetails;
       } else {
         // 2) Try Strava details if the id is numeric
+        console.log('🔍 ZONES: No Garmin data, trying Strava for activity:', id);
         const stravaId = Number(id);
         if (!Number.isNaN(stravaId)) {
+          console.log('🔍 ZONES: Activity ID is numeric, checking Strava with ID:', stravaId);
           const { data: stravaDetails, error: stravaErr } = await supabase
             .from('strava_activity_details')
             .select('heartrate, time_seconds, time_index')
@@ -93,6 +103,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
             .order('time_index', { ascending: true });
           if (stravaErr) throw stravaErr;
 
+          console.log('🔍 ZONES: Strava details found:', stravaDetails?.length || 0, 'records');
           if (!stravaDetails || stravaDetails.length === 0) {
             console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
             try {
@@ -104,6 +115,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
                 .select('heartrate, time_seconds, time_index')
                 .eq('strava_activity_id', stravaId)
                 .order('time_index', { ascending: true });
+              console.log('🔍 ZONES: Retry Strava details found:', retryDetails?.length || 0, 'records');
               activityDetails = retryDetails || [];
             } catch (fetchErr) {
               console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
@@ -112,6 +124,8 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           } else {
             activityDetails = stravaDetails;
           }
+        } else {
+          console.log('🔍 ZONES: Activity ID is not numeric, skipping regular Strava check');
         }
 
         // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
