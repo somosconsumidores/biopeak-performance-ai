@@ -48,24 +48,35 @@ serve(async (req) => {
 
   // Get activityId from request body
   let body;
+  let activityId;
+  
   try {
     const text = await req.text();
+    console.log('🤖 Raw request text:', text);
+    
     if (!text || text.trim() === '') {
-      throw new Error('Empty request body');
+      console.error('❌ Empty request body received');
+      return new Response(JSON.stringify({ error: 'Empty request body - no data received' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+    
     body = JSON.parse(text);
+    console.log('🤖 Parsed request body:', body);
+    activityId = body.activityId;
+    
   } catch (error) {
     console.error('❌ Failed to parse request body:', error);
-    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+    return new Response(JSON.stringify({ error: `Invalid JSON in request body: ${error.message}` }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
   
-  const { activityId } = body;
-  
   if (!activityId) {
-    return new Response(JSON.stringify({ error: 'Activity ID is required' }), {
+    console.error('❌ Missing activityId in request body:', body);
+    return new Response(JSON.stringify({ error: 'Activity ID is required in request body' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

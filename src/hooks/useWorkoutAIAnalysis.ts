@@ -68,9 +68,7 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     try {
       console.log('🤖 AI Hook: Starting analysis for activity:', activityId);
 
-      // Add timeout and retry logic for network issues
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      console.log('🤖 AI Hook: Calling function with body:', { activityId });
 
       const { data, error: functionError } = await supabase.functions.invoke('analyze-workout', {
         body: { activityId },
@@ -79,7 +77,7 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
         }
       });
 
-      clearTimeout(timeoutId);
+      console.log('🤖 AI Hook: Function response:', { data, error: functionError });
 
       if (functionError) {
         console.error('Function error:', functionError);
