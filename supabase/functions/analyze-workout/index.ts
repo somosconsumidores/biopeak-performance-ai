@@ -159,30 +159,56 @@ serve(async (req) => {
           activitySource = 'polar';
           console.log('🔍 Found Polar activity for analysis');
         } else {
-          // Try GPX imported activities
-          const { data: gpxActivity } = await supabase
-            .from('strava_gpx_activities')
+          // Try Zepp GPX activities
+          const { data: zeppActivity } = await supabase
+            .from('zepp_gpx_activities')
             .select('*')
             .eq('user_id', user.id)
             .eq('activity_id', activityId)
             .maybeSingle();
 
-          if (gpxActivity) {
+          if (zeppActivity) {
             activity = {
-              activity_type: gpxActivity.activity_type,
-              duration_in_seconds: gpxActivity.duration_in_seconds,
-              distance_in_meters: gpxActivity.distance_in_meters,
-              average_heart_rate_in_beats_per_minute: gpxActivity.average_heart_rate,
-              max_heart_rate_in_beats_per_minute: gpxActivity.max_heart_rate,
-              average_speed_in_meters_per_second: gpxActivity.average_speed_in_meters_per_second,
-              max_speed_in_meters_per_second: null,
-              active_kilocalories: gpxActivity.calories || null,
-              total_elevation_gain_in_meters: gpxActivity.total_elevation_gain_in_meters || null,
-              activity_id: gpxActivity.activity_id,
-              activity_name: gpxActivity.name || 'GPX Workout',
+              activity_type: zeppActivity.activity_type,
+              duration_in_seconds: zeppActivity.duration_in_seconds,
+              distance_in_meters: zeppActivity.distance_in_meters,
+              average_heart_rate_in_beats_per_minute: zeppActivity.average_heart_rate,
+              max_heart_rate_in_beats_per_minute: zeppActivity.max_heart_rate,
+              average_speed_in_meters_per_second: zeppActivity.average_speed_ms,
+              max_speed_in_meters_per_second: zeppActivity.max_speed_ms,
+              active_kilocalories: zeppActivity.calories,
+              total_elevation_gain_in_meters: zeppActivity.elevation_gain_meters,
+              activity_id: zeppActivity.activity_id,
+              activity_name: zeppActivity.name || 'Zepp GPX Workout',
             };
-            activitySource = 'gpx';
-            console.log('🔍 Found GPX activity for analysis');
+            activitySource = 'zepp_gpx';
+            console.log('🔍 Found Zepp GPX activity for analysis');
+          } else {
+            // Try Strava GPX imported activities
+            const { data: gpxActivity } = await supabase
+              .from('strava_gpx_activities')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('activity_id', activityId)
+              .maybeSingle();
+
+            if (gpxActivity) {
+              activity = {
+                activity_type: gpxActivity.activity_type,
+                duration_in_seconds: gpxActivity.duration_in_seconds,
+                distance_in_meters: gpxActivity.distance_in_meters,
+                average_heart_rate_in_beats_per_minute: gpxActivity.average_heart_rate,
+                max_heart_rate_in_beats_per_minute: gpxActivity.max_heart_rate,
+                average_speed_in_meters_per_second: gpxActivity.average_speed_in_meters_per_second,
+                max_speed_in_meters_per_second: null,
+                active_kilocalories: gpxActivity.calories || null,
+                total_elevation_gain_in_meters: gpxActivity.total_elevation_gain_in_meters || null,
+                activity_id: gpxActivity.activity_id,
+                activity_name: gpxActivity.name || 'Strava GPX Workout',
+              };
+              activitySource = 'strava_gpx';
+              console.log('🔍 Found Strava GPX activity for analysis');
+            }
           }
         }
       }
@@ -192,7 +218,7 @@ serve(async (req) => {
       throw new Error('Activity not found in any source');
     }
 
-    // Get detailed workout data (Garmin or GPX)
+    // Get detailed workout data (Garmin, GPX, or Zepp GPX)
     let activityDetails: any[] = [];
     if (activitySource === 'garmin') {
       const { data: details, error: detailsError } = await supabase
@@ -208,7 +234,7 @@ serve(async (req) => {
       } else {
         activityDetails = details || [];
       }
-    } else if (activitySource === 'gpx') {
+    } else if (activitySource === 'strava_gpx') {
       const { data: details, error: detailsError } = await supabase
         .from('strava_gpx_activity_details')
         .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
@@ -216,7 +242,20 @@ serve(async (req) => {
         .order('sample_timestamp', { ascending: true })
         .limit(500);
       if (detailsError) {
-        console.error('Error fetching GPX activity details:', detailsError);
+        console.error('Error fetching Strava GPX activity details:', detailsError);
+      } else {
+        activityDetails = details || [];
+      }
+    } else if (activitySource === 'zepp_gpx') {
+      const { data: details, error: detailsError } = await supabase
+        .from('zepp_gpx_activity_details')
+        .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
+        .eq('user_id', user.id)
+        .eq('activity_id', activityId)
+        .order('sample_timestamp', { ascending: true })
+        .limit(500);
+      if (detailsError) {
+        console.error('Error fetching Zepp GPX activity details:', detailsError);
       } else {
         activityDetails = details || [];
       }
