@@ -52,34 +52,38 @@ serve(async (req) => {
       });
     }
 
-    // Get activityId - try multiple methods
+    // Get activityId from multiple sources
     let activityId: string | null = null;
-    
-    // Method 1: URL parameter
-    const url = new URL(req.url);
-    activityId = url.searchParams.get('activityId');
-    console.log('🤖 Activity ID from URL params:', activityId);
-    
-    // Method 2: If no URL param, try request body (properly handle JSON)
-    if (!activityId && req.method === 'POST') {
+    let body = null;
+
+    // 1. Try from JSON body first (only for POST requests)
+    if (req.method === 'POST') {
       try {
-        const body = await req.json();
-        console.log('🤖 Request body:', body);
-        activityId = body?.activityId;
-        console.log('🤖 Activity ID from body:', activityId);
-      } catch (e) {
-        console.log('🤖 Body parsing failed (not JSON):', e.message);
-        // If JSON parsing fails, try text parsing as fallback
-        try {
-          const bodyText = await req.text();
-          console.log('🤖 Body as text:', bodyText);
-          if (bodyText) {
-            const parsedBody = JSON.parse(bodyText);
-            activityId = parsedBody?.activityId;
-          }
-        } catch (textError) {
-          console.log('🤖 Text parsing also failed, continuing...');
+        const text = await req.text();
+        console.log('🤖 Request body text:', text);
+        if (text && text.trim() !== '') {
+          body = JSON.parse(text);
+          activityId = body.activityId || null;
+          console.log('🤖 Activity ID from JSON body:', activityId);
         }
+      } catch (err) {
+        console.log('🤖 Body is not valid JSON:', err.message);
+      }
+    }
+
+    // 2. If not found in body, try URL query parameters
+    if (!activityId) {
+      const url = new URL(req.url);
+      activityId = url.searchParams.get('activityId');
+      console.log('🤖 Activity ID from URL params:', activityId);
+    }
+
+    // 3. If not found in query, try URL path
+    if (!activityId) {
+      const match = req.url.match(/\/analyze-workout\/([^\/\?]+)/);
+      if (match) {
+        activityId = match[1];
+        console.log('🤖 Activity ID from URL path:', activityId);
       }
     }
     
