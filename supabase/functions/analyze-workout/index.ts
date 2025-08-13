@@ -35,103 +35,29 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    console.log('🤖 Starting analyze-workout function');
-    console.log('🤖 Method:', req.method);
-    console.log('🤖 URL:', req.url);
+  // Get user from authorization header
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Get user from authorization header
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    
-    if (!token) {
-      console.error('❌ No authorization token');
-      return new Response(JSON.stringify({ error: 'Authorization required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  // Get activityId from request body
+  const body = await req.json();
+  const { activityId } = body;
+  
+  if (!activityId) {
+    return new Response(JSON.stringify({ error: 'Activity ID is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Captura activityId de várias formas
-    let activityId: string | null = null;
-    let body = null;
-
-    console.log('🤖 DEBUG: Request method:', req.method);
-    console.log('🤖 DEBUG: Request headers:', Object.fromEntries(req.headers.entries()));
-    console.log('🤖 DEBUG: URL:', req.url);
-
-    // Primeira tentativa: ler como text
-    let requestText = '';
-    try {
-      requestText = await req.text();
-      console.log('🤖 Raw request text length:', requestText.length);
-      console.log('🤖 Raw request text content:', JSON.stringify(requestText));
-    } catch (err) {
-      console.warn('🤖 Failed to read request as text:', err.message);
-    }
-
-    // Se conseguiu ler text e não está vazio, tenta fazer parse
-    if (requestText && requestText.trim() !== '') {
-      try {
-        body = JSON.parse(requestText);
-        console.log('🤖 Parsed request body:', JSON.stringify(body));
-        
-        // Verifica diferentes estruturas possíveis
-        if (body?.activityId) {
-          activityId = body.activityId;
-          console.log('🤖 Activity ID from body.activityId:', activityId);
-        } else if (typeof body === 'string') {
-          // Talvez o body seja uma string JSON aninhada
-          try {
-            const nestedBody = JSON.parse(body);
-            if (nestedBody?.activityId) {
-              activityId = nestedBody.activityId;
-              console.log('🤖 Activity ID from nested JSON:', activityId);
-            }
-          } catch {
-            console.log('🤖 Body is string but not nested JSON:', body);
-          }
-        }
-      } catch (err) {
-        console.warn('🤖 Body parsing failed (not JSON):', err.message);
-        console.warn('🤖 Failed text was:', JSON.stringify(requestText));
-      }
-    } else {
-      console.log('🤖 Request text is empty or whitespace only');
-    }
-
-    // Se não veio no body, tenta query params
-    if (!activityId) {
-      const url = new URL(req.url);
-      activityId = url.searchParams.get('activityId');
-      console.log('🤖 Activity ID from query params:', activityId);
-    }
-
-    // Se ainda não veio, tenta path param
-    if (!activityId) {
-      const match = req.url.match(/\/analyze-workout\/([^\/\?]+)/);
-      activityId = match ? match[1] : null;
-      console.log('🤖 Activity ID from URL path:', activityId);
-    }
-
-    console.log('🤖 Final Activity ID:', activityId);
-    
-    if (!activityId) {
-      return new Response(JSON.stringify({ error: 'Activity ID is required in request body or URL parameter' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!openAIApiKey) {
-      console.error('❌ OpenAI API key not found');
-      return new Response(JSON.stringify({ error: 'OpenAI API key not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return await handleError('analyze-workout', async () => {
+  return await handleError('analyze-workout', async () => {
     console.log('🤖 AI Analysis: Function started successfully');
     
     if (!openAIApiKey) {
@@ -154,24 +80,13 @@ serve(async (req) => {
     let activity: any = null;
     let activitySource = '';
     
-    // Try Garmin first - check by both id and activity_id fields
-    let { data: garminActivity } = await supabase
+    // Try Garmin first
+    const { data: garminActivity } = await supabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
-      .eq('id', activityId)
+      .eq('activity_id', activityId)
       .maybeSingle();
-    
-    // If not found by id, try by activity_id field
-    if (!garminActivity) {
-      const byActivityId = await supabase
-        .from('garmin_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('activity_id', activityId)
-        .maybeSingle();
-      garminActivity = byActivityId.data;
-    }
     
     if (garminActivity) {
       activity = garminActivity;
@@ -244,56 +159,30 @@ serve(async (req) => {
           activitySource = 'polar';
           console.log('🔍 Found Polar activity for analysis');
         } else {
-          // Try Zepp GPX activities
-          const { data: zeppActivity } = await supabase
-            .from('zepp_gpx_activities')
+          // Try GPX imported activities
+          const { data: gpxActivity } = await supabase
+            .from('strava_gpx_activities')
             .select('*')
             .eq('user_id', user.id)
             .eq('activity_id', activityId)
             .maybeSingle();
 
-          if (zeppActivity) {
+          if (gpxActivity) {
             activity = {
-              activity_type: zeppActivity.activity_type,
-              duration_in_seconds: zeppActivity.duration_in_seconds,
-              distance_in_meters: zeppActivity.distance_in_meters,
-              average_heart_rate_in_beats_per_minute: zeppActivity.average_heart_rate,
-              max_heart_rate_in_beats_per_minute: zeppActivity.max_heart_rate,
-              average_speed_in_meters_per_second: zeppActivity.average_speed_ms,
-              max_speed_in_meters_per_second: zeppActivity.max_speed_ms,
-              active_kilocalories: zeppActivity.calories,
-              total_elevation_gain_in_meters: zeppActivity.elevation_gain_meters,
-              activity_id: zeppActivity.activity_id,
-              activity_name: zeppActivity.name || 'Zepp GPX Workout',
+              activity_type: gpxActivity.activity_type,
+              duration_in_seconds: gpxActivity.duration_in_seconds,
+              distance_in_meters: gpxActivity.distance_in_meters,
+              average_heart_rate_in_beats_per_minute: gpxActivity.average_heart_rate,
+              max_heart_rate_in_beats_per_minute: gpxActivity.max_heart_rate,
+              average_speed_in_meters_per_second: gpxActivity.average_speed_in_meters_per_second,
+              max_speed_in_meters_per_second: null,
+              active_kilocalories: gpxActivity.calories || null,
+              total_elevation_gain_in_meters: gpxActivity.total_elevation_gain_in_meters || null,
+              activity_id: gpxActivity.activity_id,
+              activity_name: gpxActivity.name || 'GPX Workout',
             };
-            activitySource = 'zepp_gpx';
-            console.log('🔍 Found Zepp GPX activity for analysis');
-          } else {
-            // Try Strava GPX imported activities
-            const { data: gpxActivity } = await supabase
-              .from('strava_gpx_activities')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('activity_id', activityId)
-              .maybeSingle();
-
-            if (gpxActivity) {
-              activity = {
-                activity_type: gpxActivity.activity_type,
-                duration_in_seconds: gpxActivity.duration_in_seconds,
-                distance_in_meters: gpxActivity.distance_in_meters,
-                average_heart_rate_in_beats_per_minute: gpxActivity.average_heart_rate,
-                max_heart_rate_in_beats_per_minute: gpxActivity.max_heart_rate,
-                average_speed_in_meters_per_second: gpxActivity.average_speed_in_meters_per_second,
-                max_speed_in_meters_per_second: null,
-                active_kilocalories: gpxActivity.calories || null,
-                total_elevation_gain_in_meters: gpxActivity.total_elevation_gain_in_meters || null,
-                activity_id: gpxActivity.activity_id,
-                activity_name: gpxActivity.name || 'Strava GPX Workout',
-              };
-              activitySource = 'strava_gpx';
-              console.log('🔍 Found Strava GPX activity for analysis');
-            }
+            activitySource = 'gpx';
+            console.log('🔍 Found GPX activity for analysis');
           }
         }
       }
@@ -303,16 +192,14 @@ serve(async (req) => {
       throw new Error('Activity not found in any source');
     }
 
-    // Get detailed workout data (Garmin, GPX, or Zepp GPX)
+    // Get detailed workout data (Garmin or GPX)
     let activityDetails: any[] = [];
     if (activitySource === 'garmin') {
-      // For Garmin, try to find details by the actual Garmin activity_id, not the database id
-      const garminActivityId = garminActivity?.activity_id || activityId;
       const { data: details, error: detailsError } = await supabase
         .from('garmin_activity_details')
         .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
         .eq('user_id', user.id)
-        .eq('activity_id', garminActivityId)
+        .eq('activity_id', activityId)
         .order('sample_timestamp', { ascending: true })
         .limit(500); // Limit for performance
 
@@ -321,7 +208,7 @@ serve(async (req) => {
       } else {
         activityDetails = details || [];
       }
-    } else if (activitySource === 'strava_gpx') {
+    } else if (activitySource === 'gpx') {
       const { data: details, error: detailsError } = await supabase
         .from('strava_gpx_activity_details')
         .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
@@ -329,20 +216,7 @@ serve(async (req) => {
         .order('sample_timestamp', { ascending: true })
         .limit(500);
       if (detailsError) {
-        console.error('Error fetching Strava GPX activity details:', detailsError);
-      } else {
-        activityDetails = details || [];
-      }
-    } else if (activitySource === 'zepp_gpx') {
-      const { data: details, error: detailsError } = await supabase
-        .from('zepp_gpx_activity_details')
-        .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
-        .eq('user_id', user.id)
-        .eq('activity_id', activityId)
-        .order('sample_timestamp', { ascending: true })
-        .limit(500);
-      if (detailsError) {
-        console.error('Error fetching Zepp GPX activity details:', detailsError);
+        console.error('Error fetching GPX activity details:', detailsError);
       } else {
         activityDetails = details || [];
       }
@@ -636,12 +510,5 @@ serve(async (req) => {
   }, {
     userId: token,
     requestData: { activityId }
-   });
-  } catch (error) {
-    console.error('❌ Function error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  });
 });

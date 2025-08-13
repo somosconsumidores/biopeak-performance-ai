@@ -68,32 +68,17 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     try {
       console.log('🤖 AI Hook: Starting analysis for activity:', activityId);
 
-      console.log('🤖 AI Hook: Calling function with body:', { activityId });
-
       const { data, error: functionError } = await supabase.functions.invoke('analyze-workout', {
-        body: { activityId },
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        body: { activityId }
       });
-
-      console.log('🤖 AI Hook: Function response:', { data, error: functionError });
 
       if (functionError) {
         console.error('Function error:', functionError);
-        
-        // Check if it's a network error
-        if (functionError.message?.includes('Failed to fetch') || 
-            functionError.message?.includes('NetworkError') ||
-            functionError.message?.includes('Failed to send a request')) {
-          throw new Error('Erro de conectividade. Verifique sua conexão de internet e tente novamente em alguns instantes.');
-        }
-        
-        throw new Error(functionError.message || 'Falha na análise do treino');
+        throw new Error(functionError.message || 'Failed to analyze workout');
       }
 
       if (!data || !data.analysis) {
-        throw new Error('Nenhum dado de análise foi recebido');
+        throw new Error('No analysis data received');
       }
 
       console.log('🤖 AI Hook: Analysis completed successfully');
@@ -103,23 +88,7 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
       setAnalysis(data.analysis);
     } catch (err) {
       console.error('AI Analysis error:', err);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Falha na análise do treino';
-      
-      if (err instanceof Error) {
-        if (err.message.includes('Activity not found')) {
-          errorMessage = 'Atividade não encontrada. Verifique se a atividade existe e tente novamente.';
-        } else if (err.message.includes('conectividade') || err.message.includes('Failed to fetch')) {
-          errorMessage = 'Problema de conectividade. Verifique sua internet e tente novamente.';
-        } else if (err.message.includes('Authorization')) {
-          errorMessage = 'Sessão expirada. Faça login novamente.';
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
-      }
-      
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to analyze workout');
     } finally {
       setLoading(false);
     }
