@@ -46,37 +46,52 @@ serve(async (req) => {
     });
   }
 
-  // Get activityId from request body
+  // Get activityId from request body with better error handling
   let body;
   let activityId;
   
   try {
-    const text = await req.text();
-    console.log('🤖 Raw request text:', text);
+    // Try different methods to get the request data
+    const contentType = req.headers.get('content-type') || '';
+    console.log('🤖 Content-Type:', contentType);
+    console.log('🤖 Method:', req.method);
+    console.log('🤖 Headers:', Object.fromEntries(req.headers.entries()));
     
-    if (!text || text.trim() === '') {
-      console.error('❌ Empty request body received');
-      return new Response(JSON.stringify({ error: 'Empty request body - no data received' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (req.method === 'GET') {
+      // Handle GET request with query parameter
+      const url = new URL(req.url);
+      activityId = url.searchParams.get('activityId');
+      console.log('🤖 GET activityId:', activityId);
+    } else {
+      // Handle POST request with body
+      const text = await req.text();
+      console.log('🤖 Raw request text length:', text?.length || 0);
+      console.log('🤖 Raw request text:', text);
+      
+      if (!text || text.trim() === '') {
+        console.error('❌ Empty request body received');
+        return new Response(JSON.stringify({ error: 'Empty request body - no data received. Try using GET with ?activityId=<id>' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      body = JSON.parse(text);
+      console.log('🤖 Parsed request body:', body);
+      activityId = body.activityId;
     }
     
-    body = JSON.parse(text);
-    console.log('🤖 Parsed request body:', body);
-    activityId = body.activityId;
-    
   } catch (error) {
-    console.error('❌ Failed to parse request body:', error);
-    return new Response(JSON.stringify({ error: `Invalid JSON in request body: ${error.message}` }), {
+    console.error('❌ Failed to parse request:', error);
+    return new Response(JSON.stringify({ error: `Invalid request format: ${error.message}` }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
   
   if (!activityId) {
-    console.error('❌ Missing activityId in request body:', body);
-    return new Response(JSON.stringify({ error: 'Activity ID is required in request body' }), {
+    console.error('❌ Missing activityId in request:', body);
+    return new Response(JSON.stringify({ error: 'Activity ID is required in request body or as query parameter' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
