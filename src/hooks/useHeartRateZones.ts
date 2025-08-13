@@ -92,22 +92,14 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id, 'User ID:', user?.id);
 
-      // NEW: Cache-first
+      // Try cache first, but don't let cache failures stop us
       const cacheHit = await tryLoadZonesFromCache(id);
       if (cacheHit) {
         setLoading(false);
         return;
       }
 
-      // Optional: trigger builder in background to speed up futuras visualizações
-      console.log('🔍 ZONES: Cache miss, triggering builder for activity:', id);
-      supabase.functions.invoke('build-activity-chart-cache', {
-        body: { activity_id: id, version: 1 }
-      }).then((result) => {
-        console.log('🔍 ZONES: Builder triggered successfully:', result);
-      }).catch((e) => {
-        console.warn('⚠️ ZONES builder invoke error:', e?.message || e);
-      });
+      // If no cache, proceed with fresh calculation
 
       // Robust source detection: try Garmin first, then Strava, then GPX fallback
       let activityDetails: any[] | null = null;
