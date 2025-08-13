@@ -52,41 +52,42 @@ serve(async (req) => {
       });
     }
 
-    // Get activityId from multiple sources
+    // Captura activityId de várias formas
     let activityId: string | null = null;
     let body = null;
 
-    // 1. Try from JSON body first (only for POST requests)
-    if (req.method === 'POST') {
-      try {
-        const text = await req.text();
-        console.log('🤖 Request body text:', text);
-        if (text && text.trim() !== '') {
+    try {
+      const text = await req.text();
+      console.log('🤖 Raw request text:', text);
+
+      if (text && text.trim() !== '') {
+        try {
           body = JSON.parse(text);
+          console.log('🤖 Parsed request body:', body);
           activityId = body.activityId || null;
-          console.log('🤖 Activity ID from JSON body:', activityId);
+          console.log('🤖 Activity ID from body:', activityId);
+        } catch (err) {
+          console.warn('🤖 Body parsing failed (not JSON):', err.message);
         }
-      } catch (err) {
-        console.log('🤖 Body is not valid JSON:', err.message);
       }
+    } catch (err) {
+      console.warn('🤖 Text parsing also failed, continuing...');
     }
 
-    // 2. If not found in body, try URL query parameters
+    // Se não veio no body, tenta query params
     if (!activityId) {
       const url = new URL(req.url);
       activityId = url.searchParams.get('activityId');
-      console.log('🤖 Activity ID from URL params:', activityId);
+      console.log('🤖 Activity ID from query params:', activityId);
     }
 
-    // 3. If not found in query, try URL path
+    // Se ainda não veio, tenta path param
     if (!activityId) {
       const match = req.url.match(/\/analyze-workout\/([^\/\?]+)/);
-      if (match) {
-        activityId = match[1];
-        console.log('🤖 Activity ID from URL path:', activityId);
-      }
+      activityId = match ? match[1] : null;
+      console.log('🤖 Activity ID from URL path:', activityId);
     }
-    
+
     console.log('🤖 Final Activity ID:', activityId);
     
     if (!activityId) {
