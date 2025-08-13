@@ -104,23 +104,18 @@ export const ZeppGpxImport: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid md:grid-cols-3 gap-4 items-end">
-          <div className="col-span-2">
+        <div className="space-y-4">
+          <div>
             <label className="block text-sm mb-2">Arquivo GPX</label>
-            <div className="flex gap-3">
-              <input
-                type="file"
-                accept=".gpx,application/gpx+xml"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="flex-1 text-sm"
-              />
-              <Button onClick={handleUpload} disabled={isUploading || !file}>
-                <FileUp className="h-4 w-4 mr-2" />
-                {isUploading ? 'Importando...' : 'Importar'}
-              </Button>
-            </div>
+            <input
+              type="file"
+              accept=".gpx,application/gpx+xml"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full text-sm"
+            />
           </div>
-          <div className="space-y-3">
+          
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Nome (opcional)</label>
               <input
@@ -143,6 +138,11 @@ export const ZeppGpxImport: React.FC = () => {
               </select>
             </div>
           </div>
+          
+          <Button onClick={handleUpload} disabled={isUploading || !file} className="w-full">
+            <FileUp className="h-4 w-4 mr-2" />
+            {isUploading ? 'Importando...' : 'Importar'}
+          </Button>
         </div>
 
         <div className="mt-6">
