@@ -56,22 +56,29 @@ serve(async (req) => {
     let activityId: string | null = null;
     let body = null;
 
+    console.log('🤖 DEBUG: Request method:', req.method);
+    console.log('🤖 DEBUG: Request headers:', Object.fromEntries(req.headers.entries()));
+
     try {
       const text = await req.text();
-      console.log('🤖 Raw request text:', text);
+      console.log('🤖 Raw request text length:', text.length);
+      console.log('🤖 Raw request text content:', JSON.stringify(text));
 
       if (text && text.trim() !== '') {
         try {
           body = JSON.parse(text);
-          console.log('🤖 Parsed request body:', body);
-          activityId = body.activityId || null;
+          console.log('🤖 Parsed request body:', JSON.stringify(body));
+          activityId = body?.activityId || null;
           console.log('🤖 Activity ID from body:', activityId);
         } catch (err) {
           console.warn('🤖 Body parsing failed (not JSON):', err.message);
+          console.warn('🤖 Failed text was:', JSON.stringify(text));
         }
+      } else {
+        console.log('🤖 Request text is empty or whitespace only');
       }
     } catch (err) {
-      console.warn('🤖 Text parsing also failed, continuing...');
+      console.warn('🤖 Text parsing failed:', err.message);
     }
 
     // Se não veio no body, tenta query params
