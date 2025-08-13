@@ -35,69 +35,62 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Get user from authorization header
-  const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
-  
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Get activityId from request body with better error handling
-  let body;
-  let activityId;
-  
   try {
-    // Try different methods to get the request data
-    const contentType = req.headers.get('content-type') || '';
-    console.log('🤖 Content-Type:', contentType);
+    console.log('🤖 Starting analyze-workout function');
     console.log('🤖 Method:', req.method);
-    console.log('🤖 Headers:', Object.fromEntries(req.headers.entries()));
+    console.log('🤖 URL:', req.url);
+
+    // Get user from authorization header
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
     
-    if (req.method === 'GET') {
-      // Handle GET request with query parameter
-      const url = new URL(req.url);
-      activityId = url.searchParams.get('activityId');
-      console.log('🤖 GET activityId:', activityId);
-    } else {
-      // Handle POST request with body
-      const text = await req.text();
-      console.log('🤖 Raw request text length:', text?.length || 0);
-      console.log('🤖 Raw request text:', text);
-      
-      if (!text || text.trim() === '') {
-        console.error('❌ Empty request body received');
-        return new Response(JSON.stringify({ error: 'Empty request body - no data received. Try using GET with ?activityId=<id>' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    if (!token) {
+      console.error('❌ No authorization token');
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get activityId - try multiple methods
+    let activityId;
+    
+    // Method 1: URL parameter
+    const url = new URL(req.url);
+    activityId = url.searchParams.get('activityId');
+    
+    // Method 2: If no URL param, try request body
+    if (!activityId && req.method === 'POST') {
+      try {
+        const bodyText = await req.text();
+        console.log('🤖 Body text:', bodyText);
+        if (bodyText) {
+          const body = JSON.parse(bodyText);
+          activityId = body.activityId;
+        }
+      } catch (e) {
+        console.log('🤖 Body parsing failed, continuing...');
       }
-      
-      body = JSON.parse(text);
-      console.log('🤖 Parsed request body:', body);
-      activityId = body.activityId;
     }
     
-  } catch (error) {
-    console.error('❌ Failed to parse request:', error);
-    return new Response(JSON.stringify({ error: `Invalid request format: ${error.message}` }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-  
-  if (!activityId) {
-    console.error('❌ Missing activityId in request:', body);
-    return new Response(JSON.stringify({ error: 'Activity ID is required in request body or as query parameter' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    console.log('🤖 Activity ID:', activityId);
+    
+    if (!activityId) {
+      return new Response(JSON.stringify({ error: 'Activity ID is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  return await handleError('analyze-workout', async () => {
+    if (!openAIApiKey) {
+      console.error('❌ OpenAI API key not found');
+      return new Response(JSON.stringify({ error: 'OpenAI API key not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return await handleError('analyze-workout', async () => {
     console.log('🤖 AI Analysis: Function started successfully');
     
     if (!openAIApiKey) {
@@ -602,5 +595,12 @@ serve(async (req) => {
   }, {
     userId: token,
     requestData: { activityId }
-  });
+   });
+  } catch (error) {
+    console.error('❌ Function error:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 });
