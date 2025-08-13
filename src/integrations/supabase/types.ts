@@ -2444,6 +2444,258 @@ export type Database = {
         }
         Relationships: []
       }
+      zepp_activities: {
+        Row: {
+          activity_date: string | null
+          activity_id: string
+          activity_type: string | null
+          average_heart_rate_bpm: number | null
+          calories: number | null
+          created_at: string
+          device_name: string | null
+          distance_in_meters: number | null
+          duration_in_seconds: number | null
+          has_route: boolean
+          id: string
+          max_heart_rate_bpm: number | null
+          start_time: string | null
+          updated_at: string
+          uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string | null
+          activity_id: string
+          activity_type?: string | null
+          average_heart_rate_bpm?: number | null
+          calories?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          has_route?: boolean
+          id?: string
+          max_heart_rate_bpm?: number | null
+          start_time?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string | null
+          activity_id?: string
+          activity_type?: string | null
+          average_heart_rate_bpm?: number | null
+          calories?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          has_route?: boolean
+          id?: string
+          max_heart_rate_bpm?: number | null
+          start_time?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zepp_activity_details: {
+        Row: {
+          activity_id: string
+          activity_name: string | null
+          activity_summary: Json | null
+          activity_type: string | null
+          created_at: string
+          device_name: string | null
+          duration_in_seconds: number | null
+          elevation_in_meters: number | null
+          heart_rate: number | null
+          id: string
+          latitude_in_degree: number | null
+          longitude_in_degree: number | null
+          sample_timestamp: number | null
+          samples: Json | null
+          speed_meters_per_second: number | null
+          start_time_in_seconds: number | null
+          total_distance_in_meters: number | null
+          updated_at: string
+          upload_time_in_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          activity_type?: string | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: number | null
+          samples?: Json | null
+          speed_meters_per_second?: number | null
+          start_time_in_seconds?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          upload_time_in_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_name?: string | null
+          activity_summary?: Json | null
+          activity_type?: string | null
+          created_at?: string
+          device_name?: string | null
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: number | null
+          samples?: Json | null
+          speed_meters_per_second?: number | null
+          start_time_in_seconds?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          upload_time_in_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zepp_sleep_summaries: {
+        Row: {
+          awake_in_seconds: number | null
+          calendar_date: string
+          created_at: string
+          deep_sleep_in_seconds: number | null
+          id: string
+          light_sleep_in_seconds: number | null
+          rem_sleep_in_seconds: number | null
+          sleep_score: number | null
+          summary: Json | null
+          total_sleep_in_seconds: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          awake_in_seconds?: number | null
+          calendar_date: string
+          created_at?: string
+          deep_sleep_in_seconds?: number | null
+          id?: string
+          light_sleep_in_seconds?: number | null
+          rem_sleep_in_seconds?: number | null
+          sleep_score?: number | null
+          summary?: Json | null
+          total_sleep_in_seconds?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          awake_in_seconds?: number | null
+          calendar_date?: string
+          created_at?: string
+          deep_sleep_in_seconds?: number | null
+          id?: string
+          light_sleep_in_seconds?: number | null
+          rem_sleep_in_seconds?: number | null
+          sleep_score?: number | null
+          summary?: Json | null
+          total_sleep_in_seconds?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zepp_tokens: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          refresh_token: string | null
+          scope: string | null
+          token_type: string | null
+          updated_at: string
+          user_id: string
+          zepp_user_id: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id: string
+          zepp_user_id?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id?: string
+          zepp_user_id?: string | null
+        }
+        Relationships: []
+      }
+      zepp_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string | null
+          id: string
+          payload: Json
+          processed_at: string | null
+          status: string | null
+          user_id: string | null
+          zepp_user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string | null
+          zepp_user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string | null
+          zepp_user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2496,6 +2748,10 @@ export type Database = {
       }
       find_user_by_polar_id: {
         Args: { polar_user_id_param: number }
+        Returns: string
+      }
+      find_user_by_zepp_id: {
+        Args: { zepp_user_id_param: string }
         Returns: string
       }
       force_renew_expired_tokens: {
