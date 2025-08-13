@@ -2570,6 +2570,117 @@ export type Database = {
         }
         Relationships: []
       }
+      zepp_gpx_activities: {
+        Row: {
+          activity_id: string
+          activity_type: string | null
+          average_heart_rate: number | null
+          average_pace_min_km: number | null
+          average_speed_ms: number | null
+          calories: number | null
+          created_at: string
+          distance_in_meters: number | null
+          duration_in_seconds: number | null
+          elevation_gain_meters: number | null
+          elevation_loss_meters: number | null
+          id: string
+          max_heart_rate: number | null
+          max_speed_ms: number | null
+          name: string | null
+          start_time: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          average_speed_ms?: number | null
+          calories?: number | null
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          elevation_gain_meters?: number | null
+          elevation_loss_meters?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          max_speed_ms?: number | null
+          name?: string | null
+          start_time?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          average_speed_ms?: number | null
+          calories?: number | null
+          created_at?: string
+          distance_in_meters?: number | null
+          duration_in_seconds?: number | null
+          elevation_gain_meters?: number | null
+          elevation_loss_meters?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          max_speed_ms?: number | null
+          name?: string | null
+          start_time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zepp_gpx_activity_details: {
+        Row: {
+          activity_id: string
+          created_at: string
+          duration_in_seconds: number | null
+          elevation_in_meters: number | null
+          heart_rate: number | null
+          id: string
+          latitude_in_degree: number | null
+          longitude_in_degree: number | null
+          sample_timestamp: number | null
+          speed_meters_per_second: number | null
+          total_distance_in_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: number | null
+          speed_meters_per_second?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          duration_in_seconds?: number | null
+          elevation_in_meters?: number | null
+          heart_rate?: number | null
+          id?: string
+          latitude_in_degree?: number | null
+          longitude_in_degree?: number | null
+          sample_timestamp?: number | null
+          speed_meters_per_second?: number | null
+          total_distance_in_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       zepp_sleep_summaries: {
         Row: {
           awake_in_seconds: number | null

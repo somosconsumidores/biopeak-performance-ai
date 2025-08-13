@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface UnifiedActivity {
   id: string;
   activity_id: string;
-  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK';
+  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP';
   activity_type: string | null;
   activity_date: string | null;
   duration_in_seconds: number | null;
@@ -185,6 +185,44 @@ export function useUnifiedActivityHistory(limit?: number) {
         name: a.name
       }));
 
+      // Buscar atividades GPX da Zepp
+      const zeppGpxResult = await supabase
+        .from('zepp_gpx_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_time', { ascending: false });
+
+      if (zeppGpxResult.error) {
+        console.error('Error fetching Zepp GPX activities:', zeppGpxResult.error);
+      }
+
+      // Normalizar dados das atividades GPX da Zepp
+      const zeppGpxActivities: UnifiedActivity[] = (zeppGpxResult.data || []).map(a => ({
+        id: a.id,
+        source: 'ZEPP' as const,
+        activity_id: a.activity_id,
+        summary_id: null,
+        user_id: a.user_id,
+        activity_type: a.activity_type,
+        activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
+        duration_in_seconds: a.duration_in_seconds,
+        distance_in_meters: a.distance_in_meters,
+        average_pace_in_minutes_per_kilometer: a.average_pace_min_km,
+        average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+        max_heart_rate_in_beats_per_minute: a.max_heart_rate,
+        active_kilocalories: a.calories,
+        total_elevation_gain_in_meters: a.elevation_gain_meters,
+        total_elevation_loss_in_meters: a.elevation_loss_meters,
+        device_name: 'Zepp GPX',
+        start_time_in_seconds: a.start_time ? Math.floor(new Date(a.start_time).getTime() / 1000) : null,
+        start_time_offset_in_seconds: null,
+        average_speed_in_meters_per_second: a.average_speed_ms,
+        max_speed_in_meters_per_second: a.max_speed_ms,
+        steps: null,
+        synced_at: a.created_at,
+        name: a.name
+      }));
+
       // Normalizar dados das sessões de treino do BioPeak AI Coach
       const trainingSessionActivities: UnifiedActivity[] = (trainingSessionsResult.data || []).map(session => ({
         id: session.id,
@@ -211,7 +249,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       }));
 
       // Combinar todas as atividades e ordenar por data
-      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities, ...stravaGpxActivities, ...trainingSessionActivities];
+      const allActivities = [...garminActivities, ...stravaActivities, ...polarActivities, ...stravaGpxActivities, ...zeppGpxActivities, ...trainingSessionActivities];
       
       // Ordenar por data mais recente primeiro
       allActivities.sort((a, b) => {
@@ -251,6 +289,8 @@ export function useUnifiedActivityHistory(limit?: number) {
     const duration = activity.duration_in_seconds ? formatDuration(activity.duration_in_seconds) : '';
     const sourceLabel = activity.device_name === 'Strava GPX' 
       ? 'Strava GPX' 
+      : activity.device_name === 'Zepp GPX'
+      ? 'Zepp GPX'
       : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
     return `${date} - ${type} ${distance} ${duration} [${sourceLabel}]`.trim();
   };
