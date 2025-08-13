@@ -215,12 +215,26 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           } else {
             // Final fallback to Strava GPX data
             console.log('🔍 DEBUG: No Zepp GPX data found, trying Strava GPX details');
+            
+            // First, check if this is a Strava GPX activity and get the correct activity_id
+            const { data: stravaGpxActivity, error: stravaGpxActivityErr } = await supabase
+              .from('strava_gpx_activities')
+              .select('activity_id')
+              .eq('id', id)
+              .maybeSingle();
+            
+            let stravaGpxActivityId = id; // Default to the passed ID
+            if (!stravaGpxActivityErr && stravaGpxActivity) {
+              stravaGpxActivityId = stravaGpxActivity.activity_id;
+              console.log(`🔍 DEBUG: Found Strava GPX activity, using activity_id: ${stravaGpxActivityId}`);
+            }
+
             dataSource = 'strava_gpx';
 
             const { count: gpxCount, error: gpxCountError } = await supabase
               .from('strava_gpx_activity_details')
               .select('*', { count: 'exact', head: true })
-              .eq('activity_id', id)
+              .eq('activity_id', stravaGpxActivityId)
               .not('total_distance_in_meters', 'is', null);
 
             if (gpxCountError) throw gpxCountError;
@@ -234,7 +248,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
                 const { data: chunk, error: chunkError } = await supabase
                   .from('strava_gpx_activity_details')
                   .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
-                  .eq('activity_id', id)
+                  .eq('activity_id', stravaGpxActivityId)
                   .not('total_distance_in_meters', 'is', null)
                   .order('sample_timestamp', { ascending: true })
                   .range(currentOffset, currentOffset + chunkSize - 1);
