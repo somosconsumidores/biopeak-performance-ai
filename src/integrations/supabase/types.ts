@@ -53,6 +53,54 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_chart_cache: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          build_status: string
+          built_at: string
+          created_at: string
+          error_message: string | null
+          id: string
+          series: Json
+          stats: Json | null
+          updated_at: string
+          user_id: string
+          version: number
+          zones: Json | null
+        }
+        Insert: {
+          activity_id: string
+          activity_source: string
+          build_status?: string
+          built_at?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          series?: Json
+          stats?: Json | null
+          updated_at?: string
+          user_id: string
+          version?: number
+          zones?: Json | null
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          build_status?: string
+          built_at?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          series?: Json
+          stats?: Json | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+          zones?: Json | null
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json

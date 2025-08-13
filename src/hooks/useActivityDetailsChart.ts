@@ -15,11 +15,83 @@ export const useActivityDetailsChart = (activityId: string | null) => {
   const [error, setError] = useState<string | null>(null);
   const [hasRawData, setHasRawData] = useState(false);
 
+  // New helper: try cache first, optionally trigger builder, then fallback to existing flow
+  const tryCacheThenMaybeBuild = async (id: string): Promise<boolean> => {
+    console.log('⚡ Cache: trying to load chart cache for', id);
+    // Try to get any source cached for this activity_id (RLS ensures only current user)
+    const { data: cached, error: cacheErr } = await supabase
+      .from('activity_chart_cache')
+      .select('series, build_status, activity_source')
+      .eq('activity_id', id)
+      .eq('version', 1)
+      .order('built_at', { ascending: false })
+      .limit(1);
+    if (cacheErr) {
+      console.warn('⚠️ Cache load error:', cacheErr.message);
+    }
+    const cacheRow = cached?.[0];
+    if (cacheRow && cacheRow.build_status === 'ready' && Array.isArray(cacheRow.series) && cacheRow.series.length > 0) {
+      console.log('✅ Using cached series from source:', cacheRow.activity_source, 'points:', cacheRow.series.length);
+      const mapped: HeartRatePaceData[] = cacheRow.series.map((p: any) => ({
+        distance_km: Number(p.distance_km || 0),
+        heart_rate: Number(p.heart_rate || 0),
+        pace_min_per_km: typeof p.pace_min_per_km === 'number' ? p.pace_min_per_km : null,
+        speed_meters_per_second: Number(p.speed_meters_per_second || 0),
+      }));
+      setHasRawData(mapped.length > 0);
+      setData(mapped);
+      return true;
+    }
+
+    // Trigger builder once (auto-detect source), then recheck quickly
+    console.log('🛠️ No ready cache; invoking builder...');
+    const { error: fnErr } = await supabase.functions.invoke('build-activity-chart-cache', {
+      body: { activity_id: id, version: 1 },
+    });
+    if (fnErr) {
+      console.warn('⚠️ Builder invocation error:', fnErr.message || fnErr);
+    }
+
+    // Short wait then recheck cache quickly
+    await new Promise((r) => setTimeout(r, 1200));
+    const { data: cached2 } = await supabase
+      .from('activity_chart_cache')
+      .select('series, build_status, activity_source')
+      .eq('activity_id', id)
+      .eq('version', 1)
+      .order('built_at', { ascending: false })
+      .limit(1);
+
+    const cacheRow2 = cached2?.[0];
+    if (cacheRow2 && cacheRow2.build_status === 'ready' && Array.isArray(cacheRow2.series) && cacheRow2.series.length > 0) {
+      console.log('✅ Using freshly built cache from source:', cacheRow2.activity_source, 'points:', cacheRow2.series.length);
+      const mapped: HeartRatePaceData[] = cacheRow2.series.map((p: any) => ({
+        distance_km: Number(p.distance_km || 0),
+        heart_rate: Number(p.heart_rate || 0),
+        pace_min_per_km: typeof p.pace_min_per_km === 'number' ? p.pace_min_per_km : null,
+        speed_meters_per_second: Number(p.speed_meters_per_second || 0),
+      }));
+      setHasRawData(mapped.length > 0);
+      setData(mapped);
+      return true;
+    }
+
+    console.log('↩️ Cache not ready; will fallback to legacy client-side processing');
+    return false;
+  };
+
   const fetchData = async (id: string) => {
     setLoading(true);
     setError(null);
     
     try {
+      // NEW: Fast path via cache
+      const cacheHit = await tryCacheThenMaybeBuild(id);
+      if (cacheHit) {
+        setLoading(false);
+        return;
+      }
+
       console.log('🔍 DEBUG: Fetching data for activity ID:', id);
       
       // Try Garmin data first

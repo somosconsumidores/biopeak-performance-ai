@@ -18,16 +18,55 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
+  // NEW: try precomputed zones from cache first
+  const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
+    console.log('⚡ ZONES Cache: trying to load zones for', id);
+    const { data: cached, error: cacheErr } = await supabase
+      .from('activity_chart_cache')
+      .select('zones, build_status, activity_source')
+      .eq('activity_id', id)
+      .eq('version', 1)
+      .order('built_at', { ascending: false })
+      .limit(1);
+    if (cacheErr) {
+      console.warn('⚠️ ZONES cache error:', cacheErr.message);
+    }
+    const row = cached?.[0];
+    if (row && row.build_status === 'ready' && Array.isArray(row.zones) && row.zones.length > 0) {
+      console.log('✅ Using cached zones from source:', row.activity_source);
+      const mapped: HeartRateZone[] = row.zones.map((z: any) => ({
+        zone: String(z.zone ?? ''),
+        label: String(z.label ?? ''),
+        minHR: Number(z.minHR ?? z.minHr ?? 0),
+        maxHR: Number(z.maxHR ?? z.maxHr ?? 0),
+        percentage: Number(z.percentage ?? 0),
+        timeInZone: Number(z.timeInZone ?? z.timeSec ?? 0),
+        color: String(z.color ?? 'bg-blue-500'),
+      }));
+      setZones(mapped);
+      return true;
+    }
+    return false;
+  };
+
   const calculateZones = async (id: string) => {
     setLoading(true);
     setError(null);
     
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id, 'User ID:', user?.id);
-      
-      if (!user?.id) {
-        throw new Error('User not authenticated');
+
+      // NEW: Cache-first
+      const cacheHit = await tryLoadZonesFromCache(id);
+      if (cacheHit) {
+        setLoading(false);
+        return;
       }
+
+      // Optional: trigger builder in background to speed up futuras visualizações
+      supabase.functions.invoke('build-activity-chart-cache', {
+        body: { activity_id: id, version: 1 }
+      }).catch((e) => console.warn('⚠️ ZONES builder invoke error:', e?.message || e));
 
       // Robust source detection: try Garmin first, then Strava, then GPX fallback
       let activityDetails: any[] | null = null;
