@@ -58,27 +58,46 @@ serve(async (req) => {
 
     console.log('🤖 DEBUG: Request method:', req.method);
     console.log('🤖 DEBUG: Request headers:', Object.fromEntries(req.headers.entries()));
+    console.log('🤖 DEBUG: URL:', req.url);
 
+    // Primeira tentativa: ler como text
+    let requestText = '';
     try {
-      const text = await req.text();
-      console.log('🤖 Raw request text length:', text.length);
-      console.log('🤖 Raw request text content:', JSON.stringify(text));
-
-      if (text && text.trim() !== '') {
-        try {
-          body = JSON.parse(text);
-          console.log('🤖 Parsed request body:', JSON.stringify(body));
-          activityId = body?.activityId || null;
-          console.log('🤖 Activity ID from body:', activityId);
-        } catch (err) {
-          console.warn('🤖 Body parsing failed (not JSON):', err.message);
-          console.warn('🤖 Failed text was:', JSON.stringify(text));
-        }
-      } else {
-        console.log('🤖 Request text is empty or whitespace only');
-      }
+      requestText = await req.text();
+      console.log('🤖 Raw request text length:', requestText.length);
+      console.log('🤖 Raw request text content:', JSON.stringify(requestText));
     } catch (err) {
-      console.warn('🤖 Text parsing failed:', err.message);
+      console.warn('🤖 Failed to read request as text:', err.message);
+    }
+
+    // Se conseguiu ler text e não está vazio, tenta fazer parse
+    if (requestText && requestText.trim() !== '') {
+      try {
+        body = JSON.parse(requestText);
+        console.log('🤖 Parsed request body:', JSON.stringify(body));
+        
+        // Verifica diferentes estruturas possíveis
+        if (body?.activityId) {
+          activityId = body.activityId;
+          console.log('🤖 Activity ID from body.activityId:', activityId);
+        } else if (typeof body === 'string') {
+          // Talvez o body seja uma string JSON aninhada
+          try {
+            const nestedBody = JSON.parse(body);
+            if (nestedBody?.activityId) {
+              activityId = nestedBody.activityId;
+              console.log('🤖 Activity ID from nested JSON:', activityId);
+            }
+          } catch {
+            console.log('🤖 Body is string but not nested JSON:', body);
+          }
+        }
+      } catch (err) {
+        console.warn('🤖 Body parsing failed (not JSON):', err.message);
+        console.warn('🤖 Failed text was:', JSON.stringify(requestText));
+      }
+    } else {
+      console.log('🤖 Request text is empty or whitespace only');
     }
 
     // Se não veio no body, tenta query params
