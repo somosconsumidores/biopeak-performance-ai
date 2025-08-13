@@ -18,20 +18,56 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // NEW: try precomputed zones from cache first
+  // Force cache clearing and improved debugging
+  const clearCacheAndBuild = async (id: string) => {
+    console.log('🗑️ ZONES: Clearing cache for activity:', id);
+    try {
+      const { error: deleteErr } = await supabase
+        .from('activity_chart_cache')
+        .delete()
+        .eq('activity_id', id);
+      if (deleteErr) {
+        console.warn('⚠️ ZONES: Cache delete error:', deleteErr.message);
+      } else {
+        console.log('✅ ZONES: Cache cleared for activity:', id);
+      }
+    } catch (err) {
+      console.warn('⚠️ ZONES: Cache clear failed:', err);
+    }
+  };
+
+  // Try precomputed zones from cache first
   const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
     console.log('⚡ ZONES Cache: trying to load zones for', id);
     const { data: cached, error: cacheErr } = await supabase
       .from('activity_chart_cache')
-      .select('zones, build_status, activity_source')
+      .select('zones, build_status, activity_source, error_message')
       .eq('activity_id', id)
       .eq('version', 1)
       .order('built_at', { ascending: false })
       .limit(1);
+      
     if (cacheErr) {
       console.warn('⚠️ ZONES cache error:', cacheErr.message);
+      return false;
     }
+    
     const row = cached?.[0];
+    console.log('🔍 ZONES Cache result:', { 
+      found: !!row, 
+      status: row?.build_status, 
+      source: row?.activity_source,
+      hasZones: Array.isArray(row?.zones) && row.zones.length > 0,
+      error: row?.error_message
+    });
+    
+    if (row?.build_status === 'error' && row?.error_message) {
+      console.warn('❌ ZONES: Cache shows error:', row.error_message);
+      // Clear corrupted cache
+      await clearCacheAndBuild(id);
+      return false;
+    }
+    
     if (row && row.build_status === 'ready' && Array.isArray(row.zones) && row.zones.length > 0) {
       console.log('✅ Using cached zones from source:', row.activity_source);
       const mapped: HeartRateZone[] = row.zones.map((z: any) => ({
@@ -130,36 +166,70 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
 
         // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
         if (!activityDetails || activityDetails.length === 0) {
-          // Try Strava GPX first - need to get the correct activity_id from strava_gpx_activities
+          console.log('🔍 ZONES: No Garmin/Strava data, trying GPX sources for activity:', id);
+          
+          // Check if this is a Strava GPX activity first
+          console.log('🔍 ZONES: Checking if this is a Strava GPX activity...');
           const { data: stravaGpxActivity, error: stravaGpxErr } = await supabase
             .from('strava_gpx_activities')
-            .select('activity_id')
+            .select('activity_id, name, activity_type')
             .eq('id', id)
             .maybeSingle();
           
+          console.log('🔍 ZONES: Strava GPX query result:', { 
+            found: !!stravaGpxActivity, 
+            error: stravaGpxErr?.message,
+            activity: stravaGpxActivity 
+          });
+          
           if (!stravaGpxErr && stravaGpxActivity) {
-            console.log('🔍 ZONES: Found Strava GPX activity, using activity_id:', stravaGpxActivity.activity_id);
+            console.log('🎯 ZONES: Found Strava GPX activity:', stravaGpxActivity.name, 'type:', stravaGpxActivity.activity_type);
+            console.log('🔍 ZONES: Fetching details for activity_id:', stravaGpxActivity.activity_id);
+            
             const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
               .from('strava_gpx_activity_details')
-              .select('heart_rate, sample_timestamp')
+              .select('heart_rate, sample_timestamp, speed_meters_per_second, distance_km')
               .eq('activity_id', stravaGpxActivity.activity_id)
               .order('sample_timestamp', { ascending: true });
-            if (stravaGpxDetailsErr) throw stravaGpxDetailsErr;
             
-            if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+            console.log('🔍 ZONES: Strava GPX details query result:', { 
+              count: stravaGpxDetails?.length || 0, 
+              error: stravaGpxDetailsErr?.message,
+              firstFew: stravaGpxDetails?.slice(0, 3)
+            });
+            
+            if (stravaGpxDetailsErr) {
+              console.error('❌ ZONES: Strava GPX details error:', stravaGpxDetailsErr);
+            } else if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+              console.log('✅ ZONES: Using Strava GPX details -', stravaGpxDetails.length, 'records');
               activityDetails = stravaGpxDetails;
+            } else {
+              console.log('⚠️ ZONES: No Strava GPX details found for activity_id:', stravaGpxActivity.activity_id);
             }
           }
           
           // If still no data, try Zepp GPX
           if (!activityDetails || activityDetails.length === 0) {
+            console.log('🔍 ZONES: Trying Zepp GPX for activity:', id);
             const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
               .from('zepp_gpx_activity_details')
               .select('heart_rate, sample_timestamp')
               .eq('activity_id', id)
               .order('sample_timestamp', { ascending: true });
-            if (zeppGpxErr) throw zeppGpxErr;
-            activityDetails = zeppGpxDetails || [];
+            
+            console.log('🔍 ZONES: Zepp GPX query result:', { 
+              count: zeppGpxDetails?.length || 0, 
+              error: zeppGpxErr?.message 
+            });
+            
+            if (zeppGpxErr) {
+              console.error('❌ ZONES: Zepp GPX error:', zeppGpxErr);
+            } else {
+              activityDetails = zeppGpxDetails || [];
+              if (activityDetails.length > 0) {
+                console.log('✅ ZONES: Using Zepp GPX details -', activityDetails.length, 'records');
+              }
+            }
           }
         }
       }

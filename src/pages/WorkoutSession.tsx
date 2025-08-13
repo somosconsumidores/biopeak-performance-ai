@@ -22,7 +22,8 @@ import {
   Calendar,
   AlertCircle,
   ChevronDown,
-  Share2
+  Share2,
+  RefreshCw
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
@@ -39,6 +40,8 @@ import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
 import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 
 export const WorkoutSession = () => {
@@ -76,6 +79,35 @@ export const WorkoutSession = () => {
 
   // Get heart rate zones data - use currentActivity.activity_id
   const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.activity_id || null);
+
+  // Debug function to clear cache and force rebuild
+  const clearCacheAndRebuild = async () => {
+    if (!currentActivity?.activity_id) return;
+    
+    try {
+      console.log('🗑️ Manually clearing cache for activity:', currentActivity.activity_id);
+      const { error } = await supabase
+        .from('activity_chart_cache')
+        .delete()
+        .eq('activity_id', currentActivity.activity_id);
+      
+      if (error) throw error;
+      
+      console.log('✅ Cache cleared, triggering rebuild...');
+      const result = await supabase.functions.invoke('build-activity-chart-cache', {
+        body: { activity_id: currentActivity.activity_id, version: 1 }
+      });
+      
+      console.log('🔄 Rebuild triggered:', result);
+      toast.success('Cache limpo e reconstrução iniciada');
+      
+      // Reload page to see fresh data
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      console.error('❌ Failed to clear cache:', err);
+      toast.error('Erro ao limpar cache: ' + (err as Error).message);
+    }
+  };
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -360,6 +392,38 @@ export const WorkoutSession = () => {
               />
               <AIInsightsCard activityId={currentActivity.activity_id} />
             </div>
+          </ScrollReveal>
+
+          {/* Debug Panel */}
+          <ScrollReveal delay={175}>
+            <Card className="glass-card border-glass-border mb-8">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    <span>Debug: Distribuição por Zona</span>
+                  </CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={clearCacheAndRebuild}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Limpar Cache
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div><strong>Activity ID:</strong> {currentActivity?.activity_id || 'N/A'}</div>
+                  <div><strong>Type:</strong> {currentActivity?.activity_type || 'N/A'}</div>
+                  <div><strong>Source:</strong> {(currentActivity as any)?.source || 'GARMIN'}</div>
+                  <div><strong>Has Zones:</strong> {heartRateZones.length > 0 ? 'Sim' : 'Não'}</div>
+                  <div><strong>Zones Loading:</strong> {zonesLoading ? 'Sim' : 'Não'}</div>
+                </div>
+              </CardContent>
+            </Card>
           </ScrollReveal>
 
           {/* Heart Rate Zones */}
