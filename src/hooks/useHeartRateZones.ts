@@ -156,48 +156,30 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           console.log('🔍 ZONES: Activity ID is not numeric, skipping regular Strava check');
         }
 
-        // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
+        // 3) Fallback: try GPX-derived details by activity_id directly
         if (!activityDetails || activityDetails.length === 0) {
-          console.log('🔍 ZONES: No Garmin/Strava data, trying GPX sources for activity:', id);
+          console.log('🔍 ZONES: No Garmin/Strava data, trying Strava GPX details directly for activity:', id);
           
-          // Check if this is a Strava GPX activity first
-          console.log('🔍 ZONES: Checking if this is a Strava GPX activity...');
-          const { data: stravaGpxActivity, error: stravaGpxErr } = await supabase
-            .from('strava_gpx_activities')
-            .select('activity_id, name, activity_type')
-            .eq('id', id)
-            .maybeSingle();
+          // Try Strava GPX details directly using the activity ID
+          const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
+            .from('strava_gpx_activity_details')
+            .select('heart_rate, sample_timestamp, speed_meters_per_second, distance_km')
+            .eq('activity_id', id)
+            .order('sample_timestamp', { ascending: true });
           
-          console.log('🔍 ZONES: Strava GPX query result:', { 
-            found: !!stravaGpxActivity, 
-            error: stravaGpxErr?.message,
-            activity: stravaGpxActivity 
+          console.log('🔍 ZONES: Strava GPX details query result:', { 
+            count: stravaGpxDetails?.length || 0, 
+            error: stravaGpxDetailsErr?.message,
+            firstFew: stravaGpxDetails?.slice(0, 3)
           });
           
-          if (!stravaGpxErr && stravaGpxActivity) {
-            console.log('🎯 ZONES: Found Strava GPX activity:', stravaGpxActivity.name, 'type:', stravaGpxActivity.activity_type);
-            console.log('🔍 ZONES: Fetching details for activity_id:', stravaGpxActivity.activity_id);
-            
-            const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
-              .from('strava_gpx_activity_details')
-              .select('heart_rate, sample_timestamp, speed_meters_per_second, distance_km')
-              .eq('activity_id', stravaGpxActivity.activity_id)
-              .order('sample_timestamp', { ascending: true });
-            
-            console.log('🔍 ZONES: Strava GPX details query result:', { 
-              count: stravaGpxDetails?.length || 0, 
-              error: stravaGpxDetailsErr?.message,
-              firstFew: stravaGpxDetails?.slice(0, 3)
-            });
-            
-            if (stravaGpxDetailsErr) {
-              console.error('❌ ZONES: Strava GPX details error:', stravaGpxDetailsErr);
-            } else if (stravaGpxDetails && stravaGpxDetails.length > 0) {
-              console.log('✅ ZONES: Using Strava GPX details -', stravaGpxDetails.length, 'records');
-              activityDetails = stravaGpxDetails;
-            } else {
-              console.log('⚠️ ZONES: No Strava GPX details found for activity_id:', stravaGpxActivity.activity_id);
-            }
+          if (stravaGpxDetailsErr) {
+            console.error('❌ ZONES: Strava GPX details error:', stravaGpxDetailsErr);
+          } else if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+            console.log('✅ ZONES: Using Strava GPX details -', stravaGpxDetails.length, 'records');
+            activityDetails = stravaGpxDetails;
+          } else {
+            console.log('⚠️ ZONES: No Strava GPX details found for activity_id:', id);
           }
           
           // If still no data, try Zepp GPX
