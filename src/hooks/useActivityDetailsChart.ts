@@ -318,6 +318,11 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           pace_min_per_km = (1000 / sample.speed_meters_per_second) / 60;
         }
         
+        // Log some sample pace calculations for debugging
+        if (index < 5) {
+          console.log(`🔍 DEBUG: Sample ${index}: speed=${sample.speed_meters_per_second}, pace=${pace_min_per_km}, distance=${sample.total_distance_in_meters}`);
+        }
+        
         return {
           distance_km: sample.total_distance_in_meters! / 1000,
           heart_rate: sample.heart_rate!,

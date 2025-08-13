@@ -177,13 +177,22 @@ async function detectSource(admin: ReturnType<typeof createClient>, userId: stri
       .eq("activity_id", activityId);
     if (!error && (count ?? 0) > 0) return "zepp_gpx";
   }
-  // strava_gpx (não tem user_id, mas vamos aceitar se houver registros)
+  // strava_gpx (check if activityId is in strava_gpx_activities, then find details)
   {
-    const { count, error } = await admin
-      .from("strava_gpx_activity_details")
-      .select("*", { count: "exact", head: true })
-      .eq("activity_id", activityId);
-    if (!error && (count ?? 0) > 0) return "gpx";
+    const { data: stravaGpxActivity, error } = await admin
+      .from("strava_gpx_activities")
+      .select("activity_id")
+      .eq("id", activityId)
+      .maybeSingle();
+    
+    if (!error && stravaGpxActivity) {
+      // Now check if there are details for this activity_id
+      const { count, error: detailsError } = await admin
+        .from("strava_gpx_activity_details")
+        .select("*", { count: "exact", head: true })
+        .eq("activity_id", stravaGpxActivity.activity_id);
+      if (!detailsError && (count ?? 0) > 0) return "gpx";
+    }
   }
   // strava (id numérico)
   {
@@ -300,9 +309,23 @@ serve(async (req) => {
         }
       }
     } else if (source === "gpx") {
+      // First, get the correct activity_id from strava_gpx_activities table
+      const { data: stravaGpxActivity, error: stravaGpxErr } = await supabaseAdmin
+        .from('strava_gpx_activities')
+        .select('activity_id')
+        .eq('id', body.activity_id)
+        .single();
+      
+      if (stravaGpxErr || !stravaGpxActivity) {
+        throw new Error(`Could not find Strava GPX activity with id ${body.activity_id}`);
+      }
+      
+      const actualActivityId = stravaGpxActivity.activity_id;
+      console.log(`[build-activity-chart-cache] Using actual activity_id: ${actualActivityId} for Strava GPX`);
+      
       raw = await fetchAllPaged(supabaseAdmin, "strava_gpx_activity_details",
         "heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp",
-        { activity_id: body.activity_id },
+        { activity_id: actualActivityId },
         { column: "sample_timestamp", ascending: true }
       );
       // compute missing speeds
