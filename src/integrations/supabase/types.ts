@@ -1104,6 +1104,7 @@ export type Database = {
           fatigue_index: number | null
           heart_rate_comment: string | null
           id: string
+          max_hr: number | null
           movement_efficiency: number | null
           pace_comment: string | null
           pace_consistency: number | null
@@ -1134,6 +1135,7 @@ export type Database = {
           fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          max_hr?: number | null
           movement_efficiency?: number | null
           pace_comment?: string | null
           pace_consistency?: number | null
@@ -1164,6 +1166,7 @@ export type Database = {
           fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          max_hr?: number | null
           movement_efficiency?: number | null
           pace_comment?: string | null
           pace_consistency?: number | null
