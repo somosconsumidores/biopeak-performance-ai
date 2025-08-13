@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
 import { StravaGpxImport } from '@/components/StravaGpxImport';
+import { ZeppGpxImport } from '@/components/ZeppGpxImport';
 
 import { 
   Watch, 
@@ -564,10 +565,29 @@ export function GarminSync() {
 
 
           {/* Import GPX Section */}
-          <div className="mb-8">
+          <div className="mb-8 space-y-6">
             <ScrollReveal delay={220}>
-              <StravaGpxImport />
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold mb-2">
+                  <span className="bg-gradient-primary bg-clip-text text-transparent">
+                    Importar Arquivos GPX
+                  </span>
+                </h2>
+                <p className="text-muted-foreground">
+                  Importe arquivos GPX do Strava ou Zepp para análise de performance
+                </p>
+              </div>
             </ScrollReveal>
+            
+            <div className="grid lg:grid-cols-2 gap-6">
+              <ScrollReveal delay={240}>
+                <StravaGpxImport />
+              </ScrollReveal>
+              
+              <ScrollReveal delay={260}>
+                <ZeppGpxImport />
+              </ScrollReveal>
+            </div>
           </div>
 
           {/* Connection Status - Show for connected devices */}
