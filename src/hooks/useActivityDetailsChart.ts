@@ -271,8 +271,10 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       
       // If GPX data source and speeds are missing, compute speeds from distance/time
       if ((dataSource === 'strava_gpx' || dataSource === 'zepp_gpx') && allDetails.length > 1) {
+        console.log('🔍 DEBUG: Computing speeds from distance/time for GPX data');
         // Ensure chronological order
         allDetails.sort((a: any, b: any) => new Date(a.sample_timestamp).getTime() - new Date(b.sample_timestamp).getTime());
+        let speedCalculations = 0;
         for (let i = 1; i < allDetails.length; i++) {
           const prev: any = allDetails[i - 1];
           const cur: any = allDetails[i];
@@ -285,8 +287,10 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           const sp = dt > 0 && dd >= 0 ? dd / dt : 0;
           if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
             cur.speed_meters_per_second = sp;
+            speedCalculations++;
           }
         }
+        console.log(`🔍 DEBUG: Calculated speed for ${speedCalculations} records`);
       }
       
       setHasRawData(allDetails.length > 0);
@@ -339,11 +343,11 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       console.log('🔍 DEBUG: Valid pace records:', validPaceRecords.length);
       console.log('🔍 DEBUG: Valid both HR+pace records:', validBothRecords.length);
 
-      // Apply final filter - include records with valid heart rate and non-null speed
+      // Apply final filter - include records with valid heart rate
       const chartData = processedData
         .filter(item => {
-          // Include records with valid heart rate and non-null speed
-          return item.heart_rate > 0 && item.speed_meters_per_second > 0;
+          // Include records with valid heart rate (speed can be 0 if stopped)
+          return item.heart_rate > 0;
         })
         .sort((a, b) => a.distance_km - b.distance_km);
 
