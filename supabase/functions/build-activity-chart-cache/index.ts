@@ -319,8 +319,8 @@ serve(async (req) => {
       }
     } else if (source === "gpx") {
       // Try direct activity_id first (for most Strava GPX cases)
-      raw = await fetchAllPaged(supabaseAdmin, "strava_gpx_activity_details",
-        "heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp",
+          raw = await fetchAllPaged(supabaseAdmin, "strava_gpx_activity_details",
+            "heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp",
         { activity_id: body.activity_id },
         { column: "sample_timestamp", ascending: true }
       );

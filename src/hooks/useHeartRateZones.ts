@@ -36,7 +36,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     }
   };
 
-  // Try precomputed zones from cache first
+  // Try precomputed zones from cache first, and build cache if missing
   const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
     console.log('⚡ ZONES Cache: trying to load zones for', id);
     const { data: cached, error: cacheErr } = await supabase
@@ -82,6 +82,56 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       setZones(mapped);
       return true;
     }
+    
+    // If no cache found, try to build it
+    if (!row) {
+      console.log('🔄 ZONES: No cache found, building cache for activity:', id);
+      try {
+        const { error: buildError } = await supabase.functions.invoke('build-activity-chart-cache', {
+          body: {
+            activity_id: id,
+            user_id: user.id,
+            version: 1
+          }
+        });
+        
+        if (buildError) {
+          console.error('❌ ZONES: Failed to build cache:', buildError);
+          return false;
+        }
+        
+        console.log('✅ ZONES: Cache build triggered, retrying in 2 seconds...');
+        // Wait a bit and try again
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const { data: retryCache } = await supabase
+          .from('activity_chart_cache')
+          .select('zones, build_status, activity_source')
+          .eq('activity_id', id)
+          .eq('version', 1)
+          .order('built_at', { ascending: false })
+          .limit(1);
+          
+        const retryRow = retryCache?.[0];
+        if (retryRow && retryRow.build_status === 'ready' && Array.isArray(retryRow.zones) && retryRow.zones.length > 0) {
+          console.log('✅ Using newly built cached zones from source:', retryRow.activity_source);
+          const mapped: HeartRateZone[] = retryRow.zones.map((z: any) => ({
+            zone: String(z.zone ?? ''),
+            label: String(z.label ?? ''),
+            minHR: Number(z.minHR ?? z.minHr ?? 0),
+            maxHR: Number(z.maxHR ?? z.maxHr ?? 0),
+            percentage: Number(z.percentage ?? 0),
+            timeInZone: Number(z.timeInZone ?? z.timeSec ?? 0),
+            color: String(z.color ?? 'bg-blue-500'),
+          }));
+          setZones(mapped);
+          return true;
+        }
+      } catch (buildErr) {
+        console.error('❌ ZONES: Cache build failed:', buildErr);
+      }
+    }
+    
     return false;
   };
 
