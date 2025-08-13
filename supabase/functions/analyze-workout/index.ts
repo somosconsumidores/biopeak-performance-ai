@@ -53,30 +53,40 @@ serve(async (req) => {
     }
 
     // Get activityId - try multiple methods
-    let activityId;
+    let activityId: string | null = null;
     
     // Method 1: URL parameter
     const url = new URL(req.url);
     activityId = url.searchParams.get('activityId');
+    console.log('🤖 Activity ID from URL params:', activityId);
     
-    // Method 2: If no URL param, try request body
+    // Method 2: If no URL param, try request body (properly handle JSON)
     if (!activityId && req.method === 'POST') {
       try {
-        const bodyText = await req.text();
-        console.log('🤖 Body text:', bodyText);
-        if (bodyText) {
-          const body = JSON.parse(bodyText);
-          activityId = body.activityId;
-        }
+        const body = await req.json();
+        console.log('🤖 Request body:', body);
+        activityId = body?.activityId;
+        console.log('🤖 Activity ID from body:', activityId);
       } catch (e) {
-        console.log('🤖 Body parsing failed, continuing...');
+        console.log('🤖 Body parsing failed (not JSON):', e.message);
+        // If JSON parsing fails, try text parsing as fallback
+        try {
+          const bodyText = await req.text();
+          console.log('🤖 Body as text:', bodyText);
+          if (bodyText) {
+            const parsedBody = JSON.parse(bodyText);
+            activityId = parsedBody?.activityId;
+          }
+        } catch (textError) {
+          console.log('🤖 Text parsing also failed, continuing...');
+        }
       }
     }
     
-    console.log('🤖 Activity ID:', activityId);
+    console.log('🤖 Final Activity ID:', activityId);
     
     if (!activityId) {
-      return new Response(JSON.stringify({ error: 'Activity ID is required' }), {
+      return new Response(JSON.stringify({ error: 'Activity ID is required in request body or URL parameter' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
