@@ -116,18 +116,29 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
 
         // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
         if (!activityDetails || activityDetails.length === 0) {
-          // Try Strava GPX first
-          const { data: stravaGpxDetails, error: stravaGpxErr } = await supabase
-            .from('strava_gpx_activity_details')
-            .select('heart_rate, sample_timestamp')
-            .eq('activity_id', id)
-            .order('sample_timestamp', { ascending: true });
-          if (stravaGpxErr) throw stravaGpxErr;
+          // Try Strava GPX first - need to get the correct activity_id from strava_gpx_activities
+          const { data: stravaGpxActivity, error: stravaGpxErr } = await supabase
+            .from('strava_gpx_activities')
+            .select('activity_id')
+            .eq('id', id)
+            .maybeSingle();
           
-          if (stravaGpxDetails && stravaGpxDetails.length > 0) {
-            activityDetails = stravaGpxDetails;
-          } else {
-            // Try Zepp GPX if no Strava GPX data
+          if (!stravaGpxErr && stravaGpxActivity) {
+            console.log('🔍 ZONES: Found Strava GPX activity, using activity_id:', stravaGpxActivity.activity_id);
+            const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
+              .from('strava_gpx_activity_details')
+              .select('heart_rate, sample_timestamp')
+              .eq('activity_id', stravaGpxActivity.activity_id)
+              .order('sample_timestamp', { ascending: true });
+            if (stravaGpxDetailsErr) throw stravaGpxDetailsErr;
+            
+            if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+              activityDetails = stravaGpxDetails;
+            }
+          }
+          
+          // If still no data, try Zepp GPX
+          if (!activityDetails || activityDetails.length === 0) {
             const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
               .from('zepp_gpx_activity_details')
               .select('heart_rate, sample_timestamp')
