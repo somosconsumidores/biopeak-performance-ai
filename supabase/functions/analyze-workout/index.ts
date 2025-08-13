@@ -105,13 +105,24 @@ serve(async (req) => {
     let activity: any = null;
     let activitySource = '';
     
-    // Try Garmin first
-    const { data: garminActivity } = await supabase
+    // Try Garmin first - check by both id and activity_id fields
+    let { data: garminActivity } = await supabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
-      .eq('activity_id', activityId)
+      .eq('id', activityId)
       .maybeSingle();
+    
+    // If not found by id, try by activity_id field
+    if (!garminActivity) {
+      const byActivityId = await supabase
+        .from('garmin_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('activity_id', activityId)
+        .maybeSingle();
+      garminActivity = byActivityId.data;
+    }
     
     if (garminActivity) {
       activity = garminActivity;
@@ -246,11 +257,13 @@ serve(async (req) => {
     // Get detailed workout data (Garmin, GPX, or Zepp GPX)
     let activityDetails: any[] = [];
     if (activitySource === 'garmin') {
+      // For Garmin, try to find details by the actual Garmin activity_id, not the database id
+      const garminActivityId = garminActivity?.activity_id || activityId;
       const { data: details, error: detailsError } = await supabase
         .from('garmin_activity_details')
         .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
         .eq('user_id', user.id)
-        .eq('activity_id', activityId)
+        .eq('activity_id', garminActivityId)
         .order('sample_timestamp', { ascending: true })
         .limit(500); // Limit for performance
 
