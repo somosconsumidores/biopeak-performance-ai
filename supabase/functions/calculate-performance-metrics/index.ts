@@ -49,16 +49,46 @@ serve(async (req) => {
 
     console.log(`🔄 Calculating performance metrics for activity ${activity_id}, user ${user_id}`);
 
-    // Get activity data
-    const { data: activity, error: activityError } = await supabase
+    // Try to get activity data from multiple sources
+    let activity = null;
+    
+    // First try Garmin activities
+    const { data: garminActivity, error: garminError } = await supabase
       .from('garmin_activities')
       .select('*')
       .eq('activity_id', activity_id)
       .eq('user_id', user_id)
       .single();
 
-    if (activityError || !activity) {
-      console.error('❌ Activity not found:', activityError);
+    if (garminActivity) {
+      activity = garminActivity;
+      console.log('✅ Found Garmin activity');
+    } else {
+      // Try Zepp GPX activities if not found in Garmin
+      const { data: zeppActivity, error: zeppError } = await supabase
+        .from('zepp_gpx_activities')
+        .select('*')
+        .eq('activity_id', activity_id)
+        .eq('user_id', user_id)
+        .single();
+
+      if (zeppActivity) {
+        // Map Zepp fields to Garmin-like structure for compatibility
+        activity = {
+          ...zeppActivity,
+          average_heart_rate_in_beats_per_minute: zeppActivity.average_heart_rate,
+          max_heart_rate_in_beats_per_minute: zeppActivity.max_heart_rate,
+          average_speed_in_meters_per_second: zeppActivity.average_speed_ms,
+          duration_in_seconds: zeppActivity.duration_in_seconds,
+          distance_in_meters: zeppActivity.distance_in_meters,
+          active_kilocalories: zeppActivity.calories
+        };
+        console.log('✅ Found Zepp GPX activity, mapped to Garmin structure');
+      }
+    }
+
+    if (!activity) {
+      console.error('❌ Activity not found in any source:', { garminError, activity_id, user_id });
       return new Response(
         JSON.stringify({ error: 'Activity not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -71,7 +101,9 @@ serve(async (req) => {
     let offset = 0;
     const batchSize = 1000;
     let hasMore = true;
+    let detailsSource = 'garmin';
 
+    // First try Garmin activity details
     while (hasMore) {
       const { data: batchDetails, error: detailsError } = await supabase
         .from('garmin_activity_details')
@@ -84,18 +116,14 @@ serve(async (req) => {
         .range(offset, offset + batchSize - 1);
 
       if (detailsError) {
-        console.error('❌ Error fetching activity details:', detailsError);
-        return new Response(
-          JSON.stringify({ error: 'Error fetching activity details' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('❌ Error fetching Garmin activity details:', detailsError);
+        break;
       }
 
       if (batchDetails && batchDetails.length > 0) {
         allActivityDetails = allActivityDetails.concat(batchDetails);
-        console.log(`📦 Fetched batch ${Math.floor(offset/batchSize) + 1}: ${batchDetails.length} records (total: ${allActivityDetails.length})`);
+        console.log(`📦 Fetched Garmin batch ${Math.floor(offset/batchSize) + 1}: ${batchDetails.length} records (total: ${allActivityDetails.length})`);
         
-        // If we got less than batchSize records, we've reached the end
         if (batchDetails.length < batchSize) {
           hasMore = false;
         } else {
@@ -103,6 +131,53 @@ serve(async (req) => {
         }
       } else {
         hasMore = false;
+      }
+    }
+
+    // If no Garmin details found, try Zepp GPX details
+    if (allActivityDetails.length === 0) {
+      console.log('🔍 No Garmin details found, trying Zepp GPX details...');
+      detailsSource = 'zepp_gpx';
+      offset = 0;
+      hasMore = true;
+
+      while (hasMore) {
+        const { data: batchDetails, error: detailsError } = await supabase
+          .from('zepp_gpx_activity_details')
+          .select('speed_meters_per_second, heart_rate, sample_timestamp, total_distance_in_meters')
+          .eq('activity_id', activity_id)
+          .eq('user_id', user_id)
+          .not('heart_rate', 'is', null)
+          .order('sample_timestamp', { ascending: true })
+          .range(offset, offset + batchSize - 1);
+
+        if (detailsError) {
+          console.error('❌ Error fetching Zepp GPX activity details:', detailsError);
+          return new Response(
+            JSON.stringify({ error: 'Error fetching activity details' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (batchDetails && batchDetails.length > 0) {
+          // Map Zepp details to Garmin-like structure
+          const mappedDetails = batchDetails.map(detail => ({
+            ...detail,
+            clock_duration_in_seconds: null, // Zepp doesn't have this field
+            power_in_watts: null // Zepp doesn't have power data
+          }));
+          
+          allActivityDetails = allActivityDetails.concat(mappedDetails);
+          console.log(`📦 Fetched Zepp GPX batch ${Math.floor(offset/batchSize) + 1}: ${batchDetails.length} records (total: ${allActivityDetails.length})`);
+          
+          if (batchDetails.length < batchSize) {
+            hasMore = false;
+          } else {
+            offset += batchSize;
+          }
+        } else {
+          hasMore = false;
+        }
       }
     }
 

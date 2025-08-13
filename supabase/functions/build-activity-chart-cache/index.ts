@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
-type ActivitySource = 'garmin' | 'polar' | 'strava' | 'gpx';
+type ActivitySource = 'garmin' | 'polar' | 'strava' | 'gpx' | 'zepp_gpx';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,7 +149,7 @@ async function getUserIdFromJWT(req: Request): Promise<string | null> {
 }
 
 async function detectSource(admin: ReturnType<typeof createClient>, userId: string, activityId: string): Promise<ActivitySource | null> {
-  // Try in order: garmin, polar, gpx, strava
+  // Try in order: garmin, polar, zepp_gpx, gpx, strava
   // garmin
   {
     const { count, error } = await admin
@@ -168,7 +168,16 @@ async function detectSource(admin: ReturnType<typeof createClient>, userId: stri
       .eq("activity_id", activityId);
     if (!error && (count ?? 0) > 0) return "polar";
   }
-  // gpx (não tem user_id, mas vamos aceitar se houver registros)
+  // zepp_gpx (has user_id)
+  {
+    const { count, error } = await admin
+      .from("zepp_gpx_activity_details")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("activity_id", activityId);
+    if (!error && (count ?? 0) > 0) return "zepp_gpx";
+  }
+  // strava_gpx (não tem user_id, mas vamos aceitar se houver registros)
   {
     const { count, error } = await admin
       .from("strava_gpx_activity_details")
@@ -269,6 +278,27 @@ serve(async (req) => {
         { user_id: userId, activity_id: body.activity_id },
         { column: "total_distance_in_meters", ascending: true }
       );
+    } else if (source === "zepp_gpx") {
+      raw = await fetchAllPaged(supabaseAdmin, "zepp_gpx_activity_details",
+        "heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp",
+        { user_id: userId, activity_id: body.activity_id },
+        { column: "sample_timestamp", ascending: true }
+      );
+      // compute missing speeds
+      raw.sort((a, b) => new Date(a.sample_timestamp).getTime() - new Date(b.sample_timestamp).getTime());
+      for (let i = 1; i < raw.length; i++) {
+        const prev = raw[i - 1];
+        const cur = raw[i];
+        const tPrev = new Date(prev.sample_timestamp).getTime();
+        const tCur = new Date(cur.sample_timestamp).getTime();
+        const dt = (tCur - tPrev) / 1000;
+        const dPrev = Number(prev.total_distance_in_meters ?? 0);
+        const dCur = Number(cur.total_distance_in_meters ?? 0);
+        const dd = dCur - dPrev;
+        if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
+          cur.speed_meters_per_second = dt > 0 && dd >= 0 ? dd / dt : null;
+        }
+      }
     } else if (source === "gpx") {
       raw = await fetchAllPaged(supabaseAdmin, "strava_gpx_activity_details",
         "heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp",

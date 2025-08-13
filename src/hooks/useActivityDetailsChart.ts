@@ -175,26 +175,26 @@ export const useActivityDetailsChart = (activityId: string | null) => {
             if (!chunk || chunk.length < chunkSize) break;
           }
         } else {
-          // Fallback to Strava GPX data if no Polar data
-          console.log('🔍 DEBUG: No Polar data found, trying Strava GPX details');
-          dataSource = 'gpx';
+          // Try Zepp GPX data if no Polar data
+          console.log('🔍 DEBUG: No Polar data found, trying Zepp GPX details');
+          dataSource = 'zepp_gpx';
 
-          const { count: gpxCount, error: gpxCountError } = await supabase
-            .from('strava_gpx_activity_details')
+          const { count: zeppCount, error: zeppCountError } = await supabase
+            .from('zepp_gpx_activity_details')
             .select('*', { count: 'exact', head: true })
             .eq('activity_id', id)
             .not('total_distance_in_meters', 'is', null);
 
-          if (gpxCountError) throw gpxCountError;
-          console.log('🔍 DEBUG: GPX records count:', gpxCount);
+          if (zeppCountError) throw zeppCountError;
+          console.log('🔍 DEBUG: Zepp GPX records count:', zeppCount);
 
-          if (gpxCount && gpxCount > 0) {
+          if (zeppCount && zeppCount > 0) {
             const chunkSize = 1000;
             let currentOffset = 0;
 
-            while (currentOffset < gpxCount) {
+            while (currentOffset < zeppCount) {
               const { data: chunk, error: chunkError } = await supabase
-                .from('strava_gpx_activity_details')
+                .from('zepp_gpx_activity_details')
                 .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
                 .eq('activity_id', id)
                 .not('total_distance_in_meters', 'is', null)
@@ -205,19 +205,58 @@ export const useActivityDetailsChart = (activityId: string | null) => {
 
               if (chunk && chunk.length > 0) {
                 allDetails.push(...chunk);
-                console.log(`🔍 DEBUG: Fetched GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+                console.log(`🔍 DEBUG: Fetched Zepp GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
               }
 
               currentOffset += chunkSize;
 
               if (!chunk || chunk.length < chunkSize) break;
             }
+          } else {
+            // Final fallback to Strava GPX data
+            console.log('🔍 DEBUG: No Zepp GPX data found, trying Strava GPX details');
+            dataSource = 'strava_gpx';
+
+            const { count: gpxCount, error: gpxCountError } = await supabase
+              .from('strava_gpx_activity_details')
+              .select('*', { count: 'exact', head: true })
+              .eq('activity_id', id)
+              .not('total_distance_in_meters', 'is', null);
+
+            if (gpxCountError) throw gpxCountError;
+            console.log('🔍 DEBUG: Strava GPX records count:', gpxCount);
+
+            if (gpxCount && gpxCount > 0) {
+              const chunkSize = 1000;
+              let currentOffset = 0;
+
+              while (currentOffset < gpxCount) {
+                const { data: chunk, error: chunkError } = await supabase
+                  .from('strava_gpx_activity_details')
+                  .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
+                  .eq('activity_id', id)
+                  .not('total_distance_in_meters', 'is', null)
+                  .order('sample_timestamp', { ascending: true })
+                  .range(currentOffset, currentOffset + chunkSize - 1);
+
+                if (chunkError) throw chunkError;
+
+                if (chunk && chunk.length > 0) {
+                  allDetails.push(...chunk);
+                  console.log(`🔍 DEBUG: Fetched Strava GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+                }
+
+                currentOffset += chunkSize;
+
+                if (!chunk || chunk.length < chunkSize) break;
+              }
+            }
           }
         }
       }
       
       // If GPX data source and speeds are missing, compute speeds from distance/time
-      if (dataSource === 'gpx' && allDetails.length > 1) {
+      if ((dataSource === 'strava_gpx' || dataSource === 'zepp_gpx') && allDetails.length > 1) {
         // Ensure chronological order
         allDetails.sort((a: any, b: any) => new Date(a.sample_timestamp).getTime() - new Date(b.sample_timestamp).getTime());
         for (let i = 1; i < allDetails.length; i++) {
