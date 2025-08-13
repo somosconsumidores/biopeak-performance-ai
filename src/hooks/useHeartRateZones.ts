@@ -114,15 +114,28 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           }
         }
 
-        // 3) Fallback: try GPX-derived details by activity_id
+        // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
         if (!activityDetails || activityDetails.length === 0) {
-          const { data: gpxDetails, error: gpxErr } = await supabase
+          // Try Strava GPX first
+          const { data: stravaGpxDetails, error: stravaGpxErr } = await supabase
             .from('strava_gpx_activity_details')
             .select('heart_rate, sample_timestamp')
             .eq('activity_id', id)
             .order('sample_timestamp', { ascending: true });
-          if (gpxErr) throw gpxErr;
-          activityDetails = gpxDetails || [];
+          if (stravaGpxErr) throw stravaGpxErr;
+          
+          if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+            activityDetails = stravaGpxDetails;
+          } else {
+            // Try Zepp GPX if no Strava GPX data
+            const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
+              .from('zepp_gpx_activity_details')
+              .select('heart_rate, sample_timestamp')
+              .eq('activity_id', id)
+              .order('sample_timestamp', { ascending: true });
+            if (zeppGpxErr) throw zeppGpxErr;
+            activityDetails = zeppGpxDetails || [];
+          }
         }
       }
 
