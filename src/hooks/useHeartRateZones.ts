@@ -29,62 +29,62 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         throw new Error('User not authenticated');
       }
 
-      // Detect source by activityId format: numeric => Strava, otherwise Garmin
-      const isStrava = /^\d+$/.test(id);
-
-      // Fetch details depending on source
+      // Robust source detection: try Garmin first, then Strava, then GPX fallback
       let activityDetails: any[] | null = null;
-      if (isStrava) {
-        const stravaId = Number(id);
-        const { data: stravaDetails, error: stravaErr } = await supabase
-          .from('strava_activity_details')
-          .select('heartrate, time_seconds, time_index')
-          .eq('strava_activity_id', stravaId)
-          .order('time_index', { ascending: true });
-        if (stravaErr) throw stravaErr;
 
-        // If not found, try to fetch from Strava API and retry once
-        if (!stravaDetails || stravaDetails.length === 0) {
-          console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
-          try {
-            await supabase.functions.invoke('strava-activity-streams', {
-              body: { activity_id: stravaId }
-            });
-            const { data: retryDetails } = await supabase
-              .from('strava_activity_details')
-              .select('heartrate, time_seconds, time_index')
-              .eq('strava_activity_id', stravaId)
-              .order('time_index', { ascending: true });
-            activityDetails = retryDetails || [];
-          } catch (fetchErr) {
-            console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
-            activityDetails = [];
-          }
-        } else {
-          activityDetails = stravaDetails;
-        }
+      // 1) Try Garmin details for this user/activity
+      const { data: garminDetails, error: garminErr } = await supabase
+        .from('garmin_activity_details')
+        .select('heart_rate, sample_timestamp')
+        .eq('user_id', user.id)
+        .eq('activity_id', id)
+        .order('sample_timestamp', { ascending: true });
+      if (garminErr) throw garminErr;
+
+      if (garminDetails && garminDetails.length > 0) {
+        activityDetails = garminDetails;
       } else {
-        // Try Garmin details first; if none, fallback to Strava GPX details
-        let details: any[] = [];
-        const { data: garminDetails, error: garminErr } = await supabase
-          .from('garmin_activity_details')
-          .select('heart_rate, sample_timestamp')
-          .eq('user_id', user.id)
-          .eq('activity_id', id)
-          .order('sample_timestamp', { ascending: true });
-        if (garminErr) throw garminErr;
-        if (garminDetails && garminDetails.length > 0) {
-          details = garminDetails;
-        } else {
+        // 2) Try Strava details if the id is numeric
+        const stravaId = Number(id);
+        if (!Number.isNaN(stravaId)) {
+          const { data: stravaDetails, error: stravaErr } = await supabase
+            .from('strava_activity_details')
+            .select('heartrate, time_seconds, time_index')
+            .eq('strava_activity_id', stravaId)
+            .order('time_index', { ascending: true });
+          if (stravaErr) throw stravaErr;
+
+          if (!stravaDetails || stravaDetails.length === 0) {
+            console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
+            try {
+              await supabase.functions.invoke('strava-activity-streams', {
+                body: { activity_id: stravaId }
+              });
+              const { data: retryDetails } = await supabase
+                .from('strava_activity_details')
+                .select('heartrate, time_seconds, time_index')
+                .eq('strava_activity_id', stravaId)
+                .order('time_index', { ascending: true });
+              activityDetails = retryDetails || [];
+            } catch (fetchErr) {
+              console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
+              activityDetails = [];
+            }
+          } else {
+            activityDetails = stravaDetails;
+          }
+        }
+
+        // 3) Fallback: try GPX-derived details by activity_id
+        if (!activityDetails || activityDetails.length === 0) {
           const { data: gpxDetails, error: gpxErr } = await supabase
             .from('strava_gpx_activity_details')
             .select('heart_rate, sample_timestamp')
             .eq('activity_id', id)
             .order('sample_timestamp', { ascending: true });
           if (gpxErr) throw gpxErr;
-          details = gpxDetails || [];
+          activityDetails = gpxDetails || [];
         }
-        activityDetails = details;
       }
 
       console.log('🔍 ZONES: Raw query results:', {
@@ -99,12 +99,18 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
 
       // Normalize to a common [{ hr, t }] shape, where t = seconds from start if available
       type Sample = { hr: number; t?: number };
-      const samples: Sample[] = activityDetails
+      const samples: Sample[] = (activityDetails || [])
         .map((d: any) => {
-          const hr: number | null = isStrava ? (d.heartrate ?? null) : (d.heart_rate ?? null);
-          const t: number | undefined = isStrava
-            ? (typeof d.time_seconds === 'number' ? d.time_seconds : (typeof d.time_index === 'number' ? d.time_index : undefined))
-            : (d.sample_timestamp ? Math.floor(new Date(d.sample_timestamp).getTime() / 1000) : undefined);
+          const hr: number | null = (d.heartrate ?? d.heart_rate ?? null);
+          const t: number | undefined =
+            typeof d.time_seconds === 'number' ? d.time_seconds :
+            typeof d.time_index === 'number' ? d.time_index :
+            (d.sample_timestamp != null ? (
+              // sample_timestamp may be in seconds or milliseconds
+              (String(d.sample_timestamp).length > 10)
+                ? Math.floor(Number(d.sample_timestamp) / 1000)
+                : Number(d.sample_timestamp)
+            ) : undefined);
           return hr != null ? { hr: Number(hr), t } : null;
         })
         .filter(Boolean) as Sample[];
