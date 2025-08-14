@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     console.log(`🔢 Calculating statistics for activity ${activity_id}, user ${user_id}, source ${source_activity}`)
 
     // Fetch activity details based on source
+    console.log(`📊 Fetching activity details for ${source_activity} activity ${activity_id}`)
     const { details, summaryDistance, summaryDuration } = await fetchActivityDetails(supabase, activity_id, user_id, source_activity)
     
     if (!details || details.length === 0) {
@@ -139,32 +140,44 @@ async function fetchActivityDetails(
   let summaryDuration: number | undefined
   
   if (summaryTable) {
+    console.log(`📋 Fetching summary data from ${summaryTable} for activity ${activity_id}`)
     let summaryQuery = supabase
       .from(summaryTable)
       .eq('user_id', user_id)
     
     // For Strava, use strava_activity_id field and correct column names
     if (source_activity.toLowerCase() === 'strava') {
+      console.log(`🎯 Using Strava fields: distance, elapsed_time for activity ${activity_id}`)
       summaryQuery = summaryQuery
         .select('distance, elapsed_time')
         .eq('strava_activity_id', activity_id)
     } else {
+      console.log(`🎯 Using standard fields: distance_in_meters, duration_in_seconds for activity ${activity_id}`)
       summaryQuery = summaryQuery
         .select('distance_in_meters, duration_in_seconds')
         .eq('activity_id', activity_id)
     }
     
-    const { data: summaryData } = await summaryQuery.single()
+    const { data: summaryData, error: summaryError } = await summaryQuery.single()
+    
+    if (summaryError) {
+      console.error(`❌ Error fetching summary data:`, summaryError)
+      throw summaryError
+    }
     
     if (summaryData) {
       if (source_activity.toLowerCase() === 'strava') {
         // Strava uses 'distance' (in meters) and 'elapsed_time' (in seconds)
         summaryDistance = summaryData.distance
         summaryDuration = summaryData.elapsed_time
+        console.log(`📏 Strava summary: distance=${summaryDistance}m, duration=${summaryDuration}s`)
       } else {
         summaryDistance = summaryData.distance_in_meters
         summaryDuration = summaryData.duration_in_seconds
+        console.log(`📏 Summary: distance=${summaryDistance}m, duration=${summaryDuration}s`)
       }
+    } else {
+      console.log(`⚠️ No summary data found for activity ${activity_id}`)
     }
   }
 
@@ -173,6 +186,7 @@ async function fetchActivityDetails(
     activityIdField = 'strava_activity_id'
   }
 
+  console.log(`📋 Fetching details from ${tableName} where ${activityIdField} = ${activity_id}`)
   const { data, error } = await supabase
     .from(tableName)
     .select('*')
@@ -181,10 +195,11 @@ async function fetchActivityDetails(
     .order('sample_timestamp', { ascending: true })
 
   if (error) {
-    console.error(`Error fetching ${tableName} details:`, error)
+    console.error(`❌ Error fetching ${tableName} details:`, error)
     throw error
   }
 
+  console.log(`📊 Found ${data?.length || 0} detail records`)
   return { 
     details: data || [], 
     summaryDistance, 
