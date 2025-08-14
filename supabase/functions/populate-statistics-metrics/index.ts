@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     console.log('📊 Fetching Strava activities with details...')
     const { data: stravaActivities, error: stravaError } = await supabase
       .from('strava_activity_details')
-      .select('user_id, strava_activity_id')
+      .select('user_id, strava_activity_id::text as strava_activity_id')
       .order('created_at', { ascending: false })
 
     if (stravaError) {
