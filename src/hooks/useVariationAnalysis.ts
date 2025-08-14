@@ -43,10 +43,9 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         if (activity.source === 'GARMIN') {
           console.log(`🔍 INÍCIO Análise CV GARMIN: Atividade ${activity.activity_id}`);
           console.log(`🔍 User ID: ${user.id}`);
-          console.log(`🔍 Activity Source: ${activity.source}`);
           
-          // Tentar query mais simples primeiro - apenas com índices básicos
-          console.log(`🔍 Executando query otimizada para Garmin...`);
+          // Estratégia: usar uma query com menos filtros mas manter ORDER BY para evitar viés
+          console.log(`🔍 Executando query com amostragem temporal preservada...`);
           
           const result = await supabase
             .from('garmin_activity_details')
@@ -54,8 +53,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .eq('user_id', user.id)
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
-            .gt('heart_rate', 0)
-            .limit(100) // Limite muito reduzido para teste
+            .order('sample_timestamp', { ascending: true })
+            .limit(150) // Limite moderado mantendo representatividade
             .abortSignal(timeoutController.signal);
           
           console.log(`🔍 Query Garmin concluída`);
