@@ -359,7 +359,7 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="detailed_metrics" 
               />
-              <VariationAnalysisCard activityId={currentActivity.activity_id} />
+              <VariationAnalysisCard activity={currentActivity as UnifiedActivity} />
             </div>
           </ScrollReveal>
 

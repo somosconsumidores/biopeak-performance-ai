@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import type { UnifiedActivity } from './useUnifiedActivityHistory';
 
 interface VariationAnalysisResult {
   paceCV: number;
@@ -12,14 +13,14 @@ interface VariationAnalysisResult {
   dataPoints: number;
 }
 
-export function useVariationAnalysis(activityId: string | null) {
+export function useVariationAnalysis(activity: UnifiedActivity | null) {
   const { user } = useAuth();
   const [analysis, setAnalysis] = useState<VariationAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || !activityId) {
+    if (!user || !activity) {
       setAnalysis(null);
       return;
     }
@@ -29,17 +30,55 @@ export function useVariationAnalysis(activityId: string | null) {
       setError(null);
 
       try {
-        // Buscar detalhes da atividade com limite e sampling para evitar timeout
-        const { data: activityDetails, error: detailsError } = await supabase
-          .from('garmin_activity_details')
-          .select('heart_rate, speed_meters_per_second')
-          .eq('user_id', user.id)
-          .eq('activity_id', activityId)
-          .not('heart_rate', 'is', null)
-          .not('speed_meters_per_second', 'is', null)
-          .gt('heart_rate', 0)
-          .gt('speed_meters_per_second', 0)
-          .limit(500); // Limitar para evitar timeout
+        let activityDetails: any[] = [];
+        let detailsError: any = null;
+
+        // Determinar qual tabela usar baseado na fonte da atividade
+        if (activity.source === 'GARMIN') {
+          const result = await supabase
+            .from('garmin_activity_details')
+            .select('heart_rate, speed_meters_per_second')
+            .eq('user_id', user.id)
+            .eq('activity_id', activity.activity_id)
+            .not('heart_rate', 'is', null)
+            .not('speed_meters_per_second', 'is', null)
+            .gt('heart_rate', 0)
+            .gt('speed_meters_per_second', 0)
+            .limit(500);
+          
+          activityDetails = result.data || [];
+          detailsError = result.error;
+        } else if (activity.source === 'STRAVA' || activity.source === 'ZEPP') {
+          // Zepp e Strava GPX usam a mesma tabela
+          const result = await supabase
+            .from('strava_gpx_activity_details')
+            .select('heart_rate, speed_meters_per_second')
+            .eq('activity_id', activity.activity_id)
+            .not('heart_rate', 'is', null)
+            .not('speed_meters_per_second', 'is', null)
+            .gt('heart_rate', 0)
+            .gt('speed_meters_per_second', 0)
+            .limit(500);
+          
+          activityDetails = result.data || [];
+          detailsError = result.error;
+        } else if (activity.source === 'POLAR') {
+          const result = await supabase
+            .from('polar_activity_details')
+            .select('heart_rate, speed_meters_per_second')
+            .eq('user_id', user.id)
+            .eq('activity_id', activity.activity_id)
+            .not('heart_rate', 'is', null)
+            .not('speed_meters_per_second', 'is', null)
+            .gt('heart_rate', 0)
+            .gt('speed_meters_per_second', 0)
+            .limit(500);
+          
+          activityDetails = result.data || [];
+          detailsError = result.error;
+        } else {
+          throw new Error(`Fonte de atividade não suportada: ${activity.source}`);
+        }
 
         if (detailsError) {
           throw new Error(`Erro ao buscar detalhes: ${detailsError.message}`);
@@ -119,7 +158,7 @@ export function useVariationAnalysis(activityId: string | null) {
     };
 
     calculateVariationCoefficients();
-  }, [user, activityId]);
+  }, [user, activity]);
 
   return {
     analysis,
