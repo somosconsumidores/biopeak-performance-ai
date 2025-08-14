@@ -51,42 +51,78 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           detailsError = result.error;
         } else if (activity.source === 'STRAVA') {
           // Strava GPX usa a tabela strava_gpx_activity_details
-          // Primeiro verificar que dados existem para debug
-          const debugResult = await supabase
-            .from('strava_gpx_activity_details')
-            .select('heart_rate, speed_meters_per_second, sample_timestamp')
-            .eq('activity_id', activity.activity_id)
-            .limit(5);
-          
-          console.log('🔍 Debug - Primeiros 5 registros da atividade:', debugResult.data);
-          
-          // Agora buscar dados com critérios mais flexíveis
+          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
           const result = await supabase
             .from('strava_gpx_activity_details')
-            .select('heart_rate, speed_meters_per_second, sample_timestamp')
+            .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
+            .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
             .limit(1000);
           
-          activityDetails = result.data || [];
+          let rawDetails = result.data || [];
           detailsError = result.error;
+          
+          // Calcular velocidade a partir da distância e tempo se não estiver disponível
+          if (rawDetails.length > 1) {
+            console.log('🔍 Debug - Calculando velocidades para dados GPX Strava');
+            for (let i = 1; i < rawDetails.length; i++) {
+              const prev = rawDetails[i - 1];
+              const cur = rawDetails[i];
+              const tPrev = new Date(prev.sample_timestamp).getTime();
+              const tCur = new Date(cur.sample_timestamp).getTime();
+              const dt = (tCur - tPrev) / 1000; // segundos
+              const dPrev = Number(prev.total_distance_in_meters || 0);
+              const dCur = Number(cur.total_distance_in_meters || 0);
+              const dd = dCur - dPrev;
+              const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
+              
+              if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
+                cur.speed_meters_per_second = speed;
+              }
+            }
+          }
+          
+          activityDetails = rawDetails;
         } else if (activity.source === 'ZEPP') {
           // Zepp GPX usa a tabela zepp_gpx_activity_details
+          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
           const result = await supabase
             .from('zepp_gpx_activity_details')
-            .select('heart_rate, speed_meters_per_second, sample_timestamp')
+            .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
-            .not('speed_meters_per_second', 'is', null)
+            .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
-            .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
             .limit(1000);
           
-          activityDetails = result.data || [];
+          let rawDetails = result.data || [];
           detailsError = result.error;
+          
+          // Calcular velocidade a partir da distância e tempo se não estiver disponível
+          if (rawDetails.length > 1) {
+            console.log('🔍 Debug - Calculando velocidades para dados GPX Zepp');
+            for (let i = 1; i < rawDetails.length; i++) {
+              const prev = rawDetails[i - 1];
+              const cur = rawDetails[i];
+              const tPrev = new Date(prev.sample_timestamp).getTime();
+              const tCur = new Date(cur.sample_timestamp).getTime();
+              const dt = (tCur - tPrev) / 1000; // segundos
+              const dPrev = Number(prev.total_distance_in_meters || 0);
+              const dCur = Number(cur.total_distance_in_meters || 0);
+              const dd = dCur - dPrev;
+              const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
+              
+              if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
+                cur.speed_meters_per_second = speed;
+              }
+            }
+          }
+          
+          activityDetails = rawDetails;
         } else if (activity.source === 'POLAR') {
           const result = await supabase
             .from('polar_activity_details')
