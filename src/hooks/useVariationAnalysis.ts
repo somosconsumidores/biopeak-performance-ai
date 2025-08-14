@@ -29,7 +29,7 @@ export function useVariationAnalysis(activityId: string | null) {
       setError(null);
 
       try {
-        // Buscar detalhes da atividade
+        // Buscar detalhes da atividade com limite e sampling para evitar timeout
         const { data: activityDetails, error: detailsError } = await supabase
           .from('garmin_activity_details')
           .select('heart_rate, speed_meters_per_second')
@@ -38,7 +38,8 @@ export function useVariationAnalysis(activityId: string | null) {
           .not('heart_rate', 'is', null)
           .not('speed_meters_per_second', 'is', null)
           .gt('heart_rate', 0)
-          .gt('speed_meters_per_second', 0);
+          .gt('speed_meters_per_second', 0)
+          .limit(500); // Limitar para evitar timeout
 
         if (detailsError) {
           throw new Error(`Erro ao buscar detalhes: ${detailsError.message}`);
@@ -57,9 +58,16 @@ export function useVariationAnalysis(activityId: string | null) {
           return;
         }
 
-        // Extrair dados de FC e converter velocidade para pace
-        const heartRates = activityDetails.map(d => d.heart_rate);
-        const paces = activityDetails.map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+        // Se temos muitos dados, fazer sampling para melhorar performance
+        let sampledData = activityDetails;
+        if (activityDetails.length > 200) {
+          const step = Math.floor(activityDetails.length / 200);
+          sampledData = activityDetails.filter((_, index) => index % step === 0);
+        }
+
+        // Extrair dados de FC e converter velocidade para pace usando dados amostrados
+        const heartRates = sampledData.map(d => d.heart_rate);
+        const paces = sampledData.map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
 
         // Calcular médias
         const avgHeartRate = heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length;
