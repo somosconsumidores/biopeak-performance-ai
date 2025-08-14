@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
-type ActivitySource = 'garmin' | 'polar' | 'strava' | 'gpx' | 'zepp_gpx';
+type ActivitySource = 'garmin' | 'polar' | 'strava' | 'strava_gpx' | 'zepp_gpx';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -191,7 +191,7 @@ async function detectSource(admin: ReturnType<typeof createClient>, userId: stri
         .from("strava_gpx_activity_details")
         .select("*", { count: "exact", head: true })
         .eq("activity_id", stravaGpxActivity.activity_id);
-      if (!detailsError && (count ?? 0) > 0) return "gpx";
+      if (!detailsError && (count ?? 0) > 0) return "strava_gpx";
     }
   }
   // strava (id numérico)
@@ -308,7 +308,7 @@ serve(async (req) => {
           cur.speed_meters_per_second = dt > 0 && dd >= 0 ? dd / dt : null;
         }
       }
-    } else if (source === "gpx") {
+    } else if (source === "strava_gpx") {
       // First, get the correct activity_id from strava_gpx_activities table
       const { data: stravaGpxActivity, error: stravaGpxErr } = await supabaseAdmin
         .from('strava_gpx_activities')
@@ -328,17 +328,20 @@ serve(async (req) => {
         { activity_id: actualActivityId },
         { column: "sample_timestamp", ascending: true }
       );
-      // compute missing speeds
+      // compute missing speeds - better handling for Strava GPX timestamps
       raw.sort((a, b) => Number(a.sample_timestamp) - Number(b.sample_timestamp));
       for (let i = 1; i < raw.length; i++) {
         const prev = raw[i - 1];
         const cur = raw[i];
         const tPrev = Number(prev.sample_timestamp);
         const tCur = Number(cur.sample_timestamp);
-        const dt = (tCur - tPrev) / 1000;
+        // Handle both epoch seconds and milliseconds
+        const tPrevSeconds = tPrev > 1e10 ? tPrev / 1000 : tPrev;
+        const tCurSeconds = tCur > 1e10 ? tCur / 1000 : tCur;
+        const dt = Math.max(0.1, tCurSeconds - tPrevSeconds);
         const dPrev = Number(prev.total_distance_in_meters ?? 0);
         const dCur = Number(cur.total_distance_in_meters ?? 0);
-        const dd = dCur - dPrev;
+        const dd = Math.max(0, dCur - dPrev);
         if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
           cur.speed_meters_per_second = dt > 0 && dd >= 0 ? dd / dt : null;
         }
@@ -385,7 +388,7 @@ serve(async (req) => {
           ? r.speed_meters_per_second : null;
         const dMeters = Number(r.total_distance_in_meters ?? 0);
         const ts = r.sample_timestamp != null
-          ? (String(r.sample_timestamp).length > 10 ? Number(r.sample_timestamp) : Number(r.sample_timestamp) * 1000)
+          ? (Number(r.sample_timestamp) > 1e10 ? Number(r.sample_timestamp) : Number(r.sample_timestamp) * 1000)
           : null;
         points.push({
           distance_km: dMeters / 1000,
@@ -402,8 +405,8 @@ serve(async (req) => {
       .filter(p => p.distance_km != null && p.distance_km >= 0)
       .sort((a, b) => a.distance_km - b.distance_km);
 
-    // Keep only points with HR or speed to be useful
-    const useful = points.filter(p => (p.heart_rate && p.heart_rate > 0) || (p.speed_meters_per_second && p.speed_meters_per_second > 0));
+    // Keep points with HR or speed - maintain more data for zone calculations
+    const useful = points.filter(p => p.heart_rate != null || (p.speed_meters_per_second && p.speed_meters_per_second > 0));
     const sampled = sampleByDistance(useful, 0.05); // a cada 50m
 
     // Fetch birth_date for zones

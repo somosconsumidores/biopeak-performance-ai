@@ -21,11 +21,13 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   // NEW: try precomputed zones from cache first
   const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
     console.log('⚡ ZONES Cache: trying to load zones for', id);
+    // Try multiple possible sources for better cache hit rate
     const { data: cached, error: cacheErr } = await supabase
       .from('activity_chart_cache')
       .select('zones, build_status, activity_source')
       .eq('activity_id', id)
       .eq('version', 1)
+      .in('activity_source', ['garmin', 'polar', 'strava', 'strava_gpx', 'zepp_gpx'])
       .order('built_at', { ascending: false })
       .limit(1);
     if (cacheErr) {
