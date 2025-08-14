@@ -213,7 +213,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           // Try Strava GPX details directly using the activity ID
           const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
             .from('strava_gpx_activity_details')
-            .select('heart_rate, sample_timestamp, speed_meters_per_second, distance_km')
+            .select('heart_rate, sample_timestamp, speed_meters_per_second, total_distance_in_meters')
             .eq('activity_id', id)
             .order('sample_timestamp', { ascending: true });
           

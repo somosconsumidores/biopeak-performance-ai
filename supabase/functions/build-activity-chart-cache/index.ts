@@ -355,8 +355,8 @@ serve(async (req) => {
         const dPrev = Number(prev.total_distance_in_meters ?? 0);
         const dCur = Number(cur.total_distance_in_meters ?? 0);
         const dd = dCur - dPrev;
-        if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
-          cur.speed_meters_per_second = dt > 0 && dd >= 0 ? dd / dt : null;
+        if ((!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) && dt > 0 && dd >= 0) {
+          cur.speed_meters_per_second = dd / dt;
         }
       }
     } else if (source === "strava") {
