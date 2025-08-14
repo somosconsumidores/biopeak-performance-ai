@@ -23,12 +23,16 @@ export const useVariationCoefficientAnalysis = (activityId?: string): UseVariati
   const { user } = useAuth();
 
   useEffect(() => {
+    console.log('🔍 CV ANALYSIS HOOK:', { activityId, userId: user?.id });
+    
     if (!activityId || !user) {
+      console.log('🔍 CV ANALYSIS: Missing activityId or user, setting analysis to null');
       setAnalysis(null);
       return;
     }
 
     const fetchCVAnalysis = async () => {
+      console.log('🔍 CV ANALYSIS: Starting fetch for activity:', activityId);
       setLoading(true);
       setError(null);
 
@@ -42,13 +46,15 @@ export const useVariationCoefficientAnalysis = (activityId?: string): UseVariati
           .maybeSingle();
 
         if (statsError) {
-          console.error('Error fetching statistics metrics:', statsError);
+          console.error('🔍 CV ANALYSIS: Error fetching statistics metrics:', statsError);
           setError('Erro ao buscar métricas estatísticas');
           return;
         }
 
+        console.log('🔍 CV ANALYSIS: Stats data received:', statsData);
+
         if (!statsData) {
-          console.log('No statistics metrics found for activity:', activityId);
+          console.log('🔍 CV ANALYSIS: No statistics metrics found for activity:', activityId);
           setAnalysis(null);
           return;
         }
@@ -56,8 +62,11 @@ export const useVariationCoefficientAnalysis = (activityId?: string): UseVariati
         const heartRateCV = statsData.heart_rate_cv_percent;
         const paceCV = statsData.pace_cv_percent;
 
+        console.log('🔍 CV ANALYSIS: Raw CV data:', { heartRateCV, paceCV });
+
         // Calculate CV levels and diagnosis
         const cvAnalysis = calculateCVAnalysis(heartRateCV, paceCV);
+        console.log('🔍 CV ANALYSIS: Final analysis:', cvAnalysis);
         setAnalysis(cvAnalysis);
 
       } catch (err) {

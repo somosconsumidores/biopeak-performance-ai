@@ -9,6 +9,8 @@ interface VariationCoefficientAnalysisProps {
 
 export const VariationCoefficientAnalysis = ({ activityId }: VariationCoefficientAnalysisProps) => {
   const { analysis, loading, error } = useVariationCoefficientAnalysis(activityId);
+  
+  console.log('🔍 CV COMPONENT:', { activityId, analysis, loading, error });
 
   if (loading) {
     return (
