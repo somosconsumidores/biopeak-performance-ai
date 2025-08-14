@@ -12,8 +12,8 @@ interface StravaSummary {
 }
 
 interface StravaDetail {
-  heart_rate?: number;
-  speed_meters_per_second?: number;
+  heartrate?: number;
+  velocity_smooth?: number;
 }
 
 Deno.serve(async (req) => {
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         // Get detail data from strava_activity_details
         const { data: detailData, error: detailError } = await supabase
           .from('strava_activity_details')
-          .select('heart_rate, speed_meters_per_second')
+          .select('heartrate, velocity_smooth')
           .eq('user_id', activity.user_id)
           .eq('strava_activity_id', activity.strava_activity_id)
           .order('sample_timestamp', { ascending: true });
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
         // Heart rate statistics
         const heartRates = details
-          .map(d => d.heart_rate)
+          .map(d => d.heartrate)
           .filter((hr): hr is number => hr != null && hr > 0);
 
         let averageHeartRate = null;
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
         // Pace statistics (convert speed to pace)
         const speeds = details
-          .map(d => d.speed_meters_per_second)
+          .map(d => d.velocity_smooth)
           .filter((speed): speed is number => speed != null && speed > 0);
 
         let paceStdDev = null;
