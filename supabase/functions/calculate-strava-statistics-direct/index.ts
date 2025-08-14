@@ -144,8 +144,7 @@ Deno.serve(async (req) => {
           heart_rate_std_dev: heartRateStdDev ? Math.round(heartRateStdDev * 100) / 100 : null,
           heart_rate_cv_percent: heartRateCvPercent ? Math.round(heartRateCvPercent * 100) / 100 : null,
           pace_std_dev: paceStdDev ? Math.round(paceStdDev * 100) / 100 : null,
-          pace_cv_percent: paceCvPercent ? Math.round(paceCvPercent * 100) / 100 : null,
-          calculated_at: new Date().toISOString()
+          pace_cv_percent: paceCvPercent ? Math.round(paceCvPercent * 100) / 100 : null
         };
 
         const { error: insertError } = await supabase
