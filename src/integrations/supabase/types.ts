@@ -2973,6 +2973,13 @@ export type Database = {
           users: number
         }[]
       }
+      get_unique_strava_activities_with_details: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          strava_activity_id: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
