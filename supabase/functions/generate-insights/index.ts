@@ -61,16 +61,16 @@ serve(async (req) => {
       // Polar activities
       supabase
         .from('polar_activities')
-        .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
+        .select('start_time, duration, distance, average_heart_rate_bpm, activity_type')
         .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0]),
+        .gte('start_time', sixtyDaysAgo.toISOString().split('T')[0]),
       
       // Zepp GPX activities
       supabase
         .from('zepp_gpx_activities')
-        .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
+        .select('start_time, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
         .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0])
+        .gte('start_time', sixtyDaysAgo.toISOString().split('T')[0])
     ]);
 
     // Combine all activities into unified format
@@ -118,12 +118,12 @@ serve(async (req) => {
     // Add Polar activities
     if (polarResult.data) {
       activities.push(...polarResult.data.map(a => ({
-        activity_date: a.activity_date,
-        duration_in_seconds: a.duration_in_seconds,
-        distance_in_meters: a.distance_in_meters,
-        average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+        activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
+        duration_in_seconds: a.duration ? parseInt(a.duration.replace(/\D/g, '')) * 60 : 0, // Convert duration string to seconds
+        distance_in_meters: a.distance || 0,
+        average_heart_rate_in_beats_per_minute: a.average_heart_rate_bpm || 0,
         vo2_max: null,
-        activity_type: a.activity_type,
+        activity_type: a.activity_type || 'unknown',
         source: 'Polar'
       })));
     }
@@ -131,12 +131,12 @@ serve(async (req) => {
     // Add Zepp GPX activities
     if (zeppResult.data) {
       activities.push(...zeppResult.data.map(a => ({
-        activity_date: a.activity_date,
-        duration_in_seconds: a.duration_in_seconds,
-        distance_in_meters: a.distance_in_meters,
-        average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+        activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
+        duration_in_seconds: a.duration_in_seconds || 0,
+        distance_in_meters: a.distance_in_meters || 0,
+        average_heart_rate_in_beats_per_minute: a.average_heart_rate || 0,
         vo2_max: null,
-        activity_type: a.activity_type,
+        activity_type: a.activity_type || 'unknown',
         source: 'Zepp'
       })));
     }
