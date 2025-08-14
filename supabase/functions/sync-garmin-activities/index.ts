@@ -511,9 +511,9 @@ serve(async (req) => {
       try {
         await supabase.functions.invoke('calculate-statistics-metrics', {
           body: {
-            activity_id: insertedActivity.activity_id,
+            activity_id: insertedActivity.id,
             user_id: user.id,
-            source_activity: 'garmin'
+            source_activity: 'Garmin'
           }
         });
       } catch (statsError) {

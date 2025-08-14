@@ -38,7 +38,6 @@ import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
 import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
-import { VariationCoefficientAnalysis } from '@/components/VariationCoefficientAnalysis';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -349,13 +348,6 @@ export const WorkoutSession = () => {
                 feature="detailed_metrics" 
               />
               <PerformanceIndicators activityId={currentActivity.activity_id} />
-            </div>
-          </ScrollReveal>
-
-          {/* Variation Coefficient Analysis */}
-          <ScrollReveal delay={180}>
-            <div className="mb-8">
-              <VariationCoefficientAnalysis activityId={currentActivity.activity_id} />
             </div>
           </ScrollReveal>
 
