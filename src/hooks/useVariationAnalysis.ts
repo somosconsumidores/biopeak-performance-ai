@@ -46,7 +46,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite mais baixo para evitar timeout
+            .limit(300); // Limite aumentado para atividades maiores
           
           console.log(`🔍 Análise CV GARMIN: Query executada`);
           activityDetails = result.data || [];
@@ -67,7 +67,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
+            .limit(300); // Limite aumentado para atividades maiores
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -103,7 +103,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heartrate', 'is', null)
             .gt('heartrate', 0)
             .order('time_seconds', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
+            .limit(300); // Limite aumentado para atividades maiores
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -125,7 +125,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
+            .limit(300); // Limite aumentado para atividades maiores
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -162,7 +162,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .gt('heart_rate', 0)
             .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
+            .limit(300); // Limite aumentado para atividades maiores
           
           activityDetails = result.data || [];
           detailsError = result.error;
@@ -192,9 +192,9 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Fazer amostragem uniforme para melhorar performance mantendo representatividade
         let sampledData = activityDetails;
-        if (activityDetails.length > 150) {
-          // Para Garmin, usar amostragem mais agressiva para evitar timeouts
-          const step = Math.floor(activityDetails.length / 150);
+        if (activityDetails.length > 300) {
+          // Usar amostragem quando há muitos dados para manter performance
+          const step = Math.floor(activityDetails.length / 300);
           sampledData = activityDetails.filter((_, index) => index % step === 0);
           
           console.log(`🔍 Análise CV: Dados originais: ${activityDetails.length}, após amostragem: ${sampledData.length}`);
