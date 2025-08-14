@@ -18,56 +18,20 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Force cache clearing and improved debugging
-  const clearCacheAndBuild = async (id: string) => {
-    console.log('🗑️ ZONES: Clearing cache for activity:', id);
-    try {
-      const { error: deleteErr } = await supabase
-        .from('activity_chart_cache')
-        .delete()
-        .eq('activity_id', id);
-      if (deleteErr) {
-        console.warn('⚠️ ZONES: Cache delete error:', deleteErr.message);
-      } else {
-        console.log('✅ ZONES: Cache cleared for activity:', id);
-      }
-    } catch (err) {
-      console.warn('⚠️ ZONES: Cache clear failed:', err);
-    }
-  };
-
-  // Try precomputed zones from cache first, and build cache if missing
+  // NEW: try precomputed zones from cache first
   const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
     console.log('⚡ ZONES Cache: trying to load zones for', id);
     const { data: cached, error: cacheErr } = await supabase
       .from('activity_chart_cache')
-      .select('zones, build_status, activity_source, error_message')
+      .select('zones, build_status, activity_source')
       .eq('activity_id', id)
       .eq('version', 1)
       .order('built_at', { ascending: false })
       .limit(1);
-      
     if (cacheErr) {
       console.warn('⚠️ ZONES cache error:', cacheErr.message);
-      return false;
     }
-    
     const row = cached?.[0];
-    console.log('🔍 ZONES Cache result:', { 
-      found: !!row, 
-      status: row?.build_status, 
-      source: row?.activity_source,
-      hasZones: Array.isArray(row?.zones) && row.zones.length > 0,
-      error: row?.error_message
-    });
-    
-    if (row?.build_status === 'error' && row?.error_message) {
-      console.warn('❌ ZONES: Cache shows error:', row.error_message);
-      // Clear corrupted cache
-      await clearCacheAndBuild(id);
-      return false;
-    }
-    
     if (row && row.build_status === 'ready' && Array.isArray(row.zones) && row.zones.length > 0) {
       console.log('✅ Using cached zones from source:', row.activity_source);
       const mapped: HeartRateZone[] = row.zones.map((z: any) => ({
@@ -82,56 +46,6 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       setZones(mapped);
       return true;
     }
-    
-    // If no cache found, try to build it
-    if (!row) {
-      console.log('🔄 ZONES: No cache found, building cache for activity:', id);
-      try {
-        const { error: buildError } = await supabase.functions.invoke('build-activity-chart-cache', {
-          body: {
-            activity_id: id,
-            user_id: user.id,
-            version: 1
-          }
-        });
-        
-        if (buildError) {
-          console.error('❌ ZONES: Failed to build cache:', buildError);
-          return false;
-        }
-        
-        console.log('✅ ZONES: Cache build triggered, retrying in 2 seconds...');
-        // Wait a bit and try again
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const { data: retryCache } = await supabase
-          .from('activity_chart_cache')
-          .select('zones, build_status, activity_source')
-          .eq('activity_id', id)
-          .eq('version', 1)
-          .order('built_at', { ascending: false })
-          .limit(1);
-          
-        const retryRow = retryCache?.[0];
-        if (retryRow && retryRow.build_status === 'ready' && Array.isArray(retryRow.zones) && retryRow.zones.length > 0) {
-          console.log('✅ Using newly built cached zones from source:', retryRow.activity_source);
-          const mapped: HeartRateZone[] = retryRow.zones.map((z: any) => ({
-            zone: String(z.zone ?? ''),
-            label: String(z.label ?? ''),
-            minHR: Number(z.minHR ?? z.minHr ?? 0),
-            maxHR: Number(z.maxHR ?? z.maxHr ?? 0),
-            percentage: Number(z.percentage ?? 0),
-            timeInZone: Number(z.timeInZone ?? z.timeSec ?? 0),
-            color: String(z.color ?? 'bg-blue-500'),
-          }));
-          setZones(mapped);
-          return true;
-        }
-      } catch (buildErr) {
-        console.error('❌ ZONES: Cache build failed:', buildErr);
-      }
-    }
-    
     return false;
   };
 
@@ -142,21 +56,22 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id, 'User ID:', user?.id);
 
-      // Try cache first, but don't let cache failures stop us
+      // NEW: Cache-first
       const cacheHit = await tryLoadZonesFromCache(id);
       if (cacheHit) {
         setLoading(false);
         return;
       }
 
-      // If no cache, proceed with fresh calculation
+      // Optional: trigger builder in background to speed up futuras visualizações
+      supabase.functions.invoke('build-activity-chart-cache', {
+        body: { activity_id: id, version: 1 }
+      }).catch((e) => console.warn('⚠️ ZONES builder invoke error:', e?.message || e));
 
       // Robust source detection: try Garmin first, then Strava, then GPX fallback
       let activityDetails: any[] | null = null;
-      console.log('🔍 ZONES: Starting source detection for activity:', id);
 
       // 1) Try Garmin details for this user/activity
-      console.log('🔍 ZONES: Trying Garmin details for activity:', id);
       const { data: garminDetails, error: garminErr } = await supabase
         .from('garmin_activity_details')
         .select('heart_rate, sample_timestamp')
@@ -165,15 +80,12 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         .order('sample_timestamp', { ascending: true });
       if (garminErr) throw garminErr;
 
-      console.log('🔍 ZONES: Garmin details found:', garminDetails?.length || 0, 'records');
       if (garminDetails && garminDetails.length > 0) {
         activityDetails = garminDetails;
       } else {
         // 2) Try Strava details if the id is numeric
-        console.log('🔍 ZONES: No Garmin data, trying Strava for activity:', id);
         const stravaId = Number(id);
         if (!Number.isNaN(stravaId)) {
-          console.log('🔍 ZONES: Activity ID is numeric, checking Strava with ID:', stravaId);
           const { data: stravaDetails, error: stravaErr } = await supabase
             .from('strava_activity_details')
             .select('heartrate, time_seconds, time_index')
@@ -181,7 +93,6 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
             .order('time_index', { ascending: true });
           if (stravaErr) throw stravaErr;
 
-          console.log('🔍 ZONES: Strava details found:', stravaDetails?.length || 0, 'records');
           if (!stravaDetails || stravaDetails.length === 0) {
             console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
             try {
@@ -193,7 +104,6 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
                 .select('heartrate, time_seconds, time_index')
                 .eq('strava_activity_id', stravaId)
                 .order('time_index', { ascending: true });
-              console.log('🔍 ZONES: Retry Strava details found:', retryDetails?.length || 0, 'records');
               activityDetails = retryDetails || [];
             } catch (fetchErr) {
               console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
@@ -202,58 +112,29 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
           } else {
             activityDetails = stravaDetails;
           }
-        } else {
-          console.log('🔍 ZONES: Activity ID is not numeric, skipping regular Strava check');
         }
 
-        // 3) Fallback: try GPX-derived details by activity_id directly
+        // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
         if (!activityDetails || activityDetails.length === 0) {
-          console.log('🔍 ZONES: No Garmin/Strava data, trying Strava GPX details directly for activity:', id);
-          
-          // Try Strava GPX details directly using the activity ID
-          const { data: stravaGpxDetails, error: stravaGpxDetailsErr } = await supabase
+          // Try Strava GPX first
+          const { data: stravaGpxDetails, error: stravaGpxErr } = await supabase
             .from('strava_gpx_activity_details')
-            .select('heart_rate, sample_timestamp, speed_meters_per_second, total_distance_in_meters')
+            .select('heart_rate, sample_timestamp')
             .eq('activity_id', id)
             .order('sample_timestamp', { ascending: true });
+          if (stravaGpxErr) throw stravaGpxErr;
           
-          console.log('🔍 ZONES: Strava GPX details query result:', { 
-            count: stravaGpxDetails?.length || 0, 
-            error: stravaGpxDetailsErr?.message,
-            firstFew: stravaGpxDetails?.slice(0, 3)
-          });
-          
-          if (stravaGpxDetailsErr) {
-            console.error('❌ ZONES: Strava GPX details error:', stravaGpxDetailsErr);
-          } else if (stravaGpxDetails && stravaGpxDetails.length > 0) {
-            console.log('✅ ZONES: Using Strava GPX details -', stravaGpxDetails.length, 'records');
+          if (stravaGpxDetails && stravaGpxDetails.length > 0) {
             activityDetails = stravaGpxDetails;
           } else {
-            console.log('⚠️ ZONES: No Strava GPX details found for activity_id:', id);
-          }
-          
-          // If still no data, try Zepp GPX
-          if (!activityDetails || activityDetails.length === 0) {
-            console.log('🔍 ZONES: Trying Zepp GPX for activity:', id);
+            // Try Zepp GPX if no Strava GPX data
             const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
               .from('zepp_gpx_activity_details')
               .select('heart_rate, sample_timestamp')
               .eq('activity_id', id)
               .order('sample_timestamp', { ascending: true });
-            
-            console.log('🔍 ZONES: Zepp GPX query result:', { 
-              count: zeppGpxDetails?.length || 0, 
-              error: zeppGpxErr?.message 
-            });
-            
-            if (zeppGpxErr) {
-              console.error('❌ ZONES: Zepp GPX error:', zeppGpxErr);
-            } else {
-              activityDetails = zeppGpxDetails || [];
-              if (activityDetails.length > 0) {
-                console.log('✅ ZONES: Using Zepp GPX details -', activityDetails.length, 'records');
-              }
-            }
+            if (zeppGpxErr) throw zeppGpxErr;
+            activityDetails = zeppGpxDetails || [];
           }
         }
       }
