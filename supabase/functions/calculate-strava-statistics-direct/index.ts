@@ -1,19 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.4'
 import { corsHeaders } from '../_shared/cors.ts'
 
-interface StravaActivity {
+interface GarminActivity {
   user_id: string;
-  strava_activity_id: number;
+  activity_id: string;
 }
 
-interface StravaSummary {
-  distance: number;
-  elapsed_time: number;
+interface GarminSummary {
+  distance_in_meters: number;
+  duration_in_seconds: number;
 }
 
-interface StravaDetail {
-  heartrate?: number;
-  velocity_smooth?: number;
+interface GarminDetail {
+  heart_rate?: number;
+  speed_meters_per_second?: number;
 }
 
 Deno.serve(async (req) => {
@@ -28,11 +28,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('🚀 Starting direct Strava statistics calculation...');
+    console.log('🚀 Starting direct Garmin statistics calculation...');
 
-    // Step 1: Get all unique Strava activities
+    // Step 1: Get all unique Garmin activities that have details
     const { data: uniqueActivities, error: activitiesError } = await supabase
-      .rpc('get_unique_strava_activities_with_details');
+      .from('garmin_activities')
+      .select('user_id, activity_id')
+      .not('distance_in_meters', 'is', null)
+      .not('duration_in_seconds', 'is', null)
+      .in('activity_id', 
+        supabase
+          .from('garmin_activity_details')
+          .select('activity_id')
+      );
 
     if (activitiesError) {
       console.error('❌ Error fetching unique activities:', activitiesError);
@@ -42,61 +50,61 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`📊 Found ${uniqueActivities?.length || 0} unique Strava activities to process`);
+    console.log(`📊 Found ${uniqueActivities?.length || 0} unique Garmin activities to process`);
 
     let processedCount = 0;
     let errorCount = 0;
     const errors: any[] = [];
 
     // Step 2: Process each activity
-    for (const activity of uniqueActivities as StravaActivity[]) {
+    for (const activity of uniqueActivities as GarminActivity[]) {
       try {
-        console.log(`\n🔄 Processing activity ${activity.strava_activity_id} for user ${activity.user_id}`);
+        console.log(`\n🔄 Processing activity ${activity.activity_id} for user ${activity.user_id}`);
 
-        // Get summary data from strava_activities
+        // Get summary data from garmin_activities
         const { data: summaryData, error: summaryError } = await supabase
-          .from('strava_activities')
-          .select('distance, elapsed_time')
+          .from('garmin_activities')
+          .select('distance_in_meters, duration_in_seconds')
           .eq('user_id', activity.user_id)
-          .eq('strava_activity_id', activity.strava_activity_id)
+          .eq('activity_id', activity.activity_id)
           .single();
 
         if (summaryError || !summaryData) {
-          console.error(`❌ No summary data for activity ${activity.strava_activity_id}:`, summaryError);
+          console.error(`❌ No summary data for activity ${activity.activity_id}:`, summaryError);
           errorCount++;
-          errors.push({ activity_id: activity.strava_activity_id, error: 'No summary data' });
+          errors.push({ activity_id: activity.activity_id, error: 'No summary data' });
           continue;
         }
 
-        const summary = summaryData as StravaSummary;
-        console.log(`📏 Summary: distance=${summary.distance}m, duration=${summary.elapsed_time}s`);
+        const summary = summaryData as GarminSummary;
+        console.log(`📏 Summary: distance=${summary.distance_in_meters}m, duration=${summary.duration_in_seconds}s`);
 
-        // Get detail data from strava_activity_details
+        // Get detail data from garmin_activity_details
         const { data: detailData, error: detailError } = await supabase
-          .from('strava_activity_details')
-          .select('heartrate, velocity_smooth')
+          .from('garmin_activity_details')
+          .select('heart_rate, speed_meters_per_second')
           .eq('user_id', activity.user_id)
-          .eq('strava_activity_id', activity.strava_activity_id)
-          .order('time_seconds', { ascending: true });
+          .eq('activity_id', activity.activity_id)
+          .order('sample_timestamp', { ascending: true });
 
         if (detailError) {
-          console.error(`❌ Error fetching details for activity ${activity.strava_activity_id}:`, detailError);
+          console.error(`❌ Error fetching details for activity ${activity.activity_id}:`, detailError);
           errorCount++;
-          errors.push({ activity_id: activity.strava_activity_id, error: 'Detail fetch error' });
+          errors.push({ activity_id: activity.activity_id, error: 'Detail fetch error' });
           continue;
         }
 
-        const details = detailData as StravaDetail[];
+        const details = detailData as GarminDetail[];
         console.log(`📋 Found ${details.length} detail records`);
 
         // Step 3: Calculate statistics
-        const totalDistanceKm = summary.distance / 1000;
-        const totalTimeMinutes = summary.elapsed_time / 60;
+        const totalDistanceKm = summary.distance_in_meters / 1000;
+        const totalTimeMinutes = summary.duration_in_seconds / 60;
         const averagePaceMinKm = totalTimeMinutes / totalDistanceKm;
 
         // Heart rate statistics
         const heartRates = details
-          .map(d => d.heartrate)
+          .map(d => d.heart_rate)
           .filter((hr): hr is number => hr != null && hr > 0);
 
         let averageHeartRate = null;
@@ -117,7 +125,7 @@ Deno.serve(async (req) => {
 
         // Pace statistics (convert speed to pace)
         const speeds = details
-          .map(d => d.velocity_smooth)
+          .map(d => d.speed_meters_per_second)
           .filter((speed): speed is number => speed != null && speed > 0);
 
         let paceStdDev = null;
@@ -134,8 +142,8 @@ Deno.serve(async (req) => {
         // Step 4: Insert into statistics_metrics
         const metricsData = {
           user_id: activity.user_id,
-          activity_id: activity.strava_activity_id.toString(),
-          source_activity: 'strava',
+          activity_id: activity.activity_id,
+          source_activity: 'garmin',
           total_distance_km: Math.round(totalDistanceKm * 100) / 100,
           total_time_minutes: Math.round(totalTimeMinutes * 100) / 100,
           average_pace_min_km: Math.round(averagePaceMinKm * 100) / 100,
@@ -154,18 +162,18 @@ Deno.serve(async (req) => {
           });
 
         if (insertError) {
-          console.error(`❌ Error inserting metrics for activity ${activity.strava_activity_id}:`, insertError);
+          console.error(`❌ Error inserting metrics for activity ${activity.activity_id}:`, insertError);
           errorCount++;
-          errors.push({ activity_id: activity.strava_activity_id, error: 'Insert error' });
+          errors.push({ activity_id: activity.activity_id, error: 'Insert error' });
         } else {
-          console.log(`✅ Successfully processed activity ${activity.strava_activity_id}`);
+          console.log(`✅ Successfully processed activity ${activity.activity_id}`);
           processedCount++;
         }
 
       } catch (error) {
-        console.error(`❌ Unexpected error processing activity ${activity.strava_activity_id}:`, error);
+        console.error(`❌ Unexpected error processing activity ${activity.activity_id}:`, error);
         errorCount++;
-        errors.push({ activity_id: activity.strava_activity_id, error: error.message });
+        errors.push({ activity_id: activity.activity_id, error: error.message });
       }
     }
 
