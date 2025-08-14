@@ -183,6 +183,32 @@ serve(async (req) => {
             };
             activitySource = 'gpx';
             console.log('🔍 Found GPX activity for analysis');
+          } else {
+            // Try Zepp GPX activities
+            const { data: zeppActivity } = await supabase
+              .from('zepp_gpx_activities')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('activity_id', activityId)
+              .maybeSingle();
+
+            if (zeppActivity) {
+              activity = {
+                activity_type: zeppActivity.activity_type,
+                duration_in_seconds: zeppActivity.duration_in_seconds,
+                distance_in_meters: zeppActivity.distance_in_meters,
+                average_heart_rate_in_beats_per_minute: zeppActivity.average_heart_rate,
+                max_heart_rate_in_beats_per_minute: zeppActivity.max_heart_rate,
+                average_speed_in_meters_per_second: zeppActivity.average_speed_in_meters_per_second,
+                max_speed_in_meters_per_second: null,
+                active_kilocalories: zeppActivity.calories || null,
+                total_elevation_gain_in_meters: zeppActivity.total_elevation_gain_in_meters || null,
+                activity_id: zeppActivity.activity_id,
+                activity_name: zeppActivity.name || 'Zepp Workout',
+              };
+              activitySource = 'zepp_gpx';
+              console.log('🔍 Found Zepp GPX activity for analysis');
+            }
           }
         }
       }
@@ -217,6 +243,18 @@ serve(async (req) => {
         .limit(500);
       if (detailsError) {
         console.error('Error fetching GPX activity details:', detailsError);
+      } else {
+        activityDetails = details || [];
+      }
+    } else if (activitySource === 'zepp_gpx') {
+      const { data: details, error: detailsError } = await supabase
+        .from('zepp_gpx_activity_details')
+        .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
+        .eq('activity_id', activityId)
+        .order('sample_timestamp', { ascending: true })
+        .limit(500);
+      if (detailsError) {
+        console.error('Error fetching Zepp GPX activity details:', detailsError);
       } else {
         activityDetails = details || [];
       }
