@@ -47,9 +47,9 @@ serve(async (req) => {
       // Strava activities
       supabase
         .from('strava_activities')
-        .select('activity_date, moving_time, distance, average_heartrate, activity_type')
+        .select('start_date, moving_time, distance, average_heartrate, type')
         .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0]),
+        .gte('start_date', sixtyDaysAgo.toISOString().split('T')[0]),
       
       // Strava GPX activities
       supabase
@@ -92,12 +92,12 @@ serve(async (req) => {
     // Add Strava activities (convert units)
     if (stravaResult.data) {
       activities.push(...stravaResult.data.map(a => ({
-        activity_date: a.activity_date,
+        activity_date: a.start_date.split('T')[0], // Convert timestamp to date
         duration_in_seconds: a.moving_time,
         distance_in_meters: a.distance,
         average_heart_rate_in_beats_per_minute: a.average_heartrate,
         vo2_max: null,
-        activity_type: a.activity_type,
+        activity_type: a.type,
         source: 'Strava'
       })));
     }
