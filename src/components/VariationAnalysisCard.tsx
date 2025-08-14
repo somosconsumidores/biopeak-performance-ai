@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Heart, Target, BarChart3, AlertCircle } from 'lucide-react';
 import { useVariationAnalysis } from '@/hooks/useVariationAnalysis';
-import { useAuth } from '@/hooks/useAuth';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 interface VariationAnalysisCardProps {
@@ -10,8 +9,7 @@ interface VariationAnalysisCardProps {
 }
 
 export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) => {
-  const { user } = useAuth();
-  const { analysis, loading, error } = useVariationAnalysis(user, activity);
+  const { analysis, loading, error } = useVariationAnalysis(activity);
 
   if (loading) {
     return (
@@ -51,7 +49,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
     );
   }
 
-  if (!analysis || (!analysis.hasHeartRateData && !analysis.hasPaceData)) {
+  if (!analysis || !analysis.hasValidData) {
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
@@ -65,6 +63,11 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
             <AlertCircle className="h-5 w-5 mr-2" />
             <div>
               <p>{analysis?.diagnosis || 'Dados insuficientes para análise'}</p>
+              {analysis && (
+                <p className="text-xs mt-1">
+                  Pontos de dados: {analysis.dataPoints} (mínimo necessário: 10)
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -86,48 +89,47 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
         <CardTitle className="flex items-center space-x-2">
           <BarChart3 className="h-5 w-5 text-primary" />
           <span>Análise de Variação</span>
+          <Badge variant="outline" className="text-xs">
+            {analysis.dataPoints} pontos
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Coeficientes de Variação */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {analysis.hasHeartRateData && (
-            <div className="flex items-center justify-between p-4 rounded-lg bg-card/50 border border-border/50">
-              <div className="flex items-center space-x-3">
-                <Heart className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Coeficiente de Variação FC</p>
-                  <p className="text-sm text-muted-foreground">
-                    CV: {analysis.heartRateCV.toFixed(1)}%
-                  </p>
-                </div>
+          <div className="flex items-center justify-between p-4 rounded-lg bg-card/50 border border-border/50">
+            <div className="flex items-center space-x-3">
+              <Heart className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Coeficiente de Variação FC</p>
+                <p className="text-sm text-muted-foreground">
+                  CV: {(analysis.heartRateCV * 100).toFixed(1)}%
+                </p>
               </div>
-              <Badge 
-                className={getCVBadgeClass(analysis.heartRateCategory)}
-              >
-                {analysis.heartRateCategory}
-              </Badge>
             </div>
-          )}
+            <Badge 
+              className={getCVBadgeClass(analysis.heartRateCVCategory)}
+            >
+              {analysis.heartRateCVCategory}
+            </Badge>
+          </div>
 
-          {analysis.hasPaceData && analysis.paceCV && analysis.paceCategory && (
-            <div className="flex items-center justify-between p-4 rounded-lg bg-card/50 border border-border/50">
-              <div className="flex items-center space-x-3">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Coeficiente de Variação Pace</p>
-                  <p className="text-sm text-muted-foreground">
-                    CV: {analysis.paceCV.toFixed(1)}%
-                  </p>
-                </div>
+          <div className="flex items-center justify-between p-4 rounded-lg bg-card/50 border border-border/50">
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Coeficiente de Variação Pace</p>
+                <p className="text-sm text-muted-foreground">
+                  CV: {(analysis.paceCV * 100).toFixed(1)}%
+                </p>
               </div>
-              <Badge 
-                className={getCVBadgeClass(analysis.paceCategory)}
-              >
-                {analysis.paceCategory}
-              </Badge>
             </div>
-          )}
+            <Badge 
+              className={getCVBadgeClass(analysis.paceCVCategory)}
+            >
+              {analysis.paceCVCategory}
+            </Badge>
+          </div>
         </div>
 
         {/* Diagnóstico */}

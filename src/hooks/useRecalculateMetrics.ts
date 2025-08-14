@@ -28,19 +28,7 @@ export const useRecalculateMetrics = () => {
         throw new Error(`Erro ao deletar métricas existentes: ${deleteError.message}`);
       }
 
-      // Also delete variation analysis cache
-      const { error: deleteCacheError } = await supabase
-        .from('variation_analysis_cache' as any)
-        .delete()
-        .eq('activity_id', activityId)
-        .eq('user_id', userData.user.id);
-
-      if (deleteCacheError) {
-        console.error('⚠️ Erro ao deletar cache de análise de variação:', deleteCacheError);
-        // Don't throw here, just log the error
-      }
-
-      console.log(`✅ Métricas e cache existentes deletados para atividade ${activityId}`);
+      console.log(`✅ Métricas existentes deletadas para atividade ${activityId}`);
 
       // Check if this is a Strava, Polar or Garmin activity
       const { data: stravaActivity } = await supabase
@@ -58,16 +46,13 @@ export const useRecalculateMetrics = () => {
       // Then call the appropriate edge function to recalculate
       let functionName = 'calculate-performance-metrics';
       let activityIdToUse = activityId;
-      let activitySource = 'GARMIN'; // Default
       
       if (stravaActivity) {
         functionName = 'calculate-strava-performance-metrics';
         activityIdToUse = activityId; // Use UUID for consistency
-        activitySource = 'STRAVA';
       } else if (polarActivity) {
         functionName = 'calculate-polar-performance-metrics';
         activityIdToUse = activityId; // Use UUID for consistency
-        activitySource = 'POLAR';
       }
       
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -83,41 +68,14 @@ export const useRecalculateMetrics = () => {
       }
 
       console.log('✅ Função de recálculo executada com sucesso:', data);
-
-      // Also recalculate variation analysis
-      try {
-        const { error: variationError } = await supabase.functions.invoke('calculate-variation-analysis', {
-          body: {
-            activityId: activityIdToUse,
-            activitySource,
-            userId: userData.user.id
-          }
-        });
-
-        if (variationError) {
-          console.error('⚠️ Erro ao recalcular análise de variação:', variationError);
-          // Don't throw here, just log the error
-        } else {
-          console.log('✅ Análise de variação recalculada com sucesso');
-        }
-      } catch (variationErr) {
-        console.error('⚠️ Erro ao recalcular análise de variação:', variationErr);
-        // Don't throw here, just log the error
-      }
-
       return data;
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Métricas recalculadas com sucesso para atividade ${variables.activityId}`);
       
-      // Invalidate and refetch performance metrics and variation analysis
+      // Invalidate and refetch performance metrics
       queryClient.invalidateQueries({ 
         queryKey: ['performance-metrics', variables.activityId] 
-      });
-      
-      // Also invalidate variation analysis cache
-      queryClient.invalidateQueries({ 
-        queryKey: ['variation-analysis', variables.activityId] 
       });
       
       toast.success("Métricas recalculadas com sucesso!");
