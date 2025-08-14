@@ -156,16 +156,22 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       const samples: Sample[] = (activityDetails || [])
         .map((d: any) => {
           const hr: number | null = (d.heartrate ?? d.heart_rate ?? null);
-          const t: number | undefined =
-            typeof d.time_seconds === 'number' ? d.time_seconds :
-            typeof d.time_index === 'number' ? d.time_index :
-            (d.sample_timestamp != null ? (
-              // sample_timestamp may be in seconds or milliseconds
-              (String(d.sample_timestamp).length > 10)
-                ? Math.floor(Number(d.sample_timestamp) / 1000)
-                : Number(d.sample_timestamp)
-            ) : undefined);
-          return hr != null ? { hr: Number(hr), t } : null;
+          let t: number | undefined;
+          
+          if (typeof d.time_seconds === 'number') {
+            t = d.time_seconds;
+          } else if (typeof d.time_index === 'number') {
+            t = d.time_index;
+          } else if (d.sample_timestamp != null) {
+            // Handle ISO timestamp strings for GPX data
+            const timestamp = new Date(d.sample_timestamp).getTime();
+            if (!isNaN(timestamp)) {
+              // Convert to seconds and make relative to first timestamp
+              t = Math.floor(timestamp / 1000);
+            }
+          }
+          
+          return hr != null && !isNaN(hr) ? { hr: Number(hr), t } : null;
         })
         .filter(Boolean) as Sample[];
 
@@ -208,15 +214,23 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       ];
 
       // Compute per-sample durations (dt)
-      // If timestamps available, use differences; otherwise assume 1s per sample
       let totalSeconds = 0;
       const dts: number[] = new Array(samples.length).fill(1);
-      if (samples[0].t != null) {
+      
+      if (samples.length > 0 && samples[0].t != null) {
+        // Convert timestamps to relative seconds from start
+        const startTime = samples[0].t!;
         for (let i = 0; i < samples.length; i++) {
-          const t0 = samples[i].t!;
-          const t1 = i < samples.length - 1 ? samples[i + 1].t! : t0 + 1;
-          const dt = Math.max(1, Math.round(t1 - t0));
-          dts[i] = dt;
+          if (samples[i].t != null) {
+            const relativeTime = samples[i].t! - startTime;
+            const nextTime = (i < samples.length - 1 && samples[i + 1].t != null) 
+              ? samples[i + 1].t! - startTime 
+              : relativeTime + 1;
+            const dt = Math.max(1, Math.round(nextTime - relativeTime));
+            dts[i] = dt;
+          } else {
+            dts[i] = 1; // fallback to 1 second
+          }
         }
       }
       totalSeconds = dts.reduce((a, b) => a + b, 0);
