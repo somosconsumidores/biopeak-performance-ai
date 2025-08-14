@@ -37,6 +37,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         if (activity.source === 'GARMIN') {
           console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id}`);
           
+          // Para Garmin, usar amostragem para evitar timeout em atividades com muitos dados
           const result = await supabase
             .from('garmin_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
@@ -45,9 +46,9 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300); // Reduzir limite para evitar timeout
+            .limit(150); // Limite mais baixo para evitar timeout
           
-          console.log(`🔍 Análise CV GARMIN: Query executada, aguardando resultado...`);
+          console.log(`🔍 Análise CV GARMIN: Query executada`);
           activityDetails = result.data || [];
           detailsError = result.error;
           
@@ -170,9 +171,9 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Fazer amostragem uniforme para melhorar performance mantendo representatividade
         let sampledData = activityDetails;
-        if (activityDetails.length > 300) {
-          // Calcular step para distribuir uniformemente ao longo da atividade
-          const step = Math.floor(activityDetails.length / 300);
+        if (activityDetails.length > 150) {
+          // Para Garmin, usar amostragem mais agressiva para evitar timeouts
+          const step = Math.floor(activityDetails.length / 150);
           sampledData = activityDetails.filter((_, index) => index % step === 0);
           
           console.log(`🔍 Análise CV: Dados originais: ${activityDetails.length}, após amostragem: ${sampledData.length}`);
