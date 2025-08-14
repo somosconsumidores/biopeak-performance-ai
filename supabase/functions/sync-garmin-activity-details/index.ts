@@ -889,9 +889,9 @@ Deno.serve(async (req) => {
 
     console.log('[sync-activity-details] Sync completed:', result);
 
-    // Trigger performance metrics calculation for synced activities (only if not webhook triggered to avoid loops)
-    if (syncedCount > 0 && !isWebhookTriggered) {
-      console.log('[sync-activity-details] Triggering performance metrics calculation...');
+    // Trigger performance metrics calculation for synced activities
+    if (syncedCount > 0) {
+      console.log('[sync-activity-details] Triggering performance and statistics metrics calculation...');
       
       const uniqueActivityIds = [...new Set(filteredDetails.map(detail => detail.activityId))];
       
@@ -905,9 +905,24 @@ Deno.serve(async (req) => {
           });
           
           if (metricsError) {
-            console.error(`[sync-activity-details] Error calculating metrics for ${activityId}:`, metricsError);
+            console.error(`[sync-activity-details] Error calculating performance metrics for ${activityId}:`, metricsError);
           } else {
-            console.log(`[sync-activity-details] Metrics calculated for ${activityId}`);
+            console.log(`[sync-activity-details] Performance metrics calculated for ${activityId}`);
+          }
+
+          // Also calculate statistics metrics
+          const { error: statisticsError } = await supabaseClient.functions.invoke('calculate-statistics-metrics', {
+            body: { 
+              activity_id: activityId, 
+              user_id: user.id,
+              source_activity: 'garmin'
+            }
+          });
+          
+          if (statisticsError) {
+            console.error(`[sync-activity-details] Error calculating statistics metrics for ${activityId}:`, statisticsError);
+          } else {
+            console.log(`[sync-activity-details] Statistics metrics calculated for ${activityId}`);
           }
         } catch (metricsError) {
           console.error(`[sync-activity-details] Failed to trigger metrics calculation for ${activityId}:`, metricsError);
