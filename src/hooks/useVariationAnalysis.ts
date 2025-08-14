@@ -51,14 +51,22 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           detailsError = result.error;
         } else if (activity.source === 'STRAVA') {
           // Strava GPX usa a tabela strava_gpx_activity_details
+          // Primeiro verificar que dados existem para debug
+          const debugResult = await supabase
+            .from('strava_gpx_activity_details')
+            .select('heart_rate, speed_meters_per_second, sample_timestamp')
+            .eq('activity_id', activity.activity_id)
+            .limit(5);
+          
+          console.log('🔍 Debug - Primeiros 5 registros da atividade:', debugResult.data);
+          
+          // Agora buscar dados com critérios mais flexíveis
           const result = await supabase
             .from('strava_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
-            .not('speed_meters_per_second', 'is', null)
             .gt('heart_rate', 0)
-            .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
             .limit(1000);
           
@@ -131,24 +139,45 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         // Extrair dados de FC e converter velocidade para pace usando dados amostrados
         const heartRates = sampledData.map(d => d.heart_rate);
         
-        // Verificar se temos dados de velocidade para calcular pace
-        const hasSpeedData = sampledData.some(d => d.speed_meters_per_second && d.speed_meters_per_second > 0);
-        let paces: number[] = [];
+        // Verificar quantos registros têm dados de velocidade válidos
+        const recordsWithSpeed = sampledData.filter(d => 
+          d.speed_meters_per_second && 
+          d.speed_meters_per_second > 0 && 
+          !isNaN(d.speed_meters_per_second)
+        );
         
-        if (hasSpeedData) {
-          paces = sampledData
-            .filter(d => d.speed_meters_per_second && d.speed_meters_per_second > 0)
-            .map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+        console.log(`🔍 Debug - Total de registros: ${sampledData.length}, com velocidade: ${recordsWithSpeed.length}`);
+        
+        // Se temos poucos dados de velocidade, relaxar os critérios
+        let paces: number[] = [];
+        if (recordsWithSpeed.length >= 10) {
+          paces = recordsWithSpeed.map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+        } else {
+          // Tentar incluir registros com velocidade mesmo que seja 0 ou muito baixa
+          const allSpeedRecords = sampledData.filter(d => 
+            d.speed_meters_per_second !== null && 
+            d.speed_meters_per_second !== undefined &&
+            !isNaN(d.speed_meters_per_second)
+          );
+          
+          if (allSpeedRecords.length >= 10) {
+            paces = allSpeedRecords.map(d => {
+              const speed = d.speed_meters_per_second || 0.1; // Evitar divisão por zero
+              return speed > 0 ? 1000 / (speed * 60) : 60; // 60 min/km como fallback
+            });
+          }
         }
         
-        // Se não há dados de pace suficientes, mostrar apenas análise de FC
+        console.log(`🔍 Debug - Dados de pace calculados: ${paces.length} pontos`);
+        
+        // Se ainda não há dados de pace suficientes, mostrar apenas análise de FC
         if (paces.length < 10) {
           setAnalysis({
             paceCV: 0,
             heartRateCV: 0,
             paceCVCategory: 'Baixo',
             heartRateCVCategory: 'Baixo',
-            diagnosis: 'Dados de velocidade insuficientes - análise de variação requer dados de pace e frequência cardíaca',
+            diagnosis: `Dados de velocidade insuficientes (${recordsWithSpeed.length} registros com velocidade válida) - análise de variação requer dados de pace e frequência cardíaca`,
             hasValidData: false,
             dataPoints: activityDetails.length
           });
