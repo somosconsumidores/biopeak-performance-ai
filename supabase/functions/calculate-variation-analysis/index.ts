@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
     // Verificar se já existe cache válido
     const { data: existingCache } = await supabaseClient
-      .from('variation_analysis_cache')
+      .from('variation_analysis_cache' as any)
       .select('*')
       .eq('activity_id', activityId)
       .eq('activity_source', activitySource)
@@ -52,32 +52,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar dados da atividade baseado na fonte
+    // Buscar dados da atividade baseado na fonte com otimizações para performance
     let activityData: any[] = [];
     let userIdToUse = userId;
 
     if (activitySource === 'GARMIN') {
+      console.log(`📊 Buscando dados Garmin com amostragem otimizada...`);
+      
+      // Estratégia: usar TABLESAMPLE para performance + amostragem temporal
       const { data: garminData, error } = await supabaseClient
         .from('garmin_activity_details')
         .select('user_id, heart_rate, speed_meters_per_second, sample_timestamp')
         .eq('activity_id', activityId)
         .not('heart_rate', 'is', null)
+        .gt('heart_rate', 0)
         .order('sample_timestamp', { ascending: true })
-        .limit(200);
+        .limit(100); // Limite muito reduzido para evitar timeout
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro na query Garmin:', error);
+        throw error;
+      }
+      
+      console.log(`📊 Dados Garmin encontrados: ${garminData?.length || 0} registros`);
       activityData = garminData || [];
       if (activityData.length > 0) userIdToUse = activityData[0].user_id;
     } else if (activitySource === 'STRAVA') {
+      console.log(`📊 Buscando dados Strava com amostragem otimizada...`);
+      
       const { data: stravaData, error } = await supabaseClient
         .from('strava_activity_streams')
         .select('user_id, heartrate, velocity_smooth, time')
         .eq('strava_activity_id', activityId)
         .not('heartrate', 'is', null)
+        .gt('heartrate', 0)
         .order('time', { ascending: true })
-        .limit(200);
+        .limit(100); // Limite reduzido
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro na query Strava:', error);
+        throw error;
+      }
+      
+      console.log(`📊 Dados Strava encontrados: ${stravaData?.length || 0} registros`);
       activityData = stravaData?.map(d => ({
         user_id: d.user_id,
         heart_rate: d.heartrate,
@@ -86,29 +103,56 @@ Deno.serve(async (req) => {
       })) || [];
       if (activityData.length > 0) userIdToUse = activityData[0].user_id;
     } else if (activitySource === 'POLAR') {
+      console.log(`📊 Buscando dados Polar com amostragem otimizada...`);
+      
       const { data: polarData, error } = await supabaseClient
         .from('polar_activity_details')
         .select('user_id, heart_rate, speed_meters_per_second, sample_timestamp')
         .eq('activity_id', activityId)
         .not('heart_rate', 'is', null)
+        .gt('heart_rate', 0)
         .order('sample_timestamp', { ascending: true })
-        .limit(200);
+        .limit(100); // Limite reduzido
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro na query Polar:', error);
+        throw error;
+      }
+      
+      console.log(`📊 Dados Polar encontrados: ${polarData?.length || 0} registros`);
       activityData = polarData || [];
       if (activityData.length > 0) userIdToUse = activityData[0].user_id;
     }
 
     if (!activityData.length || !userIdToUse) {
-      throw new Error('Dados insuficientes para análise');
+      console.log(`⚠️ Dados insuficientes: ${activityData.length} registros encontrados`);
+      throw new Error('Dados insuficientes para análise - nenhum registro válido encontrado');
     }
 
-    // Calcular análise de variação
-    const heartRates = activityData.map(d => d.heart_rate).filter(hr => hr > 0);
-    const speeds = activityData
+    console.log(`✅ Dados carregados: ${activityData.length} registros para análise`);
+
+    // Aplicar amostragem adicional se necessário para garantir performance
+    let processedData = activityData;
+    if (activityData.length > 80) {
+      // Usar amostragem uniforme mantendo representatividade temporal
+      const step = Math.ceil(activityData.length / 80);
+      processedData = activityData.filter((_, index) => index % step === 0);
+      console.log(`🔄 Amostragem aplicada: ${activityData.length} → ${processedData.length} registros`);
+    }
+
+    // Calcular análise de variação com dados otimizados
+    const heartRates = processedData.map(d => d.heart_rate).filter(hr => hr > 0);
+    const speeds = processedData
       .map(d => d.speed_meters_per_second)
       .filter(s => s != null && s > 0)
       .map(s => (3.6 / s) * 60); // Converter para pace em min/km
+
+    console.log(`📊 Dados processados: ${heartRates.length} heart rates, ${speeds.length} paces`);
+
+    // Validar se temos dados mínimos para análise
+    if (heartRates.length < 5) {
+      throw new Error(`Dados de frequência cardíaca insuficientes: apenas ${heartRates.length} registros válidos`);
+    }
 
     // Calcular CV para Heart Rate
     const hrMean = heartRates.reduce((a, b) => a + b, 0) / heartRates.length;
@@ -150,16 +194,21 @@ Deno.serve(async (req) => {
       diagnosis,
       has_heart_rate_data: heartRates.length > 0,
       has_pace_data: speeds.length > 0,
-      data_points_count: activityData.length
+      data_points_count: processedData.length
     };
+
+    console.log(`📊 Resultado da análise:`, analysisResult);
 
     // Salvar no cache
     const { error: insertError } = await supabaseClient
-      .from('variation_analysis_cache')
+      .from('variation_analysis_cache' as any)
       .insert(analysisResult);
 
     if (insertError) {
-      console.error('Erro ao salvar cache:', insertError);
+      console.error('⚠️ Erro ao salvar cache (não crítico):', insertError);
+      // Não falhar se não conseguir salvar cache
+    } else {
+      console.log(`✅ Cache salvo com sucesso`);
     }
 
     console.log(`✅ Análise de variação calculada e salva: ${activityId}`);
@@ -174,11 +223,23 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro na análise de variação:', error);
+    console.error('❌ Erro na análise de variação:', error);
+    
+    // Retornar um erro mais específico para o cliente
+    let errorMessage = 'Erro desconhecido na análise';
+    if (error?.message?.includes('timeout')) {
+      errorMessage = 'Timeout na análise - atividade com muitos dados. Tente novamente.';
+    } else if (error?.message?.includes('insufficient')) {
+      errorMessage = 'Dados insuficientes para análise de variação';
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: errorMessage,
+        details: error?.code || 'unknown'
       }),
       {
         status: 500,
