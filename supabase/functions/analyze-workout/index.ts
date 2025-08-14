@@ -199,10 +199,10 @@ serve(async (req) => {
                 distance_in_meters: zeppActivity.distance_in_meters,
                 average_heart_rate_in_beats_per_minute: zeppActivity.average_heart_rate,
                 max_heart_rate_in_beats_per_minute: zeppActivity.max_heart_rate,
-                average_speed_in_meters_per_second: zeppActivity.average_speed_in_meters_per_second,
-                max_speed_in_meters_per_second: null,
+                average_speed_in_meters_per_second: zeppActivity.average_speed_ms,
+                max_speed_in_meters_per_second: zeppActivity.max_speed_ms || null,
                 active_kilocalories: zeppActivity.calories || null,
-                total_elevation_gain_in_meters: zeppActivity.total_elevation_gain_in_meters || null,
+                total_elevation_gain_in_meters: zeppActivity.elevation_gain_meters || null,
                 activity_id: zeppActivity.activity_id,
                 activity_name: zeppActivity.name || 'Zepp Workout',
               };
@@ -251,6 +251,7 @@ serve(async (req) => {
         .from('zepp_gpx_activity_details')
         .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
         .eq('activity_id', activityId)
+        .eq('user_id', user.id)
         .order('sample_timestamp', { ascending: true })
         .limit(500);
       if (detailsError) {
