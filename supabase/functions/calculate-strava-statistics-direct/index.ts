@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
           .select('heartrate, velocity_smooth')
           .eq('user_id', activity.user_id)
           .eq('strava_activity_id', activity.strava_activity_id)
-          .order('sample_timestamp', { ascending: true });
+          .order('time_seconds', { ascending: true });
 
         if (detailError) {
           console.error(`❌ Error fetching details for activity ${activity.strava_activity_id}:`, detailError);
