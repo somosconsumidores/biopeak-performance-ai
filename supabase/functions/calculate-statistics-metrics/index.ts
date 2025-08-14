@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     console.log(`🔢 Calculating statistics for activity ${activity_id}, user ${user_id}, source ${source_activity}`)
 
     // Fetch activity details based on source
-    const details = await fetchActivityDetails(supabase, activity_id, user_id, source_activity)
+    const { details, summaryDistance, summaryDuration } = await fetchActivityDetails(supabase, activity_id, user_id, source_activity)
     
     if (!details || details.length === 0) {
       console.log(`⚠️ No details found for activity ${activity_id}`)
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     console.log(`📊 Processing ${details.length} detail records`)
 
     // Calculate statistics
-    const metrics = calculateStatistics(activity_id, user_id, source_activity, details)
+    const metrics = calculateStatistics(activity_id, user_id, source_activity, details, summaryDistance, summaryDuration)
 
     // Upsert metrics to database
     const { error: upsertError } = await supabase
@@ -100,31 +100,56 @@ async function fetchActivityDetails(
   activity_id: string,
   user_id: string,
   source_activity: string
-): Promise<ActivityDetail[]> {
+): Promise<{ details: ActivityDetail[], summaryDistance?: number, summaryDuration?: number }> {
   let tableName: string
   let activityIdField = 'activity_id'
+  let summaryTable: string | null = null
   
   switch (source_activity.toLowerCase()) {
     case 'garmin':
       tableName = 'garmin_activity_details'
+      summaryTable = 'garmin_activities'
       break
     case 'strava':
       tableName = 'strava_activity_details'
+      summaryTable = 'strava_activities'
       break
     case 'strava gpx':
       tableName = 'strava_gpx_activity_details'
+      summaryTable = 'strava_gpx_activities'
       break
     case 'zepp gpx':
       tableName = 'zepp_gpx_activity_details'
+      summaryTable = 'zepp_gpx_activities'
       break
     case 'zepp':
       tableName = 'zepp_activity_details'
+      summaryTable = 'zepp_activities'
       break
     case 'polar':
       tableName = 'polar_activity_details'
+      summaryTable = 'polar_activities'
       break
     default:
       throw new Error(`Unknown source activity: ${source_activity}`)
+  }
+
+  // Get summary data first (distance and duration from main activity)
+  let summaryDistance: number | undefined
+  let summaryDuration: number | undefined
+  
+  if (summaryTable) {
+    const { data: summaryData } = await supabase
+      .from(summaryTable)
+      .select('distance_in_meters, duration_in_seconds')
+      .eq('activity_id', activity_id)
+      .eq('user_id', user_id)
+      .single()
+    
+    if (summaryData) {
+      summaryDistance = summaryData.distance_in_meters
+      summaryDuration = summaryData.duration_in_seconds
+    }
   }
 
   // For Strava activities, we might need to resolve the activity_id
@@ -154,14 +179,20 @@ async function fetchActivityDetails(
     throw error
   }
 
-  return data || []
+  return { 
+    details: data || [], 
+    summaryDistance, 
+    summaryDuration 
+  }
 }
 
 function calculateStatistics(
   activity_id: string,
   user_id: string,
   source_activity: string,
-  details: ActivityDetail[]
+  details: ActivityDetail[],
+  summaryDistance?: number,
+  summaryDuration?: number
 ): StatisticsMetrics {
   const metrics: StatisticsMetrics = {
     user_id,
@@ -184,33 +215,64 @@ function calculateStatistics(
     })
     .filter(speed => speed != null && speed > 0) as number[]
 
-  // Calculate time and distance
-  const timePoints = details.map((d, index) => {
-    if (d.time_seconds != null) return d.time_seconds
-    if (d.time_index != null) return d.time_index
-    if (d.sample_timestamp != null) {
-      const timestamp = new Date(d.sample_timestamp).getTime()
-      if (!isNaN(timestamp)) {
-        return Math.floor(timestamp / 1000)
+  // Use summary data first, then calculate from details
+  // Distance: prioritize summary distance, then last detail point, then estimation
+  if (summaryDistance != null && summaryDistance > 0) {
+    metrics.total_distance_km = summaryDistance / 1000
+  } else {
+    const lastPoint = details[details.length - 1]
+    if (lastPoint?.total_distance_in_meters != null) {
+      metrics.total_distance_km = lastPoint.total_distance_in_meters / 1000
+    } else if (validSpeeds.length > 0) {
+      // Calculate time first for estimation
+      const timePoints = details.map((d, index) => {
+        if (d.time_seconds != null) return d.time_seconds
+        if (d.time_index != null) return d.time_index
+        if (d.sample_timestamp != null) {
+          const timestamp = new Date(d.sample_timestamp).getTime()
+          if (!isNaN(timestamp)) {
+            return Math.floor(timestamp / 1000)
+          }
+        }
+        return index // fallback to index
+      })
+
+      let totalTimeMinutes: number | undefined
+      if (timePoints.length > 1) {
+        const startTime = Math.min(...timePoints)
+        const endTime = Math.max(...timePoints)
+        totalTimeMinutes = (endTime - startTime) / 60
+      }
+
+      if (totalTimeMinutes) {
+        // Estimate distance from average speed
+        const avgSpeed = validSpeeds.reduce((sum, speed) => sum + speed, 0) / validSpeeds.length
+        metrics.total_distance_km = (avgSpeed * totalTimeMinutes * 60) / 1000
       }
     }
-    return index // fallback to index
-  })
-
-  if (timePoints.length > 1) {
-    const startTime = Math.min(...timePoints)
-    const endTime = Math.max(...timePoints)
-    metrics.total_time_minutes = (endTime - startTime) / 60
   }
 
-  // Calculate distance from last point if available
-  const lastPoint = details[details.length - 1]
-  if (lastPoint?.total_distance_in_meters != null) {
-    metrics.total_distance_km = lastPoint.total_distance_in_meters / 1000
-  } else if (validSpeeds.length > 0 && metrics.total_time_minutes) {
-    // Estimate distance from average speed
-    const avgSpeed = validSpeeds.reduce((sum, speed) => sum + speed, 0) / validSpeeds.length
-    metrics.total_distance_km = (avgSpeed * metrics.total_time_minutes * 60) / 1000
+  // Duration: prioritize summary duration, then calculate from details
+  if (summaryDuration != null && summaryDuration > 0) {
+    metrics.total_time_minutes = summaryDuration / 60
+  } else {
+    const timePoints = details.map((d, index) => {
+      if (d.time_seconds != null) return d.time_seconds
+      if (d.time_index != null) return d.time_index
+      if (d.sample_timestamp != null) {
+        const timestamp = new Date(d.sample_timestamp).getTime()
+        if (!isNaN(timestamp)) {
+          return Math.floor(timestamp / 1000)
+        }
+      }
+      return index // fallback to index
+    })
+
+    if (timePoints.length > 1) {
+      const startTime = Math.min(...timePoints)
+      const endTime = Math.max(...timePoints)
+      metrics.total_time_minutes = (endTime - startTime) / 60
+    }
   }
 
   // Calculate average pace
