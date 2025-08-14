@@ -28,15 +28,43 @@ Deno.serve(async (req) => {
     // Fetch all unique activities from all detail tables
     const activities: ActivityRecord[] = []
 
-    // Garmin activities
-    const { data: garminActivities } = await supabase
-      .from('garmin_activity_details')
-      .select('user_id, activity_id')
-      .limit(1000)
+    // Process all tables in parallel to avoid timeout issues
+    const [garminResult, polarResult, stravaResult, stravaGpxResult, zeppGpxResult] = await Promise.allSettled([
+      // Garmin activities
+      supabase
+        .from('garmin_activity_details')
+        .select('user_id, activity_id')
+        .order('created_at', { ascending: false }),
+      
+      // Polar activities  
+      supabase
+        .from('polar_activity_details')
+        .select('user_id, activity_id')
+        .order('created_at', { ascending: false }),
+      
+      // Strava activities - correct column name
+      supabase
+        .from('strava_activity_details')
+        .select('user_id, strava_activity_id')
+        .order('created_at', { ascending: false }),
+      
+      // Strava GPX activities
+      supabase
+        .from('strava_gpx_activity_details')
+        .select('user_id, activity_id')
+        .order('created_at', { ascending: false }),
+      
+      // Zepp GPX activities
+      supabase
+        .from('zepp_gpx_activity_details')
+        .select('user_id, activity_id')
+        .order('created_at', { ascending: false })
+    ])
 
-    if (garminActivities) {
+    // Process Garmin activities
+    if (garminResult.status === 'fulfilled' && garminResult.value.data) {
       const uniqueGarmin = new Set()
-      garminActivities.forEach(activity => {
+      garminResult.value.data.forEach(activity => {
         const key = `${activity.user_id}-${activity.activity_id}`
         if (!uniqueGarmin.has(key)) {
           uniqueGarmin.add(key)
@@ -47,17 +75,15 @@ Deno.serve(async (req) => {
           })
         }
       })
+      console.log(`✅ Found ${garminResult.value.data.length} Garmin activities`)
+    } else if (garminResult.status === 'rejected') {
+      console.error('❌ Error fetching Garmin activities:', garminResult.reason)
     }
 
-    // Polar activities
-    const { data: polarActivities } = await supabase
-      .from('polar_activity_details')
-      .select('user_id, activity_id')
-      .limit(1000)
-
-    if (polarActivities) {
+    // Process Polar activities
+    if (polarResult.status === 'fulfilled' && polarResult.value.data) {
       const uniquePolar = new Set()
-      polarActivities.forEach(activity => {
+      polarResult.value.data.forEach(activity => {
         const key = `${activity.user_id}-${activity.activity_id}`
         if (!uniquePolar.has(key)) {
           uniquePolar.add(key)
@@ -68,17 +94,15 @@ Deno.serve(async (req) => {
           })
         }
       })
+      console.log(`✅ Found ${polarResult.value.data.length} Polar activities`)
+    } else if (polarResult.status === 'rejected') {
+      console.error('❌ Error fetching Polar activities:', polarResult.reason)
     }
 
-    // Strava activities
-    const { data: stravaActivities } = await supabase
-      .from('strava_activity_details')
-      .select('user_id, strava_activity_id')
-      .limit(1000)
-
-    if (stravaActivities) {
+    // Process Strava activities
+    if (stravaResult.status === 'fulfilled' && stravaResult.value.data) {
       const uniqueStrava = new Set()
-      stravaActivities.forEach(activity => {
+      stravaResult.value.data.forEach(activity => {
         const key = `${activity.user_id}-${activity.strava_activity_id}`
         if (!uniqueStrava.has(key)) {
           uniqueStrava.add(key)
@@ -89,17 +113,15 @@ Deno.serve(async (req) => {
           })
         }
       })
+      console.log(`✅ Found ${stravaResult.value.data.length} Strava activities`)
+    } else if (stravaResult.status === 'rejected') {
+      console.error('❌ Error fetching Strava activities:', stravaResult.reason)
     }
 
-    // Strava GPX activities
-    const { data: stravaGpxActivities } = await supabase
-      .from('strava_gpx_activity_details')
-      .select('user_id, activity_id')
-      .limit(1000)
-
-    if (stravaGpxActivities) {
+    // Process Strava GPX activities
+    if (stravaGpxResult.status === 'fulfilled' && stravaGpxResult.value.data) {
       const uniqueStravaGpx = new Set()
-      stravaGpxActivities.forEach(activity => {
+      stravaGpxResult.value.data.forEach(activity => {
         const key = `${activity.user_id}-${activity.activity_id}`
         if (!uniqueStravaGpx.has(key)) {
           uniqueStravaGpx.add(key)
@@ -110,17 +132,15 @@ Deno.serve(async (req) => {
           })
         }
       })
+      console.log(`✅ Found ${stravaGpxResult.value.data.length} Strava GPX activities`)
+    } else if (stravaGpxResult.status === 'rejected') {
+      console.error('❌ Error fetching Strava GPX activities:', stravaGpxResult.reason)
     }
 
-    // Zepp GPX activities
-    const { data: zeppGpxActivities } = await supabase
-      .from('zepp_gpx_activity_details')
-      .select('user_id, activity_id')
-      .limit(1000)
-
-    if (zeppGpxActivities) {
+    // Process Zepp GPX activities
+    if (zeppGpxResult.status === 'fulfilled' && zeppGpxResult.value.data) {
       const uniqueZeppGpx = new Set()
-      zeppGpxActivities.forEach(activity => {
+      zeppGpxResult.value.data.forEach(activity => {
         const key = `${activity.user_id}-${activity.activity_id}`
         if (!uniqueZeppGpx.has(key)) {
           uniqueZeppGpx.add(key)
@@ -131,6 +151,9 @@ Deno.serve(async (req) => {
           })
         }
       })
+      console.log(`✅ Found ${zeppGpxResult.value.data.length} Zepp GPX activities`)
+    } else if (zeppGpxResult.status === 'rejected') {
+      console.error('❌ Error fetching Zepp GPX activities:', zeppGpxResult.reason)
     }
 
     console.log(`📊 Found ${activities.length} unique activities to process`)
