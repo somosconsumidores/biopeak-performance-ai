@@ -101,7 +101,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
             <div className="flex items-center space-x-3">
               <Heart className="h-5 w-5 text-primary" />
               <div>
-                <p className="font-medium">Variação FC</p>
+                <p className="font-medium">Coeficiente de Variação FC</p>
                 <p className="text-sm text-muted-foreground">
                   CV: {(analysis.heartRateCV * 100).toFixed(1)}%
                 </p>
@@ -118,7 +118,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
             <div className="flex items-center space-x-3">
               <TrendingUp className="h-5 w-5 text-primary" />
               <div>
-                <p className="font-medium">Variação Pace</p>
+                <p className="font-medium">Coeficiente de Variação Pace</p>
                 <p className="text-sm text-muted-foreground">
                   CV: {(analysis.paceCV * 100).toFixed(1)}%
                 </p>
@@ -148,7 +148,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
         {/* Legenda */}
         <div className="text-xs text-muted-foreground border-t border-border/50 pt-4">
           <p className="mb-1">
-            <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa
+            <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa, calculado pelo desvio padrão sobre a média
           </p>
           <p>
             <strong>Baixo ≤ 15%</strong> | <strong>Alto {'>'} 15%</strong>
