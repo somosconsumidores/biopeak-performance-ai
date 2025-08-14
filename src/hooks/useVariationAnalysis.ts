@@ -67,7 +67,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(1000);
+            .limit(150); // Limite reduzido para evitar timeout
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -104,7 +104,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(1000);
+            .limit(150); // Limite reduzido para evitar timeout
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -141,7 +141,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .gt('heart_rate', 0)
             .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(1000);
+            .limit(150); // Limite reduzido para evitar timeout
           
           activityDetails = result.data || [];
           detailsError = result.error;
