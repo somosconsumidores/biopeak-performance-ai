@@ -56,7 +56,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           if (detailsError) {
             console.error('🔍 Erro na query Garmin:', detailsError);
           }
-        } else if (activity.source === 'STRAVA') {
+        } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
           // Strava GPX usa a tabela strava_gpx_activity_details
           // Buscar dados incluindo total_distance_in_meters para calcular velocidade
           const result = await supabase
@@ -93,6 +93,27 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           }
           
           activityDetails = rawDetails;
+        } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
+          // Strava API - usar strava_activity_details
+          const result = await supabase
+            .from('strava_activity_details')
+            .select('heartrate, velocity_smooth, time_seconds')
+            .eq('user_id', user.id)
+            .eq('strava_activity_id', parseInt(activity.strava_activity_id?.toString() || activity.activity_id))
+            .not('heartrate', 'is', null)
+            .gt('heartrate', 0)
+            .order('time_seconds', { ascending: true })
+            .limit(150); // Limite reduzido para evitar timeout
+          
+          let rawDetails = result.data || [];
+          detailsError = result.error;
+          
+          // Converter para formato padrão
+          activityDetails = rawDetails.map(d => ({
+            heart_rate: d.heartrate,
+            speed_meters_per_second: d.velocity_smooth || null,
+            sample_timestamp: d.time_seconds
+          }));
         } else if (activity.source === 'ZEPP') {
           // Zepp GPX usa a tabela zepp_gpx_activity_details
           // Buscar dados incluindo total_distance_in_meters para calcular velocidade

@@ -164,7 +164,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       const stravaGpxActivities: UnifiedActivity[] = (stravaGpxResult.data || []).map((a: any) => ({
         id: a.id,
         activity_id: a.activity_id,
-        source: 'STRAVA' as const,
+        source: 'STRAVA' as const, // GPX será diferenciado pelo device_name
         activity_type: a.activity_type,
         activity_date: a.activity_date,
         duration_in_seconds: a.duration_in_seconds,
