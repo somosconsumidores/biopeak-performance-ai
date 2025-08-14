@@ -28,12 +28,10 @@ Deno.serve(async (req) => {
     // Fetch all unique Strava activities that have details
     const activities: ActivityRecord[] = []
 
-    // Only process Strava activities with details
-    console.log('📊 Fetching Strava activities with details...')
+    // Get unique Strava activities that have details using DISTINCT
+    console.log('📊 Fetching unique Strava activities with details...')
     const { data: stravaActivities, error: stravaError } = await supabase
-      .from('strava_activity_details')
-      .select('user_id, strava_activity_id')
-      .order('created_at', { ascending: false })
+      .rpc('get_unique_strava_activities_with_details')
 
     if (stravaError) {
       console.error('❌ Error fetching Strava activities:', stravaError)
@@ -41,19 +39,14 @@ Deno.serve(async (req) => {
     }
 
     if (stravaActivities && stravaActivities.length > 0) {
-      const uniqueStrava = new Set()
       stravaActivities.forEach(activity => {
-        const key = `${activity.user_id}-${activity.strava_activity_id}`
-        if (!uniqueStrava.has(key)) {
-          uniqueStrava.add(key)
-          activities.push({
-            user_id: activity.user_id,
-            activity_id: activity.strava_activity_id,
-            source_activity: 'strava'
-          })
-        }
+        activities.push({
+          user_id: activity.user_id,
+          activity_id: activity.strava_activity_id.toString(),
+          source_activity: 'strava'
+        })
       })
-      console.log(`✅ Found ${stravaActivities.length} Strava activities with details`)
+      console.log(`✅ Found ${stravaActivities.length} unique Strava activities with details`)
     } else {
       console.log('ℹ️ No Strava activities with details found')
     }
