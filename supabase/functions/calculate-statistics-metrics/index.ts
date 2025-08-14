@@ -141,21 +141,30 @@ async function fetchActivityDetails(
   if (summaryTable) {
     let summaryQuery = supabase
       .from(summaryTable)
-      .select('distance_in_meters, duration_in_seconds')
       .eq('user_id', user_id)
     
-    // For Strava, use strava_activity_id field
+    // For Strava, use strava_activity_id field and correct column names
     if (source_activity.toLowerCase() === 'strava') {
-      summaryQuery = summaryQuery.eq('strava_activity_id', activity_id)
+      summaryQuery = summaryQuery
+        .select('distance, elapsed_time')
+        .eq('strava_activity_id', activity_id)
     } else {
-      summaryQuery = summaryQuery.eq('activity_id', activity_id)
+      summaryQuery = summaryQuery
+        .select('distance_in_meters, duration_in_seconds')
+        .eq('activity_id', activity_id)
     }
     
     const { data: summaryData } = await summaryQuery.single()
     
     if (summaryData) {
-      summaryDistance = summaryData.distance_in_meters
-      summaryDuration = summaryData.duration_in_seconds
+      if (source_activity.toLowerCase() === 'strava') {
+        // Strava uses 'distance' (in meters) and 'elapsed_time' (in seconds)
+        summaryDistance = summaryData.distance
+        summaryDuration = summaryData.elapsed_time
+      } else {
+        summaryDistance = summaryData.distance_in_meters
+        summaryDuration = summaryData.duration_in_seconds
+      }
     }
   }
 
