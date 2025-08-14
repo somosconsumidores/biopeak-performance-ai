@@ -43,7 +43,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         if (activity.source === 'GARMIN') {
           console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id}`);
           
-          // Para Garmin, usar amostragem para evitar timeout em atividades com muitos dados
+          // Para Garmin, usar amostragem inteligente diretamente na query para evitar timeout
           const result = await supabase
             .from('garmin_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
@@ -52,20 +52,19 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300) // Limite aumentado para atividades maiores
+            .limit(200) // Limite reduzido para garantir performance
             .abortSignal(timeoutController.signal);
           
-          console.log(`🔍 Análise CV GARMIN: Query executada`);
+          console.log(`🔍 Análise CV GARMIN: Query executada para atividade ${activity.activity_id}`);
           activityDetails = result.data || [];
           detailsError = result.error;
           
-          console.log(`🔍 Análise CV GARMIN: Recebidos ${activityDetails.length} registros`);
+          console.log(`🔍 Análise CV GARMIN: Recebidos ${activityDetails.length} registros de ${activity.activity_id}`);
           if (detailsError) {
             console.error('🔍 Erro na query Garmin:', detailsError);
           }
         } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
-          // Strava GPX usa a tabela strava_gpx_activity_details
-          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
+          // Strava GPX - usar limite menor para evitar timeout
           const result = await supabase
             .from('strava_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
@@ -74,7 +73,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300) // Limite aumentado para atividades maiores
+            .limit(200) // Limite reduzido para evitar timeout
             .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
@@ -102,7 +101,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           
           activityDetails = rawDetails;
         } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
-          // Strava API - usar strava_activity_details
+          // Strava API - usar limite menor para evitar timeout
           const result = await supabase
             .from('strava_activity_details')
             .select('heartrate, velocity_smooth, time_seconds')
@@ -111,7 +110,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heartrate', 'is', null)
             .gt('heartrate', 0)
             .order('time_seconds', { ascending: true })
-            .limit(300) // Limite aumentado para atividades maiores
+            .limit(200) // Limite reduzido para evitar timeout
             .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
@@ -124,8 +123,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             sample_timestamp: d.time_seconds
           }));
         } else if (activity.source === 'ZEPP') {
-          // Zepp GPX usa a tabela zepp_gpx_activity_details
-          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
+          // Zepp GPX - usar limite menor para evitar timeout
           const result = await supabase
             .from('zepp_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
@@ -134,7 +132,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300) // Limite aumentado para atividades maiores
+            .limit(200) // Limite reduzido para evitar timeout
             .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
@@ -162,6 +160,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           
           activityDetails = rawDetails;
         } else if (activity.source === 'POLAR') {
+          // Polar - usar limite menor para evitar timeout
           const result = await supabase
             .from('polar_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
@@ -172,7 +171,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .gt('heart_rate', 0)
             .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300) // Limite aumentado para atividades maiores
+            .limit(200) // Limite reduzido para evitar timeout
             .abortSignal(timeoutController.signal);
           
           activityDetails = result.data || [];
@@ -203,9 +202,9 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Fazer amostragem uniforme para melhorar performance mantendo representatividade
         let sampledData = activityDetails;
-        if (activityDetails.length > 300) {
-          // Usar amostragem quando há muitos dados para manter performance
-          const step = Math.floor(activityDetails.length / 300);
+        if (activityDetails.length > 200) {
+          // Usar amostragem mais conservadora para evitar timeouts
+          const step = Math.floor(activityDetails.length / 200);
           sampledData = activityDetails.filter((_, index) => index % step === 0);
           
           console.log(`🔍 Análise CV: Dados originais: ${activityDetails.length}, após amostragem: ${sampledData.length}`);
