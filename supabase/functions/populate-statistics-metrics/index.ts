@@ -23,86 +23,26 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('🚀 Starting statistics metrics population...')
+    console.log('🚀 Starting statistics metrics population for Strava activities...')
 
-    // Fetch all unique activities from all detail tables
+    // Fetch all unique Strava activities that have details
     const activities: ActivityRecord[] = []
 
-    // Process all tables in parallel to avoid timeout issues
-    const [garminResult, polarResult, stravaResult, stravaGpxResult, zeppGpxResult] = await Promise.allSettled([
-      // Garmin activities
-      supabase
-        .from('garmin_activity_details')
-        .select('user_id, activity_id')
-        .order('created_at', { ascending: false }),
-      
-      // Polar activities  
-      supabase
-        .from('polar_activity_details')
-        .select('user_id, activity_id')
-        .order('created_at', { ascending: false }),
-      
-      // Strava activities - correct column name
-      supabase
-        .from('strava_activity_details')
-        .select('user_id, strava_activity_id')
-        .order('created_at', { ascending: false }),
-      
-      // Strava GPX activities
-      supabase
-        .from('strava_gpx_activity_details')
-        .select('user_id, activity_id')
-        .order('created_at', { ascending: false }),
-      
-      // Zepp GPX activities
-      supabase
-        .from('zepp_gpx_activity_details')
-        .select('user_id, activity_id')
-        .order('created_at', { ascending: false })
-    ])
+    // Only process Strava activities with details
+    console.log('📊 Fetching Strava activities with details...')
+    const { data: stravaActivities, error: stravaError } = await supabase
+      .from('strava_activity_details')
+      .select('user_id, strava_activity_id')
+      .order('created_at', { ascending: false })
 
-    // Process Garmin activities
-    if (garminResult.status === 'fulfilled' && garminResult.value.data) {
-      const uniqueGarmin = new Set()
-      garminResult.value.data.forEach(activity => {
-        const key = `${activity.user_id}-${activity.activity_id}`
-        if (!uniqueGarmin.has(key)) {
-          uniqueGarmin.add(key)
-          activities.push({
-            user_id: activity.user_id,
-            activity_id: activity.activity_id,
-            source_activity: 'garmin'
-          })
-        }
-      })
-      console.log(`✅ Found ${garminResult.value.data.length} Garmin activities`)
-    } else if (garminResult.status === 'rejected') {
-      console.error('❌ Error fetching Garmin activities:', garminResult.reason)
+    if (stravaError) {
+      console.error('❌ Error fetching Strava activities:', stravaError)
+      throw new Error(`Failed to fetch Strava activities: ${stravaError.message}`)
     }
 
-    // Process Polar activities
-    if (polarResult.status === 'fulfilled' && polarResult.value.data) {
-      const uniquePolar = new Set()
-      polarResult.value.data.forEach(activity => {
-        const key = `${activity.user_id}-${activity.activity_id}`
-        if (!uniquePolar.has(key)) {
-          uniquePolar.add(key)
-          activities.push({
-            user_id: activity.user_id,
-            activity_id: activity.activity_id,
-            source_activity: 'polar'
-          })
-        }
-      })
-      console.log(`✅ Found ${polarResult.value.data.length} Polar activities`)
-    } else if (polarResult.status === 'rejected') {
-      console.error('❌ Error fetching Polar activities:', polarResult.reason)
-    }
-
-    // Process Strava activities
-    if (stravaResult.status === 'fulfilled' && stravaResult.value.data) {
+    if (stravaActivities && stravaActivities.length > 0) {
       const uniqueStrava = new Set()
-      stravaResult.value.data.forEach(activity => {
+      stravaActivities.forEach(activity => {
         const key = `${activity.user_id}-${activity.strava_activity_id}`
         if (!uniqueStrava.has(key)) {
           uniqueStrava.add(key)
@@ -113,47 +53,9 @@ Deno.serve(async (req) => {
           })
         }
       })
-      console.log(`✅ Found ${stravaResult.value.data.length} Strava activities`)
-    } else if (stravaResult.status === 'rejected') {
-      console.error('❌ Error fetching Strava activities:', stravaResult.reason)
-    }
-
-    // Process Strava GPX activities
-    if (stravaGpxResult.status === 'fulfilled' && stravaGpxResult.value.data) {
-      const uniqueStravaGpx = new Set()
-      stravaGpxResult.value.data.forEach(activity => {
-        const key = `${activity.user_id}-${activity.activity_id}`
-        if (!uniqueStravaGpx.has(key)) {
-          uniqueStravaGpx.add(key)
-          activities.push({
-            user_id: activity.user_id,
-            activity_id: activity.activity_id,
-            source_activity: 'strava gpx'
-          })
-        }
-      })
-      console.log(`✅ Found ${stravaGpxResult.value.data.length} Strava GPX activities`)
-    } else if (stravaGpxResult.status === 'rejected') {
-      console.error('❌ Error fetching Strava GPX activities:', stravaGpxResult.reason)
-    }
-
-    // Process Zepp GPX activities
-    if (zeppGpxResult.status === 'fulfilled' && zeppGpxResult.value.data) {
-      const uniqueZeppGpx = new Set()
-      zeppGpxResult.value.data.forEach(activity => {
-        const key = `${activity.user_id}-${activity.activity_id}`
-        if (!uniqueZeppGpx.has(key)) {
-          uniqueZeppGpx.add(key)
-          activities.push({
-            user_id: activity.user_id,
-            activity_id: activity.activity_id,
-            source_activity: 'zepp gpx'
-          })
-        }
-      })
-      console.log(`✅ Found ${zeppGpxResult.value.data.length} Zepp GPX activities`)
-    } else if (zeppGpxResult.status === 'rejected') {
-      console.error('❌ Error fetching Zepp GPX activities:', zeppGpxResult.reason)
+      console.log(`✅ Found ${stravaActivities.length} Strava activities with details`)
+    } else {
+      console.log('ℹ️ No Strava activities with details found')
     }
 
     console.log(`📊 Found ${activities.length} unique activities to process`)
