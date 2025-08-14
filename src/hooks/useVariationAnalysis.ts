@@ -48,10 +48,24 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           
           activityDetails = result.data || [];
           detailsError = result.error;
-        } else if (activity.source === 'STRAVA' || activity.source === 'ZEPP') {
-          // Zepp e Strava GPX usam a mesma tabela
+        } else if (activity.source === 'STRAVA') {
+          // Strava GPX usa a tabela strava_gpx_activity_details
           const result = await supabase
             .from('strava_gpx_activity_details')
+            .select('heart_rate, speed_meters_per_second')
+            .eq('activity_id', activity.activity_id)
+            .not('heart_rate', 'is', null)
+            .not('speed_meters_per_second', 'is', null)
+            .gt('heart_rate', 0)
+            .gt('speed_meters_per_second', 0)
+            .limit(500);
+          
+          activityDetails = result.data || [];
+          detailsError = result.error;
+        } else if (activity.source === 'ZEPP') {
+          // Zepp GPX usa a tabela zepp_gpx_activity_details
+          const result = await supabase
+            .from('zepp_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second')
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
