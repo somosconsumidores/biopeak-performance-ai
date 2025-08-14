@@ -86,7 +86,9 @@ Deno.serve(async (req) => {
       // Process batch in parallel
       const promises = batch.map(async (activity) => {
         try {
-          const { error } = await supabase.functions.invoke('calculate-statistics-metrics', {
+          console.log(`🔄 Processing ${activity.source_activity} activity ${activity.activity_id} for user ${activity.user_id}`)
+          
+          const { data, error } = await supabase.functions.invoke('calculate-statistics-metrics', {
             body: {
               activity_id: activity.activity_id,
               user_id: activity.user_id,
@@ -99,6 +101,12 @@ Deno.serve(async (req) => {
             return { success: false, error }
           }
 
+          if (data && !data.success) {
+            console.error(`❌ Calculate function returned error for ${activity.source_activity} activity ${activity.activity_id}:`, data.error)
+            return { success: false, error: data.error }
+          }
+
+          console.log(`✅ Successfully processed ${activity.source_activity} activity ${activity.activity_id}`)
           return { success: true }
         } catch (err) {
           console.error(`❌ Exception processing ${activity.source_activity} activity ${activity.activity_id}:`, err)
