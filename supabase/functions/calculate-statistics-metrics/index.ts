@@ -49,11 +49,14 @@ Deno.serve(async (req) => {
       throw new Error('Missing required parameters: activity_id, user_id, source_activity')
     }
 
+    // For Strava, ensure activity_id is treated as number for database queries
+    const processedActivityId = source_activity.toLowerCase() === 'strava' ? Number(activity_id) : activity_id
+
     console.log(`🔢 Calculating statistics for activity ${activity_id}, user ${user_id}, source ${source_activity}`)
 
     // Fetch activity details based on source
-    console.log(`📊 Fetching activity details for ${source_activity} activity ${activity_id}`)
-    const { details, summaryDistance, summaryDuration } = await fetchActivityDetails(supabase, activity_id, user_id, source_activity)
+    console.log(`📊 Fetching activity details for ${source_activity} activity ${processedActivityId}`)
+    const { details, summaryDistance, summaryDuration } = await fetchActivityDetails(supabase, processedActivityId, user_id, source_activity)
     
     if (!details || details.length === 0) {
       console.log(`⚠️ No details found for activity ${activity_id}`)
@@ -66,7 +69,7 @@ Deno.serve(async (req) => {
     console.log(`📊 Processing ${details.length} detail records`)
 
     // Calculate statistics
-    const metrics = calculateStatistics(activity_id, user_id, source_activity, details, summaryDistance, summaryDuration)
+    const metrics = calculateStatistics(processedActivityId.toString(), user_id, source_activity, details, summaryDistance, summaryDuration)
 
     // Upsert metrics to database
     const { error: upsertError } = await supabase
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
 
 async function fetchActivityDetails(
   supabase: any,
-  activity_id: string,
+  activity_id: string | number,
   user_id: string,
   source_activity: string
 ): Promise<{ details: ActivityDetail[], summaryDistance?: number, summaryDuration?: number }> {

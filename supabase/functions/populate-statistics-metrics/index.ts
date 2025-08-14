@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface ActivityRecord {
   user_id: string
-  activity_id: string
+  activity_id: string | number // Allow both string and number for different sources
   source_activity: string
 }
 
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       stravaActivities.forEach(activity => {
         activities.push({
           user_id: activity.user_id,
-          activity_id: activity.strava_activity_id.toString(),
+          activity_id: activity.strava_activity_id, // Keep as number for Strava
           source_activity: 'strava'
         })
       })
