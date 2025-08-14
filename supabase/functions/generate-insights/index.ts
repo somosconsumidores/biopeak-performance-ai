@@ -92,12 +92,12 @@ serve(async (req) => {
     // Add Strava activities (convert units)
     if (stravaResult.data) {
       activities.push(...stravaResult.data.map(a => ({
-        activity_date: a.start_date.split('T')[0], // Convert timestamp to date
-        duration_in_seconds: a.moving_time,
-        distance_in_meters: a.distance,
-        average_heart_rate_in_beats_per_minute: a.average_heartrate,
+        activity_date: a.start_date ? new Date(a.start_date).toISOString().split('T')[0] : null,
+        duration_in_seconds: a.moving_time || 0,
+        distance_in_meters: a.distance || 0,
+        average_heart_rate_in_beats_per_minute: a.average_heartrate || 0,
         vo2_max: null,
-        activity_type: a.type,
+        activity_type: a.type || 'unknown',
         source: 'Strava'
       })));
     }
