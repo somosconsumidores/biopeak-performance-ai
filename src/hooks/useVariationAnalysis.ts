@@ -35,20 +35,26 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Determinar qual tabela usar baseado na fonte da atividade
         if (activity.source === 'GARMIN') {
+          console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id}`);
+          
           const result = await supabase
             .from('garmin_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
             .eq('user_id', user.id)
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
-            .not('speed_meters_per_second', 'is', null)
             .gt('heart_rate', 0)
-            .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(1000);
+            .limit(300); // Reduzir limite para evitar timeout
           
+          console.log(`🔍 Análise CV GARMIN: Query executada, aguardando resultado...`);
           activityDetails = result.data || [];
           detailsError = result.error;
+          
+          console.log(`🔍 Análise CV GARMIN: Recebidos ${activityDetails.length} registros`);
+          if (detailsError) {
+            console.error('🔍 Erro na query Garmin:', detailsError);
+          }
         } else if (activity.source === 'STRAVA') {
           // Strava GPX usa a tabela strava_gpx_activity_details
           // Buscar dados incluindo total_distance_in_meters para calcular velocidade
