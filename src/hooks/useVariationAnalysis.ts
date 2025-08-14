@@ -41,9 +41,13 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Determinar qual tabela usar baseado na fonte da atividade
         if (activity.source === 'GARMIN') {
-          console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id}`);
+          console.log(`🔍 INÍCIO Análise CV GARMIN: Atividade ${activity.activity_id}`);
+          console.log(`🔍 User ID: ${user.id}`);
+          console.log(`🔍 Activity Source: ${activity.source}`);
           
-          // Para Garmin, usar amostragem inteligente diretamente na query para evitar timeout
+          // Tentar query mais simples primeiro - apenas com índices básicos
+          console.log(`🔍 Executando query otimizada para Garmin...`);
+          
           const result = await supabase
             .from('garmin_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
@@ -51,17 +55,22 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true })
-            .limit(200) // Limite reduzido para garantir performance
+            .limit(100) // Limite muito reduzido para teste
             .abortSignal(timeoutController.signal);
           
-          console.log(`🔍 Análise CV GARMIN: Query executada para atividade ${activity.activity_id}`);
+          console.log(`🔍 Query Garmin concluída`);
           activityDetails = result.data || [];
           detailsError = result.error;
           
-          console.log(`🔍 Análise CV GARMIN: Recebidos ${activityDetails.length} registros de ${activity.activity_id}`);
+          console.log(`🔍 Resultado Garmin: ${activityDetails.length} registros, erro:`, detailsError);
+          
           if (detailsError) {
-            console.error('🔍 Erro na query Garmin:', detailsError);
+            console.error('🔍 ERRO DETALHADO na query Garmin:', {
+              code: detailsError.code,
+              message: detailsError.message,
+              details: detailsError.details,
+              hint: detailsError.hint
+            });
           }
         } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
           // Strava GPX - usar limite menor para evitar timeout
@@ -300,9 +309,20 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         });
 
       } catch (err) {
-        console.error('Erro ao calcular análise de variação:', err);
+        console.error('🔍 ERRO DETALHADO na análise de variação:', {
+          error: err,
+          activityId: activity?.activity_id,
+          source: activity?.source,
+          userId: user?.id,
+          errorName: err?.name,
+          errorMessage: err?.message,
+          errorCode: err?.code
+        });
+        
         if (err.name === 'AbortError') {
           setError('Timeout: A análise demorou muito para ser processada. Tente novamente.');
+        } else if (err?.message?.includes('statement timeout')) {
+          setError('Query muito lenta: Atividade com muitos dados. Implementando otimização...');
         } else {
           setError(err instanceof Error ? err.message : 'Erro desconhecido');
         }
