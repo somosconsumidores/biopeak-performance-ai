@@ -139,12 +139,19 @@ async function fetchActivityDetails(
   let summaryDuration: number | undefined
   
   if (summaryTable) {
-    const { data: summaryData } = await supabase
+    let summaryQuery = supabase
       .from(summaryTable)
       .select('distance_in_meters, duration_in_seconds')
-      .eq('activity_id', activity_id)
       .eq('user_id', user_id)
-      .single()
+    
+    // For Strava, use strava_activity_id field
+    if (source_activity.toLowerCase() === 'strava') {
+      summaryQuery = summaryQuery.eq('strava_activity_id', activity_id)
+    } else {
+      summaryQuery = summaryQuery.eq('activity_id', activity_id)
+    }
+    
+    const { data: summaryData } = await summaryQuery.single()
     
     if (summaryData) {
       summaryDistance = summaryData.distance_in_meters
@@ -152,19 +159,9 @@ async function fetchActivityDetails(
     }
   }
 
-  // For Strava activities, we might need to resolve the activity_id
+  // For Strava activities, the activity_id is already the strava_activity_id
   if (source_activity.toLowerCase() === 'strava') {
-    const { data: stravaActivity } = await supabase
-      .from('strava_activities')
-      .select('strava_activity_id')
-      .eq('id', activity_id)
-      .eq('user_id', user_id)
-      .single()
-
-    if (stravaActivity) {
-      activity_id = stravaActivity.strava_activity_id.toString()
-      activityIdField = 'strava_activity_id'
-    }
+    activityIdField = 'strava_activity_id'
   }
 
   const { data, error } = await supabase
