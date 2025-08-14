@@ -1,0 +1,1 @@
+DELETE FROM statistics_metrics;
