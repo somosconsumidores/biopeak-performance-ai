@@ -506,6 +506,22 @@ serve(async (req) => {
     const syncedCount = insertedData?.length || 0;
     console.log('[sync-garmin-activities] Successfully synced', syncedCount, 'activities');
 
+    // Calculate statistics for newly synced activities
+    for (const insertedActivity of insertedData || []) {
+      try {
+        await supabase.functions.invoke('calculate-statistics-metrics', {
+          body: {
+            activity_id: insertedActivity.id,
+            user_id: user.id,
+            source_activity: 'Garmin'
+          }
+        });
+      } catch (statsError) {
+        console.error(`Error calculating statistics for activity ${insertedActivity.id}:`, statsError);
+        // Don't fail the main operation if stats calculation fails
+      }
+    }
+
     // Update sync status to completed
     if (syncId) {
       await supabase.rpc('update_sync_status', {

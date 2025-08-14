@@ -253,6 +253,20 @@ Deno.serve(async (req) => {
 
     console.log('[import-strava-gpx] details inserted', { rows: detailRows.length });
 
+    // Calculate statistics metrics
+    try {
+      await service.functions.invoke('calculate-statistics-metrics', {
+        body: {
+          activity_id: summaryInsert.activity_id,
+          user_id: user.id,
+          source_activity: 'Strava GPX'
+        }
+      });
+    } catch (statsError) {
+      console.error('Error calculating statistics metrics:', statsError);
+      // Don't fail the main operation if stats calculation fails
+    }
+
     return new Response(JSON.stringify({
       success: true,
       activity_id: summaryInsert.activity_id,

@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1104,6 +1104,7 @@ export type Database = {
           fatigue_index: number | null
           heart_rate_comment: string | null
           id: string
+          max_hr: number | null
           movement_efficiency: number | null
           pace_comment: string | null
           pace_consistency: number | null
@@ -1134,6 +1135,7 @@ export type Database = {
           fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          max_hr?: number | null
           movement_efficiency?: number | null
           pace_comment?: string | null
           pace_consistency?: number | null
@@ -1164,6 +1166,7 @@ export type Database = {
           fatigue_index?: number | null
           heart_rate_comment?: string | null
           id?: string
+          max_hr?: number | null
           movement_efficiency?: number | null
           pace_comment?: string | null
           pace_consistency?: number | null
@@ -1881,6 +1884,60 @@ export type Database = {
           id?: string
           overtraining_data?: Json
           sleep_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      statistics_metrics: {
+        Row: {
+          activity_id: string
+          average_heart_rate: number | null
+          average_pace_min_km: number | null
+          created_at: string
+          heart_rate_cv_percent: number | null
+          heart_rate_std_dev: number | null
+          id: string
+          max_heart_rate: number | null
+          pace_cv_percent: number | null
+          pace_std_dev: number | null
+          source_activity: string
+          total_distance_km: number | null
+          total_time_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          created_at?: string
+          heart_rate_cv_percent?: number | null
+          heart_rate_std_dev?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          pace_cv_percent?: number | null
+          pace_std_dev?: number | null
+          source_activity: string
+          total_distance_km?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          average_heart_rate?: number | null
+          average_pace_min_km?: number | null
+          created_at?: string
+          heart_rate_cv_percent?: number | null
+          heart_rate_std_dev?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          pace_cv_percent?: number | null
+          pace_std_dev?: number | null
+          source_activity?: string
+          total_distance_km?: number | null
+          total_time_minutes?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -2815,17 +2872,17 @@ export type Database = {
       calculate_vo2_max: {
         Args: {
           activity_type_param: string
-          pace_min_km: number
           avg_hr: number
           max_hr: number
+          pace_min_km: number
         }
         Returns: number
       }
       can_sync_user: {
         Args: {
-          user_id_param: string
-          sync_type_param: string
           min_interval_minutes?: number
+          sync_type_param: string
+          user_id_param: string
         }
         Returns: boolean
       }
@@ -2868,45 +2925,45 @@ export type Database = {
       force_renew_expired_tokens: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
-          status: string
           message: string
+          status: string
+          user_id: string
         }[]
       }
       get_app_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_athletes: number
           total_activities: number
-          total_insights: number
+          total_athletes: number
           total_goals: number
+          total_insights: number
         }[]
       }
       get_cron_job_status: {
         Args: Record<PropertyKey, never>
         Returns: {
+          active: boolean
           jobname: string
           schedule: string
-          active: boolean
         }[]
       }
       get_polar_activities_without_details: {
         Args: Record<PropertyKey, never>
         Returns: {
           activity_id: string
-          user_id: string
-          polar_user_id: number
           activity_type: string
+          polar_user_id: number
           start_time: string
+          user_id: string
         }[]
       }
       get_provider_user_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          users_with_polar_tokens: number
           users_with_polar_activities: number
-          users_with_strava_tokens: number
+          users_with_polar_tokens: number
           users_with_strava_activities: number
+          users_with_strava_tokens: number
         }[]
       }
       get_unique_logins_by_date: {
@@ -2918,18 +2975,18 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
       log_sync_attempt: {
         Args: {
-          user_id_param: string
+          callback_url_param?: string
           sync_type_param: string
           triggered_by_param: string
+          user_id_param: string
           webhook_payload_param?: Json
-          callback_url_param?: string
         }
         Returns: string
       }
@@ -2950,7 +3007,7 @@ export type Database = {
         Returns: undefined
       }
       update_sync_status: {
-        Args: { sync_id_param: string; status_param: string }
+        Args: { status_param: string; sync_id_param: string }
         Returns: undefined
       }
     }

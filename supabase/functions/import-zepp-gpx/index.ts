@@ -313,6 +313,20 @@ Deno.serve(async (req) => {
       console.error('Error calculating performance metrics:', metricsError);
     }
 
+    // Calculate statistics metrics
+    try {
+      await serviceSupabase.functions.invoke('calculate-statistics-metrics', {
+        body: {
+          activity_id: activityId,
+          user_id: user.id,
+          source_activity: 'Zepp GPX'
+        }
+      });
+    } catch (statsError) {
+      console.error('Error calculating statistics metrics:', statsError);
+      // Don't fail the main operation if stats calculation fails
+    }
+
     const response = {
       success: true,
       activity_id: activityId,
