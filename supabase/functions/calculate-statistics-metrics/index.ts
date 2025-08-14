@@ -144,24 +144,31 @@ async function fetchActivityDetails(
   
   if (summaryTable) {
     console.log(`📋 Fetching summary data from ${summaryTable} for activity ${activity_id}`)
-    let summaryQuery = supabase
-      .from(summaryTable)
-      .eq('user_id', user_id)
     
-    // For Strava, use strava_activity_id field and correct column names
+    // Build query based on source - avoid reassignment
+    let summaryData, summaryError
+    
     if (source_activity.toLowerCase() === 'strava') {
       console.log(`🎯 Using Strava fields: distance, elapsed_time for activity ${activity_id}`)
-      summaryQuery = summaryQuery
+      const result = await supabase
+        .from(summaryTable)
         .select('distance, elapsed_time')
-        .eq('strava_activity_id', activity_id)
+        .eq('user_id', user_id)
+        .eq('strava_activity_id', Number(activity_id))
+        .single()
+      summaryData = result.data
+      summaryError = result.error
     } else {
       console.log(`🎯 Using standard fields: distance_in_meters, duration_in_seconds for activity ${activity_id}`)
-      summaryQuery = summaryQuery
+      const result = await supabase
+        .from(summaryTable)
         .select('distance_in_meters, duration_in_seconds')
+        .eq('user_id', user_id)
         .eq('activity_id', activity_id)
+        .single()
+      summaryData = result.data
+      summaryError = result.error
     }
-    
-    const { data: summaryData, error: summaryError } = await summaryQuery.single()
     
     if (summaryError) {
       console.error(`❌ Error fetching summary data:`, summaryError)
@@ -190,10 +197,14 @@ async function fetchActivityDetails(
   }
 
   console.log(`📋 Fetching details from ${tableName} where ${activityIdField} = ${activity_id}`)
+  
+  // Ensure correct type for activity_id in details query
+  const activityIdValue = source_activity.toLowerCase() === 'strava' ? Number(activity_id) : activity_id
+  
   const { data, error } = await supabase
     .from(tableName)
     .select('*')
-    .eq(activityIdField, activity_id)
+    .eq(activityIdField, activityIdValue)
     .eq('user_id', user_id)
     .order('sample_timestamp', { ascending: true })
 
