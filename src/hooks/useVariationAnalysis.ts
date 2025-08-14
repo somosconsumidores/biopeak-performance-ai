@@ -99,8 +99,11 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         }
 
         if (detailsError) {
+          console.error('🔍 Erro na busca de detalhes:', detailsError);
           throw new Error(`Erro ao buscar detalhes: ${detailsError.message}`);
         }
+
+        console.log(`🔍 Análise CV: Atividade ${activity.source}, dados encontrados: ${activityDetails?.length || 0}`);
 
         if (!activityDetails || activityDetails.length < 10) {
           setAnalysis({
@@ -127,7 +130,30 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         // Extrair dados de FC e converter velocidade para pace usando dados amostrados
         const heartRates = sampledData.map(d => d.heart_rate);
-        const paces = sampledData.map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+        
+        // Verificar se temos dados de velocidade para calcular pace
+        const hasSpeedData = sampledData.some(d => d.speed_meters_per_second && d.speed_meters_per_second > 0);
+        let paces: number[] = [];
+        
+        if (hasSpeedData) {
+          paces = sampledData
+            .filter(d => d.speed_meters_per_second && d.speed_meters_per_second > 0)
+            .map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+        }
+        
+        // Se não há dados de pace suficientes, mostrar apenas análise de FC
+        if (paces.length < 10) {
+          setAnalysis({
+            paceCV: 0,
+            heartRateCV: 0,
+            paceCVCategory: 'Baixo',
+            heartRateCVCategory: 'Baixo',
+            diagnosis: 'Dados de velocidade insuficientes - análise de variação requer dados de pace e frequência cardíaca',
+            hasValidData: false,
+            dataPoints: activityDetails.length
+          });
+          return;
+        }
 
         // Calcular médias
         const avgHeartRate = heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length;
