@@ -29,6 +29,12 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
       setLoading(true);
       setError(null);
 
+      // Criar um timeout personalizado de 20 segundos para análise de variação
+      const timeoutController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        timeoutController.abort();
+      }, 20000); // 20 segundos
+
       try {
         let activityDetails: any[] = [];
         let detailsError: any = null;
@@ -46,7 +52,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300); // Limite aumentado para atividades maiores
+            .limit(300) // Limite aumentado para atividades maiores
+            .abortSignal(timeoutController.signal);
           
           console.log(`🔍 Análise CV GARMIN: Query executada`);
           activityDetails = result.data || [];
@@ -67,7 +74,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300); // Limite aumentado para atividades maiores
+            .limit(300) // Limite aumentado para atividades maiores
+            .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -103,7 +111,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heartrate', 'is', null)
             .gt('heartrate', 0)
             .order('time_seconds', { ascending: true })
-            .limit(300); // Limite aumentado para atividades maiores
+            .limit(300) // Limite aumentado para atividades maiores
+            .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -125,7 +134,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300); // Limite aumentado para atividades maiores
+            .limit(300) // Limite aumentado para atividades maiores
+            .abortSignal(timeoutController.signal);
           
           let rawDetails = result.data || [];
           detailsError = result.error;
@@ -162,7 +172,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .gt('heart_rate', 0)
             .gt('speed_meters_per_second', 0)
             .order('sample_timestamp', { ascending: true })
-            .limit(300); // Limite aumentado para atividades maiores
+            .limit(300) // Limite aumentado para atividades maiores
+            .abortSignal(timeoutController.signal);
           
           activityDetails = result.data || [];
           detailsError = result.error;
@@ -291,8 +302,13 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
       } catch (err) {
         console.error('Erro ao calcular análise de variação:', err);
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+        if (err.name === 'AbortError') {
+          setError('Timeout: A análise demorou muito para ser processada. Tente novamente.');
+        } else {
+          setError(err instanceof Error ? err.message : 'Erro desconhecido');
+        }
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
