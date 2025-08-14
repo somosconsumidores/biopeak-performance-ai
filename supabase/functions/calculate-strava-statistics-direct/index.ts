@@ -31,16 +31,35 @@ Deno.serve(async (req) => {
     console.log('🚀 Starting direct Garmin statistics calculation...');
 
     // Step 1: Get all unique Garmin activities that have details
+    // First get activity IDs that have detail records
+    const { data: activityIdsWithDetails, error: detailsError } = await supabase
+      .from('garmin_activity_details')
+      .select('activity_id, user_id')
+      .not('activity_id', 'is', null);
+
+    if (detailsError) {
+      console.error('❌ Error fetching activity details:', detailsError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch activity details', details: detailsError }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get unique combinations
+    const uniqueActivityIds = Array.from(
+      new Set(activityIdsWithDetails?.map(item => `${item.user_id}:${item.activity_id}`) || [])
+    ).map(combined => {
+      const [user_id, activity_id] = combined.split(':');
+      return { user_id, activity_id };
+    });
+
+    // Now get the activity summary data for these activities
     const { data: uniqueActivities, error: activitiesError } = await supabase
       .from('garmin_activities')
       .select('user_id, activity_id')
       .not('distance_in_meters', 'is', null)
       .not('duration_in_seconds', 'is', null)
-      .in('activity_id', 
-        supabase
-          .from('garmin_activity_details')
-          .select('activity_id')
-      );
+      .in('activity_id', uniqueActivityIds.map(item => item.activity_id));
 
     if (activitiesError) {
       console.error('❌ Error fetching unique activities:', activitiesError);
