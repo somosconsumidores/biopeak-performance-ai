@@ -75,12 +75,12 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
     );
   }
 
-  const getCVBadgeVariant = (category: 'Baixo' | 'Alto') => {
-    return category === 'Baixo' ? 'default' : 'destructive';
-  };
-
-  const getCVColor = (category: 'Baixo' | 'Alto') => {
-    return category === 'Baixo' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+  const getCVBadgeClass = (category: 'Baixo' | 'Alto') => {
+    if (category === 'Baixo') {
+      return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600';
+    } else {
+      return 'bg-red-600 hover:bg-red-700 text-white border-red-600';
+    }
   };
 
   return (
@@ -108,8 +108,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
               </div>
             </div>
             <Badge 
-              variant={getCVBadgeVariant(analysis.heartRateCVCategory)}
-              className={getCVColor(analysis.heartRateCVCategory)}
+              className={getCVBadgeClass(analysis.heartRateCVCategory)}
             >
               {analysis.heartRateCVCategory}
             </Badge>
@@ -126,8 +125,7 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
               </div>
             </div>
             <Badge 
-              variant={getCVBadgeVariant(analysis.paceCVCategory)}
-              className={getCVColor(analysis.paceCVCategory)}
+              className={getCVBadgeClass(analysis.paceCVCategory)}
             >
               {analysis.paceCVCategory}
             </Badge>
