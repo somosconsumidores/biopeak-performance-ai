@@ -34,6 +34,12 @@ interface ProviderStats {
   stravaActivityUsers: number;
 }
 
+interface TopUser {
+  email: string;
+  user_id: string;
+  login_days: number;
+}
+
 export const AdminPanel = () => {
   const { renewExpiredTokens, loading } = useAdminActions();
   const { toast } = useToast();
@@ -56,6 +62,7 @@ export const AdminPanel = () => {
     stravaTokenUsers: 0,
     stravaActivityUsers: 0
   });
+  const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStats = async () => {
@@ -100,17 +107,19 @@ export const AdminPanel = () => {
         { data: activitiesUsersData, error: activitiesUsersError },
         { count: totalActivities, error: totalActivitiesError },
         { data: commitmentsData, error: commitmentsError },
-        { data: providerData, error: providerError }
+        { data: providerData, error: providerError },
+        { data: topUsersData, error: topUsersError }
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
         supabase.from('garmin_activities').select('user_id'),
         supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
         supabase.from('user_commitments').select('user_id'),
-        supabase.rpc('get_provider_user_stats')
+        supabase.rpc('get_provider_user_stats'),
+        supabase.rpc('get_top_login_users', { limit_count: 10 })
       ]);
 
-      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError || providerError) {
+      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError || providerError || topUsersError) {
         throw new Error('Erro ao buscar estatísticas dos usuários');
       }
 
@@ -135,6 +144,11 @@ export const AdminPanel = () => {
           stravaTokenUsers: p.users_with_strava_tokens || 0,
           stravaActivityUsers: p.users_with_strava_activities || 0,
         });
+      }
+
+      // Set top users data
+      if (topUsersData) {
+        setTopUsers(topUsersData);
       }
 
     } catch (error) {
@@ -333,6 +347,44 @@ export const AdminPanel = () => {
 
           {/* Logins Únicos por Dia */}
           <UserUniqueLoginsChart />
+
+          {/* Top 10 Usuários Mais Ativos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top 10 Usuários Mais Ativos</CardTitle>
+              <CardDescription>
+                Usuários com mais dias de login na plataforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {topUsers.map((user, index) => (
+                  <div key={user.user_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={index < 3 ? "default" : "secondary"}>
+                        #{index + 1}
+                      </Badge>
+                      <div>
+                        <p className="font-medium text-sm">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.login_days} {user.login_days === 1 ? 'dia' : 'dias'} de login
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">{user.login_days}</p>
+                      <p className="text-xs text-muted-foreground">dias</p>
+                    </div>
+                  </div>
+                ))}
+                {topUsers.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nenhum usuário encontrado
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Survey Management */}
           <SurveyManagement />

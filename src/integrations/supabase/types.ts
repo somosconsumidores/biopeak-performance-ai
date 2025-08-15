@@ -3165,6 +3165,14 @@ export type Database = {
           users_with_strava_tokens: number
         }[]
       }
+      get_top_login_users: {
+        Args: { limit_count?: number }
+        Returns: {
+          email: string
+          login_days: number
+          user_id: string
+        }[]
+      }
       get_unique_logins_by_date: {
         Args: Record<PropertyKey, never>
         Returns: {
