@@ -2345,6 +2345,163 @@ export type Database = {
         }
         Relationships: []
       }
+      survey_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean
+          start_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      survey_questions: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          is_required: boolean
+          options: Json | null
+          order_index: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          options?: Json | null
+          order_index?: number
+          question_text: string
+          question_type: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          options?: Json | null
+          order_index?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_questions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "survey_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_responses: {
+        Row: {
+          campaign_id: string
+          id: string
+          question_id: string
+          response_option: string | null
+          response_text: string | null
+          submitted_at: string
+          user_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          id?: string
+          question_id: string
+          response_option?: string | null
+          response_text?: string | null
+          submitted_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          id?: string
+          question_id?: string
+          response_option?: string | null
+          response_text?: string | null
+          submitted_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "survey_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "survey_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_user_interactions: {
+        Row: {
+          action: string
+          campaign_id: string
+          id: string
+          ip_address: string | null
+          shown_at: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          campaign_id: string
+          id?: string
+          ip_address?: string | null
+          shown_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          campaign_id?: string
+          id?: string
+          ip_address?: string | null
+          shown_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_user_interactions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "survey_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_sessions: {
         Row: {
           average_heart_rate: number | null
