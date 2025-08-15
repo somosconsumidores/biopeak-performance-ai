@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+// Note: removed Popover imports and replaced with Select dropdowns
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
