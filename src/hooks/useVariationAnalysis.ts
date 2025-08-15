@@ -19,13 +19,11 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const calculateVariationCoefficients = async () => {
     if (!user || !activity) {
       setAnalysis(null);
       return;
     }
-
-    const calculateVariationCoefficients = async () => {
       setLoading(true);
       setError(null);
 
@@ -297,12 +295,18 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
       }
     };
 
+  useEffect(() => {
     calculateVariationCoefficients();
   }, [user, activity]);
+
+  const refetch = () => {
+    calculateVariationCoefficients();
+  };
 
   return {
     analysis,
     loading,
-    error
+    error,
+    refetch
   };
 }

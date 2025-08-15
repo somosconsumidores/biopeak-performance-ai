@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Heart, Target, BarChart3, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, Heart, Target, BarChart3, AlertCircle, RefreshCw } from 'lucide-react';
 import { useVariationAnalysis } from '@/hooks/useVariationAnalysis';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
@@ -9,7 +10,7 @@ interface VariationAnalysisCardProps {
 }
 
 export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) => {
-  const { analysis, loading, error } = useVariationAnalysis(activity);
+  const { analysis, loading, error, refetch } = useVariationAnalysis(activity);
 
   if (loading) {
     return (
@@ -34,15 +35,38 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Análise de Variação</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <span>Análise de Variação</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refetch}
+              disabled={loading}
+              className="h-8 w-8 p-0"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="py-6">
           <div className="flex items-center text-destructive">
             <AlertCircle className="h-5 w-5 mr-2" />
-            <span>Erro ao calcular análise: {error}</span>
+            <div className="flex-1">
+              <span>Erro ao calcular análise: {error}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refetch}
+              disabled={loading}
+              className="ml-2"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+              Tentar novamente
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -86,12 +110,23 @@ export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) 
   return (
     <Card className="glass-card border-glass-border">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          <span>Análise de Variação</span>
-          <Badge variant="outline" className="text-xs">
-            {analysis.dataPoints} pontos
-          </Badge>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <span>Análise de Variação</span>
+            <Badge variant="outline" className="text-xs">
+              {analysis.dataPoints} pontos
+            </Badge>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refetch}
+            disabled={loading}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
