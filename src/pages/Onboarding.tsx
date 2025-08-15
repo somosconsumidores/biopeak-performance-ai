@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -107,7 +106,9 @@ export const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedGoal, setSelectedGoal] = useState<string>("");
   const [goalOther, setGoalOther] = useState<string>("");
-  const [birthDate, setBirthDate] = useState<Date | undefined>();
+  const [birthDay, setBirthDay] = useState<string>("");
+  const [birthMonth, setBirthMonth] = useState<string>("");
+  const [birthYear, setBirthYear] = useState<string>("");
   const [weight, setWeight] = useState<string>("");
   const [athleticLevel, setAthleticLevel] = useState<string>("");
 
@@ -127,10 +128,14 @@ export const Onboarding = () => {
   };
 
   const handleFinish = async () => {
+    const formattedBirthDate = birthDay && birthMonth && birthYear 
+      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
+      : undefined;
+
     const onboardingData = {
       goal: selectedGoal,
       goal_other: selectedGoal === "other" ? goalOther : undefined,
-      birth_date: birthDate ? format(birthDate, "yyyy-MM-dd") : undefined,
+      birth_date: formattedBirthDate,
       weight_kg: weight ? parseFloat(weight) : undefined,
       athletic_level: athleticLevel,
     };
@@ -146,7 +151,7 @@ export const Onboarding = () => {
       case 1:
         return selectedGoal && (selectedGoal !== "other" || goalOther.trim());
       case 2:
-        return birthDate;
+        return birthDay && birthMonth && birthYear;
       case 3:
         return weight && parseFloat(weight) > 0;
       case 4:
@@ -154,6 +159,30 @@ export const Onboarding = () => {
       default:
         return false;
     }
+  };
+
+  // Generate arrays for dropdowns
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+  const months = [
+    { value: "1", label: "Janeiro" },
+    { value: "2", label: "Fevereiro" },
+    { value: "3", label: "Março" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Maio" },
+    { value: "6", label: "Junho" },
+    { value: "7", label: "Julho" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Setembro" },
+    { value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" },
+    { value: "12", label: "Dezembro" },
+  ];
+  
+  const getDaysInMonth = (month: string, year: string): number[] => {
+    if (!month || !year) return Array.from({ length: 31 }, (_, i) => i + 1);
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   };
 
   return (
@@ -225,40 +254,75 @@ export const Onboarding = () => {
 
             {/* Step 2: Birth Date */}
             {currentStep === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex items-center justify-center">
                   <CalendarIcon className="h-8 w-8 text-primary mb-4" />
                 </div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-12",
-                        !birthDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {birthDate ? (
-                        format(birthDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                      ) : (
-                        <span>Selecione sua data de nascimento</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="center">
-                    <Calendar
-                      mode="single"
-                      selected={birthDate}
-                      onSelect={setBirthDate}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Data de Nascimento</Label>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Day Dropdown */}
+                    <div className="space-y-2">
+                      <Label htmlFor="birth-day" className="text-sm">Dia</Label>
+                      <Select value={birthDay} onValueChange={setBirthDay}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Dia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDaysInMonth(birthMonth, birthYear).map((day) => (
+                            <SelectItem key={day} value={day.toString()}>
+                              {day}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Month Dropdown */}
+                    <div className="space-y-2">
+                      <Label htmlFor="birth-month" className="text-sm">Mês</Label>
+                      <Select value={birthMonth} onValueChange={setBirthMonth}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Mês" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((month) => (
+                            <SelectItem key={month.value} value={month.value}>
+                              {month.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Year Dropdown */}
+                    <div className="space-y-2">
+                      <Label htmlFor="birth-year" className="text-sm">Ano</Label>
+                      <Select value={birthYear} onValueChange={setBirthYear}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Ano" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {years.map((year) => (
+                            <SelectItem key={year} value={year.toString()}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {birthDay && birthMonth && birthYear && (
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Data selecionada: {birthDay} de {months.find(m => m.value === birthMonth)?.label} de {birthYear}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
