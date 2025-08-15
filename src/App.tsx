@@ -55,21 +55,21 @@ const App = () => {
 function AppRoutes() {
   const { user, loading } = useAuth();
   const { checkOnboardingStatus } = useOnboarding();
-  const [showPermissionOnboarding, setShowPermissionOnboarding] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
       // Check if user has seen permission onboarding
-      const hasSeenPermissionOnboarding = localStorage.getItem('biopeak-permissions-onboarding');
-      if (!hasSeenPermissionOnboarding) {
-        setShowPermissionOnboarding(true);
+      const hasSeenPermissionDialog = localStorage.getItem('biopeak-permissions-onboarding');
+      if (!hasSeenPermissionDialog) {
+        setPermissionsDialogOpen(true);
       }
     }
   }, [user, loading]);
 
-  const handlePermissionOnboardingComplete = () => {
+  const handlePermissionsComplete = () => {
     localStorage.setItem('biopeak-permissions-onboarding', 'true');
-    setShowPermissionOnboarding(false);
+    setPermissionsDialogOpen(false);
   };
 
   return (
@@ -167,8 +167,8 @@ function AppRoutes() {
       </Routes>
       <MobileBottomBar />
       <PermissionOnboarding 
-        open={showPermissionOnboarding} 
-        onComplete={handlePermissionOnboardingComplete} 
+        open={permissionsDialogOpen} 
+        onComplete={handlePermissionsComplete} 
       />
     </BrowserRouter>
   );
