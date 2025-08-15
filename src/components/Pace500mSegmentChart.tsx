@@ -5,7 +5,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { BarChart3, Clock } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
-interface Pace500mSegmentChartProps {
+interface Pace1kmSegmentChartProps {
   activityId: string | null;
   activityStartTime?: number | null;
   activityDate?: string | null;
@@ -19,11 +19,11 @@ interface SegmentData {
   distance: number;
 }
 
-export const Pace500mSegmentChart = ({ 
+export const Pace1kmSegmentChart = ({ 
   activityId, 
   activityStartTime, 
   activityDate 
-}: Pace500mSegmentChartProps) => {
+}: Pace1kmSegmentChartProps) => {
   const { data, loading, error } = useActivityDetailsChart(activityId);
   const isMobile = useIsMobile();
 
@@ -31,9 +31,9 @@ export const Pace500mSegmentChart = ({
     if (!data || data.length === 0) return [];
 
     const segments: SegmentData[] = [];
-    const segmentSize = 500; // 500 meters per segment
+    const segmentSize = 1000; // 1000 meters per segment
 
-    // Group data by 500m segments
+    // Group data by 1km segments
     let currentSegment = 1;
     let segmentStart = 0;
     let segmentPaceSum = 0;
@@ -43,12 +43,12 @@ export const Pace500mSegmentChart = ({
     for (const point of data) {
       const currentDistance = point.distance_km ? point.distance_km * 1000 : 0;
       
-      // Check if we've reached the next 500m segment
+      // Check if we've reached the next 1km segment
       if (currentDistance >= currentSegment * segmentSize) {
         // Save current segment if we have data
         if (segmentDataPoints > 0) {
           segments.push({
-            segment: `${(currentSegment - 1) * segmentSize + 1}-${currentSegment * segmentSize}m`,
+            segment: `${(currentSegment - 1) * (segmentSize/1000) + 1}-${currentSegment * (segmentSize/1000)}km`,
             segmentNumber: currentSegment,
             avgPace: segmentPaceSum / segmentDataPoints,
             avgHeartRate: Math.round(segmentHRSum / segmentDataPoints),
@@ -76,7 +76,7 @@ export const Pace500mSegmentChart = ({
     // Add final segment if we have data
     if (segmentDataPoints > 0) {
       segments.push({
-        segment: `${(currentSegment - 1) * segmentSize + 1}m+`,
+        segment: `${(currentSegment - 1) * (segmentSize/1000) + 1}km+`,
         segmentNumber: currentSegment,
         avgPace: segmentPaceSum / segmentDataPoints,
         avgHeartRate: Math.round(segmentHRSum / segmentDataPoints),
@@ -126,7 +126,7 @@ export const Pace500mSegmentChart = ({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Análise por Segmentos (500m)</span>
+            <span>Análise por Segmentos (1km)</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="py-6">
@@ -144,7 +144,7 @@ export const Pace500mSegmentChart = ({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Análise por Segmentos (500m)</span>
+            <span>Análise por Segmentos (1km)</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="py-6">
@@ -161,7 +161,7 @@ export const Pace500mSegmentChart = ({
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <BarChart3 className="h-5 w-5 text-primary" />
-          <span>Análise por Segmentos (500m)</span>
+          <span>Análise por Segmentos (1km)</span>
         </CardTitle>
       </CardHeader>
       <CardContent>

@@ -33,7 +33,7 @@ import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
-import { Pace500mSegmentChart } from '@/components/Pace500mSegmentChart';
+import { Pace1kmSegmentChart } from '@/components/Pace500mSegmentChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
@@ -342,7 +342,7 @@ export const WorkoutSession = () => {
             </div>
           </ScrollReveal>
 
-          {/* 500m Segment Analysis Chart */}
+          {/* 1km Segment Analysis Chart */}
           <ScrollReveal delay={160}>
             <div className="mb-8">
               <ActivitySourceInfo 
@@ -357,7 +357,7 @@ export const WorkoutSession = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <Pace500mSegmentChart 
+                <Pace1kmSegmentChart 
                   activityId={currentActivity.activity_id} 
                   activityStartTime={currentActivity.start_time_in_seconds}
                   activityDate={currentActivity.activity_date}
