@@ -109,8 +109,8 @@ export const Pace500mSegmentChart = ({
             </p>
           )}
           {hrData && (
-            <p className="text-secondary text-sm">
-              <span className="inline-block w-3 h-3 bg-secondary rounded mr-2"></span>
+            <p className="text-sm" style={{ color: '#9333ea' }}>
+              <span className="inline-block w-3 h-3 rounded mr-2" style={{ backgroundColor: '#9333ea' }}></span>
               FC: {hrData.value} bpm
             </p>
           )}
@@ -208,11 +208,11 @@ export const Pace500mSegmentChart = ({
                 yAxisId="hr"
                 type="monotone" 
                 dataKey="avgHeartRate" 
-                stroke="hsl(var(--secondary))" 
+                stroke="#9333ea" 
                 name="FC Média"
                 strokeWidth={2}
-                dot={{ fill: 'hsl(var(--secondary))', strokeWidth: 2, r: 3 }}
-                activeDot={{ r: 5, stroke: 'hsl(var(--secondary))', strokeWidth: 2 }}
+                dot={{ fill: '#9333ea', strokeWidth: 2, r: 3 }}
+                activeDot={{ r: 5, stroke: '#9333ea', strokeWidth: 2 }}
               />
             </ComposedChart>
           </ResponsiveContainer>
@@ -232,7 +232,7 @@ export const Pace500mSegmentChart = ({
               <div className="text-muted-foreground">Pace Médio</div>
             </div>
             <div className="text-center">
-              <div className="font-medium text-secondary">
+              <div className="font-medium" style={{ color: '#9333ea' }}>
                 {Math.round(segmentData.reduce((sum, seg) => sum + seg.avgHeartRate, 0) / segmentData.length)} bpm
               </div>
               <div className="text-muted-foreground">FC Média</div>
