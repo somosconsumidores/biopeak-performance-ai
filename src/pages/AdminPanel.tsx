@@ -10,6 +10,7 @@ import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck } from 'lucid
 import { useToast } from '@/hooks/use-toast';
 import { UserRegistrationChart } from '@/components/UserRegistrationChart';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
+import { SurveyManagement } from '@/components/SurveyManagement';
 
 interface TokenStats {
   total: number;
@@ -332,6 +333,9 @@ export const AdminPanel = () => {
 
           {/* Logins Únicos por Dia */}
           <UserUniqueLoginsChart />
+
+          {/* Survey Management */}
+          <SurveyManagement />
 
           {/* Actions */}
           <Card>

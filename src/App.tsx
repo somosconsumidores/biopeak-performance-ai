@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PermissionOnboarding } from "./components/PermissionOnboarding";
+import { SurveyPopup } from "./components/SurveyPopup";
+import { useSurveyPopup } from "./hooks/useSurveyPopup";
 import { useState, useEffect } from "react";
 
 import { LandingPage } from "./pages/LandingPage";
@@ -55,6 +57,7 @@ const App = () => {
 function AppRoutes() {
   const { user, loading } = useAuth();
   const { checkOnboardingStatus } = useOnboarding();
+  const { currentSurvey, isVisible: isSurveyVisible, submitResponse, dismissSurvey } = useSurveyPopup();
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -170,6 +173,15 @@ function AppRoutes() {
         open={permissionsDialogOpen} 
         onComplete={handlePermissionsComplete} 
       />
+      
+      {/* Survey Popup */}
+      {isSurveyVisible && currentSurvey && (
+        <SurveyPopup
+          survey={currentSurvey}
+          onSubmit={submitResponse}
+          onDismiss={dismissSurvey}
+        />
+      )}
     </BrowserRouter>
   );
 }
