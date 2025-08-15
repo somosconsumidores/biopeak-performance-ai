@@ -33,6 +33,7 @@ import { ptBR } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
+import { Pace500mSegmentChart } from '@/components/Pace500mSegmentChart';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
 import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
@@ -337,6 +338,30 @@ export const WorkoutSession = () => {
                     activityDate={currentActivity.activity_date}
                   />
                 )
+              )}
+            </div>
+          </ScrollReveal>
+
+          {/* 500m Segment Analysis Chart */}
+          <ScrollReveal delay={160}>
+            <div className="mb-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="heart_rate" 
+              />
+              {/* Ocultar gráfico para atividades Polar */}
+              {(currentActivity as any)?.source === 'POLAR' ? (
+                <Card className="glass-card border-glass-border">
+                  <CardContent className="py-6 text-center text-muted-foreground text-sm">
+                    Análise por segmentos não está disponível para atividades Polar no momento.
+                  </CardContent>
+                </Card>
+              ) : (
+                <Pace500mSegmentChart 
+                  activityId={currentActivity.activity_id} 
+                  activityStartTime={currentActivity.start_time_in_seconds}
+                  activityDate={currentActivity.activity_date}
+                />
               )}
             </div>
           </ScrollReveal>
