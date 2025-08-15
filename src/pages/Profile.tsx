@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { 
   Settings, 
   Target,
@@ -29,6 +30,7 @@ import {
 export const Profile = () => {
   const navigate = useNavigate();
   const { profile, loading: profileLoading, age } = useProfile();
+  const { onboardingData } = useOnboarding();
   const { 
     stats, 
     personalBests, 
@@ -206,6 +208,93 @@ export const Profile = () => {
               </CardContent>
             </Card>
           </ScrollReveal>
+
+          {/* Goals & Athletic Level */}
+          {onboardingData && (
+            <ScrollReveal delay={50}>
+              <Card className="glass-card border-glass-border mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    <span>Seu Perfil Atlético</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2 flex items-center">
+                          <Target className="h-5 w-5 text-primary mr-2" />
+                          Objetivo Principal
+                        </h3>
+                        <div className="p-4 glass-card rounded-lg">
+                          <p className="text-foreground">
+                            {onboardingData.goal === 'fitness' && 'Melhorar meu condicionamento físico'}
+                            {onboardingData.goal === 'analysis' && 'Analisar os meus treinos'}
+                            {onboardingData.goal === 'weight_loss' && 'Perder peso'}
+                            {onboardingData.goal === 'general_training' && 'Treinamento em geral'}
+                            {onboardingData.goal === 'improve_times' && 'Melhorar minhas marcas'}
+                            {onboardingData.goal === 'specific_goal' && 'Treinar para um objetivo específico'}
+                            {onboardingData.goal === 'lifestyle' && 'Mudar meus hábitos de vida'}
+                            {onboardingData.goal === 'other' && (onboardingData.goal_other || 'Outros')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2 flex items-center">
+                          <Trophy className="h-5 w-5 text-primary mr-2" />
+                          Nível Atlético
+                        </h3>
+                        <div className="p-4 glass-card rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            {onboardingData.athletic_level === 'beginner' && (
+                              <>
+                                <Star className="h-6 w-6 text-yellow-400" />
+                                <div>
+                                  <p className="font-medium">Iniciante</p>
+                                  <p className="text-sm text-muted-foreground">Começando minha vida atlética</p>
+                                </div>
+                              </>
+                            )}
+                            {onboardingData.athletic_level === 'intermediate' && (
+                              <>
+                                <Activity className="h-6 w-6 text-blue-400" />
+                                <div>
+                                  <p className="font-medium">Intermediário</p>
+                                  <p className="text-sm text-muted-foreground">Me exercito sem frequência específica</p>
+                                </div>
+                              </>
+                            )}
+                            {onboardingData.athletic_level === 'advanced' && (
+                              <>
+                                <Trophy className="h-6 w-6 text-green-400" />
+                                <div>
+                                  <p className="font-medium">Avançado</p>
+                                  <p className="text-sm text-muted-foreground">Me exercito frequentemente</p>
+                                </div>
+                              </>
+                            )}
+                            {onboardingData.athletic_level === 'elite' && (
+                              <>
+                                <Award className="h-6 w-6 text-purple-400" />
+                                <div>
+                                  <p className="font-medium">Elite</p>
+                                  <p className="text-sm text-muted-foreground">Participo de competições</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
 
           {/* Performance Level */}
           <ScrollReveal delay={100}>

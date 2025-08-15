@@ -1781,6 +1781,7 @@ export type Database = {
           height_cm: number | null
           id: string
           last_login_at: string | null
+          onboarding_completed: boolean | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -1795,6 +1796,7 @@ export type Database = {
           height_cm?: number | null
           id?: string
           last_login_at?: string | null
+          onboarding_completed?: boolean | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -1809,6 +1811,7 @@ export type Database = {
           height_cm?: number | null
           id?: string
           last_login_at?: string | null
+          onboarding_completed?: boolean | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
@@ -2474,6 +2477,45 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_onboarding: {
+        Row: {
+          athletic_level: string
+          birth_date: string | null
+          completed_at: string
+          created_at: string
+          goal: string
+          goal_other: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          athletic_level: string
+          birth_date?: string | null
+          completed_at?: string
+          created_at?: string
+          goal: string
+          goal_other?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          athletic_level?: string
+          birth_date?: string | null
+          completed_at?: string
+          created_at?: string
+          goal?: string
+          goal_other?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
