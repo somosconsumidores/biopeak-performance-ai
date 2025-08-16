@@ -235,36 +235,16 @@ function ProtectedRoute({
 // Public Route Component - now inside AuthProvider context
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const { checkOnboardingStatus } = useOnboarding();
-  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   
-  useEffect(() => {
-    const checkStatus = async () => {
-      if (user) {
-        const isCompleted = await checkOnboardingStatus();
-        setNeedsOnboarding(!isCompleted);
-      }
-      setIsCheckingOnboarding(false);
-    };
-    
-    if (user && !loading) {
-      checkStatus();
-    } else if (!loading) {
-      setIsCheckingOnboarding(false);
-    }
-  }, [user, loading, checkOnboardingStatus]);
-  
-  if (loading || isCheckingOnboarding) {
+  if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-primary">Carregando...</div>
     </div>;
   }
   
+  // If user is authenticated, always redirect to dashboard
+  // Don't check onboarding here as it can cause redirect loops
   if (user) {
-    if (needsOnboarding) {
-      return <Navigate to="/onboarding" replace />;
-    }
     return <Navigate to="/dashboard" replace />;
   }
   

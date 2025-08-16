@@ -121,13 +121,15 @@ export const useOnboarding = () => {
 
       if (error) {
         console.error('Error checking onboarding status:', error);
-        return false;
+        // Em caso de erro, assume que o onboarding foi completado para evitar redirect loops
+        return true;
       }
 
       return data?.onboarding_completed || false;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
-      return false;
+      // Em caso de erro, assume que o onboarding foi completado para evitar redirect loops
+      return true;
     }
   };
 
