@@ -140,7 +140,7 @@ export const Dashboard = () => {
       unit: 'ml/kg/min',
       change: !vo2Loading && currentVo2Max && vo2Change !== 0 ? 
         `${vo2Change > 0 ? '+' : ''}${vo2Change.toFixed(1)}%` : 
-        'N/A',
+        '',
       trend: vo2Trend || 'stable',
       color: vo2Trend === 'up' ? 'text-green-400' : vo2Trend === 'down' ? 'text-red-400' : 'text-blue-400',
       source: lastRecordDate ? `Último registro: ${lastRecordDate}` : undefined,
