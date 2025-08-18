@@ -82,11 +82,22 @@ export function useGarminVo2Max(): GarminVo2MaxData {
       // Encontrar o último valor não-nulo (priorizar running, depois cycling)
       for (const record of vo2MaxRecords || []) {
         const vo2Value = record.vo2_max_running ?? record.vo2_max_cycling;
+        
+        // Debug: log para verificar os valores
+        console.log('VO2Max Record:', {
+          date: record.calendar_date,
+          running: record.vo2_max_running,
+          cycling: record.vo2_max_cycling,
+          selected: vo2Value
+        });
+        
         if (vo2Value !== null && vo2Value !== undefined && currentVo2Max === null) {
           currentVo2Max = Number(vo2Value);
           lastRecordDate = new Date(record.calendar_date).toLocaleDateString('pt-BR');
+          console.log('Current VO2Max set to:', currentVo2Max);
         } else if (vo2Value !== null && vo2Value !== undefined && previousVo2Max === null && currentVo2Max !== null) {
           previousVo2Max = Number(vo2Value);
+          console.log('Previous VO2Max set to:', previousVo2Max);
           break; // Temos ambos os valores, podemos parar
         }
       }
