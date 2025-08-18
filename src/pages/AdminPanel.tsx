@@ -43,6 +43,7 @@ interface TopUser {
 export const AdminPanel = () => {
   const { renewExpiredTokens, loading } = useAdminActions();
   const { toast } = useToast();
+  const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
   const [tokenStats, setTokenStats] = useState<TokenStats>({
     total: 0,
     active: 0,
@@ -173,6 +174,34 @@ export const AdminPanel = () => {
       await fetchStats(); // Refresh stats after renewal
     } catch (error) {
       // Error is already handled in useAdminActions
+    }
+  };
+
+  const handleReprocessVO2Max = async () => {
+    setReprocessingVO2Max(true);
+    try {
+      const { data, error } = await supabase.rpc('reprocess_all_user_metrics_vo2max');
+      
+      if (error) {
+        throw error;
+      }
+
+      const result = data[0];
+      toast({
+        title: "Reprocessamento VO2Max Concluído",
+        description: `${result.processed_logs} logs processados, ${result.inserted_rows} linhas inseridas, ${result.updated_rows} linhas atualizadas`,
+      });
+
+      await fetchStats(); // Refresh stats after reprocessing
+    } catch (error) {
+      console.error('Error reprocessing VO2Max:', error);
+      toast({
+        title: "Erro no Reprocessamento",
+        description: "Falha ao reprocessar dados de VO2Max",
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingVO2Max(false);
     }
   };
 
@@ -406,6 +435,16 @@ export const AdminPanel = () => {
                 >
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   {loading ? 'Renovando...' : 'Renovar Tokens Expirados'}
+                </Button>
+                
+                <Button 
+                  onClick={handleReprocessVO2Max}
+                  disabled={reprocessingVO2Max}
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                >
+                  <Activity className={`h-4 w-4 ${reprocessingVO2Max ? 'animate-spin' : ''}`} />
+                  {reprocessingVO2Max ? 'Reprocessando...' : 'Reprocessar VO2Max'}
                 </Button>
                 
                 {tokenStats.expired > 0 && (
