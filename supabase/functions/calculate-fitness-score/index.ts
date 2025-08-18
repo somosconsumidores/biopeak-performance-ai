@@ -39,17 +39,34 @@ serve(async (req) => {
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const startDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
+    // Build precise ISO bounds (UTC) for TIMESTAMPTZ comparisons
+    const startISO = new Date(Date.UTC(
+      sixtyDaysAgo.getUTCFullYear(),
+      sixtyDaysAgo.getUTCMonth(),
+      sixtyDaysAgo.getUTCDate(),
+      0, 0, 0, 0
+    )).toISOString();
+    const endISO = new Date(Date.UTC(
+      calculationDate.getUTCFullYear(),
+      calculationDate.getUTCMonth(),
+      calculationDate.getUTCDate(),
+      23, 59, 59, 999
+    )).toISOString();
+    console.log(`⏱️ Date bounds -> start: ${startISO}, end: ${endISO}`);
     // Fetch activities from all sources
     const activities: BioPeakActivity[] = [];
 
     // Garmin Activities
-    const { data: garminActivities } = await supabase
+    const { data: garminActivities, error: garminError } = await supabase
       .from('garmin_activities')
       .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate_in_beats_per_minute, max_heart_rate_in_beats_per_minute, average_pace_in_minutes_per_kilometer, total_elevation_gain_in_meters, activity_type')
       .eq('user_id', user_id)
       .gte('activity_date', startDateStr)
       .lte('activity_date', dateStr);
 
+    if (garminError) {
+      console.error('❌ Garmin query error:', garminError.message);
+    }
     if (garminActivities) {
       activities.push(...garminActivities.map(a => ({
         date: a.activity_date,
@@ -66,13 +83,16 @@ serve(async (req) => {
     }
 
     // Strava Activities
-    const { data: stravaActivities } = await supabase
+    const { data: stravaActivities, error: stravaError } = await supabase
       .from('strava_activities')
       .select('start_date, moving_time, distance, average_heartrate, max_heartrate, total_elevation_gain, type')
       .eq('user_id', user_id)
-      .gte('start_date', startDateStr)
-      .lte('start_date', dateStr);
+      .gte('start_date', startISO)
+      .lte('start_date', endISO);
 
+    if (stravaError) {
+      console.error('❌ Strava query error:', stravaError.message);
+    }
     if (stravaActivities) {
       activities.push(...stravaActivities.map(a => ({
         date: (a.start_date ? a.start_date.split('T')[0] : dateStr),
@@ -89,13 +109,16 @@ serve(async (req) => {
     }
 
     // Polar Activities
-    const { data: polarActivities } = await supabase
+    const { data: polarActivities, error: polarError } = await supabase
       .from('polar_activities')
       .select('start_time, duration, distance, average_heart_rate_bpm, maximum_heart_rate_bpm, activity_type')
       .eq('user_id', user_id)
-      .gte('start_time', startDateStr)
-      .lte('start_time', dateStr);
+      .gte('start_time', startISO)
+      .lte('start_time', endISO);
 
+    if (polarError) {
+      console.error('❌ Polar query error:', polarError.message);
+    }
     if (polarActivities) {
       activities.push(...polarActivities.map(a => {
         const durationMatch = a.duration?.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
@@ -122,8 +145,59 @@ serve(async (req) => {
       console.log(`📈 Polar activities considered: ${polarActivities.length}`);
     }
 
-    console.log(`📊 Found ${activities.length} activities for calculation`);
+    // Strava GPX Activities
+    const { data: stravaGpxActivities, error: stravaGpxError } = await supabase
+      .from('strava_gpx_activities')
+      .select('start_time, duration_in_seconds, distance_in_meters, average_heart_rate, max_heart_rate, total_elevation_gain_in_meters, activity_type')
+      .eq('user_id', user_id)
+      .gte('start_time', startISO)
+      .lte('start_time', endISO);
 
+    if (stravaGpxError) {
+      console.error('❌ Strava GPX query error:', stravaGpxError.message);
+    }
+    if (stravaGpxActivities) {
+      activities.push(...stravaGpxActivities.map(a => ({
+        date: a.start_time?.split('T')[0] || dateStr,
+        duration_seconds: a.duration_in_seconds || 0,
+        distance_meters: a.distance_in_meters != null ? Number(a.distance_in_meters) : undefined,
+        avg_hr: a.average_heart_rate != null ? Number(a.average_heart_rate) : undefined,
+        max_hr: a.max_heart_rate != null ? Number(a.max_heart_rate) : undefined,
+        avg_pace_min_km: a.distance_in_meters && a.duration_in_seconds ? (a.duration_in_seconds / 60) / (Number(a.distance_in_meters) / 1000) : undefined,
+        elevation_gain: a.total_elevation_gain_in_meters != null ? Number(a.total_elevation_gain_in_meters) : undefined,
+        activity_type: a.activity_type || 'unknown',
+        source: 'strava_gpx'
+      })));
+      console.log(`📈 Strava GPX activities considered: ${stravaGpxActivities.length}`);
+    }
+
+    // Zepp GPX Activities
+    const { data: zeppGpxActivities, error: zeppGpxError } = await supabase
+      .from('zepp_gpx_activities')
+      .select('start_time, duration_in_seconds, distance_in_meters, average_heart_rate, max_heart_rate, elevation_gain_meters, activity_type')
+      .eq('user_id', user_id)
+      .gte('start_time', startISO)
+      .lte('start_time', endISO);
+
+    if (zeppGpxError) {
+      console.error('❌ Zepp GPX query error:', zeppGpxError.message);
+    }
+    if (zeppGpxActivities) {
+      activities.push(...zeppGpxActivities.map(a => ({
+        date: a.start_time?.split('T')[0] || dateStr,
+        duration_seconds: a.duration_in_seconds || 0,
+        distance_meters: a.distance_in_meters != null ? Number(a.distance_in_meters) : undefined,
+        avg_hr: a.average_heart_rate != null ? Number(a.average_heart_rate) : undefined,
+        max_hr: a.max_heart_rate != null ? Number(a.max_heart_rate) : undefined,
+        avg_pace_min_km: a.distance_in_meters && a.duration_in_seconds ? (a.duration_in_seconds / 60) / (Number(a.distance_in_meters) / 1000) : undefined,
+        elevation_gain: a.elevation_gain_meters != null ? Number(a.elevation_gain_meters) : undefined,
+        activity_type: a.activity_type || 'unknown',
+        source: 'zepp_gpx'
+      })));
+      console.log(`📈 Zepp GPX activities considered: ${zeppGpxActivities.length}`);
+    }
+
+    console.log(`📊 Found ${activities.length} activities for calculation`);
     // Calculate BioPeak Strain (BPS) for each activity
     const activitiesWithStrain = activities.map(activity => {
       const bps = calculateBioPeakStrain(activity);
