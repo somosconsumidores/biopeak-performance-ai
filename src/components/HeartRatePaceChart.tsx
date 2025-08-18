@@ -2,13 +2,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Heart, Timer, AlertCircle, Download } from 'lucide-react';
+import { Heart, Timer, AlertCircle, Download, RotateCcw } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { useGarminActivityDetails } from '@/hooks/useGarminActivityDetails';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface HeartRatePaceChartProps {
   activityId: string | null;
@@ -17,11 +18,36 @@ interface HeartRatePaceChartProps {
 }
 
 export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate }: HeartRatePaceChartProps) => {
-  const { data, loading, error, hasData, hasRawData } = useActivityDetailsChart(activityId);
+  const { data, loading, error, hasData, hasRawData, refetch } = useActivityDetailsChart(activityId);
   const { isMobile, isTablet } = useScreenSize();
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
   const { theme } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Clear cache if exists
+      if (activityId) {
+        const { error: deleteError } = await supabase
+          .from('activity_chart_cache')
+          .delete()
+          .eq('activity_id', activityId);
+        
+        if (deleteError) {
+          console.warn('Failed to clear cache:', deleteError.message);
+        }
+      }
+      
+      refetch();
+      toast.success('Dados atualizados com sucesso');
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      toast.error('Erro ao atualizar dados');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Get heart rate color based on theme
   const getHeartRateColor = () => {
@@ -117,10 +143,24 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
               <Heart className="h-5 w-5 text-primary" />
               <span>Evolução do Ritmo e Frequência Cardíaca</span>
-            </CardTitle>
+            </div>
+            {(error || (!hasData && hasRawData)) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center space-x-1"
+              >
+                <RotateCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </Button>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center h-64 space-y-4">

@@ -1,9 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { BarChart3, Clock } from 'lucide-react';
+import { BarChart3, Clock, RotateCcw } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Pace1kmSegmentChartProps {
   activityId: string | null;
@@ -24,8 +27,34 @@ export const Pace1kmSegmentChart = ({
   activityStartTime, 
   activityDate 
 }: Pace1kmSegmentChartProps) => {
-  const { data, loading, error } = useActivityDetailsChart(activityId);
+  const { data, loading, error, hasRawData, refetch } = useActivityDetailsChart(activityId);
   const isMobile = useIsMobile();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Clear cache if exists
+      if (activityId) {
+        const { error: deleteError } = await supabase
+          .from('activity_chart_cache')
+          .delete()
+          .eq('activity_id', activityId);
+        
+        if (deleteError) {
+          console.warn('Failed to clear cache:', deleteError.message);
+        }
+      }
+      
+      refetch();
+      toast.success('Dados dos segmentos atualizados com sucesso');
+    } catch (err) {
+      console.error('Error refreshing segment data:', err);
+      toast.error('Erro ao atualizar dados dos segmentos');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const segmentData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -142,9 +171,23 @@ export const Pace1kmSegmentChart = ({
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Análise por Segmentos (1km)</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <span>Análise por Segmentos (1km)</span>
+            </div>
+            {(error || (!segmentData || segmentData.length === 0)) && hasRawData && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center space-x-1"
+              >
+                <RotateCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="py-6">

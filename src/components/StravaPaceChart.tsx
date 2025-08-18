@@ -1,16 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
-import { Timer, AlertCircle } from 'lucide-react';
+import { Timer, AlertCircle, RotateCcw } from 'lucide-react';
 import { useStravaActivityChart } from '@/hooks/useStravaActivityChart';
 import { useScreenSize } from '@/hooks/use-mobile';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface StravaPaceChartProps {
   stravaActivityId: number | null;
 }
 
 export const StravaPaceChart = ({ stravaActivityId }: StravaPaceChartProps) => {
-  const { data, loading, error, hasData } = useStravaActivityChart(stravaActivityId);
+  const { data, loading, error, hasData, refetch } = useStravaActivityChart(stravaActivityId);
   const { isMobile, isTablet } = useScreenSize();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      refetch();
+      toast.success('Dados do Strava atualizados com sucesso');
+    } catch (err) {
+      console.error('Error refreshing Strava data:', err);
+      toast.error('Erro ao atualizar dados do Strava');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Custom tooltip otimizado para mobile e com FC
   const CustomTooltip = ({ active, payload }: any) => {
@@ -61,9 +78,23 @@ export const StravaPaceChart = ({ stravaActivityId }: StravaPaceChartProps) => {
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Timer className="h-5 w-5 text-primary" />
-            <span>Evolução do Ritmo (Strava)</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Timer className="h-5 w-5 text-primary" />
+              <span>Evolução do Ritmo (Strava)</span>
+            </div>
+            {(error || !hasData) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center space-x-1"
+              >
+                <RotateCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -398,11 +398,18 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     }
   }, [activityId]);
 
+  const refetch = () => {
+    if (activityId) {
+      fetchData(activityId);
+    }
+  };
+
   return {
     data,
     loading,
     error,
     hasData: data.length > 0,
-    hasRawData
+    hasRawData,
+    refetch
   };
 };
