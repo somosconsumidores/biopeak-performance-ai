@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useGarminVo2Max } from '@/hooks/useGarminVo2Max';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { SleepAnalysisDialog } from '@/components/SleepAnalysisDialog';
@@ -48,6 +49,15 @@ export const Dashboard = () => {
     loading, 
     error 
   } = useDashboardMetrics();
+  
+  const {
+    currentVo2Max,
+    change: vo2Change,
+    trend: vo2Trend,
+    lastRecordDate,
+    loading: vo2Loading,
+    error: vo2Error
+  } = useGarminVo2Max();
   
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
@@ -116,13 +126,15 @@ export const Dashboard = () => {
 
   const formattedMetrics = metrics ? [
     {
-      title: 'VO₂ Max',
-      value: metrics.vo2Max.current ? metrics.vo2Max.current.toFixed(1) : 'N/A',
+      title: 'VO₂ Max - Calculado e informado pela Garmin',
+      value: !vo2Loading && currentVo2Max ? currentVo2Max.toString() : 'Não informado',
       unit: 'ml/kg/min',
-      change: metrics.vo2Max.current ? `${metrics.vo2Max.change > 0 ? '+' : ''}${metrics.vo2Max.change}%` : 'N/A',
-      trend: metrics.vo2Max.trend,
-      color: metrics.vo2Max.trend === 'up' ? 'text-green-400' : 'text-blue-400',
-      source: metrics.vo2Max.source,
+      change: !vo2Loading && currentVo2Max && vo2Change !== 0 ? 
+        `${vo2Change > 0 ? '+' : ''}${vo2Change.toFixed(1)}%` : 
+        'N/A',
+      trend: vo2Trend || 'stable',
+      color: vo2Trend === 'up' ? 'text-green-400' : vo2Trend === 'down' ? 'text-red-400' : 'text-blue-400',
+      source: lastRecordDate ? `Último registro: ${lastRecordDate}` : undefined,
       icon: Zap
     },
     {
