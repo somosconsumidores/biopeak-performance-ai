@@ -28,7 +28,7 @@ interface DashboardMetrics {
   bioPeakFitness: {
     score: number | null;
     change: number;
-    trend: 'up' | 'down';
+    trend: 'up' | 'down' | 'stable';
     label: string;
     components?: {
       capacity: number;
@@ -103,6 +103,7 @@ export function useDashboardMetrics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { currentScore, getScoreTrend, getScoreLabel } = useFitnessScore();
 
   useEffect(() => {
     if (!user) {
@@ -549,11 +550,15 @@ export function useDashboardMetrics() {
         trend: 'up'
       },
       bioPeakFitness: {
-        score: null,
-        change: 0,
-        trend: 'up',
-        label: 'N/A',
-        components: undefined,
+        score: currentScore?.fitness_score || null,
+        change: getScoreTrend().change,
+        trend: getScoreTrend().trend as 'up' | 'down' | 'stable',
+        label: currentScore?.fitness_score ? getScoreLabel(currentScore.fitness_score).label : 'N/A',
+        components: currentScore ? {
+          capacity: currentScore.capacity_score,
+          consistency: currentScore.consistency_score,
+          recovery: currentScore.recovery_balance_score,
+        } : undefined,
       }
     };
   };

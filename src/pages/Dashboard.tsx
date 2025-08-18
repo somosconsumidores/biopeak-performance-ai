@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { CommitmentsCard } from '@/components/CommitmentsCard';
+import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -209,6 +210,13 @@ export const Dashboard = () => {
                   </Card>
                 );
               })}
+            </div>
+          </ScrollReveal>
+
+          {/* BioPeak Fitness Score */}
+          <ScrollReveal delay={140}>
+            <div className="mb-6 md:mb-8">
+              <BioPeakFitnessCard />
             </div>
           </ScrollReveal>
 
