@@ -426,15 +426,19 @@ export function useDashboardMetrics() {
     console.log('VO2 Max Debug - last30DaysVo2Max:', last30DaysVo2Max);
 
     if (last30DaysVo2Max.length > 0) {
-      const vo2Values = last30DaysVo2Max
-        .map(vo2 => vo2.vo2_max_running || vo2.vo2_max_cycling)
-        .filter(v => v != null);
+      console.log('VO2 Max Debug - Processing last30DaysVo2Max:', last30DaysVo2Max);
       
-      console.log('VO2 Max Debug - vo2Values:', vo2Values);
+      // Iterar pelos dados ordenados por data (mais recente primeiro) e pegar o primeiro valor não-nulo
+      for (const vo2Record of last30DaysVo2Max) {
+        const vo2Value = vo2Record.vo2_max_running || vo2Record.vo2_max_cycling;
+        if (vo2Value != null) {
+          currentVo2 = vo2Value;
+          console.log('VO2 Max Debug - Found non-null currentVo2 from Garmin:', currentVo2, 'from date:', vo2Record.calendar_date);
+          break;
+        }
+      }
       
-      // Usar o valor mais recente em vez de média
-      currentVo2 = vo2Values.length > 0 ? vo2Values[0] : null;
-      console.log('VO2 Max Debug - currentVo2 from Garmin:', currentVo2);
+      console.log('VO2 Max Debug - Final currentVo2 from Garmin:', currentVo2);
     }
 
     // 2. Fallback para atividades se não houver dados de garmin_vo2max
