@@ -7,6 +7,7 @@ interface DashboardMetrics {
     current: number | null;
     change: number;
     trend: 'up' | 'down';
+    source?: string;
   };
   heartRate: {
     average: number;
@@ -112,7 +113,7 @@ export function useDashboardMetrics() {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      const [garminRes, polarRes, stravaRes, gpxRes] = await Promise.all([
+      const [garminRes, polarRes, stravaRes, gpxRes, garminVo2MaxRes] = await Promise.all([
         supabase
           .from('garmin_activities')
           .select('*')
@@ -136,7 +137,8 @@ export function useDashboardMetrics() {
           .select('*')
           .eq('user_id', user.id)
           .gte('start_time', sixtyDaysAgo.toISOString())
-          .order('start_time', { ascending: false })
+          .order('start_time', { ascending: false }),
+        fetchGarminVo2Max(user.id, sinceDateStr)
       ]);
 
       if (garminRes.error) throw garminRes.error;
@@ -148,6 +150,7 @@ export function useDashboardMetrics() {
       const polarActivitiesRaw = polarRes.data ?? [];
       const stravaActivitiesRaw = stravaRes.data ?? [];
       const gpxActivitiesRaw = gpxRes.data ?? [];
+      const garminVo2MaxData = garminVo2MaxRes || [];
 
       const normalizedPolar = polarActivitiesRaw.map(normalizePolarActivity);
       const normalizedStrava = stravaActivitiesRaw.map(normalizeStravaActivity);
@@ -170,7 +173,7 @@ export function useDashboardMetrics() {
       }
 
       // Calcular métricas principais
-      const calculatedMetrics = calculateMetrics(activities);
+      const calculatedMetrics = calculateMetrics(activities, garminVo2MaxData);
       setMetrics(calculatedMetrics);
 
       // Calcular distribuição de atividades
@@ -345,7 +348,40 @@ export function useDashboardMetrics() {
     }
   };
 
-  const calculateMetrics = (activities: any[]): DashboardMetrics => {
+  const fetchGarminVo2Max = async (userId: string, sinceDateStr: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('garmin_vo2max')
+        .select('*')
+        .gte('calendar_date', sinceDateStr)
+        .order('calendar_date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching garmin_vo2max:', error);
+        return [];
+      }
+
+      // Filtrar para este usuário usando garmin_user_id
+      const userGarminTokens = await supabase
+        .from('garmin_tokens')
+        .select('garmin_user_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (userGarminTokens.error || !userGarminTokens.data?.length) {
+        return [];
+      }
+
+      const garminUserIds = userGarminTokens.data.map(t => t.garmin_user_id).filter(Boolean);
+      
+      return data?.filter(vo2 => garminUserIds.includes(vo2.garmin_user_id)) || [];
+    } catch (error) {
+      console.error('Error in fetchGarminVo2Max:', error);
+      return [];
+    }
+  };
+
+  const calculateMetrics = (activities: any[], garminVo2MaxData: any[] = []): DashboardMetrics => {
     const last30Days = activities.filter(act => {
       const actDate = new Date(act.activity_date);
       const thirtyDaysAgo = new Date();
@@ -362,16 +398,62 @@ export function useDashboardMetrics() {
       return actDate >= sixtyDaysAgo && actDate < thirtyDaysAgo;
     });
 
-    // VO₂ Max
-    const vo2Activities = last30Days.filter(act => act.vo2_max);
-    const currentVo2 = vo2Activities.length > 0 
-      ? vo2Activities.reduce((sum, act) => sum + act.vo2_max, 0) / vo2Activities.length 
-      : null;
+    // VO₂ Max - Priorizar dados de garmin_vo2max
+    let currentVo2 = null;
+    let prevVo2 = null;
 
-    const prevVo2Activities = previous30Days.filter(act => act.vo2_max);
-    const prevVo2 = prevVo2Activities.length > 0 
-      ? prevVo2Activities.reduce((sum, act) => sum + act.vo2_max, 0) / prevVo2Activities.length 
-      : null;
+    // 1. Tentar usar garmin_vo2max primeiro (últimos 30 dias)
+    const last30DaysVo2Max = garminVo2MaxData.filter(vo2 => {
+      const vo2Date = new Date(vo2.calendar_date);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return vo2Date >= thirtyDaysAgo;
+    });
+
+    if (last30DaysVo2Max.length > 0) {
+      const vo2Values = last30DaysVo2Max
+        .map(vo2 => vo2.vo2_max_running || vo2.vo2_max_cycling)
+        .filter(v => v != null);
+      
+      currentVo2 = vo2Values.length > 0 
+        ? vo2Values.reduce((sum, val) => sum + val, 0) / vo2Values.length 
+        : null;
+    }
+
+    // 2. Fallback para atividades se não houver dados de garmin_vo2max
+    if (!currentVo2) {
+      const vo2Activities = last30Days.filter(act => act.vo2_max);
+      currentVo2 = vo2Activities.length > 0 
+        ? vo2Activities.reduce((sum, act) => sum + act.vo2_max, 0) / vo2Activities.length 
+        : null;
+    }
+
+    // Período anterior (30-60 dias)
+    const prev30DaysVo2Max = garminVo2MaxData.filter(vo2 => {
+      const vo2Date = new Date(vo2.calendar_date);
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return vo2Date >= sixtyDaysAgo && vo2Date < thirtyDaysAgo;
+    });
+
+    if (prev30DaysVo2Max.length > 0) {
+      const vo2Values = prev30DaysVo2Max
+        .map(vo2 => vo2.vo2_max_running || vo2.vo2_max_cycling)
+        .filter(v => v != null);
+      
+      prevVo2 = vo2Values.length > 0 
+        ? vo2Values.reduce((sum, val) => sum + val, 0) / vo2Values.length 
+        : null;
+    }
+
+    if (!prevVo2) {
+      const prevVo2Activities = previous30Days.filter(act => act.vo2_max);
+      prevVo2 = prevVo2Activities.length > 0 
+        ? prevVo2Activities.reduce((sum, act) => sum + act.vo2_max, 0) / prevVo2Activities.length 
+        : null;
+    }
 
     const vo2Change = (currentVo2 && prevVo2) ? ((currentVo2 - prevVo2) / prevVo2) * 100 : 0;
 
@@ -402,11 +484,20 @@ export function useDashboardMetrics() {
     const avgIntensity = hrZonePercentage;
     const recoveryLevel = Math.max(0, Math.min(100, 100 - (weeklyVolume * 5) - (avgIntensity - 70)));
 
+    // Determinar fonte do VO2 Max
+    let vo2Source = 'Estimado';
+    if (last30DaysVo2Max.length > 0) {
+      vo2Source = 'Garmin (Oficial)';
+    } else if (last30Days.some(act => act.vo2_max)) {
+      vo2Source = 'Calculado';
+    }
+
     return {
       vo2Max: {
         current: currentVo2,
         change: Math.round(vo2Change),
-        trend: vo2Change >= 0 ? 'up' : 'down'
+        trend: vo2Change >= 0 ? 'up' : 'down',
+        source: vo2Source
       },
       heartRate: {
         average: Math.round(avgHR),

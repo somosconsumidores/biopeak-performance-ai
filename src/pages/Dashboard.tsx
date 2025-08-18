@@ -119,7 +119,8 @@ export const Dashboard = () => {
       unit: 'ml/kg/min',
       change: metrics.vo2Max.current ? `${metrics.vo2Max.change > 0 ? '+' : ''}${metrics.vo2Max.change}%` : 'N/A',
       trend: metrics.vo2Max.trend,
-      color: metrics.vo2Max.trend === 'up' ? 'text-green-400' : 'text-blue-400'
+      color: metrics.vo2Max.trend === 'up' ? 'text-green-400' : 'text-blue-400',
+      source: metrics.vo2Max.source
     },
     {
       title: 'Frequência Cardíaca',
@@ -332,6 +333,11 @@ export const Dashboard = () => {
                     <div className="space-y-1">
                       <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{metric.value}</div>
                       <div className="text-xs text-muted-foreground">{metric.unit}</div>
+                      {metric.source && (
+                        <div className="text-xs text-muted-foreground opacity-75">
+                          Fonte: {metric.source}
+                        </div>
+                      )}
                       <div className={`text-xs sm:text-sm font-medium ${metric.color}`}>
                         {metric.change} este mês
                       </div>
