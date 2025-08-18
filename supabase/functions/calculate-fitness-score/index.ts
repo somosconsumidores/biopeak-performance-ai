@@ -62,19 +62,20 @@ serve(async (req) => {
         activity_type: a.activity_type || 'unknown',
         source: 'garmin'
       })));
+      console.log(`📈 Garmin activities considered: ${garminActivities.length}`);
     }
 
     // Strava Activities
     const { data: stravaActivities } = await supabase
       .from('strava_activities')
-      .select('activity_date, moving_time, distance, average_heartrate, max_heartrate, total_elevation_gain, type')
+      .select('start_date, moving_time, distance, average_heartrate, max_heartrate, total_elevation_gain, type')
       .eq('user_id', user_id)
-      .gte('activity_date', startDateStr)
-      .lte('activity_date', dateStr);
+      .gte('start_date', startDateStr)
+      .lte('start_date', dateStr);
 
     if (stravaActivities) {
       activities.push(...stravaActivities.map(a => ({
-        date: a.activity_date,
+        date: (a.start_date ? a.start_date.split('T')[0] : dateStr),
         duration_seconds: a.moving_time || 0,
         distance_meters: a.distance,
         avg_hr: a.average_heartrate,
@@ -84,6 +85,7 @@ serve(async (req) => {
         activity_type: a.type || 'unknown',
         source: 'strava'
       })));
+      console.log(`📈 Strava activities considered: ${stravaActivities.length}`);
     }
 
     // Polar Activities
@@ -117,6 +119,7 @@ serve(async (req) => {
           source: 'polar'
         };
       }));
+      console.log(`📈 Polar activities considered: ${polarActivities.length}`);
     }
 
     console.log(`📊 Found ${activities.length} activities for calculation`);

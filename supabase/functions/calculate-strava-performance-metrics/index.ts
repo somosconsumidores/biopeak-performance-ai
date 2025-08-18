@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         activity_id: activity.id,
         activity_source: 'strava',
         calculated_at: new Date().toISOString()
-      })
+      }, { onConflict: 'user_id,activity_id' })
 
     if (saveError) {
       console.error('❌ Error saving Strava performance metrics:', saveError)
