@@ -1,3 +1,4 @@
+
 /**
  * Supabase Edge Function: garmin-user-metrics
  * Public webhook for Garmin Health API userMetrics push notifications.
@@ -22,12 +23,27 @@ type UserMetricItem = {
   calendarDate: string;
   vo2MaxRunning?: number | null;
   vo2MaxCycling?: number | null;
+  vo2Max?: number | null; // Novo: alguns webhooks usam vo2Max genérico
   fitnessAge?: number | null;
+  // Permitir campos desconhecidos como VO2MAX (maiúsculo) ou strings numéricas
+  [key: string]: unknown;
 };
 
 type IncomingPayload = {
   userMetrics?: UserMetricItem[];
 };
+
+// Helper: normaliza número (aceita number ou string numérica)
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
@@ -90,12 +106,26 @@ Deno.serve(async (req: Request) => {
         userIdCache.set(item.userId, resolvedUserId);
       }
 
+      // Normalização de VO2: prioriza específicos; se ausentes, usa genérico (vo2Max/VO2MAX)
+      const genericVo2Raw = (item as any).vo2Max ?? (item as any).VO2MAX ?? null;
+      const genericVo2 = toNumberOrNull(genericVo2Raw);
+      const vo2Run = toNumberOrNull(item.vo2MaxRunning) ?? genericVo2;
+      const vo2Cycling = toNumberOrNull(item.vo2MaxCycling);
+
+      if (!toNumberOrNull(item.vo2MaxRunning) && !toNumberOrNull(item.vo2MaxCycling) && genericVo2 !== null) {
+        console.log('[garmin-user-metrics] Using generic VO2 value for running:', {
+          garmin_user_id: item.userId,
+          calendar_date: item.calendarDate,
+          genericVo2,
+        });
+      }
+
       rows.push({
         garmin_user_id: item.userId,
         calendar_date: item.calendarDate, // YYYY-MM-DD
-        vo2_max_running: item.vo2MaxRunning ?? null,
-        vo2_max_cycling: item.vo2MaxCycling ?? null,
-        fitness_age: item.fitnessAge ?? null,
+        vo2_max_running: vo2Run ?? null,
+        vo2_max_cycling: vo2Cycling ?? null,
+        fitness_age: toNumberOrNull(item.fitnessAge) ?? null,
       });
 
       logs.push({
