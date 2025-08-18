@@ -327,7 +327,7 @@ export const Dashboard = () => {
                 const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
                 return (
                   <Card key={index} className="glass-card border-glass-border">
-                    <CardContent className="p-3 sm:p-4 md:p-6">
+                    <CardContent className="py-3 px-2 sm:py-4 sm:px-3 md:py-6 md:px-4">
                        <div className="flex items-center justify-between mb-2">
                          <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
                          <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${
