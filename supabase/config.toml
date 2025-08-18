@@ -138,3 +138,6 @@ verify_jwt = false
 
 [functions.scheduled-strava-token-renewal]
 verify_jwt = false
+
+[functions.calculate-fitness-score]
+verify_jwt = true

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useFitnessScore } from '@/hooks/useFitnessScore';
 
 interface DashboardMetrics {
   vo2Max: {
@@ -23,6 +24,17 @@ interface DashboardMetrics {
     level: number;
     change: number;
     trend: 'up' | 'down';
+  };
+  bioPeakFitness: {
+    score: number | null;
+    change: number;
+    trend: 'up' | 'down';
+    label: string;
+    components?: {
+      capacity: number;
+      consistency: number;
+      recovery: number;
+    };
   };
 }
 
@@ -535,6 +547,13 @@ export function useDashboardMetrics() {
         level: Math.round(recoveryLevel),
         change: Math.round(Math.random() * 10), // Simplificado
         trend: 'up'
+      },
+      bioPeakFitness: {
+        score: null,
+        change: 0,
+        trend: 'up',
+        label: 'N/A',
+        components: undefined,
       }
     };
   };

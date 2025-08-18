@@ -31,7 +31,8 @@ import {
   ShieldAlert,
   Info,
   Moon,
-  Brain
+  Brain,
+  Sparkles
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -114,13 +115,24 @@ export const Dashboard = () => {
 
   const formattedMetrics = metrics ? [
     {
+      title: 'BioPeak Fitness',
+      value: metrics.bioPeakFitness.score ? metrics.bioPeakFitness.score.toFixed(0) : 'N/A',
+      unit: 'score proprietário',
+      change: metrics.bioPeakFitness.score ? `${metrics.bioPeakFitness.change > 0 ? '+' : ''}${metrics.bioPeakFitness.change}` : 'N/A',
+      trend: metrics.bioPeakFitness.trend,
+      color: metrics.bioPeakFitness.trend === 'up' ? 'text-green-400' : metrics.bioPeakFitness.trend === 'down' ? 'text-red-400' : 'text-blue-400',
+      label: metrics.bioPeakFitness.label,
+      icon: Sparkles
+    },
+    {
       title: 'VO₂ Max',
       value: metrics.vo2Max.current ? metrics.vo2Max.current.toFixed(1) : 'N/A',
       unit: 'ml/kg/min',
       change: metrics.vo2Max.current ? `${metrics.vo2Max.change > 0 ? '+' : ''}${metrics.vo2Max.change}%` : 'N/A',
       trend: metrics.vo2Max.trend,
       color: metrics.vo2Max.trend === 'up' ? 'text-green-400' : 'text-blue-400',
-      source: metrics.vo2Max.source
+      source: metrics.vo2Max.source,
+      icon: Zap
     },
     {
       title: 'Frequência Cardíaca',
@@ -128,15 +140,8 @@ export const Dashboard = () => {
       unit: 'bpm médio',
       change: `${metrics.heartRate.trend === 'down' ? '-' : '+'}${metrics.heartRate.change}%`,
       trend: metrics.heartRate.trend,
-      color: metrics.heartRate.trend === 'down' ? 'text-green-400' : 'text-blue-400'
-    },
-    {
-      title: 'Zona de Treino',
-      value: metrics.trainingZone.currentZone,
-      unit: 'zona ótima',
-      change: `${metrics.trainingZone.percentage}%`,
-      trend: metrics.trainingZone.trend,
-      color: 'text-purple-400'
+      color: metrics.heartRate.trend === 'down' ? 'text-green-400' : 'text-blue-400',
+      icon: Heart
     },
     {
       title: 'Recuperação',
@@ -144,7 +149,8 @@ export const Dashboard = () => {
       unit: 'nível atual',
       change: `+${metrics.recovery.change}%`,
       trend: metrics.recovery.trend,
-      color: 'text-green-400'
+      color: 'text-green-400',
+      icon: Award
     }
   ] : [];
 
@@ -319,32 +325,41 @@ export const Dashboard = () => {
           {/* Main Metrics */}
           <ScrollReveal delay={200}>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 md:mb-8">
-              {formattedMetrics.map((metric, index) => (
-                <Card key={index} className="glass-card border-glass-border">
-                  <CardContent className="p-3 sm:p-4 md:p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
-                      {metric.trend === 'up' ? (
-                        <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-400 flex-shrink-0" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{metric.value}</div>
-                      <div className="text-xs text-muted-foreground">{metric.unit}</div>
-                      {metric.source && (
-                        <div className="text-xs text-muted-foreground opacity-75">
-                          Fonte: {metric.source}
-                        </div>
-                      )}
-                      <div className={`text-xs sm:text-sm font-medium ${metric.color}`}>
-                        {metric.change} este mês
+              {formattedMetrics.map((metric, index) => {
+                const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
+                return (
+                  <Card key={index} className="glass-card border-glass-border">
+                    <CardContent className="p-3 sm:p-4 md:p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
+                        <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${
+                          index === 0 ? 'text-primary' : // BioPeak Fitness gets primary color
+                          metric.trend === 'up' ? 'text-green-400' : 'text-blue-400'
+                        }`} />
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="space-y-1">
+                        <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
+                          {metric.value}
+                          {metric.label && index === 0 && (
+                            <span className={`ml-2 text-xs px-2 py-1 rounded-full bg-primary/20 text-primary font-medium`}>
+                              {metric.label}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{metric.unit}</div>
+                        {metric.source && (
+                          <div className="text-xs text-muted-foreground opacity-75">
+                            Fonte: {metric.source}
+                          </div>
+                        )}
+                        <div className={`text-xs sm:text-sm font-medium ${metric.color}`}>
+                          {metric.change} este mês
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </ScrollReveal>
 

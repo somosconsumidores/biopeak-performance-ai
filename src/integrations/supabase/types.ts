@@ -172,6 +172,51 @@ export type Database = {
         }
         Relationships: []
       }
+      fitness_scores_daily: {
+        Row: {
+          atl_7day: number
+          calendar_date: string
+          capacity_score: number
+          consistency_score: number
+          created_at: string
+          ctl_42day: number
+          daily_strain: number
+          fitness_score: number
+          id: string
+          recovery_balance_score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          atl_7day: number
+          calendar_date: string
+          capacity_score: number
+          consistency_score: number
+          created_at?: string
+          ctl_42day: number
+          daily_strain: number
+          fitness_score: number
+          id?: string
+          recovery_balance_score: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          atl_7day?: number
+          calendar_date?: string
+          capacity_score?: number
+          consistency_score?: number
+          created_at?: string
+          ctl_42day?: number
+          daily_strain?: number
+          fitness_score?: number
+          id?: string
+          recovery_balance_score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       garmin_activities: {
         Row: {
           active_kilocalories: number | null
