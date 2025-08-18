@@ -64,12 +64,17 @@ export function useGarminVo2Max(): GarminVo2MaxData {
       const garminUserId = tokens[0].garmin_user_id;
 
       // Buscar os últimos registros de VO2Max do Garmin
+      console.log('🔍 VO2MAX DEBUG: Buscando dados para garmin_user_id:', garminUserId);
+      
       const { data: vo2MaxRecords, error: vo2Error } = await supabase
         .from('garmin_vo2max')
         .select('vo2_max_running, vo2_max_cycling, calendar_date')
         .eq('garmin_user_id', garminUserId)
         .order('calendar_date', { ascending: false })
         .limit(50); // Aumentar limite para garantir que encontremos valores não-nulos
+      
+      console.log('🔍 VO2MAX DEBUG: Dados retornados:', vo2MaxRecords);
+      console.log('🔍 VO2MAX DEBUG: Erro na consulta:', vo2Error);
 
       if (vo2Error) {
         throw vo2Error;
@@ -95,20 +100,34 @@ export function useGarminVo2Max(): GarminVo2MaxData {
           const runningValue = record.vo2_max_running;
           const cyclingValue = record.vo2_max_cycling;
           
+          console.log('🔍 VO2MAX DEBUG: Verificando registro:', { 
+            runningValue, 
+            cyclingValue, 
+            calendar_date: record.calendar_date,
+            runningType: typeof runningValue,
+            cyclingType: typeof cyclingValue 
+          });
+          
           // Verificar se algum dos valores é válido (não-nulo e não-zero)
           const hasValidRunning = runningValue !== null && runningValue !== undefined && runningValue > 0;
           const hasValidCycling = cyclingValue !== null && cyclingValue !== undefined && Number(cyclingValue) > 0;
           
-          return hasValidRunning || hasValidCycling;
+          const isValid = hasValidRunning || hasValidCycling;
+          console.log('🔍 VO2MAX DEBUG: Registro válido?', isValid);
+          
+          return isValid;
         })
         .map(record => {
           // Priorizar running (que é int4), depois cycling (que é numeric)
           const vo2Value = record.vo2_max_running || Number(record.vo2_max_cycling);
+          console.log('🔍 VO2MAX DEBUG: VO2 final calculado:', vo2Value);
           return {
             ...record,
             vo2Value: Number(vo2Value)
           };
         });
+      
+      console.log('🔍 VO2MAX DEBUG: Registros válidos encontrados:', validRecords.length, validRecords);
 
       if (validRecords.length === 0) {
         setData({
@@ -146,7 +165,7 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         }
       }
 
-      setData({
+      const finalData = {
         currentVo2Max,
         previousVo2Max,
         change: Math.round(change * 10) / 10, // Arredondar para 1 casa decimal
@@ -154,7 +173,11 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         lastRecordDate,
         loading: false,
         error: null
-      });
+      };
+      
+      console.log('🔍 VO2MAX DEBUG: Dados finais sendo retornados:', finalData);
+      
+      setData(finalData);
 
     } catch (error) {
       console.error('Error fetching Garmin VO2Max:', error);

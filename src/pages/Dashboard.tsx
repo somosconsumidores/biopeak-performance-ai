@@ -59,6 +59,15 @@ export const Dashboard = () => {
     error: vo2Error
   } = useGarminVo2Max();
   
+  console.log('🔍 DASHBOARD VO2MAX DEBUG:', { 
+    currentVo2Max, 
+    vo2Change, 
+    vo2Trend, 
+    lastRecordDate, 
+    vo2Loading, 
+    vo2Error 
+  });
+  
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
   
