@@ -116,16 +116,6 @@ export const Dashboard = () => {
 
   const formattedMetrics = metrics ? [
     {
-      title: 'BioPeak Fitness',
-      value: metrics.bioPeakFitness.score ? metrics.bioPeakFitness.score.toFixed(0) : 'N/A',
-      unit: 'score proprietário',
-      change: metrics.bioPeakFitness.score ? `${metrics.bioPeakFitness.change > 0 ? '+' : ''}${metrics.bioPeakFitness.change}` : 'N/A',
-      trend: metrics.bioPeakFitness.trend,
-      color: metrics.bioPeakFitness.trend === 'up' ? 'text-green-400' : metrics.bioPeakFitness.trend === 'down' ? 'text-red-400' : 'text-blue-400',
-      label: metrics.bioPeakFitness.label,
-      icon: Sparkles
-    },
-    {
       title: 'VO₂ Max',
       value: metrics.vo2Max.current ? metrics.vo2Max.current.toFixed(1) : 'N/A',
       unit: 'ml/kg/min',
@@ -338,22 +328,16 @@ export const Dashboard = () => {
                 return (
                   <Card key={index} className="glass-card border-glass-border">
                     <CardContent className="p-3 sm:p-4 md:p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
-                        <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${
-                          index === 0 ? 'text-primary' : // BioPeak Fitness gets primary color
-                          metric.trend === 'up' ? 'text-green-400' : 'text-blue-400'
-                        }`} />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
-                          {metric.value}
-                          {metric.label && index === 0 && (
-                            <span className={`ml-2 text-xs px-2 py-1 rounded-full bg-primary/20 text-primary font-medium`}>
-                              {metric.label}
-                            </span>
-                          )}
-                        </div>
+                       <div className="flex items-center justify-between mb-2">
+                         <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
+                         <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${
+                           metric.trend === 'up' ? 'text-green-400' : 'text-blue-400'
+                         }`} />
+                       </div>
+                       <div className="space-y-1">
+                         <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
+                           {metric.value}
+                         </div>
                         <div className="text-xs text-muted-foreground">{metric.unit}</div>
                         {metric.source && (
                           <div className="text-xs text-muted-foreground opacity-75">
