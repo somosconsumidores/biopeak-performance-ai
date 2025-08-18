@@ -350,6 +350,8 @@ export function useDashboardMetrics() {
 
   const fetchGarminVo2Max = async (userId: string, sinceDateStr: string) => {
     try {
+      console.log('VO2 Max Debug - Starting fetchGarminVo2Max for userId:', userId, 'since:', sinceDateStr);
+      
       // Primeiro, buscar o garmin_user_id do usuário atual
       const { data: tokens, error: tokenError } = await supabase
         .from('garmin_tokens')
@@ -358,11 +360,15 @@ export function useDashboardMetrics() {
         .eq('is_active', true)
         .limit(1);
 
+      console.log('VO2 Max Debug - Tokens query result:', { tokens, tokenError });
+
       if (tokenError || !tokens?.length || !tokens[0].garmin_user_id) {
+        console.log('VO2 Max Debug - No valid tokens found');
         return [];
       }
 
       const garminUserId = tokens[0].garmin_user_id;
+      console.log('VO2 Max Debug - Found garminUserId:', garminUserId);
 
       // Buscar dados de VO2 Max filtrando diretamente pelo garmin_user_id
       const { data, error } = await supabase
@@ -372,11 +378,14 @@ export function useDashboardMetrics() {
         .gte('calendar_date', sinceDateStr)
         .order('calendar_date', { ascending: false });
 
+      console.log('VO2 Max Debug - VO2 Max query result:', { data, error });
+
       if (error) {
         console.error('Error fetching garmin_vo2max:', error);
         return [];
       }
 
+      console.log('VO2 Max Debug - Returning data:', data || []);
       return data || [];
     } catch (error) {
       console.error('Error in fetchGarminVo2Max:', error);
