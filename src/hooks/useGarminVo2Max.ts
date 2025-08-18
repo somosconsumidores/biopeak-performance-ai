@@ -69,38 +69,56 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         .select('vo2_max_running, vo2_max_cycling, calendar_date')
         .eq('garmin_user_id', garminUserId)
         .order('calendar_date', { ascending: false })
-        .limit(20); // Pegar os últimos 20 registros para ter chance de encontrar valores não-nulos
+        .limit(50); // Aumentar limite para garantir que encontremos valores não-nulos
 
       if (vo2Error) {
         throw vo2Error;
       }
 
-      let currentVo2Max = null;
-      let previousVo2Max = null;
-      let lastRecordDate = null;
-
-      // Encontrar o último valor não-nulo (priorizar running, depois cycling)
-      for (const record of vo2MaxRecords || []) {
-        const vo2Value = record.vo2_max_running ?? record.vo2_max_cycling;
-        
-        // Debug: log para verificar os valores
-        console.log('VO2Max Record:', {
-          date: record.calendar_date,
-          running: record.vo2_max_running,
-          cycling: record.vo2_max_cycling,
-          selected: vo2Value
+      if (!vo2MaxRecords || vo2MaxRecords.length === 0) {
+        setData({
+          currentVo2Max: null,
+          previousVo2Max: null,
+          change: 0,
+          trend: 'stable',
+          lastRecordDate: null,
+          loading: false,
+          error: null
         });
-        
-        if (vo2Value !== null && vo2Value !== undefined && currentVo2Max === null) {
-          currentVo2Max = Number(vo2Value);
-          lastRecordDate = new Date(record.calendar_date).toLocaleDateString('pt-BR');
-          console.log('Current VO2Max set to:', currentVo2Max);
-        } else if (vo2Value !== null && vo2Value !== undefined && previousVo2Max === null && currentVo2Max !== null) {
-          previousVo2Max = Number(vo2Value);
-          console.log('Previous VO2Max set to:', previousVo2Max);
-          break; // Temos ambos os valores, podemos parar
-        }
+        return;
       }
+
+      // Filtrar apenas registros com valores não-nulos
+      const validRecords = vo2MaxRecords
+        .filter(record => {
+          const vo2Value = record.vo2_max_running ?? record.vo2_max_cycling;
+          return vo2Value !== null && vo2Value !== undefined && !isNaN(Number(vo2Value));
+        })
+        .map(record => ({
+          ...record,
+          vo2Value: Number(record.vo2_max_running ?? record.vo2_max_cycling)
+        }));
+
+      if (validRecords.length === 0) {
+        setData({
+          currentVo2Max: null,
+          previousVo2Max: null,
+          change: 0,
+          trend: 'stable',
+          lastRecordDate: null,
+          loading: false,
+          error: null
+        });
+        return;
+      }
+
+      // Pegar o primeiro (mais recente) valor válido como atual
+      const currentRecord = validRecords[0];
+      const currentVo2Max = currentRecord.vo2Value;
+      const lastRecordDate = new Date(currentRecord.calendar_date).toLocaleDateString('pt-BR');
+
+      // Pegar o segundo valor válido como anterior (se existir)
+      const previousVo2Max = validRecords.length > 1 ? validRecords[1].vo2Value : null;
 
       // Calcular mudança e tendência
       let change = 0;
