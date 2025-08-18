@@ -3212,6 +3212,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      reprocess_all_user_metrics_vo2max: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          inserted_rows: number
+          processed_logs: number
+          updated_rows: number
+        }[]
+      }
       smart_cleanup_expired_oauth_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
