@@ -110,32 +110,7 @@ serve(async (req) => {
       const dates = stravaActivities.map(a => a.start_date).filter(Boolean).sort();
       if (dates.length) console.log(`📅 Strava date range: ${dates[0]} -> ${dates[dates.length - 1]}`);
     } else {
-      // Fallback: some datasets store start_date_local instead of start_date
-      const { data: stravaLocal, error: stravaLocalError } = await supabase
-        .from('strava_activities')
-        .select('start_date_local, moving_time, distance, average_heartrate, max_heartrate, total_elevation_gain, type')
-        .eq('user_id', user_id)
-        .gte('start_date_local', startISO)
-        .lte('start_date_local', endISO);
-      if (stravaLocalError) {
-        console.error('❌ Strava fallback (start_date_local) error:', stravaLocalError.message);
-      }
-      if (stravaLocal && stravaLocal.length > 0) {
-        activities.push(...stravaLocal.map(a => ({
-          date: (a.start_date_local ? a.start_date_local.split('T')[0] : dateStr),
-          duration_seconds: a.moving_time || 0,
-          distance_meters: a.distance,
-          avg_hr: a.average_heartrate,
-          max_hr: a.max_heartrate,
-          avg_pace_min_km: a.distance && a.moving_time ? (a.moving_time / 60) / (a.distance / 1000) : undefined,
-          elevation_gain: a.total_elevation_gain,
-          activity_type: a.type || 'unknown',
-          source: 'strava'
-        })));
-        stravaCount += stravaLocal.length;
-        const datesLocal = stravaLocal.map(a => a.start_date_local).filter(Boolean).sort();
-        if (datesLocal.length) console.log(`📅 Strava (local) date range: ${datesLocal[0]} -> ${datesLocal[datesLocal.length - 1]}`);
-      }
+      console.log(`ℹ️ Strava activities considered: 0 within bounds ${startISO} -> ${endISO}`);
     }
     console.log(`📈 Strava activities considered: ${stravaCount}`);
 
