@@ -350,9 +350,25 @@ export function useDashboardMetrics() {
 
   const fetchGarminVo2Max = async (userId: string, sinceDateStr: string) => {
     try {
+      // Primeiro, buscar o garmin_user_id do usuário atual
+      const { data: tokens, error: tokenError } = await supabase
+        .from('garmin_tokens')
+        .select('garmin_user_id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (tokenError || !tokens?.length || !tokens[0].garmin_user_id) {
+        return [];
+      }
+
+      const garminUserId = tokens[0].garmin_user_id;
+
+      // Buscar dados de VO2 Max filtrando diretamente pelo garmin_user_id
       const { data, error } = await supabase
         .from('garmin_vo2max')
         .select('*')
+        .eq('garmin_user_id', garminUserId)
         .gte('calendar_date', sinceDateStr)
         .order('calendar_date', { ascending: false });
 
@@ -361,20 +377,7 @@ export function useDashboardMetrics() {
         return [];
       }
 
-      // Filtrar para este usuário usando garmin_user_id
-      const userGarminTokens = await supabase
-        .from('garmin_tokens')
-        .select('garmin_user_id')
-        .eq('user_id', userId)
-        .eq('is_active', true);
-
-      if (userGarminTokens.error || !userGarminTokens.data?.length) {
-        return [];
-      }
-
-      const garminUserIds = userGarminTokens.data.map(t => t.garmin_user_id).filter(Boolean);
-      
-      return data?.filter(vo2 => garminUserIds.includes(vo2.garmin_user_id)) || [];
+      return data || [];
     } catch (error) {
       console.error('Error in fetchGarminVo2Max:', error);
       return [];
