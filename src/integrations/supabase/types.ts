@@ -1965,6 +1965,7 @@ export type Database = {
           type: string
           updated_at: string
           user_id: string
+          vo2_max: number | null
         }
         Insert: {
           average_heartrate?: number | null
@@ -1984,6 +1985,7 @@ export type Database = {
           type: string
           updated_at?: string
           user_id: string
+          vo2_max?: number | null
         }
         Update: {
           average_heartrate?: number | null
@@ -2003,6 +2005,7 @@ export type Database = {
           type?: string
           updated_at?: string
           user_id?: string
+          vo2_max?: number | null
         }
         Relationships: []
       }
