@@ -89,15 +89,26 @@ export function useGarminVo2Max(): GarminVo2MaxData {
       }
 
       // Filtrar apenas registros com valores não-nulos
+      // vo2_max_running é int4 no banco, então pode vir como number ou string
       const validRecords = vo2MaxRecords
         .filter(record => {
-          const vo2Value = record.vo2_max_running ?? record.vo2_max_cycling;
-          return vo2Value !== null && vo2Value !== undefined && !isNaN(Number(vo2Value));
+          const runningValue = record.vo2_max_running;
+          const cyclingValue = record.vo2_max_cycling;
+          
+          // Verificar se algum dos valores é válido (não-nulo e não-zero)
+          const hasValidRunning = runningValue !== null && runningValue !== undefined && runningValue > 0;
+          const hasValidCycling = cyclingValue !== null && cyclingValue !== undefined && Number(cyclingValue) > 0;
+          
+          return hasValidRunning || hasValidCycling;
         })
-        .map(record => ({
-          ...record,
-          vo2Value: Number(record.vo2_max_running ?? record.vo2_max_cycling)
-        }));
+        .map(record => {
+          // Priorizar running (que é int4), depois cycling (que é numeric)
+          const vo2Value = record.vo2_max_running || Number(record.vo2_max_cycling);
+          return {
+            ...record,
+            vo2Value: Number(vo2Value)
+          };
+        });
 
       if (validRecords.length === 0) {
         setData({
