@@ -69,7 +69,7 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         .select('vo2_max_running, vo2_max_cycling, calendar_date')
         .eq('garmin_user_id', garminUserId)
         .order('calendar_date', { ascending: false })
-        .limit(10); // Pegar os últimos 10 registros para ter chance de encontrar valores não-nulos
+        .limit(20); // Pegar os últimos 20 registros para ter chance de encontrar valores não-nulos
 
       if (vo2Error) {
         throw vo2Error;
@@ -81,12 +81,12 @@ export function useGarminVo2Max(): GarminVo2MaxData {
 
       // Encontrar o último valor não-nulo (priorizar running, depois cycling)
       for (const record of vo2MaxRecords || []) {
-        const vo2Value = record.vo2_max_running || record.vo2_max_cycling;
-        if (vo2Value != null && currentVo2Max === null) {
-          currentVo2Max = vo2Value;
+        const vo2Value = record.vo2_max_running ?? record.vo2_max_cycling;
+        if (vo2Value !== null && vo2Value !== undefined && currentVo2Max === null) {
+          currentVo2Max = Number(vo2Value);
           lastRecordDate = new Date(record.calendar_date).toLocaleDateString('pt-BR');
-        } else if (vo2Value != null && previousVo2Max === null && currentVo2Max !== null) {
-          previousVo2Max = vo2Value;
+        } else if (vo2Value !== null && vo2Value !== undefined && previousVo2Max === null && currentVo2Max !== null) {
+          previousVo2Max = Number(vo2Value);
           break; // Temos ambos os valores, podemos parar
         }
       }
