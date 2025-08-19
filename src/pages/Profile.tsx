@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { AchievementSection } from '@/components/AchievementSection';
 import { 
   Settings, 
   Target,
@@ -392,41 +393,11 @@ export const Profile = () => {
               </Card>
             </ScrollReveal>
 
-            <ScrollReveal delay={300}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Award className="h-5 w-5 text-primary" />
-                    <span>Conquistas</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {achievements.map((achievement, index) => (
-                      <div key={index} className="flex items-center space-x-4 p-4 glass-card rounded-lg">
-                        <div className={`p-2 rounded-full ${achievement.completed ? 'bg-green-500/20' : 'bg-muted/20'}`}>
-                          <achievement.icon className={`h-5 w-5 ${achievement.completed ? achievement.color : 'text-muted-foreground'}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium">{achievement.title}</div>
-                          <div className="text-sm text-muted-foreground">{achievement.description}</div>
-                          {!achievement.completed && achievement.progress !== undefined && (
-                            <div className="mt-2">
-                              <Progress value={achievement.progress} className="h-1" />
-                              <div className="text-xs text-muted-foreground mt-1">{Math.round(achievement.progress)}% completo</div>
-                            </div>
-                          )}
-                        </div>
-                        {achievement.completed && (
-                          <Badge variant="default">Completo</Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          </div>
+          {/* Conquistas */}
+          <ScrollReveal delay={240}>
+            <AchievementSection showHeader={true} />
+          </ScrollReveal>
+        </div>
 
           {/* Activity Summary */}
           <ScrollReveal delay={400}>

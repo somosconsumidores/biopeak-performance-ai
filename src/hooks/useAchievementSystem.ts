@@ -133,12 +133,9 @@ export const useAchievementSystem = () => {
 
       if (data?.new_achievements && data.new_achievements.length > 0) {
         // Mostrar notificações para novas conquistas
+        const { showAchievementToast } = await import('@/components/AchievementToast');
         data.new_achievements.forEach((achievement: AchievementWithProgress) => {
-          toast.success('Nova Conquista Desbloqueada!', {
-            description: achievement.title,
-            duration: 5000,
-            className: 'bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border-yellow-400/20'
-          });
+          showAchievementToast(achievement);
         });
 
         // Recarregar conquistas
