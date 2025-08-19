@@ -31,127 +31,189 @@ serve(async (req) => {
       });
     }
 
-    // Get user activities from last 60 days - from all sources
+    // Unified activities from last 60 days (prefer all_activities)
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
     
-    // Fetch from all activity sources
-    const [garminResult, stravaResult, stravaGpxResult, polarResult, zeppResult] = await Promise.all([
-      // Garmin activities
-      supabase
-        .from('garmin_activities')
-        .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate_in_beats_per_minute, vo2_max, activity_type')
-        .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0]),
-      
-      // Strava activities
-      supabase
-        .from('strava_activities')
-        .select('start_date, moving_time, distance, average_heartrate, type')
-        .eq('user_id', user.id)
-        .gte('start_date', sixtyDaysAgo.toISOString().split('T')[0]),
-      
-      // Strava GPX activities
-      supabase
-        .from('strava_gpx_activities')
-        .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
-        .eq('user_id', user.id)
-        .gte('activity_date', sixtyDaysAgo.toISOString().split('T')[0]),
-      
-      // Polar activities
-      supabase
-        .from('polar_activities')
-        .select('start_time, duration, distance, average_heart_rate_bpm, activity_type')
-        .eq('user_id', user.id)
-        .gte('start_time', sixtyDaysAgo.toISOString().split('T')[0]),
-      
-      // Zepp GPX activities
-      supabase
-        .from('zepp_gpx_activities')
-        .select('start_time, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
-        .eq('user_id', user.id)
-        .gte('start_time', sixtyDaysAgo.toISOString().split('T')[0])
-    ]);
+    let activities: any[] = [];
+    
+    // Try unified all_activities first
+    const { data: unifiedData, error: unifiedError } = await supabase
+      .from('all_activities')
+      .select('activity_date, total_time_minutes, total_distance_meters, average_heart_rate, activity_type, activity_source')
+      .eq('user_id', user.id)
+      .gte('activity_date', sinceDateStr)
+      .order('activity_date', { ascending: false });
 
-    // Combine all activities into unified format
-    const activities = [];
-    
-    // Add Garmin activities
-    if (garminResult.data) {
-      activities.push(...garminResult.data.map(a => ({
+    if (!unifiedError && unifiedData && unifiedData.length > 0) {
+      console.log(`Using unified all_activities path with ${unifiedData.length} rows`);
+      activities = unifiedData.map((a: any) => ({
         activity_date: a.activity_date,
-        duration_in_seconds: a.duration_in_seconds,
-        distance_in_meters: a.distance_in_meters,
-        average_heart_rate_in_beats_per_minute: a.average_heart_rate_in_beats_per_minute,
-        vo2_max: a.vo2_max,
-        activity_type: a.activity_type,
-        source: 'Garmin'
-      })));
-    }
-    
-    // Add Strava activities (convert units)
-    if (stravaResult.data) {
-      activities.push(...stravaResult.data.map(a => ({
-        activity_date: a.start_date ? new Date(a.start_date).toISOString().split('T')[0] : null,
-        duration_in_seconds: a.moving_time || 0,
-        distance_in_meters: a.distance || 0,
-        average_heart_rate_in_beats_per_minute: a.average_heartrate || 0,
-        vo2_max: null,
-        activity_type: a.type || 'unknown',
-        source: 'Strava'
-      })));
-    }
-    
-    // Add Strava GPX activities
-    if (stravaGpxResult.data) {
-      activities.push(...stravaGpxResult.data.map(a => ({
-        activity_date: a.activity_date,
-        duration_in_seconds: a.duration_in_seconds,
-        distance_in_meters: a.distance_in_meters,
-        average_heart_rate_in_beats_per_minute: a.average_heart_rate,
-        vo2_max: null,
-        activity_type: a.activity_type,
-        source: 'Strava GPX'
-      })));
-    }
-    
-    // Add Polar activities
-    if (polarResult.data) {
-      activities.push(...polarResult.data.map(a => ({
-        activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
-        duration_in_seconds: a.duration ? parseInt(a.duration.replace(/\D/g, '')) * 60 : 0, // Convert duration string to seconds
-        distance_in_meters: a.distance || 0,
-        average_heart_rate_in_beats_per_minute: a.average_heart_rate_bpm || 0,
-        vo2_max: null,
-        activity_type: a.activity_type || 'unknown',
-        source: 'Polar'
-      })));
-    }
-    
-    // Add Zepp GPX activities
-    if (zeppResult.data) {
-      activities.push(...zeppResult.data.map(a => ({
-        activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
-        duration_in_seconds: a.duration_in_seconds || 0,
-        distance_in_meters: a.distance_in_meters || 0,
+        duration_in_seconds: a.total_time_minutes ? Math.round(a.total_time_minutes * 60) : 0,
+        distance_in_meters: a.total_distance_meters || 0,
         average_heart_rate_in_beats_per_minute: a.average_heart_rate || 0,
         vo2_max: null,
         activity_type: a.activity_type || 'unknown',
-        source: 'Zepp'
-      })));
+        source: a.activity_source || 'all_activities',
+      }));
+    } else {
+      console.log('Fallback to legacy sources', unifiedError);
+      const [garminResult, stravaResult, stravaGpxResult, polarResult, zeppResult] = await Promise.all([
+        // Garmin activities
+        supabase
+          .from('garmin_activities')
+          .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate_in_beats_per_minute, vo2_max, activity_type')
+          .eq('user_id', user.id)
+          .gte('activity_date', sinceDateStr),
+        
+        // Strava activities
+        supabase
+          .from('strava_activities')
+          .select('start_date, moving_time, distance, average_heartrate, type')
+          .eq('user_id', user.id)
+          .gte('start_date', sinceDateStr),
+        
+        // Strava GPX activities
+        supabase
+          .from('strava_gpx_activities')
+          .select('activity_date, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
+          .eq('user_id', user.id)
+          .gte('activity_date', sinceDateStr),
+        
+        // Polar activities
+        supabase
+          .from('polar_activities')
+          .select('start_time, duration, distance, average_heart_rate_bpm, activity_type')
+          .eq('user_id', user.id)
+          .gte('start_time', sinceDateStr),
+        
+        // Zepp GPX activities
+        supabase
+          .from('zepp_gpx_activities')
+          .select('start_time, duration_in_seconds, distance_in_meters, average_heart_rate, activity_type')
+          .eq('user_id', user.id)
+          .gte('start_time', sinceDateStr)
+      ]);
+
+      // Combine all activities into unified format
+      if (garminResult.data) {
+        activities.push(...garminResult.data.map((a: any) => ({
+          activity_date: a.activity_date,
+          duration_in_seconds: a.duration_in_seconds,
+          distance_in_meters: a.distance_in_meters,
+          average_heart_rate_in_beats_per_minute: a.average_heart_rate_in_beats_per_minute,
+          vo2_max: a.vo2_max,
+          activity_type: a.activity_type,
+          source: 'Garmin'
+        })));
+      }
+      
+      if (stravaResult.data) {
+        activities.push(...stravaResult.data.map((a: any) => ({
+          activity_date: a.start_date ? new Date(a.start_date).toISOString().split('T')[0] : null,
+          duration_in_seconds: a.moving_time || 0,
+          distance_in_meters: a.distance || 0,
+          average_heart_rate_in_beats_per_minute: a.average_heartrate || 0,
+          vo2_max: null,
+          activity_type: a.type || 'unknown',
+          source: 'Strava'
+        })));
+      }
+      
+      if (stravaGpxResult.data) {
+        activities.push(...stravaGpxResult.data.map((a: any) => ({
+          activity_date: a.activity_date,
+          duration_in_seconds: a.duration_in_seconds,
+          distance_in_meters: a.distance_in_meters,
+          average_heart_rate_in_beats_per_minute: a.average_heart_rate,
+          vo2_max: null,
+          activity_type: a.activity_type,
+          source: 'Strava GPX'
+        })));
+      }
+      
+      if (polarResult.data) {
+        activities.push(...polarResult.data.map((a: any) => ({
+          activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
+          duration_in_seconds: a.duration ? parseInt(String(a.duration).replace(/\D/g, '')) * 60 : 0, // Convert duration string to seconds
+          distance_in_meters: a.distance || 0,
+          average_heart_rate_in_beats_per_minute: a.average_heart_rate_bpm || 0,
+          vo2_max: null,
+          activity_type: a.activity_type || 'unknown',
+          source: 'Polar'
+        })));
+      }
+      
+      if (zeppResult.data) {
+        activities.push(...zeppResult.data.map((a: any) => ({
+          activity_date: a.start_time ? new Date(a.start_time).toISOString().split('T')[0] : null,
+          duration_in_seconds: a.duration_in_seconds || 0,
+          distance_in_meters: a.distance_in_meters || 0,
+          average_heart_rate_in_beats_per_minute: a.average_heart_rate || 0,
+          vo2_max: null,
+          activity_type: a.activity_type || 'unknown',
+          source: 'Zepp'
+        })));
+      }
+
+      const activitiesError = (garminResult as any).error || (stravaResult as any).error || (stravaGpxResult as any).error || (polarResult as any).error || (zeppResult as any).error;
+      if (activitiesError) {
+        console.error('Error fetching activities:', activitiesError);
+        return new Response(JSON.stringify({ error: 'Failed to fetch activities' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Sort by date (most recent first)
     activities.sort((a, b) => new Date(b.activity_date).getTime() - new Date(a.activity_date).getTime());
 
-    const activitiesError = garminResult.error || stravaResult.error || stravaGpxResult.error || polarResult.error || zeppResult.error;
+    // VO2 Max average from garmin_vo2max (last 60 days)
+    let avgVO2Max: number | null = null;
+    let garminUserId: string | null = null;
 
-    if (activitiesError) {
-      console.error('Error fetching activities:', activitiesError);
-      return new Response(JSON.stringify({ error: 'Failed to fetch activities' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: tokenRow } = await supabase
+      .from('garmin_tokens')
+      .select('garmin_user_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (tokenRow?.garmin_user_id) {
+      garminUserId = tokenRow.garmin_user_id;
+    } else {
+      const { data: mapRow } = await supabase
+        .from('garmin_user_mapping')
+        .select('garmin_user_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (mapRow?.garmin_user_id) {
+        garminUserId = mapRow.garmin_user_id;
+      }
+    }
+
+    if (garminUserId) {
+      const { data: vo2Rows, error: vo2Err } = await supabase
+        .from('garmin_vo2max')
+        .select('vo2_max_running, vo2_max_cycling, calendar_date')
+        .eq('garmin_user_id', garminUserId)
+        .gte('calendar_date', sinceDateStr);
+
+      if (!vo2Err && vo2Rows && vo2Rows.length > 0) {
+        const values = vo2Rows
+          .map((r: any) => (r.vo2_max_running ?? r.vo2_max_cycling))
+          .filter((v: number | null) => v != null) as number[];
+        if (values.length > 0) {
+          avgVO2Max = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+        }
+      }
     }
 
     // Get user profile
@@ -159,14 +221,13 @@ serve(async (req) => {
       .from('profiles')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     // Prepare data summary for AI analysis
     const totalActivities = activities?.length || 0;
-    const avgDistance = activities?.reduce((acc, act) => acc + (act.distance_in_meters || 0), 0) / totalActivities / 1000;
-    const avgDuration = activities?.reduce((acc, act) => acc + (act.duration_in_seconds || 0), 0) / totalActivities / 60;
-    const avgHeartRate = activities?.reduce((acc, act) => acc + (act.average_heart_rate_in_beats_per_minute || 0), 0) / totalActivities;
-    const avgVO2Max = activities?.filter(act => act.vo2_max).reduce((acc, act) => acc + (act.vo2_max || 0), 0) / activities?.filter(act => act.vo2_max).length;
+    const avgDistance = totalActivities ? (activities.reduce((acc, act) => acc + (act.distance_in_meters || 0), 0) / totalActivities / 1000) : 0;
+    const avgDuration = totalActivities ? (activities.reduce((acc, act) => acc + (act.duration_in_seconds || 0), 0) / totalActivities / 60) : 0;
+    const avgHeartRate = totalActivities ? (activities.reduce((acc, act) => acc + (act.average_heart_rate_in_beats_per_minute || 0), 0) / totalActivities) : 0;
     
     const activityTypes = activities?.reduce((acc, act) => {
       acc[act.activity_type || 'unknown'] = (acc[act.activity_type || 'unknown'] || 0) + 1;
@@ -313,8 +374,7 @@ IMPORTANTE:
           { role: 'system', content: 'Você é um especialista em análise de dados esportivos. Retorne apenas JSON válido.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.7,
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
       }),
     });
 
