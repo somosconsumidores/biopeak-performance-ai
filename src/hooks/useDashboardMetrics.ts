@@ -647,8 +647,15 @@ export function useDashboardMetrics() {
       const distance = activity.total_distance_meters ? 
         `${(activity.total_distance_meters / 1000).toFixed(1)}km` : 'N/A';
       
-      const avgPace = activity.pace_min_per_km ? 
-        `${Math.floor(activity.pace_min_per_km)}:${String(Math.round((activity.pace_min_per_km % 1) * 60)).padStart(2, '0')}/km` : 'N/A';
+      // Para natação, mostrar velocidade ou tempo por 100m ao invés de pace
+      const isSwimming = activity.activity_type?.toLowerCase().includes('swim');
+      const avgPace = isSwimming 
+        ? (activity.total_distance_meters && totalTimeMinutes > 0 
+          ? `${((totalTimeMinutes * 60) / (activity.total_distance_meters / 100)).toFixed(1)}s/100m`
+          : duration)
+        : (activity.pace_min_per_km ? 
+          `${Math.floor(activity.pace_min_per_km)}:${String(Math.round((activity.pace_min_per_km % 1) * 60)).padStart(2, '0')}/km` 
+          : 'N/A');
 
       // Simular avaliação de performance baseada no pace
       let performance: 'Excelente' | 'Bom' | 'Regular' = 'Regular';
