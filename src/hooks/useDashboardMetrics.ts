@@ -635,43 +635,72 @@ export function useDashboardMetrics() {
   };
 
   const formatRecentActivities = (activities: any[]): RecentActivity[] => {
-    return activities.map(act => {
-      const duration = act.duration_in_seconds 
-        ? `${Math.floor(act.duration_in_seconds / 3600)}:${String(Math.floor((act.duration_in_seconds % 3600) / 60)).padStart(2, '0')}:${String(act.duration_in_seconds % 60).padStart(2, '0')}`
-        : 'N/A';
+    return activities.slice(0, 5).map(activity => {
+      const date = activity.activity_date ? new Date(activity.activity_date).toLocaleDateString('pt-BR') : 'Data N/A';
+      const type = getActivityTypeLabel(activity.activity_type);
       
-      const distance = act.distance_in_meters 
-        ? `${(act.distance_in_meters / 1000).toFixed(1)} km`
-        : 'N/A';
+      // Mapear corretamente os campos da tabela all_activities
+      const totalTimeMinutes = activity.total_time_minutes || 0;
+      const duration = totalTimeMinutes > 0 ? 
+        `${Math.floor(totalTimeMinutes)}min` : 'N/A';
       
-      const avgPace = act.average_pace_in_minutes_per_kilometer 
-        ? `${Math.floor(act.average_pace_in_minutes_per_kilometer)}:${String(Math.round((act.average_pace_in_minutes_per_kilometer % 1) * 60)).padStart(2, '0')}/km`
-        : act.average_speed_in_meters_per_second 
-        ? `${(act.average_speed_in_meters_per_second * 3.6).toFixed(1)} km/h`
-        : 'N/A';
+      const distance = activity.total_distance_meters ? 
+        `${(activity.total_distance_meters / 1000).toFixed(1)}km` : 'N/A';
+      
+      const avgPace = activity.pace_min_per_km ? 
+        `${Math.floor(activity.pace_min_per_km)}:${String(Math.round((activity.pace_min_per_km % 1) * 60)).padStart(2, '0')}/km` : 'N/A';
 
-      // Determinar performance baseada em VO₂ Max ou HR
+      // Simular avaliação de performance baseada no pace
       let performance: 'Excelente' | 'Bom' | 'Regular' = 'Regular';
-      if (act.vo2_max && act.vo2_max > 45) performance = 'Excelente';
-      else if (act.vo2_max && act.vo2_max > 35) performance = 'Bom';
-      else if (act.average_heart_rate && act.average_heart_rate > 150) performance = 'Bom';
-
-      // Cor baseada no tipo de atividade
-      let color = 'bg-blue-500';
-      if (act.activity_type?.toLowerCase().includes('run')) color = 'bg-green-500';
-      else if (act.activity_type?.toLowerCase().includes('bike') || act.activity_type?.toLowerCase().includes('cycling')) color = 'bg-orange-500';
-      else if (act.activity_type?.toLowerCase().includes('swim')) color = 'bg-cyan-500';
+      if (activity.pace_min_per_km && activity.pace_min_per_km < 5) {
+        performance = 'Excelente';
+      } else if (activity.pace_min_per_km && activity.pace_min_per_km < 6) {
+        performance = 'Bom';
+      }
 
       return {
-        date: new Date(act.activity_date + 'T00:00:00').toLocaleDateString('pt-BR'),
-        type: act.activity_type || 'Atividade',
+        date,
+        type,
         duration,
         distance,
         avgPace,
         performance,
-        color
+        color: getActivityColor(activity.activity_type)
       };
     });
+  };
+
+  // Helper functions para labelização e cores
+  const getActivityTypeLabel = (type: string | null): string => {
+    if (!type) return 'Atividade';
+    const typeMap: { [key: string]: string } = {
+      'RUNNING': 'Corrida',
+      'Run': 'Corrida',
+      'running': 'Corrida',
+      'CYCLING': 'Ciclismo',
+      'Ride': 'Ciclismo', 
+      'cycling': 'Ciclismo',
+      'WALKING': 'Caminhada',
+      'Walk': 'Caminhada',
+      'walking': 'Caminhada',
+      'SWIMMING': 'Natação',
+      'Swim': 'Natação',
+      'swimming': 'Natação',
+      'FITNESS_EQUIPMENT': 'Academia',
+      'Workout': 'Academia'
+    };
+    return typeMap[type] || type;
+  };
+
+  const getActivityColor = (type: string | null): string => {
+    if (!type) return 'bg-gray-500';
+    const typeKey = type.toLowerCase();
+    if (typeKey.includes('run')) return 'bg-green-500';
+    if (typeKey.includes('bike') || typeKey.includes('cycling')) return 'bg-orange-500';
+    if (typeKey.includes('swim')) return 'bg-cyan-500';
+    if (typeKey.includes('walk')) return 'bg-purple-500';
+    if (typeKey.includes('strength') || typeKey.includes('workout')) return 'bg-red-500';
+    return 'bg-blue-500';
   };
 
   const calculatePeakPerformance = (activities: any[]): PeakPerformance => {
