@@ -33,10 +33,11 @@ import {
 } from 'lucide-react';
 
 export const Insights = () => {
-  
   const { insights, loading, error, refreshInsights } = useInsights();
   const { applyRecommendation } = useCommitments();
   const { overtrainingRisk, loading: dashboardLoading } = useDashboardMetrics();
+
+  console.log('🔍 INSIGHTS PAGE DEBUG:', { insights, loading, error });
 
   if (loading) {
     return (

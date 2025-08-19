@@ -59,6 +59,7 @@ export const useInsights = () => {
 
   const fetchInsights = async (force = false) => {
     try {
+      console.log('🔍 INSIGHTS DEBUG: Starting fetchInsights, force:', force);
       setLoading(true);
       setError(null);
 
@@ -79,14 +80,16 @@ export const useInsights = () => {
         return;
       }
 
-      console.log('Fetching fresh insights from AI');
+      console.log('🔍 INSIGHTS DEBUG: Fetching fresh insights from AI');
       const { data, error: functionError } = await supabase.functions.invoke('generate-insights');
 
       if (functionError) {
+        console.error('🔍 INSIGHTS DEBUG: Function error:', functionError);
         throw new Error(functionError.message);
       }
 
       if (!data) {
+        console.error('🔍 INSIGHTS DEBUG: No data received from insights function');
         throw new Error('No data received from insights function');
       }
 
@@ -95,8 +98,9 @@ export const useInsights = () => {
       localStorage.setItem(cacheTimeKey, now.toString());
 
       setInsights(data);
+      console.log('🔍 INSIGHTS DEBUG: Successfully fetched and set insights:', data);
     } catch (err) {
-      console.error('Error fetching insights:', err);
+      console.error('🔍 INSIGHTS DEBUG: Error fetching insights:', err);
       setError(err instanceof Error ? err.message : 'Failed to load insights');
       
       // Try to use cached data on error
