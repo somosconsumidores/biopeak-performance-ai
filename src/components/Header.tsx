@@ -70,11 +70,9 @@ export const Header = () => {
               <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
                 <LanguageSelector />
                 <ThemeToggle />
-                <AchievementBadge 
-                  achievements={[]} 
-                  unreadCount={0} 
-                  onClick={() => {}} 
-                />
+                  <AchievementBadge 
+                    onClick={() => {}} 
+                  />
                 <Button variant="outline" className="glass-card border-glass-border text-sm" asChild>
                   <Link to="/sync">{t('syncActivities')}</Link>
                 </Button>

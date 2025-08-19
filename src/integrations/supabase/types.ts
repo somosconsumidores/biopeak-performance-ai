@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievement_definitions: {
+        Row: {
+          achievement_key: string
+          category: string
+          color: string
+          created_at: string
+          description: string
+          difficulty: string
+          icon: string
+          id: string
+          is_active: boolean
+          points: number
+          requirement_metadata: Json | null
+          requirement_type: string
+          requirement_value: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          achievement_key: string
+          category?: string
+          color?: string
+          created_at?: string
+          description: string
+          difficulty?: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          points?: number
+          requirement_metadata?: Json | null
+          requirement_type: string
+          requirement_value?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          achievement_key?: string
+          category?: string
+          color?: string
+          created_at?: string
+          description?: string
+          difficulty?: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          points?: number
+          requirement_metadata?: Json | null
+          requirement_type?: string
+          requirement_value?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      achievement_progress: {
+        Row: {
+          achievement_key: string
+          created_at: string
+          current_value: number
+          id: string
+          last_updated: string
+          metadata: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_key: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          last_updated?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_key?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          last_updated?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       activity_best_segments: {
         Row: {
           activity_date: string | null
@@ -2636,6 +2723,42 @@ export type Database = {
           login_at?: string
           session_id?: string | null
           user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_key: string
+          created_at: string
+          id: string
+          is_seen: boolean
+          progress_value: number | null
+          seen_at: string | null
+          unlocked_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_key: string
+          created_at?: string
+          id?: string
+          is_seen?: boolean
+          progress_value?: number | null
+          seen_at?: string | null
+          unlocked_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_key?: string
+          created_at?: string
+          id?: string
+          is_seen?: boolean
+          progress_value?: number | null
+          seen_at?: string | null
+          unlocked_at?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
