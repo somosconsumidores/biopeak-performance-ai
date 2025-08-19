@@ -121,59 +121,25 @@ export function useDashboardMetrics() {
       setLoading(true);
       setError(null);
 
-      // Buscar atividades dos últimos 60 dias das fontes Garmin e Polar
+      // Usar a tabela unificada all_activities para máxima performance
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      const [garminRes, polarRes, stravaRes, gpxRes, garminVo2MaxRes] = await Promise.all([
+      const [allActivitiesRes, garminVo2MaxRes] = await Promise.all([
         supabase
-          .from('garmin_activities')
+          .from('all_activities')
           .select('*')
           .eq('user_id', user.id)
           .gte('activity_date', sinceDateStr)
           .order('activity_date', { ascending: false }),
-        supabase
-          .from('polar_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('start_time', sixtyDaysAgo.toISOString())
-          .order('start_time', { ascending: false }),
-        supabase
-          .from('strava_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('start_date', sixtyDaysAgo.toISOString())
-          .order('start_date', { ascending: false }),
-        supabase
-          .from('strava_gpx_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('start_time', sixtyDaysAgo.toISOString())
-          .order('start_time', { ascending: false }),
         fetchGarminVo2Max(user.id, sinceDateStr)
       ]);
 
-      if (garminRes.error) throw garminRes.error;
-      if (polarRes.error) throw polarRes.error;
-      if (stravaRes.error) throw stravaRes.error;
-      if (gpxRes.error) throw gpxRes.error;
+      if (allActivitiesRes.error) throw allActivitiesRes.error;
 
-      const garminActivities = garminRes.data ?? [];
-      const polarActivitiesRaw = polarRes.data ?? [];
-      const stravaActivitiesRaw = stravaRes.data ?? [];
-      const gpxActivitiesRaw = gpxRes.data ?? [];
+      const activities = allActivitiesRes.data ?? [];
       const garminVo2MaxData = garminVo2MaxRes || [];
-
-      const normalizedPolar = polarActivitiesRaw.map(normalizePolarActivity);
-      const normalizedStrava = stravaActivitiesRaw.map(normalizeStravaActivity);
-      const normalizedGpx = gpxActivitiesRaw.map(normalizeGpxActivity);
-
-      const activities = [...garminActivities, ...normalizedPolar, ...normalizedStrava, ...normalizedGpx].sort((a, b) => {
-        const da = new Date(a.activity_date).getTime();
-        const db = new Date(b.activity_date).getTime();
-        return db - da;
-      });
 
       if (!activities || activities.length === 0) {
         setMetrics(null);
@@ -493,20 +459,20 @@ export function useDashboardMetrics() {
     const vo2Change = (currentVo2 && prevVo2) ? ((currentVo2 - prevVo2) / prevVo2) * 100 : 0;
 
     // Frequência Cardíaca
-    const hrActivities = last30Days.filter(act => act.average_heart_rate_in_beats_per_minute);
+    const hrActivities = last30Days.filter(act => act.average_heart_rate);
     const avgHR = hrActivities.length > 0 
-      ? hrActivities.reduce((sum, act) => sum + act.average_heart_rate_in_beats_per_minute, 0) / hrActivities.length 
+      ? hrActivities.reduce((sum, act) => sum + (act.average_heart_rate || 0), 0) / hrActivities.length 
       : 0;
 
-    const prevHrActivities = previous30Days.filter(act => act.average_heart_rate_in_beats_per_minute);
+    const prevHrActivities = previous30Days.filter(act => act.average_heart_rate);
     const prevAvgHR = prevHrActivities.length > 0 
-      ? prevHrActivities.reduce((sum, act) => sum + act.average_heart_rate_in_beats_per_minute, 0) / prevHrActivities.length 
+      ? prevHrActivities.reduce((sum, act) => sum + (act.average_heart_rate || 0), 0) / prevHrActivities.length
       : avgHR;
 
     const hrChange = avgHR > 0 ? ((avgHR - prevAvgHR) / prevAvgHR) * 100 : 0;
 
     // Zona de treino (baseada em % do HR máximo)
-    const maxHR = Math.max(...activities.map(act => act.max_heart_rate_in_beats_per_minute || 0));
+    const maxHR = Math.max(...activities.map(act => act.max_heart_rate || 0));
     const hrZonePercentage = maxHR > 0 ? (avgHR / maxHR) * 100 : 0;
     
     let currentZone = '1-2';
@@ -628,7 +594,7 @@ export function useDashboardMetrics() {
 
     // Verificar overtraining
     if (last7Days.length > 5) {
-      const avgHR = last7Days.reduce((sum, act) => sum + (act.average_heart_rate_in_beats_per_minute || 0), 0) / last7Days.length;
+      const avgHR = last7Days.reduce((sum, act) => sum + (act.average_heart_rate || 0), 0) / last7Days.length;
       if (avgHR > 160) {
         alerts.push({
           type: 'warning',
@@ -688,7 +654,7 @@ export function useDashboardMetrics() {
       let performance: 'Excelente' | 'Bom' | 'Regular' = 'Regular';
       if (act.vo2_max && act.vo2_max > 45) performance = 'Excelente';
       else if (act.vo2_max && act.vo2_max > 35) performance = 'Bom';
-      else if (act.average_heart_rate_in_beats_per_minute && act.average_heart_rate_in_beats_per_minute > 150) performance = 'Bom';
+      else if (act.average_heart_rate && act.average_heart_rate > 150) performance = 'Bom';
 
       // Cor baseada no tipo de atividade
       let color = 'bg-blue-500';
@@ -714,9 +680,9 @@ export function useDashboardMetrics() {
       const type = (act.activity_type || '').toLowerCase();
       if (!type.includes('run')) return null; // apenas corrida
 
-      const paceMinPerKm = act.average_pace_in_minutes_per_kilometer;
-      const avgHr = act.average_heart_rate_in_beats_per_minute;
-      const maxHr = act.max_heart_rate_in_beats_per_minute;
+      const paceMinPerKm = act.pace_min_per_km;
+      const avgHr = act.average_heart_rate;
+      const maxHr = act.max_heart_rate;
 
       if (!paceMinPerKm || paceMinPerKm <= 0 || !avgHr || avgHr <= 0 || !maxHr || maxHr <= 0) {
         return null;
@@ -811,10 +777,10 @@ export function useDashboardMetrics() {
     // === Fator 1: Carga de Treino (35% do score) ===
     const calculateTrainingLoad = (activities: any[]) => {
       return activities.reduce((total, act) => {
-        const duration = (act.duration_in_seconds || 0) / 3600; // em horas
+        const duration = ((act.total_time_minutes || 0) * 60) / 3600; // em horas
         const calories = act.active_kilocalories || 0;
-        const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
-        const maxHR = act.max_heart_rate_in_beats_per_minute || 220; // estimativa se não houver dado
+        const avgHR = act.average_heart_rate || 0;
+        const maxHR = act.max_heart_rate || 220; // estimativa se não houver dado
         
         // Intensidade baseada na FC (mais realista)
         let intensityFactor = 1;
@@ -871,10 +837,10 @@ export function useDashboardMetrics() {
 
     // === Fator 3: Intensidade Acumulada (20% do score) ===
     const highIntensityCount = last7Days.filter(act => {
-      const avgHR = act.average_heart_rate_in_beats_per_minute || 0;
-      const maxHR = act.max_heart_rate_in_beats_per_minute || 220;
+        const avgHR = act.average_heart_rate || 0;
+        const maxHR = act.max_heart_rate || 220;
       const calories = act.active_kilocalories || 0;
-      const duration = (act.duration_in_seconds || 0) / 3600;
+      const duration = ((act.total_time_minutes || 0) * 60) / 3600;
       
       // Critério mais realista: FC > 75% ou alta queima calórica
       const highHR = avgHR > 0 && maxHR > 0 && (avgHR / maxHR) > 0.75;
