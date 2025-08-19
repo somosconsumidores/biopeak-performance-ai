@@ -170,7 +170,7 @@ serve(async (req) => {
     // Sort by date (most recent first)
     activities.sort((a, b) => new Date(b.activity_date).getTime() - new Date(a.activity_date).getTime());
 
-    // VO2 Max average from garmin_vo2max (last 60 days)
+    // VO2 Max average from garmin_vo2max (last 30 days - same logic as dashboard)
     let avgVO2Max: number | null = null;
     let garminUserId: string | null = null;
 
@@ -200,19 +200,43 @@ serve(async (req) => {
     }
 
     if (garminUserId) {
+      // Use last 30 days for consistency with dashboard
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysStr = thirtyDaysAgo.toISOString().split('T')[0];
+
       const { data: vo2Rows, error: vo2Err } = await supabase
         .from('garmin_vo2max')
         .select('vo2_max_running, vo2_max_cycling, calendar_date')
         .eq('garmin_user_id', garminUserId)
-        .gte('calendar_date', sinceDateStr);
+        .gte('calendar_date', thirtyDaysStr)
+        .order('calendar_date', { ascending: false });
 
       if (!vo2Err && vo2Rows && vo2Rows.length > 0) {
-        const values = vo2Rows
-          .map((r: any) => (r.vo2_max_running ?? r.vo2_max_cycling))
-          .filter((v: number | null) => v != null) as number[];
-        if (values.length > 0) {
-          avgVO2Max = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+        // Find the first non-null value (same logic as dashboard)
+        for (const vo2Record of vo2Rows) {
+          const vo2Value = vo2Record.vo2_max_running || vo2Record.vo2_max_cycling;
+          if (vo2Value != null) {
+            avgVO2Max = Math.round(vo2Value * 10) / 10;
+            break;
+          }
         }
+      }
+    }
+
+    // Fallback to activities VO2 max if no garmin_vo2max data (same as dashboard)
+    if (!avgVO2Max) {
+      const last30Days = activities.filter(act => {
+        if (!act.activity_date) return false;
+        const actDate = new Date(act.activity_date);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return actDate >= thirtyDaysAgo;
+      });
+      
+      const vo2Activities = last30Days.filter(act => act.vo2_max);
+      if (vo2Activities.length > 0) {
+        avgVO2Max = Math.round((vo2Activities.reduce((sum, act) => sum + act.vo2_max, 0) / vo2Activities.length) * 10) / 10;
       }
     }
 
