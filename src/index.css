@@ -332,10 +332,70 @@ All colors MUST be HSL.
     box-shadow: var(--glow-subtle);
   }
 
+/* Melhorias de tipografia e legibilidade */
+body {
+  line-height: 1.6;
+}
+
+.text-readable {
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* Melhores contrastes */
+.text-high-contrast {
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.text-medium-contrast {
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
+}
+
+/* Targets de toque maiores */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Botões com melhor acessibilidade */
+.accessible-button {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.accessible-button:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Skip links para navegação por teclado */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 4px;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
   /* Chart mobile optimizations */
   @media (max-width: 768px) {
     .recharts-responsive-container {
-      font-size: 10px;
+      font-size: 12px;
     }
     
     .recharts-cartesian-axis-tick-value {

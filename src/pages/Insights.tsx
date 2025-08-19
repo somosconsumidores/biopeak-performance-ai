@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
+import { FilterBar, FilterOptions } from '@/components/FilterBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +34,7 @@ import {
 } from 'lucide-react';
 
 export const Insights = () => {
+  const [filters, setFilters] = useState<FilterOptions>({ period: '30d', activityType: 'all' });
   const { insights, loading, error, refreshInsights } = useInsights();
   const { applyRecommendation } = useCommitments();
   const { overtrainingRisk, loading: dashboardLoading } = useDashboardMetrics();
@@ -111,6 +114,18 @@ export const Insights = () => {
                   Atualizar
                 </Button>
               </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Filtros */}
+          <ScrollReveal delay={60}>
+            <div className="mb-8">
+              <FilterBar 
+                filters={filters}
+                onFiltersChange={setFilters}
+                showActivityType={true}
+                showPeriod={true}
+              />
             </div>
           </ScrollReveal>
 

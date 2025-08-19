@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
+import AchievementBadge from '@/components/AchievementBadge';
 // Logo imports
 const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
 const bioPeakLogoLight = '/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png';
@@ -69,6 +70,11 @@ export const Header = () => {
               <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
                 <LanguageSelector />
                 <ThemeToggle />
+                <AchievementBadge 
+                  achievements={[]} 
+                  unreadCount={0} 
+                  onClick={() => {}} 
+                />
                 <Button variant="outline" className="glass-card border-glass-border text-sm" asChild>
                   <Link to="/sync">{t('syncActivities')}</Link>
                 </Button>

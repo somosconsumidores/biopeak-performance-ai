@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { CommitmentsCard } from '@/components/CommitmentsCard';
 import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
+import { FilterBar } from '@/components/FilterBar';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +40,7 @@ import {
 } from 'lucide-react';
 
 export const Dashboard = () => {
+  const [filters, setFilters] = useState({ period: '30d', activityType: 'all' });
   const { 
     metrics, 
     activityDistribution, 
@@ -236,6 +239,50 @@ export const Dashboard = () => {
             <div className="mb-6 md:mb-8">
               <CommitmentsCard />
             </div>
+          </ScrollReveal>
+
+          {/* Seção de Conquistas */}
+          <ScrollReveal delay={160}>
+            <Card className="glass-card border-glass-border mb-6 md:mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Award className="h-5 w-5 text-primary" />
+                  <span>Suas Conquistas</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Exemplo de conquistas - implementar com dados reais */}
+                  <div className="text-center p-4 glass-card border-glass-border rounded-lg">
+                    <Award className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Primeira Corrida</h4>
+                    <p className="text-xs text-muted-foreground">Completou sua primeira atividade</p>
+                  </div>
+                  <div className="text-center p-4 glass-card border-glass-border rounded-lg opacity-50">
+                    <Target className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Meta Semanal</h4>
+                    <p className="text-xs text-muted-foreground">Complete 5 atividades em uma semana</p>
+                  </div>
+                  <div className="text-center p-4 glass-card border-glass-border rounded-lg opacity-50">
+                    <Zap className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Velocista</h4>
+                    <p className="text-xs text-muted-foreground">Alcance ritmo de 4:00/km</p>
+                  </div>
+                  <div className="text-center p-4 glass-card border-glass-border rounded-lg opacity-50">
+                    <Heart className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Resistência</h4>
+                    <p className="text-xs text-muted-foreground">Corra por 60 minutos</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button variant="outline" className="w-full glass-card border-glass-border" asChild>
+                    <Link to="/profile">
+                      Ver todas as conquistas
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </ScrollReveal>
 
           {/* Overtraining Risk Analysis */}
