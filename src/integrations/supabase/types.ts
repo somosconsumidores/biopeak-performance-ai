@@ -235,6 +235,66 @@ export type Database = {
           },
         ]
       }
+      all_activities: {
+        Row: {
+          active_kilocalories: number | null
+          activity_date: string | null
+          activity_id: string
+          activity_source: string
+          activity_type: string | null
+          average_heart_rate: number | null
+          created_at: string
+          device_name: string | null
+          id: string
+          max_heart_rate: number | null
+          pace_min_per_km: number | null
+          total_distance_meters: number | null
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          total_time_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id: string
+          activity_source: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string
+          device_name?: string | null
+          id?: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id?: string
+          activity_source?: string
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string
+          device_name?: string | null
+          id?: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
