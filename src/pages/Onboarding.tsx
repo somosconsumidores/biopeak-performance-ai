@@ -148,18 +148,29 @@ export const Onboarding = () => {
   };
 
   const canProceed = () => {
+    let result = false;
     switch (currentStep) {
       case 1:
-        return selectedGoal && (selectedGoal !== "other" || goalOther.trim());
+        result = !!(selectedGoal && (selectedGoal !== "other" || goalOther.trim()));
+        console.log("Step 1 - canProceed:", result, { selectedGoal, goalOther });
+        break;
       case 2:
-        return birthDay && birthMonth && birthYear;
+        result = !!(birthDay && birthMonth && birthYear);
+        console.log("Step 2 - canProceed:", result, { birthDay, birthMonth, birthYear });
+        break;
       case 3:
-        return weight && parseFloat(weight) > 0;
+        result = !!(weight && parseFloat(weight) > 0);
+        console.log("Step 3 - canProceed:", result, { weight, parsed: parseFloat(weight) });
+        break;
       case 4:
-        return athleticLevel;
+        result = !!athleticLevel;
+        console.log("Step 4 - canProceed:", result, { athleticLevel });
+        break;
       default:
-        return false;
+        result = false;
     }
+    console.log("canProceed final result:", result, "currentStep:", currentStep);
+    return result;
   };
 
   // Generate arrays for dropdowns
@@ -384,12 +395,19 @@ export const Onboarding = () => {
               </div>
             )}
 
+            {/* Debug Info */}
+            <div className="bg-muted/30 p-3 rounded-lg text-xs text-muted-foreground">
+              <p>Step: {currentStep}/{totalSteps} | Can Proceed: {canProceed() ? "✅" : "❌"}</p>
+              <p>State: {JSON.stringify({ selectedGoal, goalOther: goalOther.slice(0, 20), birthDay, birthMonth, birthYear, weight, athleticLevel })}</p>
+            </div>
+
             {/* Navigation Buttons */}
-            <div className="flex justify-between pt-6">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
               <Button
                 variant="outline"
                 onClick={handleBack}
                 disabled={currentStep === 1}
+                className="w-full sm:w-auto order-2 sm:order-1"
               >
                 Voltar
               </Button>
@@ -398,13 +416,33 @@ export const Onboarding = () => {
                 <Button
                   onClick={handleNext}
                   disabled={!canProceed()}
+                  className={cn(
+                    "w-full sm:w-auto order-1 sm:order-2 min-h-[44px]",
+                    !canProceed() ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                  )}
+                  style={{
+                    zIndex: 10,
+                    position: "relative",
+                    display: "flex",
+                    visibility: "visible"
+                  } as React.CSSProperties}
                 >
-                  Próximo
+                  Próximo {!canProceed() && "(Preencha os campos)"}
                 </Button>
               ) : (
                 <Button
                   onClick={handleFinish}
                   disabled={!canProceed() || loading}
+                  className={cn(
+                    "w-full sm:w-auto order-1 sm:order-2 min-h-[44px]",
+                    (!canProceed() || loading) ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                  )}
+                  style={{
+                    zIndex: 10,
+                    position: "relative",
+                    display: "flex",
+                    visibility: "visible"
+                  } as React.CSSProperties}
                 >
                   {loading ? "Salvando..." : "Finalizar"}
                 </Button>
