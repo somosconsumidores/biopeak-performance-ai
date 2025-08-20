@@ -25,7 +25,7 @@ const MobileBottomBar: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-50 md:hidden">
-      <div className="flex justify-around items-center py-2 px-4">
+      <div className="flex justify-around items-center py-3 px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
