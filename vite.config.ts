@@ -20,15 +20,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Production optimizations
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        // Remove console.log in production
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
     // Optimize bundle size
     rollupOptions: {
       output: {
