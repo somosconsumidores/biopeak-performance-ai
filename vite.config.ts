@@ -19,4 +19,28 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Production optimizations
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        // Remove console.log in production
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    // Optimize bundle size
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-button'],
+        },
+      },
+    },
+  },
+  define: {
+    // Remove development-only code in production
+    __DEV__: mode === 'development',
+  },
 }));

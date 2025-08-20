@@ -131,10 +131,12 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    /* Mobile optimizations */
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+  /* Mobile optimizations */
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior: none;
   }
 }
 
@@ -418,13 +420,61 @@ body {
     }
   }
 
-  /* Mobile-specific optimizations */
-  @media (max-width: 768px) {
-    /* Ensure proper text wrapping in containers */
-    .container {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
+/* Mobile-specific optimizations for onboarding */
+.onboarding-container {
+  height: 100vh;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  /* Prevent pull-to-refresh */
+  -webkit-overscroll-behavior: none;
+  /* Prevent zoom on double tap */
+  touch-action: manipulation;
+  /* Smooth scrolling within container content if needed */
+  scroll-behavior: smooth;
+}
+
+/* Ensure no horizontal scroll anywhere */
+.onboarding-container * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Improved button hover/focus states for mobile */
+@media (max-width: 768px) {
+  .accessible-button:hover {
+    transform: none; /* Disable hover transforms on mobile for better performance */
+  }
+  
+  .accessible-button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Touch-friendly selection styling */
+.radio-group-item:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Prevent text selection on UI elements */
+.onboarding-ui {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in input fields */
+.onboarding-ui input,
+.onboarding-ui textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
     
     /* Fix card padding and text alignment on mobile */
     .glass-card {

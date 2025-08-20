@@ -143,34 +143,23 @@ export const Onboarding = () => {
 
     const success = await saveOnboardingData(onboardingData);
     if (success) {
-      navigate("/garmin-sync");
+      navigate("/dashboard");
     }
   };
 
   const canProceed = () => {
-    let result = false;
     switch (currentStep) {
       case 1:
-        result = !!(selectedGoal && (selectedGoal !== "other" || goalOther.trim()));
-        console.log("Step 1 - canProceed:", result, { selectedGoal, goalOther });
-        break;
+        return !!(selectedGoal && (selectedGoal !== "other" || goalOther.trim()));
       case 2:
-        result = !!(birthDay && birthMonth && birthYear);
-        console.log("Step 2 - canProceed:", result, { birthDay, birthMonth, birthYear });
-        break;
+        return !!(birthDay && birthMonth && birthYear);
       case 3:
-        result = !!(weight && parseFloat(weight) > 0);
-        console.log("Step 3 - canProceed:", result, { weight, parsed: parseFloat(weight) });
-        break;
+        return !!(weight && parseFloat(weight) > 0);
       case 4:
-        result = !!athleticLevel;
-        console.log("Step 4 - canProceed:", result, { athleticLevel });
-        break;
+        return !!athleticLevel;
       default:
-        result = false;
+        return false;
     }
-    console.log("canProceed final result:", result, "currentStep:", currentStep);
-    return result;
   };
 
   // Generate arrays for dropdowns
@@ -198,8 +187,8 @@ export const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4 touch-manipulation onboarding-container">
+      <div className="w-full max-w-2xl onboarding-ui">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Vamos configurar seu perfil
@@ -216,14 +205,20 @@ export const Onboarding = () => {
           </p>
         </div>
 
-        <Card className="backdrop-blur-sm bg-card/95 border-muted">
-          <CardHeader>
-            <CardTitle className="text-center">
+        <Card className="glass-card w-full max-w-2xl mx-auto animate-fade-in">
+          <CardHeader className="text-center space-y-2">
+            <CardTitle className="text-2xl font-bold text-high-contrast">
               {currentStep === 1 && "Qual é o seu objetivo?"}
               {currentStep === 2 && "Qual é a sua data de nascimento?"}
               {currentStep === 3 && "Qual é o seu peso?"}
               {currentStep === 4 && "Você se considera um atleta:"}
             </CardTitle>
+            <p className="text-sm text-medium-contrast">
+              {currentStep === 1 && "Escolha o objetivo que mais combina com você"}
+              {currentStep === 2 && "Essas informações nos ajudam a personalizar sua experiência"}
+              {currentStep === 3 && "Usado para cálculos de performance mais precisos"}
+              {currentStep === 4 && "Isso nos ajuda a adaptar as recomendações para seu nível"}
+            </p>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Step 1: Goal Selection */}
@@ -395,19 +390,13 @@ export const Onboarding = () => {
               </div>
             )}
 
-            {/* Debug Info */}
-            <div className="bg-muted/30 p-3 rounded-lg text-xs text-muted-foreground">
-              <p>Step: {currentStep}/{totalSteps} | Can Proceed: {canProceed() ? "✅" : "❌"}</p>
-              <p>State: {JSON.stringify({ selectedGoal, goalOther: goalOther.slice(0, 20), birthDay, birthMonth, birthYear, weight, athleticLevel })}</p>
-            </div>
-
             {/* Navigation Buttons */}
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
               <Button
                 variant="outline"
                 onClick={handleBack}
                 disabled={currentStep === 1}
-                className="w-full sm:w-auto order-2 sm:order-1"
+                className="w-full sm:w-auto order-2 sm:order-1 accessible-button touch-target"
               >
                 Voltar
               </Button>
@@ -417,34 +406,39 @@ export const Onboarding = () => {
                   onClick={handleNext}
                   disabled={!canProceed()}
                   className={cn(
-                    "w-full sm:w-auto order-1 sm:order-2 min-h-[44px]",
-                    !canProceed() ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                    "w-full sm:w-auto order-1 sm:order-2 accessible-button touch-target",
+                    "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold",
+                    "transition-all duration-300 ease-out",
+                    "hover:scale-105 hover:shadow-lg active:scale-95",
+                    canProceed() 
+                      ? "opacity-100 hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]" 
+                      : "opacity-50 cursor-not-allowed"
                   )}
-                  style={{
-                    zIndex: 10,
-                    position: "relative",
-                    display: "flex",
-                    visibility: "visible"
-                  } as React.CSSProperties}
                 >
-                  Próximo {!canProceed() && "(Preencha os campos)"}
+                  Próximo
                 </Button>
               ) : (
                 <Button
                   onClick={handleFinish}
                   disabled={!canProceed() || loading}
                   className={cn(
-                    "w-full sm:w-auto order-1 sm:order-2 min-h-[44px]",
-                    (!canProceed() || loading) ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                    "w-full sm:w-auto order-1 sm:order-2 accessible-button touch-target",
+                    "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold",
+                    "transition-all duration-300 ease-out",
+                    "hover:scale-105 hover:shadow-lg active:scale-95",
+                    (canProceed() && !loading)
+                      ? "opacity-100 hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
+                      : "opacity-50 cursor-not-allowed"
                   )}
-                  style={{
-                    zIndex: 10,
-                    position: "relative",
-                    display: "flex",
-                    visibility: "visible"
-                  } as React.CSSProperties}
                 >
-                  {loading ? "Salvando..." : "Finalizar"}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      Salvando...
+                    </div>
+                  ) : (
+                    "Finalizar"
+                  )}
                 </Button>
               )}
             </div>
