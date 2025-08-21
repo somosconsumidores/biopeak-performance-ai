@@ -244,7 +244,7 @@ export const Dashboard = () => {
           {/* Section Toggle */}
           <ScrollReveal delay={120}>
             <div className="mb-6 md:mb-8">
-              <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
                 {[
                   {
                     id: 'fitness-score',
@@ -288,23 +288,25 @@ export const Dashboard = () => {
                       onClick={() => setActiveSection(section.id)}
                     >
                       <div className="relative">
-                        {/* Mobile App Icon */}
+                        {/* Mobile App Icon - Responsive sizing */}
                         <div className={`
-                          relative w-full aspect-square rounded-3xl p-1 transition-all duration-300
+                          relative w-full rounded-2xl sm:rounded-3xl lg:rounded-2xl p-1 transition-all duration-300
+                          ${isMobile ? 'aspect-square' : 'aspect-[4/3] lg:aspect-square'}
                           ${isActive 
                             ? 'bg-gradient-to-br ' + section.gradient + ' shadow-2xl ring-2 ring-white/30' 
                             : 'bg-gradient-to-br from-muted/60 to-muted/40 hover:from-muted/80 hover:to-muted/60'
                           }
                         `}>
                           <div className={`
-                            w-full h-full rounded-[20px] flex items-center justify-center transition-all duration-300
+                            w-full h-full rounded-xl sm:rounded-[20px] lg:rounded-xl flex items-center justify-center transition-all duration-300
                             ${isActive 
                               ? 'bg-white/10 backdrop-blur-sm' 
                               : 'bg-white/5 group-hover:bg-white/10'
                             }
                           `}>
                             <IconComponent className={`
-                              h-6 w-6 sm:h-7 sm:w-7 md:h-6 md:w-6 lg:h-7 lg:w-7 transition-all duration-300
+                              transition-all duration-300
+                              ${isMobile ? 'h-6 w-6' : 'h-5 w-5 lg:h-6 lg:w-6'}
                               ${isActive ? 'text-white scale-110' : 'text-muted-foreground group-hover:text-foreground'}
                             `} />
                           </div>
@@ -312,20 +314,22 @@ export const Dashboard = () => {
                         
                         {/* Active Indicator */}
                         {isActive && (
-                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-white shadow-lg animate-pulse" />
+                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-white shadow-lg animate-pulse" />
                         )}
                       </div>
                       
                       {/* Text Label */}
-                      <div className="mt-3 text-center">
+                      <div className={`text-center ${isMobile ? 'mt-2' : 'mt-3 lg:mt-2'}`}>
                         <div className={`
-                          text-xs sm:text-sm font-medium leading-tight transition-colors duration-300
+                          font-medium leading-tight transition-colors duration-300
+                          ${isMobile ? 'text-xs' : 'text-sm lg:text-xs'}
                           ${isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}
                         `}>
                           {section.title}
                         </div>
                         <div className={`
-                          text-xs leading-tight transition-colors duration-300
+                          leading-tight transition-colors duration-300
+                          ${isMobile ? 'text-xs' : 'text-xs lg:text-xs'}
                           ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/80'}
                         `}>
                           {section.subtitle}
