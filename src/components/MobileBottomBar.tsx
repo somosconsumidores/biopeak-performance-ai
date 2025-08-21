@@ -19,7 +19,7 @@ const MobileBottomBar: React.FC = () => {
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Início' },
     { path: '/workouts', icon: BarChart, label: 'Treinos' },
-    { path: '/training', icon: Brain, label: 'BioPeak AI Coach', highlight: true },
+    { path: '/insights', icon: Brain, label: 'Insights' },
     { path: '/profile', icon: User, label: 'Perfil' }
   ];
 
@@ -42,7 +42,7 @@ const MobileBottomBar: React.FC = () => {
                   : 'text-muted-foreground'
               }`}
             >
-              <Icon className={`h-4 w-4 ${item.highlight ? 'animate-pulse' : ''}`} />
+              <Icon className="h-4 w-4" />
               <span className="text-xs font-medium">{item.label}</span>
             </Button>
           );
