@@ -244,7 +244,8 @@ export const Dashboard = () => {
           {/* Section Toggle */}
           <ScrollReveal delay={120}>
             <div className="mb-6 md:mb-8">
-              <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
+              {/* Mobile: Grid layout with icons */}
+              <div className="md:hidden grid grid-cols-4 gap-2">
                 {[
                   {
                     id: 'fitness-score',
@@ -281,55 +282,45 @@ export const Dashboard = () => {
                   return (
                     <div 
                       key={section.id}
-                      className={`
-                        cursor-pointer transition-all duration-300 hover:scale-105 group
-                        ${isActive ? 'scale-105' : ''}
-                      `}
+                      className="cursor-pointer transition-all duration-300 hover:scale-105 group"
                       onClick={() => setActiveSection(section.id)}
                     >
                       <div className="relative">
-                        {/* Mobile App Icon - Responsive sizing */}
                         <div className={`
-                          relative w-full rounded-2xl sm:rounded-3xl lg:rounded-2xl p-1 transition-all duration-300
-                          ${isMobile ? 'aspect-square' : 'aspect-[4/3] lg:aspect-square'}
+                          relative w-full aspect-square rounded-3xl p-1 transition-all duration-300
                           ${isActive 
                             ? 'bg-gradient-to-br ' + section.gradient + ' shadow-2xl ring-2 ring-white/30' 
                             : 'bg-gradient-to-br from-muted/60 to-muted/40 hover:from-muted/80 hover:to-muted/60'
                           }
                         `}>
                           <div className={`
-                            w-full h-full rounded-xl sm:rounded-[20px] lg:rounded-xl flex items-center justify-center transition-all duration-300
+                            w-full h-full rounded-[20px] flex items-center justify-center transition-all duration-300
                             ${isActive 
                               ? 'bg-white/10 backdrop-blur-sm' 
                               : 'bg-white/5 group-hover:bg-white/10'
                             }
                           `}>
                             <IconComponent className={`
-                              transition-all duration-300
-                              ${isMobile ? 'h-6 w-6' : 'h-5 w-5 lg:h-6 lg:w-6'}
+                              h-6 w-6 transition-all duration-300
                               ${isActive ? 'text-white scale-110' : 'text-muted-foreground group-hover:text-foreground'}
                             `} />
                           </div>
                         </div>
                         
-                        {/* Active Indicator */}
                         {isActive && (
-                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-white shadow-lg animate-pulse" />
+                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-lg animate-pulse" />
                         )}
                       </div>
                       
-                      {/* Text Label */}
-                      <div className={`text-center ${isMobile ? 'mt-2' : 'mt-3 lg:mt-2'}`}>
+                      <div className="mt-2 text-center">
                         <div className={`
-                          font-medium leading-tight transition-colors duration-300
-                          ${isMobile ? 'text-xs' : 'text-sm lg:text-xs'}
+                          text-xs font-medium leading-tight transition-colors duration-300
                           ${isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}
                         `}>
                           {section.title}
                         </div>
                         <div className={`
-                          leading-tight transition-colors duration-300
-                          ${isMobile ? 'text-xs' : 'text-xs lg:text-xs'}
+                          text-xs leading-tight transition-colors duration-300
                           ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/80'}
                         `}>
                           {section.subtitle}
@@ -338,6 +329,36 @@ export const Dashboard = () => {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Desktop: Simple pill toggle */}
+              <div className="hidden md:flex justify-center">
+                <div className="flex gap-1 p-1 bg-muted/30 rounded-full border">
+                  {[
+                    { id: 'fitness-score', label: 'BioPeak Fitness Score' },
+                    { id: 'overtraining-risk', label: 'Risco de Overtraining' },
+                    { id: 'commitments', label: 'Compromissos de Melhoria' },
+                    { id: 'achievements', label: 'Suas Conquistas' }
+                  ].map((section) => {
+                    const isActive = activeSection === section.id;
+                    
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className={`
+                          px-4 py-2 text-sm font-medium rounded-full transition-all duration-200
+                          ${isActive 
+                            ? 'bg-primary text-primary-foreground shadow-sm' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                          }
+                        `}
+                      >
+                        {section.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </ScrollReveal>
