@@ -250,70 +250,88 @@ export const Dashboard = () => {
                     id: 'fitness-score',
                     icon: TrendingUpIcon,
                     title: 'BioPeak Fitness',
-                    subtitle: 'Score'
+                    subtitle: 'Score',
+                    gradient: 'from-emerald-500 to-teal-500'
                   },
                   {
                     id: 'overtraining-risk',
                     icon: ShieldAlert,
                     title: 'Risco de',
-                    subtitle: 'Overtraining'
+                    subtitle: 'Overtraining',
+                    gradient: 'from-amber-500 to-orange-500'
                   },
                   {
                     id: 'commitments',
                     icon: TargetIcon,
                     title: 'Compromissos',
-                    subtitle: 'de Melhoria'
+                    subtitle: 'de Melhoria',
+                    gradient: 'from-blue-500 to-indigo-500'
                   },
                   {
                     id: 'achievements',
                     icon: Trophy,
                     title: 'Suas',
-                    subtitle: 'Conquistas'
+                    subtitle: 'Conquistas',
+                    gradient: 'from-purple-500 to-pink-500'
                   }
                 ].map((section) => {
                   const IconComponent = section.icon;
                   const isActive = activeSection === section.id;
                   
                   return (
-                    <Card 
+                    <div 
                       key={section.id}
                       className={`
-                        cursor-pointer transition-all duration-200 hover:scale-105 
-                        ${isActive 
-                          ? 'bg-primary/10 border-primary/40 shadow-lg ring-1 ring-primary/20' 
-                          : 'glass-card border-glass-border hover:bg-muted/20'
-                        }
+                        cursor-pointer transition-all duration-300 hover:scale-105 group
+                        ${isActive ? 'scale-105' : ''}
                       `}
                       onClick={() => setActiveSection(section.id)}
                     >
-                      <CardContent className="p-4 sm:p-6 text-center">
-                        <div className="flex flex-col items-center space-y-3">
+                      <div className="relative">
+                        {/* Mobile App Icon */}
+                        <div className={`
+                          relative w-full aspect-square rounded-3xl p-1 transition-all duration-300
+                          ${isActive 
+                            ? 'bg-gradient-to-br ' + section.gradient + ' shadow-2xl ring-2 ring-white/30' 
+                            : 'bg-gradient-to-br from-muted/60 to-muted/40 hover:from-muted/80 hover:to-muted/60'
+                          }
+                        `}>
                           <div className={`
-                            w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors
+                            w-full h-full rounded-[20px] flex items-center justify-center transition-all duration-300
                             ${isActive 
-                              ? 'bg-primary/20 text-primary' 
-                              : 'bg-muted/40 text-muted-foreground'
+                              ? 'bg-white/10 backdrop-blur-sm' 
+                              : 'bg-white/5 group-hover:bg-white/10'
                             }
                           `}>
-                            <IconComponent className="h-5 w-5 sm:h-6 sm:w-6" />
-                          </div>
-                          <div className="space-y-0.5">
-                            <div className={`
-                              text-xs sm:text-sm font-medium leading-tight
-                              ${isActive ? 'text-primary' : 'text-foreground'}
-                            `}>
-                              {section.title}
-                            </div>
-                            <div className={`
-                              text-xs leading-tight
-                              ${isActive ? 'text-primary/80' : 'text-muted-foreground'}
-                            `}>
-                              {section.subtitle}
-                            </div>
+                            <IconComponent className={`
+                              h-8 w-8 sm:h-10 sm:w-10 transition-all duration-300
+                              ${isActive ? 'text-white scale-110' : 'text-muted-foreground group-hover:text-foreground'}
+                            `} />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
+                        
+                        {/* Active Indicator */}
+                        {isActive && (
+                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-white shadow-lg animate-pulse" />
+                        )}
+                      </div>
+                      
+                      {/* Text Label */}
+                      <div className="mt-3 text-center">
+                        <div className={`
+                          text-xs sm:text-sm font-medium leading-tight transition-colors duration-300
+                          ${isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}
+                        `}>
+                          {section.title}
+                        </div>
+                        <div className={`
+                          text-xs leading-tight transition-colors duration-300
+                          ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/80'}
+                        `}>
+                          {section.subtitle}
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
