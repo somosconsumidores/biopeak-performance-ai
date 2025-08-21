@@ -24,18 +24,39 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
       setAnalysis(null);
       return;
     }
-      setLoading(true);
-      setError(null);
 
+    setLoading(true);
+    setError(null);
+
+    // Helper: stratified uniform sampling across the whole activity
+    const stratifiedSample = <T,>(arr: T[], target: number): T[] => {
+      if (!Array.isArray(arr) || arr.length <= target) return arr.slice();
+      const result: T[] = [];
+      const n = target;
+      const len = arr.length;
+      const bucketSize = len / n;
+      for (let i = 0; i < n; i++) {
+        const start = Math.floor(i * bucketSize);
+        const end = Math.min(len - 1, Math.floor((i + 1) * bucketSize) - 1);
+        if (end < start) continue;
+        // pick middle index for stability, with slight jitter
+        const mid = Math.floor((start + end) / 2);
+        result.push(arr[mid]);
+      }
+      return result;
+    };
+
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         let activityDetails: any[] = [];
         let detailsError: any = null;
 
         // Determinar qual tabela usar baseado na fonte da atividade
         if (activity.source === 'GARMIN') {
-          console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id}`);
-          
-          // Para Garmin, usar amostragem para evitar timeout em atividades com muitos dados
+          console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id} (tentativa ${attempt})`);
+
+          // Buscar todos os pontos necessários; amostrar client-side para representatividade
           const result = await supabase
             .from('garmin_activity_details')
             .select('heart_rate, speed_meters_per_second, sample_timestamp')
@@ -43,20 +64,11 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .eq('activity_id', activity.activity_id)
             .not('heart_rate', 'is', null)
             .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite mais baixo para evitar timeout
-          
-          console.log(`🔍 Análise CV GARMIN: Query executada`);
+            .order('sample_timestamp', { ascending: true });
+
           activityDetails = result.data || [];
           detailsError = result.error;
-          
-          console.log(`🔍 Análise CV GARMIN: Recebidos ${activityDetails.length} registros`);
-          if (detailsError) {
-            console.error('🔍 Erro na query Garmin:', detailsError);
-          }
         } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
-          // Strava GPX usa a tabela strava_gpx_activity_details
-          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
           const result = await supabase
             .from('strava_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
@@ -64,15 +76,13 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
-          
+            .order('sample_timestamp', { ascending: true });
+
           let rawDetails = result.data || [];
           detailsError = result.error;
-          
+
           // Calcular velocidade a partir da distância e tempo se não estiver disponível
           if (rawDetails.length > 1) {
-            console.log('🔍 Debug - Calculando velocidades para dados GPX Strava');
             for (let i = 1; i < rawDetails.length; i++) {
               const prev = rawDetails[i - 1];
               const cur = rawDetails[i];
@@ -83,16 +93,15 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
               const dCur = Number(cur.total_distance_in_meters || 0);
               const dd = dCur - dPrev;
               const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
-              
+
               if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
                 cur.speed_meters_per_second = speed;
               }
             }
           }
-          
+
           activityDetails = rawDetails;
         } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
-          // Strava API - usar strava_activity_details
           const result = await supabase
             .from('strava_activity_details')
             .select('heartrate, velocity_smooth, time_seconds')
@@ -100,12 +109,11 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .eq('strava_activity_id', parseInt(activity.strava_activity_id?.toString() || activity.activity_id))
             .not('heartrate', 'is', null)
             .gt('heartrate', 0)
-            .order('time_seconds', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
-          
+            .order('time_seconds', { ascending: true });
+
           let rawDetails = result.data || [];
           detailsError = result.error;
-          
+
           // Converter para formato padrão
           activityDetails = rawDetails.map(d => ({
             heart_rate: d.heartrate,
@@ -113,8 +121,6 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             sample_timestamp: d.time_seconds
           }));
         } else if (activity.source === 'ZEPP') {
-          // Zepp GPX usa a tabela zepp_gpx_activity_details
-          // Buscar dados incluindo total_distance_in_meters para calcular velocidade
           const result = await supabase
             .from('zepp_gpx_activity_details')
             .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
@@ -122,15 +128,12 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('heart_rate', 'is', null)
             .not('total_distance_in_meters', 'is', null)
             .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
-          
+            .order('sample_timestamp', { ascending: true });
+
           let rawDetails = result.data || [];
           detailsError = result.error;
-          
-          // Calcular velocidade a partir da distância e tempo se não estiver disponível
+
           if (rawDetails.length > 1) {
-            console.log('🔍 Debug - Calculando velocidades para dados GPX Zepp');
             for (let i = 1; i < rawDetails.length; i++) {
               const prev = rawDetails[i - 1];
               const cur = rawDetails[i];
@@ -141,13 +144,13 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
               const dCur = Number(cur.total_distance_in_meters || 0);
               const dd = dCur - dPrev;
               const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
-              
+
               if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
                 cur.speed_meters_per_second = speed;
               }
             }
           }
-          
+
           activityDetails = rawDetails;
         } else if (activity.source === 'POLAR') {
           const result = await supabase
@@ -159,9 +162,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             .not('speed_meters_per_second', 'is', null)
             .gt('heart_rate', 0)
             .gt('speed_meters_per_second', 0)
-            .order('sample_timestamp', { ascending: true })
-            .limit(150); // Limite reduzido para evitar timeout
-          
+            .order('sample_timestamp', { ascending: true });
+
           activityDetails = result.data || [];
           detailsError = result.error;
         } else {
@@ -170,10 +172,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
         if (detailsError) {
           console.error('🔍 Erro na busca de detalhes:', detailsError);
-          throw new Error(`Erro ao buscar detalhes: ${detailsError.message}`);
+          throw new Error(`Erro ao buscar detalhes: ${detailsError.message || detailsError}`);
         }
-
-        console.log(`🔍 Análise CV: Atividade ${activity.source}, dados encontrados: ${activityDetails?.length || 0}`);
 
         if (!activityDetails || activityDetails.length < 10) {
           setAnalysis({
@@ -185,64 +185,58 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             hasValidData: false,
             dataPoints: activityDetails?.length || 0
           });
+          setLoading(false);
           return;
         }
 
-        // Fazer amostragem uniforme para melhorar performance mantendo representatividade
-        let sampledData = activityDetails;
-        if (activityDetails.length > 150) {
-          // Para Garmin, usar amostragem mais agressiva para evitar timeouts
-          const step = Math.floor(activityDetails.length / 150);
-          sampledData = activityDetails.filter((_, index) => index % step === 0);
-          
-          console.log(`🔍 Análise CV: Dados originais: ${activityDetails.length}, após amostragem: ${sampledData.length}`);
-        }
+        // Amostragem estratificada para representar toda a atividade
+        const sampledData = stratifiedSample(activityDetails, 300);
 
         // Extrair dados de FC e converter velocidade para pace usando dados amostrados
-        const heartRates = sampledData.map(d => d.heart_rate);
-        
+        const heartRates = sampledData
+          .map(d => d.heart_rate)
+          .filter((hr: number | null | undefined) => typeof hr === 'number' && hr > 0) as number[];
+
         // Verificar quantos registros têm dados de velocidade válidos
-        const recordsWithSpeed = sampledData.filter(d => 
-          d.speed_meters_per_second && 
-          d.speed_meters_per_second > 0 && 
+        const recordsWithSpeed = sampledData.filter(d =>
+          d.speed_meters_per_second &&
+          d.speed_meters_per_second > 0 &&
           !isNaN(d.speed_meters_per_second)
         );
-        
-        console.log(`🔍 Debug - Total de registros: ${sampledData.length}, com velocidade: ${recordsWithSpeed.length}`);
-        
-        // Se temos poucos dados de velocidade, relaxar os critérios
+
+        // Calcular paces (min/km)
         let paces: number[] = [];
         if (recordsWithSpeed.length >= 10) {
-          paces = recordsWithSpeed.map(d => 1000 / (d.speed_meters_per_second * 60)); // min/km
+          paces = recordsWithSpeed
+            .map(d => 1000 / (d.speed_meters_per_second * 60))
+            .filter(p => isFinite(p) && p > 0 && p < 20); // filtra outliers extremos
         } else {
-          // Tentar incluir registros com velocidade mesmo que seja 0 ou muito baixa
-          const allSpeedRecords = sampledData.filter(d => 
-            d.speed_meters_per_second !== null && 
+          const allSpeedRecords = sampledData.filter(d =>
+            d.speed_meters_per_second !== null &&
             d.speed_meters_per_second !== undefined &&
             !isNaN(d.speed_meters_per_second)
           );
-          
           if (allSpeedRecords.length >= 10) {
-            paces = allSpeedRecords.map(d => {
-              const speed = d.speed_meters_per_second || 0.1; // Evitar divisão por zero
-              return speed > 0 ? 1000 / (speed * 60) : 60; // 60 min/km como fallback
-            });
+            paces = allSpeedRecords
+              .map(d => {
+                const speed = d.speed_meters_per_second || 0.1;
+                return speed > 0 ? 1000 / (speed * 60) : 60;
+              })
+              .filter(p => isFinite(p) && p > 0 && p < 20);
           }
         }
-        
-        console.log(`🔍 Debug - Dados de pace calculados: ${paces.length} pontos`);
-        
-        // Se ainda não há dados de pace suficientes, mostrar apenas análise de FC
-        if (paces.length < 10) {
+
+        if (paces.length < 10 || heartRates.length < 10) {
           setAnalysis({
             paceCV: 0,
             heartRateCV: 0,
             paceCVCategory: 'Baixo',
             heartRateCVCategory: 'Baixo',
-            diagnosis: `Dados de velocidade insuficientes (${recordsWithSpeed.length} registros com velocidade válida) - análise de variação requer dados de pace e frequência cardíaca`,
+            diagnosis: `Dados de velocidade/FC insuficientes para análise robusta`,
             hasValidData: false,
-            dataPoints: activityDetails.length
+            dataPoints: sampledData.length
           });
+          setLoading(false);
           return;
         }
 
@@ -284,16 +278,24 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           heartRateCVCategory,
           diagnosis,
           hasValidData: true,
-          dataPoints: activityDetails.length
+          dataPoints: sampledData.length
         });
 
-      } catch (err) {
-        console.error('Erro ao calcular análise de variação:', err);
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      } finally {
         setLoading(false);
+        return; // sucesso, sai do laço de retry
+      } catch (err) {
+        console.error(`Erro ao calcular análise de variação (tentativa ${attempt}):`, err);
+        if (attempt === MAX_RETRIES) {
+          setError(err instanceof Error ? err.message : 'Erro desconhecido');
+          setLoading(false);
+          return;
+        }
+        // backoff exponencial curto
+        const delay = 300 * Math.pow(2, attempt - 1);
+        await new Promise(res => setTimeout(res, delay));
       }
-    };
+    }
+  };
 
   useEffect(() => {
     calculateVariationCoefficients();
