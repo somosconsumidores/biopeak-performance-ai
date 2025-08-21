@@ -39,7 +39,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         const start = Math.floor(i * bucketSize);
         const end = Math.min(len - 1, Math.floor((i + 1) * bucketSize) - 1);
         if (end < start) continue;
-        // pick middle index for stability, with slight jitter
+        // pick middle index for stability
         const mid = Math.floor((start + end) / 2);
         result.push(arr[mid]);
       }
@@ -208,8 +208,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         let paces: number[] = [];
         if (recordsWithSpeed.length >= 10) {
           paces = recordsWithSpeed
-            .map(d => 1000 / (d.speed_meters_per_second * 60))
-            .filter(p => isFinite(p) && p > 0 && p < 20); // filtra outliers extremos
+            .map(d => 1000 / (d.speed_meters_per_second * 60));
         } else {
           const allSpeedRecords = sampledData.filter(d =>
             d.speed_meters_per_second !== null &&
@@ -221,8 +220,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
               .map(d => {
                 const speed = d.speed_meters_per_second || 0.1;
                 return speed > 0 ? 1000 / (speed * 60) : 60;
-              })
-              .filter(p => isFinite(p) && p > 0 && p < 20);
+              });
           }
         }
 
