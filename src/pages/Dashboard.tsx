@@ -244,7 +244,7 @@ export const Dashboard = () => {
           {/* Section Toggle */}
           <ScrollReveal delay={120}>
             <div className="mb-6 md:mb-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                 {[
                   {
                     id: 'fitness-score',
