@@ -451,32 +451,58 @@ export const Dashboard = () => {
 
           {/* Main Metrics */}
           <ScrollReveal delay={200}>
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6 md:mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
               {formattedMetrics.map((metric, index) => {
                 const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
                 return (
-                  <Card key={index} className="glass-card border-glass-border">
-                    <CardContent className="py-3 px-2 sm:py-4 sm:px-3 md:py-6 md:px-4">
-                       <div className="flex items-center justify-between mb-2">
-                         <span className="text-xs sm:text-sm text-muted-foreground truncate pr-1">{metric.title}</span>
-                         <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${
-                           metric.trend === 'up' ? 'text-green-400' : 'text-blue-400'
-                         }`} />
-                       </div>
-                       <div className="space-y-1">
-                         <div className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
-                           {metric.value}
-                         </div>
-                        <div className="text-xs text-muted-foreground">{metric.unit}</div>
-                        {metric.source && (
-                          <div className="text-xs text-muted-foreground opacity-75">
-                            Fonte: {metric.source}
-                          </div>
-                        )}
-                        <div className={`text-xs sm:text-sm font-medium ${metric.color}`}>
-                          {metric.change} este mês
+                  <Card key={index} className="glass-card border-glass-border hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                    <CardContent className="p-5 sm:p-6">
+                      {/* Header with Icon */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-muted-foreground leading-relaxed mb-1">
+                            {metric.title}
+                          </h3>
+                          {metric.source && (
+                            <div className="text-xs text-muted-foreground/70 leading-relaxed">
+                              {metric.source}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`
+                          p-2.5 rounded-2xl transition-all duration-300
+                          ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
+                            metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
+                            'bg-blue-500/10 text-blue-500'}
+                        `}>
+                          <IconComponent className="h-5 w-5" />
                         </div>
                       </div>
+                      
+                      {/* Main Value */}
+                      <div className="space-y-2 mb-4">
+                        <div className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">
+                          {metric.value}
+                        </div>
+                        <div className="text-sm text-muted-foreground font-medium">
+                          {metric.unit}
+                        </div>
+                      </div>
+                      
+                      {/* Change Indicator */}
+                      {metric.change && (
+                        <div className="flex items-center space-x-2">
+                          <div className={`
+                            px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+                            ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
+                              metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
+                              'bg-blue-500/10 text-blue-500'}
+                          `}>
+                            {metric.change}
+                          </div>
+                          <span className="text-xs text-muted-foreground">este mês</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
