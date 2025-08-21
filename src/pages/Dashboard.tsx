@@ -304,7 +304,7 @@ export const Dashboard = () => {
                             }
                           `}>
                             <IconComponent className={`
-                              h-8 w-8 sm:h-10 sm:w-10 transition-all duration-300
+                              h-6 w-6 sm:h-7 sm:w-7 md:h-6 md:w-6 lg:h-7 lg:w-7 transition-all duration-300
                               ${isActive ? 'text-white scale-110' : 'text-muted-foreground group-hover:text-foreground'}
                             `} />
                           </div>
