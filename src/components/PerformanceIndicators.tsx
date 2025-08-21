@@ -280,33 +280,37 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
       title: isPolarActivity ? 'Intensidade Cardíaca' : 'Distribuição do Esforço',
       mainValue: isPolarActivity && metrics.heartRate.averageHr != null
         ? `${metrics.heartRate.averageHr}`
-        : (metrics.heartRate.averageHr != null && metrics.effortDistribution.middle != null
-          ? `${metrics.effortDistribution.middle}`
+        : (metrics.effortDistribution.middle != null
+          ? (hasHeartRateData 
+            ? `${Math.round(metrics.effortDistribution.middle)}`
+            : `${metrics.effortDistribution.middle.toFixed(2)}`)
           : 'N/A'),
-      mainLabel: isPolarActivity ? 'bpm médio' : 'bpm médio',
+      mainLabel: isPolarActivity 
+        ? 'bpm médio' 
+        : (hasHeartRateData ? 'bpm médio' : 'pace médio'),
       distributionValues: isPolarActivity ? {
         beginning: metrics.heartRate.averageHr != null ? `${metrics.heartRate.averageHr}` : undefined,
         middle: metrics.heartRate.maxHr != null ? `${metrics.heartRate.maxHr}` : undefined,
         end: metrics.heartRate.relativeIntensity != null ? `${metrics.heartRate.relativeIntensity.toFixed(0)}%` : undefined,
         unit: 'zona'
-      } : {
+      } : (metrics.effortDistribution.beginning != null || metrics.effortDistribution.middle != null || metrics.effortDistribution.end != null) ? {
         beginning: metrics.effortDistribution.beginning != null 
-          ? (metrics.heartRate.averageHr != null 
-            ? `${metrics.effortDistribution.beginning}`
+          ? (hasHeartRateData 
+            ? `${Math.round(metrics.effortDistribution.beginning)}`
             : `${metrics.effortDistribution.beginning.toFixed(2)}`)
           : undefined,
         middle: metrics.effortDistribution.middle != null
-          ? (metrics.heartRate.averageHr != null 
-            ? `${metrics.effortDistribution.middle}`
+          ? (hasHeartRateData 
+            ? `${Math.round(metrics.effortDistribution.middle)}`
             : `${metrics.effortDistribution.middle.toFixed(2)}`)
           : undefined,
         end: metrics.effortDistribution.end != null
-          ? (metrics.heartRate.averageHr != null 
-            ? `${metrics.effortDistribution.end}`
+          ? (hasHeartRateData 
+            ? `${Math.round(metrics.effortDistribution.end)}`
             : `${metrics.effortDistribution.end.toFixed(2)}`)
           : undefined,
-        unit: metrics.heartRate.averageHr != null ? 'bpm' : 'min/km'
-      },
+        unit: hasHeartRateData ? 'bpm' : 'min/km'
+      } : undefined,
       comment: isPolarActivity 
         ? `Zona de intensidade: ${metrics.heartRate.averageHr != null && metrics.heartRate.maxHr != null ? 
             ((metrics.heartRate.averageHr / metrics.heartRate.maxHr) * 100).toFixed(0) + '% da FC máxima' : 
