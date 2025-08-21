@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useGarminVo2Max } from '@/hooks/useGarminVo2Max';
 import { useAuth } from '@/hooks/useAuth';
@@ -245,41 +244,79 @@ export const Dashboard = () => {
           {/* Section Toggle */}
           <ScrollReveal delay={120}>
             <div className="mb-6 md:mb-8">
-              <Card className="glass-card border-glass-border">
-                <CardContent className="p-4">
-                  <ToggleGroup 
-                    type="single" 
-                    value={activeSection} 
-                    onValueChange={setActiveSection}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full"
-                  >
-                    <ToggleGroupItem value="fitness-score" className="text-xs sm:text-sm p-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <TrendingUpIcon className="h-4 w-4" />
-                        <span className="text-center leading-tight">BioPeak Fitness Score</span>
-                      </div>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="overtraining-risk" className="text-xs sm:text-sm p-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <ShieldAlert className="h-4 w-4" />
-                        <span className="text-center leading-tight">Risco de Overtraining</span>
-                      </div>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="commitments" className="text-xs sm:text-sm p-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <TargetIcon className="h-4 w-4" />
-                        <span className="text-center leading-tight">Compromissos de Melhoria</span>
-                      </div>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="achievements" className="text-xs sm:text-sm p-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <Trophy className="h-4 w-4" />
-                        <span className="text-center leading-tight">Suas Conquistas</span>
-                      </div>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                {[
+                  {
+                    id: 'fitness-score',
+                    icon: TrendingUpIcon,
+                    title: 'BioPeak Fitness',
+                    subtitle: 'Score'
+                  },
+                  {
+                    id: 'overtraining-risk',
+                    icon: ShieldAlert,
+                    title: 'Risco de',
+                    subtitle: 'Overtraining'
+                  },
+                  {
+                    id: 'commitments',
+                    icon: TargetIcon,
+                    title: 'Compromissos',
+                    subtitle: 'de Melhoria'
+                  },
+                  {
+                    id: 'achievements',
+                    icon: Trophy,
+                    title: 'Suas',
+                    subtitle: 'Conquistas'
+                  }
+                ].map((section) => {
+                  const IconComponent = section.icon;
+                  const isActive = activeSection === section.id;
+                  
+                  return (
+                    <Card 
+                      key={section.id}
+                      className={`
+                        cursor-pointer transition-all duration-200 hover:scale-105 
+                        ${isActive 
+                          ? 'bg-primary/10 border-primary/40 shadow-lg ring-1 ring-primary/20' 
+                          : 'glass-card border-glass-border hover:bg-muted/20'
+                        }
+                      `}
+                      onClick={() => setActiveSection(section.id)}
+                    >
+                      <CardContent className="p-4 sm:p-6 text-center">
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className={`
+                            w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors
+                            ${isActive 
+                              ? 'bg-primary/20 text-primary' 
+                              : 'bg-muted/40 text-muted-foreground'
+                            }
+                          `}>
+                            <IconComponent className="h-5 w-5 sm:h-6 sm:w-6" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className={`
+                              text-xs sm:text-sm font-medium leading-tight
+                              ${isActive ? 'text-primary' : 'text-foreground'}
+                            `}>
+                              {section.title}
+                            </div>
+                            <div className={`
+                              text-xs leading-tight
+                              ${isActive ? 'text-primary/80' : 'text-muted-foreground'}
+                            `}>
+                              {section.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </ScrollReveal>
 
