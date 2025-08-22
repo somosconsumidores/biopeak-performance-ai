@@ -29,13 +29,16 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
     try {
       console.log('Fetching optimized variation analysis for activity:', activityData.activity_id);
 
+      const activitySource = activityData.source.toLowerCase();
+      console.log('Activity source detected:', activitySource);
+
       // Buscar dados otimizados da tabela activity_variation_analysis
       const { data: variationData, error: variationError } = await supabase
         .from('activity_variation_analysis')
         .select('*')
         .eq('user_id', user.id)
         .eq('activity_id', activityData.activity_id)
-        .eq('activity_source', activityData.source.toLowerCase())
+        .eq('activity_source', activitySource)
         .maybeSingle();
 
       if (variationError) {
@@ -53,7 +56,7 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
             body: { 
               user_id: user.id,
               activity_id: activityData.activity_id,
-              activity_source: activityData.source.toLowerCase()
+              activity_source: activitySource
             }
           });
 
@@ -69,7 +72,7 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
             .select('*')
             .eq('user_id', user.id)
             .eq('activity_id', activityData.activity_id)
-            .eq('activity_source', activityData.source.toLowerCase())
+            .eq('activity_source', activitySource)
             .maybeSingle();
 
           if (!newVariationData) {

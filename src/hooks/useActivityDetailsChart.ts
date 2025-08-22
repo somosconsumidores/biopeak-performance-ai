@@ -27,12 +27,24 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     try {
       console.log('Checking optimized chart data for activity:', id);
       
-      // First check activity_chart_data table
+      // First get the activity source from all_activities table
+      const { data: activityData } = await supabase
+        .from('all_activities')
+        .select('activity_source')
+        .eq('user_id', user.id)
+        .eq('activity_id', id)
+        .maybeSingle();
+
+      const activitySource = activityData?.activity_source || 'garmin';
+      console.log('Activity source detected:', activitySource);
+      
+      // Check activity_chart_data table
       const { data: chartData, error: chartError } = await supabase
         .from('activity_chart_data')
         .select('series_data, data_points_count')
         .eq('user_id', user.id)
         .eq('activity_id', id)
+        .eq('activity_source', activitySource)
         .maybeSingle();
 
       if (chartError) {
@@ -54,7 +66,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           body: { 
             user_id: user.id,
             activity_id: id,
-            activity_source: 'garmin' // Default to garmin, could be dynamic
+            activity_source: activitySource
           }
         });
 
@@ -69,6 +81,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           .select('series_data, data_points_count')
           .eq('user_id', user.id)
           .eq('activity_id', id)
+          .eq('activity_source', activitySource)
           .maybeSingle();
 
         if (newChartData?.series_data) {

@@ -30,12 +30,24 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
     try {
       console.log('Fetching optimized HR zones for activity:', id);
 
+      // First get the activity source from all_activities table
+      const { data: activityData } = await supabase
+        .from('all_activities')
+        .select('activity_source')
+        .eq('user_id', user.id)
+        .eq('activity_id', id)
+        .maybeSingle();
+
+      const activitySource = activityData?.activity_source || 'garmin';
+      console.log('Activity source detected:', activitySource);
+
       // Buscar dados otimizados da tabela activity_heart_rate_zones
       const { data: zoneData, error: zoneError } = await supabase
         .from('activity_heart_rate_zones')
         .select('*')
         .eq('user_id', user.id)
         .eq('activity_id', id)
+        .eq('activity_source', activitySource)
         .maybeSingle();
 
       if (zoneError) {
@@ -53,7 +65,7 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
             body: { 
               user_id: user.id,
               activity_id: id,
-              activity_source: 'garmin' // Default
+              activity_source: activitySource
             }
           });
 
@@ -69,6 +81,7 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
             .select('*')
             .eq('user_id', user.id)
             .eq('activity_id', id)
+            .eq('activity_source', activitySource)
             .maybeSingle();
 
           if (!newZoneData) {

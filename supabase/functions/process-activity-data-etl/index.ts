@@ -86,67 +86,326 @@ async function fetchRawActivityData(supabase: any, user_id: string, activity_id:
   let data: SeriesPoint[] = []
 
   try {
-    if (source === 'garmin') {
-      // Buscar dados do Garmin
-      const { data: garminData } = await supabase
-        .from('garmin_activity_details')
-        .select('*')
-        .eq('user_id', user_id)
-        .eq('activity_id', activity_id)
-
-      if (garminData?.length > 0) {
-        const details = garminData[0]
+    switch (source.toLowerCase()) {
+      case 'garmin':
+        data = await fetchGarminData(supabase, user_id, activity_id)
+        break
+      
+      case 'strava':
+        data = await fetchStravaData(supabase, user_id, activity_id)
+        break
         
-        // Processar dados de colunas diretas
-        if (details.latitude_in_degree && details.longitude_in_degree) {
-          data.push({
-            distance: details.total_distance_in_meters || 0,
-            heart_rate: details.heart_rate,
-            speed: details.speed_meters_per_second,
-            pace: details.speed_meters_per_second ? 1000 / (details.speed_meters_per_second * 60) : undefined,
-            latitude: details.latitude_in_degree,
-            longitude: details.longitude_in_degree,
-            elevation: details.elevation_in_meters,
-            timestamp: details.sample_timestamp
-          })
-        }
-
-        // Processar samples JSONB
-        if (details.samples) {
-          const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
-          
-          for (const sample of samples) {
-            if (typeof sample === 'object' && sample !== null) {
-              const point: SeriesPoint = {
-                distance: sample.distance || sample.total_distance || 0,
-                heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
-                latitude: sample.latitude || sample.lat,
-                longitude: sample.longitude || sample.lng || sample.lon,
-                elevation: sample.elevation || sample.alt,
-                timestamp: sample.timestamp || sample.time
-              }
-
-              // Calcular pace a partir de speed
-              if (sample.speed && sample.speed > 0) {
-                point.speed = sample.speed
-                point.pace = 1000 / (sample.speed * 60)
-              } else if (sample.pace) {
-                point.pace = sample.pace
-              }
-
-              data.push(point)
-            }
-          }
-        }
-      }
+      case 'polar':
+        data = await fetchPolarData(supabase, user_id, activity_id)
+        break
+        
+      case 'strava_gpx':
+        data = await fetchStravaGpxData(supabase, user_id, activity_id)
+        break
+        
+      case 'zepp':
+        data = await fetchZeppData(supabase, user_id, activity_id)
+        break
+        
+      case 'zepp_gpx':
+        data = await fetchZeppGpxData(supabase, user_id, activity_id)
+        break
+        
+      default:
+        console.warn(`Unsupported activity source: ${source}`)
     }
-    // Adicionar suporte para outras fontes (Strava, Polar, etc.) aqui
 
   } catch (error) {
     console.error('Error fetching raw data:', error)
   }
 
   return data.filter(point => point.distance !== undefined)
+}
+
+async function fetchGarminData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: garminData } = await supabase
+    .from('garmin_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('activity_id', activity_id)
+
+  if (garminData?.length > 0) {
+    const details = garminData[0]
+    
+    // Processar dados de colunas diretas
+    if (details.latitude_in_degree && details.longitude_in_degree) {
+      data.push({
+        distance: details.total_distance_in_meters || 0,
+        heart_rate: details.heart_rate,
+        speed: details.speed_meters_per_second,
+        pace: details.speed_meters_per_second ? 1000 / (details.speed_meters_per_second * 60) : undefined,
+        latitude: details.latitude_in_degree,
+        longitude: details.longitude_in_degree,
+        elevation: details.elevation_in_meters,
+        timestamp: details.sample_timestamp
+      })
+    }
+
+    // Processar samples JSONB
+    if (details.samples) {
+      const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+      
+      for (const sample of samples) {
+        if (typeof sample === 'object' && sample !== null) {
+          const point: SeriesPoint = {
+            distance: sample.distance || sample.total_distance || 0,
+            heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
+            latitude: sample.latitude || sample.lat,
+            longitude: sample.longitude || sample.lng || sample.lon,
+            elevation: sample.elevation || sample.alt,
+            timestamp: sample.timestamp || sample.time
+          }
+
+          // Calcular pace a partir de speed
+          if (sample.speed && sample.speed > 0) {
+            point.speed = sample.speed
+            point.pace = 1000 / (sample.speed * 60)
+          } else if (sample.pace) {
+            point.pace = sample.pace
+          }
+
+          data.push(point)
+        }
+      }
+    }
+  }
+  
+  return data
+}
+
+async function fetchStravaData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: stravaData } = await supabase
+    .from('strava_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('strava_activity_id', activity_id)
+    .order('time_index')
+
+  if (stravaData?.length > 0) {
+    for (const detail of stravaData) {
+      const point: SeriesPoint = {
+        distance: detail.distance || 0,
+        heart_rate: detail.heartrate,
+        speed: detail.velocity_smooth,
+        latitude: detail.latitude,
+        longitude: detail.longitude,
+        elevation: detail.altitude,
+        timestamp: detail.time_index
+      }
+
+      // Calcular pace a partir de velocity_smooth
+      if (detail.velocity_smooth && detail.velocity_smooth > 0) {
+        point.pace = 1000 / (detail.velocity_smooth * 60)
+      }
+
+      data.push(point)
+    }
+  }
+  
+  return data
+}
+
+async function fetchPolarData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: polarData } = await supabase
+    .from('polar_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('activity_id', activity_id)
+
+  if (polarData?.length > 0) {
+    for (const details of polarData) {
+      // Processar dados de colunas diretas
+      if (details.latitude_in_degree && details.longitude_in_degree) {
+        data.push({
+          distance: details.total_distance_in_meters || 0,
+          heart_rate: details.heart_rate,
+          speed: details.speed_meters_per_second,
+          pace: details.speed_meters_per_second ? 1000 / (details.speed_meters_per_second * 60) : undefined,
+          latitude: details.latitude_in_degree,
+          longitude: details.longitude_in_degree,
+          elevation: details.elevation_in_meters,
+          timestamp: details.sample_timestamp
+        })
+      }
+
+      // Processar samples JSONB
+      if (details.samples) {
+        const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+        
+        for (const sample of samples) {
+          if (typeof sample === 'object' && sample !== null) {
+            const point: SeriesPoint = {
+              distance: sample.distance || sample.total_distance || 0,
+              heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
+              latitude: sample.latitude || sample.lat,
+              longitude: sample.longitude || sample.lng || sample.lon,
+              elevation: sample.elevation || sample.alt,
+              timestamp: sample.timestamp || sample.time
+            }
+
+            // Calcular pace a partir de speed
+            if (sample.speed && sample.speed > 0) {
+              point.speed = sample.speed
+              point.pace = 1000 / (sample.speed * 60)
+            } else if (sample.pace) {
+              point.pace = sample.pace
+            }
+
+            data.push(point)
+          }
+        }
+      }
+    }
+  }
+  
+  return data
+}
+
+async function fetchStravaGpxData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: gpxData } = await supabase
+    .from('strava_gpx_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('activity_id', activity_id)
+
+  if (gpxData?.length > 0) {
+    for (const details of gpxData) {
+      // Processar samples JSONB
+      if (details.samples) {
+        const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+        
+        for (const sample of samples) {
+          if (typeof sample === 'object' && sample !== null) {
+            const point: SeriesPoint = {
+              distance: sample.distance || sample.total_distance || 0,
+              heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
+              latitude: sample.latitude || sample.lat,
+              longitude: sample.longitude || sample.lng || sample.lon,
+              elevation: sample.elevation || sample.alt,
+              timestamp: sample.timestamp || sample.time
+            }
+
+            // Calcular pace a partir de speed ou pace direto
+            if (sample.speed && sample.speed > 0) {
+              point.speed = sample.speed
+              point.pace = 1000 / (sample.speed * 60)
+            } else if (sample.pace_min_km) {
+              point.pace = sample.pace_min_km
+            } else if (sample.pace) {
+              point.pace = sample.pace
+            }
+
+            data.push(point)
+          }
+        }
+      }
+    }
+  }
+  
+  return data
+}
+
+async function fetchZeppData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: zeppData } = await supabase
+    .from('zepp_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('activity_id', activity_id)
+
+  if (zeppData?.length > 0) {
+    for (const details of zeppData) {
+      // Processar samples JSONB
+      if (details.samples) {
+        const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+        
+        for (const sample of samples) {
+          if (typeof sample === 'object' && sample !== null) {
+            const point: SeriesPoint = {
+              distance: sample.distance || sample.total_distance || 0,
+              heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
+              latitude: sample.latitude || sample.lat,
+              longitude: sample.longitude || sample.lng || sample.lon,
+              elevation: sample.elevation || sample.alt,
+              timestamp: sample.timestamp || sample.time
+            }
+
+            // Calcular pace a partir de speed
+            if (sample.speed && sample.speed > 0) {
+              point.speed = sample.speed
+              point.pace = 1000 / (sample.speed * 60)
+            } else if (sample.pace) {
+              point.pace = sample.pace
+            }
+
+            data.push(point)
+          }
+        }
+      }
+    }
+  }
+  
+  return data
+}
+
+async function fetchZeppGpxData(supabase: any, user_id: string, activity_id: string): Promise<SeriesPoint[]> {
+  const data: SeriesPoint[] = []
+  
+  const { data: gpxData } = await supabase
+    .from('zepp_gpx_activity_details')
+    .select('*')
+    .eq('user_id', user_id)
+    .eq('activity_id', activity_id)
+
+  if (gpxData?.length > 0) {
+    for (const details of gpxData) {
+      // Processar samples JSONB
+      if (details.samples) {
+        const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+        
+        for (const sample of samples) {
+          if (typeof sample === 'object' && sample !== null) {
+            const point: SeriesPoint = {
+              distance: sample.distance || sample.total_distance || 0,
+              heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
+              latitude: sample.latitude || sample.lat,
+              longitude: sample.longitude || sample.lng || sample.lon,
+              elevation: sample.elevation || sample.alt,
+              timestamp: sample.timestamp || sample.time
+            }
+
+            // Calcular pace a partir de speed
+            if (sample.speed && sample.speed > 0) {
+              point.speed = sample.speed
+              point.pace = 1000 / (sample.speed * 60)
+            } else if (sample.pace_min_km) {
+              point.pace = sample.pace_min_km
+            } else if (sample.pace) {
+              point.pace = sample.pace
+            }
+
+            data.push(point)
+          }
+        }
+      }
+    }
+  }
+  
+  return data
 }
 
 async function processChartData(supabase: any, user_id: string, activity_id: string, source: string, rawData: SeriesPoint[]) {

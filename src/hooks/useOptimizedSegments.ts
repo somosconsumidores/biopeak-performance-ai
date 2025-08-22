@@ -34,12 +34,24 @@ export const useOptimizedSegments = (activityId: string | null) => {
     try {
       console.log('Fetching optimized segments for activity:', id);
 
+      // First get the activity source from all_activities table  
+      const { data: activityData } = await supabase
+        .from('all_activities')
+        .select('activity_source')
+        .eq('user_id', user.id)
+        .eq('activity_id', id)
+        .maybeSingle();
+
+      const activitySource = activityData?.activity_source || 'garmin';
+      console.log('Activity source detected:', activitySource);
+
       // Buscar dados otimizados da tabela activity_segments
       const { data: segmentData, error: segmentError } = await supabase
         .from('activity_segments')
         .select('*')
         .eq('user_id', user.id)
         .eq('activity_id', id)
+        .eq('activity_source', activitySource)
         .order('segment_number', { ascending: true });
 
       if (segmentError) {
@@ -57,7 +69,7 @@ export const useOptimizedSegments = (activityId: string | null) => {
             body: { 
               user_id: user.id,
               activity_id: id,
-              activity_source: 'garmin' // Default
+              activity_source: activitySource
             }
           });
 
@@ -73,6 +85,7 @@ export const useOptimizedSegments = (activityId: string | null) => {
             .select('*')
             .eq('user_id', user.id)
             .eq('activity_id', id)
+            .eq('activity_source', activitySource)
             .order('segment_number', { ascending: true });
 
           if (!newSegmentData || newSegmentData.length === 0) {
