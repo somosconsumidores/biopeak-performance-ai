@@ -146,3 +146,6 @@ verify_jwt = true
 
 [functions.backfill-variation-analysis-runner]
 verify_jwt = true
+
+[functions.reprocess-garmin-details-errors-today]
+verify_jwt = true
