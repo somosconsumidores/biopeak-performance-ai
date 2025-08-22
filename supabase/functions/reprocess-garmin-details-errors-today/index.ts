@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
               const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
                 headers: {
                   Authorization: `Bearer ${serviceKey}`,
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'x-hook-secret': expectedSecret || ''
                 },
                 body: bodyForSync
               })
@@ -209,7 +210,8 @@ Deno.serve(async (req) => {
         const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
           headers: {
             Authorization: `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-hook-secret': expectedSecret || ''
           },
           body: bodyForSync
         })
@@ -346,7 +348,8 @@ Deno.serve(async (req) => {
         const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
           headers: {
             Authorization: `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-hook-secret': expectedSecret || ''
           },
           body
         })
