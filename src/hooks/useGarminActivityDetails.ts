@@ -44,7 +44,7 @@ export const useGarminActivityDetails = () => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: timeRange || {}
+        body: { admin_override: true, ...(timeRange || {}) }
       });
 
       if (error) {
