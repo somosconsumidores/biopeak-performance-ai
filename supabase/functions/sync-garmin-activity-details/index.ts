@@ -49,7 +49,7 @@ async function processActivityDetailsInBackground(
   
   let totalProcessed = 0;
   const errors: string[] = [];
-  const BATCH_SIZE = 1000; // Process samples in batches of 1000 (increased for better performance)
+  const BATCH_SIZE = 250; // Smaller batches to prevent statement timeouts
   
   for (const detail of activityDetails) {
     try {
@@ -62,7 +62,15 @@ async function processActivityDetailsInBackground(
       }
 
       const activitySummary = detail.activitySummary || {};
-      const samples = detail.samples || [];
+      const rawSamples = detail.samples || [];
+      // Deduplicate samples by unified timestamp
+      const samplesMap = new Map<number, any>();
+      for (const s of rawSamples) {
+        const ts = (s.startTimeInSeconds ?? s.timestampInSeconds ?? activitySummary.startTimeInSeconds ?? null);
+        if (ts == null) continue;
+        samplesMap.set(ts, s);
+      }
+      const samples = Array.from(samplesMap.values());
       const extractedActivityName = detail.summary?.activityName || detail.activityName || null;
 
       if (samples.length > 0) {
@@ -74,7 +82,7 @@ async function processActivityDetailsInBackground(
           console.log(`[bg-task] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(samples.length/BATCH_SIZE)} (${batch.length} samples)`);
           
           const batchData = batch.map(sample => {
-            const sampleTimestamp = sample.timestampInSeconds || activitySummary.startTimeInSeconds || null;
+            const sampleTimestamp = (sample.startTimeInSeconds ?? sample.timestampInSeconds ?? activitySummary.startTimeInSeconds ?? null);
             
             return {
               user_id: userId,
@@ -194,7 +202,7 @@ async function processWebhookActivityDetails(
   
   let totalProcessed = 0;
   const errors: string[] = [];
-  const BATCH_SIZE = 1000;
+  const BATCH_SIZE = 250;
   
   for (const detail of activityDetails) {
     try {
@@ -207,7 +215,15 @@ async function processWebhookActivityDetails(
       }
 
       const activitySummary = detail.activitySummary || {};
-      const samples = detail.samples || [];
+      const rawSamples = detail.samples || [];
+      // Deduplicate samples by unified timestamp
+      const samplesMap = new Map<number, any>();
+      for (const s of rawSamples) {
+        const ts = (s.startTimeInSeconds ?? s.timestampInSeconds ?? activitySummary.startTimeInSeconds ?? null);
+        if (ts == null) continue;
+        samplesMap.set(ts, s);
+      }
+      const samples = Array.from(samplesMap.values());
       const extractedActivityName = detail.activityName || activitySummary.activityName || null;
 
       if (samples.length > 0) {
@@ -220,7 +236,7 @@ async function processWebhookActivityDetails(
           
           const batchData = batch.map(sample => {
             // Use startTimeInSeconds from sample or fallback to summary
-            const sampleTimestamp = sample.startTimeInSeconds || activitySummary.startTimeInSeconds || null;
+            const sampleTimestamp = (sample.startTimeInSeconds ?? sample.timestampInSeconds ?? activitySummary.startTimeInSeconds ?? null);
             
             return {
               user_id: userId,

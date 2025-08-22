@@ -45,6 +45,7 @@ export const AdminPanel = () => {
   const { renewExpiredTokens, loading } = useAdminActions();
   const { toast } = useToast();
   const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
+  const [reprocessingGarminDetails, setReprocessingGarminDetails] = useState(false);
   const [tokenStats, setTokenStats] = useState<TokenStats>({
     total: 0,
     active: 0,
@@ -203,6 +204,32 @@ export const AdminPanel = () => {
       });
     } finally {
       setReprocessingVO2Max(false);
+    }
+  };
+
+  const handleReprocessGarminDetailsErrorsToday = async () => {
+    setReprocessingGarminDetails(true);
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      const { data, error } = await supabase.functions.invoke('reprocess-garmin-details-errors-today', {
+        body: { date: today },
+      });
+      if (error) throw error;
+      const result: any = data || {};
+      toast({
+        title: "Reprocessamento de detalhes (Garmin)",
+        description: `Processados: ${result.processed || result.successful || 0} / Falhas: ${result.errors?.length || result.failed || 0}`,
+      });
+      await fetchStats();
+    } catch (error: any) {
+      console.error('Error reprocessing Garmin details errors today:', error);
+      toast({
+        title: "Erro no reprocessamento (Garmin)",
+        description: error.message || "Falha ao reprocessar erros de hoje",
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingGarminDetails(false);
     }
   };
 
@@ -446,6 +473,16 @@ export const AdminPanel = () => {
                 >
                   <Activity className={`h-4 w-4 ${reprocessingVO2Max ? 'animate-spin' : ''}`} />
                   {reprocessingVO2Max ? 'Reprocessando...' : 'Reprocessar VO2Max'}
+                </Button>
+
+                <Button
+                  onClick={handleReprocessGarminDetailsErrorsToday}
+                  disabled={reprocessingGarminDetails}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Activity className={`h-4 w-4 ${reprocessingGarminDetails ? 'animate-spin' : ''}`} />
+                  {reprocessingGarminDetails ? 'Reprocessando...' : 'Reprocessar erros de hoje (Garmin Detalhes)'}
                 </Button>
                 
                 {tokenStats.expired > 0 && (
