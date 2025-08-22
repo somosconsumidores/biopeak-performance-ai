@@ -538,6 +538,44 @@ export const AdminPanel = () => {
                     <Activity className={`h-4 w-4 ${reprocessingSpecificActivity ? 'animate-spin' : ''}`} />
                     {reprocessingSpecificActivity ? 'Reprocessando...' : 'Reprocessar atividade'}
                   </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!specificActivityId) return;
+                      setReprocessingSpecificActivity(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('reprocess-garmin-details-errors-today', {
+                          body: { activity_id: specificActivityId, use_webhook_payload: true, batch_size: 200 },
+                        });
+                        if (error) throw error;
+                        const result: any = data || {};
+                        if (result.success) {
+                          toast({
+                            title: "Atividade reprocessada (payload)",
+                            description: `Atividade ${specificActivityId} processada via payload do webhook`,
+                          });
+                          setSpecificActivityId('');
+                        } else {
+                          throw new Error(result.error || 'Falha no reprocessamento');
+                        }
+                        await fetchStats();
+                      } catch (err: any) {
+                        console.error('Error reprocessing via payload:', err);
+                        toast({
+                          title: "Erro no reprocessamento (payload)",
+                          description: err.message || "Falha ao reprocessar via payload",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setReprocessingSpecificActivity(false);
+                      }
+                    }}
+                    disabled={reprocessingSpecificActivity || !specificActivityId}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Activity className={`h-4 w-4 ${reprocessingSpecificActivity ? 'animate-spin' : ''}`} />
+                    {reprocessingSpecificActivity ? 'Reprocessando...' : 'Reprocessar via payload'}
+                  </Button>
                 </div>
                 
                 {tokenStats.expired > 0 && (

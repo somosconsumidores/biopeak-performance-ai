@@ -49,7 +49,9 @@ Deno.serve(async (req) => {
     // Se activity_id específico for fornecido, processar apenas ele
     if (body?.activity_id) {
       const activityId = body.activity_id
-      console.log(`[reprocess] Processing specific activity: ${activityId}`)
+      const useWebhookPayload = !!body?.use_webhook_payload
+      const customBatchSize = Number(body?.batch_size)
+      console.log(`[reprocess] Processing specific activity: ${activityId} | useWebhookPayload=${useWebhookPayload} | batchSize=${customBatchSize || 'default'}`)
       
       // Buscar a atividade
       const { data: activity, error: actErr } = await supabase
@@ -64,7 +66,98 @@ Deno.serve(async (req) => {
           activity_id: activityId 
         }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
+
+      // Tenta reprocessar via payload do webhook se solicitado
+      if (useWebhookPayload) {
+        try {
+          let fromDate: string
+          let toDate: string
+          if (activity.activity_date) {
+            const d = activity.activity_date as string
+            fromDate = `${d}T00:00:00Z`
+            toDate = `${d}T23:59:59Z`
+          } else {
+            // Fallback: últimas 48h
+            const now = new Date()
+            const start = new Date(now.getTime() - 48 * 3600 * 1000)
+            fromDate = start.toISOString()
+            toDate = now.toISOString()
+          }
+
+          const { data: logs, error: logsErr } = await supabase
+            .from('garmin_webhook_logs')
+            .select('id,payload,created_at,user_id')
+            .gte('created_at', fromDate)
+            .lte('created_at', toDate)
+            .order('created_at', { ascending: false })
+            .limit(200)
+
+          if (!logsErr && logs && logs.length > 0) {
+            let matchedDetail: any = null
+            let matchedPayload: any = null
+
+            for (const l of logs) {
+              const p: any = l?.payload
+              const details = p?.activityDetails
+              if (Array.isArray(details)) {
+                const found = details.find((d: any) => String(d?.activityId) === String(activityId))
+                if (found) {
+                  matchedDetail = found
+                  matchedPayload = { activityDetails: [found] }
+                  break
+                }
+              } else if (details && typeof details === 'object') {
+                if (String(details.activityId) === String(activityId)) {
+                  matchedDetail = details
+                  matchedPayload = { activityDetails: [details] }
+                  break
+                }
+              }
+            }
+
+            if (matchedPayload) {
+              console.log(`[reprocess] Using webhook_log payload for activity ${activityId}`)
+              const bodyForSync: any = {
+                webhook_triggered: true,
+                user_id: activity.user_id,
+                webhook_payload: matchedPayload,
+              }
+              if (Number.isFinite(customBatchSize)) bodyForSync.batch_size = customBatchSize
+
+              const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
+                headers: {
+                  Authorization: `Bearer ${serviceKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: bodyForSync
+              })
+
+              if (error || data?.error) {
+                return new Response(JSON.stringify({
+                  activity_id: activityId,
+                  success: false,
+                  source: 'webhook_log',
+                  error: error?.message || data?.error || 'Sync failed'
+                }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+              }
+
+              return new Response(JSON.stringify({
+                activity_id: activityId,
+                success: true,
+                source: 'webhook_log',
+                message: 'Activity reprocessed successfully from webhook payload'
+              }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            }
+          }
+
+          console.warn(`[reprocess] No webhook payload found for activity ${activityId}, falling back to API`)
+        } catch (e) {
+          console.error('[reprocess] Error searching webhook logs:', e)
+          // fallthrough to API path
+        }
+      }
       
+      // Fallback: reprocess via API/token
       // Buscar token ativo do usuário
       const { data: tokenRow, error: tokenErr } = await supabase
         .from('garmin_tokens')
@@ -84,24 +177,28 @@ Deno.serve(async (req) => {
       }
       
       try {
+        const bodyForSync: any = {
+          webhook_triggered: true,
+          user_id: activity.user_id,
+          activity_id: activity.activity_id,
+          summary_id: activity.summary_id,
+          garmin_access_token: tokenRow.access_token
+        }
+        if (Number.isFinite(customBatchSize)) bodyForSync.batch_size = customBatchSize
+
         const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
           headers: {
             Authorization: `Bearer ${serviceKey}`,
             'Content-Type': 'application/json'
           },
-          body: {
-            webhook_triggered: true,
-            user_id: activity.user_id,
-            activity_id: activity.activity_id,
-            summary_id: activity.summary_id,
-            garmin_access_token: tokenRow.access_token
-          }
+          body: bodyForSync
         })
 
         if (error || data?.error) {
           return new Response(JSON.stringify({
             activity_id: activityId,
             success: false,
+            source: 'api',
             error: error?.message || data?.error || 'Sync failed'
           }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
@@ -109,6 +206,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
           activity_id: activityId,
           success: true,
+          source: 'api',
           message: 'Activity reprocessed successfully'
         }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         

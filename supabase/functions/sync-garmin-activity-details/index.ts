@@ -196,13 +196,14 @@ async function processWebhookActivityDetails(
   supabaseClient: any,
   userId: string,
   activityDetails: GarminActivityDetail[],
-  syncId: string | null
+  syncId: string | null,
+  batchSize?: number
 ) {
   console.log(`[webhook-process] Processing ${activityDetails.length} activity details from webhook`);
   
   let totalProcessed = 0;
   const errors: string[] = [];
-  const BATCH_SIZE = 250;
+  const BATCH_SIZE = Math.max(50, Math.min(500, Number(batchSize) || 250));
   
   for (const detail of activityDetails) {
     try {
@@ -275,7 +276,57 @@ async function processWebhookActivityDetails(
 
             if (batchError) {
               console.error(`[webhook-process] Error upserting batch for activity ${detail.activityId}:`, batchError);
-              errors.push(`Failed to store batch for activity ${detail.activityId}: ${batchError.message}`);
+              const isTimeout = batchError.code === '57014' || (batchError.message && batchError.message.includes('statement timeout'));
+              if (isTimeout && batch.length > 1) {
+                const retrySize = Math.max(50, Math.floor(BATCH_SIZE / 2));
+                console.log(`[webhook-process] Retrying batch with smaller sub-batches of ${retrySize}`);
+                for (let r = 0; r < batch.length; r += retrySize) {
+                  const sub = batch.slice(r, r + retrySize);
+                  const subData = sub.map(sample => {
+                    const sampleTimestamp = (sample.startTimeInSeconds ?? sample.timestampInSeconds ?? activitySummary.startTimeInSeconds ?? null);
+                    return {
+                      user_id: userId,
+                      activity_id: detail.activityId,
+                      summary_id: detail.summaryId,
+                      activity_name: extractedActivityName,
+                      upload_time_in_seconds: activitySummary.uploadTimeInSeconds || null,
+                      start_time_in_seconds: sampleTimestamp,
+                      duration_in_seconds: activitySummary.durationInSeconds || null,
+                      activity_type: activitySummary.activityType || null,
+                      device_name: activitySummary.deviceName || null,
+                      sample_timestamp: sampleTimestamp,
+                      samples: sample,
+                      activity_summary: activitySummary,
+                      heart_rate: sample.heartRate || null,
+                      latitude_in_degree: sample.latitudeInDegree || null,
+                      longitude_in_degree: sample.longitudeInDegree || null,
+                      elevation_in_meters: sample.elevationInMeters || null,
+                      speed_meters_per_second: sample.speedMetersPerSecond || null,
+                      power_in_watts: sample.powerInWatts || null,
+                      total_distance_in_meters: sample.totalDistanceInMeters || null,
+                      steps_per_minute: sample.stepsPerMinute || null,
+                      clock_duration_in_seconds: sample.clockDurationInSeconds || null,
+                      moving_duration_in_seconds: sample.movingDurationInSeconds || null,
+                      timer_duration_in_seconds: sample.timerDurationInSeconds || null,
+                      updated_at: new Date().toISOString()
+                    };
+                  });
+                  try {
+                    const { error: subErr } = await supabaseClient
+                      .from('garmin_activity_details')
+                      .upsert(subData, { onConflict: 'user_id,summary_id,sample_timestamp' });
+                    if (subErr) {
+                      console.error(`[webhook-process] Sub-batch upsert error:`, subErr);
+                      errors.push(`Sub-batch failed for activity ${detail.activityId}: ${subErr.message}`);
+                    }
+                  } catch (subCatch) {
+                    console.error(`[webhook-process] Unexpected sub-batch error:`, subCatch);
+                    errors.push(`Unexpected sub-batch error for activity ${detail.activityId}`);
+                  }
+                }
+              } else {
+                errors.push(`Failed to store batch for activity ${detail.activityId}: ${batchError.message}`);
+              }
             } else {
               console.log(`[webhook-process] Successfully processed batch of ${batch.length} samples`);
             }
@@ -626,7 +677,7 @@ Deno.serve(async (req) => {
       
       if (activityDetails.length > 0) {
         // Process the webhook data directly without making API calls
-        await processWebhookActivityDetails(supabaseClient, user.id, activityDetails, syncId);
+        await processWebhookActivityDetails(supabaseClient, user.id, activityDetails, syncId, requestBody?.batch_size);
         
         console.log(`[sync-activity-details] Sync completed: {
   message: "Successfully synced ${activityDetails.length} of ${activityDetails.length} activity details",
