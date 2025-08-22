@@ -1,98 +1,109 @@
-// Updated hook to use summary_id consistently
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface HeartRatePaceData {
-  distance_km: number;
-  heart_rate: number;
-  pace_min_per_km: number | null;
-  speed_meters_per_second: number;
+  distance: number;
+  heart_rate?: number;
+  pace?: number;
+  speed?: number;
 }
 
 export const useActivityDetailsChart = (activityId: string | null) => {
+  const { user } = useAuth();
   const [data, setData] = useState<HeartRatePaceData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasRawData, setHasRawData] = useState(false);
 
-  // New helper: try cache first, optionally trigger builder, then fallback to existing flow
-  const tryCacheThenMaybeBuild = async (id: string): Promise<boolean> => {
-    console.log('⚡ Cache: trying to load chart cache for', id);
-    // Try to get any source cached for this activity_id (RLS ensures only current user)
-    const { data: cached, error: cacheErr } = await supabase
-      .from('activity_chart_cache')
-      .select('series, build_status, activity_source')
-      .eq('activity_id', id)
-      .eq('version', 1)
-      .order('built_at', { ascending: false })
-      .limit(1);
-    if (cacheErr) {
-      console.warn('⚠️ Cache load error:', cacheErr.message);
+  const hasData = useMemo(() => data.length > 0, [data]);
+  const hasRawData = useMemo(() => 
+    data.some(point => point.heart_rate !== undefined || point.pace !== undefined)
+  , [data]);
+
+  // Check for optimized chart data first, fallback to ETL processing
+  const fetchOptimizedData = async (id: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      console.log('Checking optimized chart data for activity:', id);
+      
+      // First check activity_chart_data table
+      const { data: chartData, error: chartError } = await supabase
+        .from('activity_chart_data')
+        .select('series_data, data_points_count')
+        .eq('user_id', user.id)
+        .eq('activity_id', id)
+        .maybeSingle();
+
+      if (chartError) {
+        console.error('Chart data check error:', chartError);
+        return false;
+      }
+
+      if (chartData?.series_data && chartData.data_points_count > 0) {
+        console.log('Using optimized chart data:', chartData.data_points_count, 'points');
+        setData(chartData.series_data || []);
+        return true;
+      }
+
+      // No optimized data found, trigger ETL processing
+      console.log('No optimized data found, triggering ETL processing...');
+      
+      try {
+        const { error: etlError } = await supabase.functions.invoke('process-activity-data-etl', {
+          body: { 
+            user_id: user.id,
+            activity_id: id,
+            activity_source: 'garmin' // Default to garmin, could be dynamic
+          }
+        });
+
+        if (etlError) {
+          console.error('ETL processing error:', etlError);
+          return false;
+        }
+
+        // After ETL processing, try to get the optimized data
+        const { data: newChartData } = await supabase
+          .from('activity_chart_data')
+          .select('series_data, data_points_count')
+          .eq('user_id', user.id)
+          .eq('activity_id', id)
+          .maybeSingle();
+
+        if (newChartData?.series_data) {
+          console.log('Using newly processed chart data:', newChartData.data_points_count, 'points');
+          setData(newChartData.series_data || []);
+          return true;
+        }
+
+      } catch (etlError) {
+        console.error('Error in ETL processing:', etlError);
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error in optimized data fetch:', error);
+      return false;
     }
-    const cacheRow = cached?.[0];
-    if (cacheRow && cacheRow.build_status === 'ready' && Array.isArray(cacheRow.series) && cacheRow.series.length > 0) {
-      console.log('✅ Using cached series from source:', cacheRow.activity_source, 'points:', cacheRow.series.length);
-      const mapped: HeartRatePaceData[] = cacheRow.series.map((p: any) => ({
-        distance_km: Number(p.distance_km || 0),
-        heart_rate: Number(p.heart_rate || 0),
-        pace_min_per_km: typeof p.pace_min_per_km === 'number' ? p.pace_min_per_km : null,
-        speed_meters_per_second: Number(p.speed_meters_per_second || 0),
-      }));
-      setHasRawData(mapped.length > 0);
-      setData(mapped);
-      return true;
-    }
-
-    // Trigger builder once (auto-detect source), then recheck quickly
-    console.log('🛠️ No ready cache; invoking builder...');
-    const { error: fnErr } = await supabase.functions.invoke('build-activity-chart-cache', {
-      body: { activity_id: id, version: 1 },
-    });
-    if (fnErr) {
-      console.warn('⚠️ Builder invocation error:', fnErr.message || fnErr);
-    }
-
-    // Short wait then recheck cache quickly
-    await new Promise((r) => setTimeout(r, 1200));
-    const { data: cached2 } = await supabase
-      .from('activity_chart_cache')
-      .select('series, build_status, activity_source')
-      .eq('activity_id', id)
-      .eq('version', 1)
-      .order('built_at', { ascending: false })
-      .limit(1);
-
-    const cacheRow2 = cached2?.[0];
-    if (cacheRow2 && cacheRow2.build_status === 'ready' && Array.isArray(cacheRow2.series) && cacheRow2.series.length > 0) {
-      console.log('✅ Using freshly built cache from source:', cacheRow2.activity_source, 'points:', cacheRow2.series.length);
-      const mapped: HeartRatePaceData[] = cacheRow2.series.map((p: any) => ({
-        distance_km: Number(p.distance_km || 0),
-        heart_rate: Number(p.heart_rate || 0),
-        pace_min_per_km: typeof p.pace_min_per_km === 'number' ? p.pace_min_per_km : null,
-        speed_meters_per_second: Number(p.speed_meters_per_second || 0),
-      }));
-      setHasRawData(mapped.length > 0);
-      setData(mapped);
-      return true;
-    }
-
-    console.log('↩️ Cache not ready; will fallback to legacy client-side processing');
-    return false;
   };
 
   const fetchData = async (id: string) => {
+    if (!user) return;
+    
     setLoading(true);
     setError(null);
-    
+    setData([]);
+
     try {
-      // NEW: Fast path via cache
-      const cacheHit = await tryCacheThenMaybeBuild(id);
-      if (cacheHit) {
+      // First try optimized data approach
+      const optimizedSuccess = await fetchOptimizedData(id);
+      if (optimizedSuccess) {
         setLoading(false);
         return;
       }
 
-      console.log('🔍 DEBUG: Fetching data for activity ID:', id);
+      console.log('Optimized data failed or unavailable, falling back to legacy method...');
       
       // Try Garmin data first
       let allDetails = [];
@@ -324,10 +335,10 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         }
         
         return {
-          distance_km: sample.total_distance_in_meters! / 1000,
+          distance: sample.total_distance_in_meters! / 1000,
           heart_rate: sample.heart_rate!,
-          pace_min_per_km: pace_min_per_km,
-          speed_meters_per_second: sample.speed_meters_per_second || 0
+          pace: pace_min_per_km,
+          speed: sample.speed_meters_per_second || 0
         };
       });
 
@@ -341,7 +352,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       const validHRRecords = processedData.filter(item => item.heart_rate > 0);
       const validPaceRecords = processedData.filter(item => item.pace_min_per_km !== null && item.pace_min_per_km > 0);
       const validBothRecords = processedData.filter(item => 
-        item.heart_rate > 0 && item.pace_min_per_km !== null && item.pace_min_per_km > 0
+        item.heart_rate && item.heart_rate > 0 && item.pace !== null && item.pace && item.pace > 0
       );
 
       console.log('🔍 DEBUG: Valid HR records:', validHRRecords.length);
@@ -354,7 +365,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           // Include records with valid heart rate (speed can be 0 if stopped)
           return item.heart_rate > 0;
         })
-        .sort((a, b) => a.distance_km - b.distance_km);
+        .sort((a, b) => a.distance - b.distance);
 
       console.log('🔍 DEBUG: Final chart data points:', chartData.length);
       if (chartData.length > 0) {
@@ -366,7 +377,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
 
       // Check for gaps in distance
       if (chartData.length > 1) {
-        const distances = chartData.map(d => d.distance_km).sort((a, b) => a - b);
+        const distances = chartData.map(d => d.distance).sort((a, b) => a - b);
         const gaps = [];
         for (let i = 1; i < distances.length; i++) {
           const gap = distances[i] - distances[i-1];
@@ -394,7 +405,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     } else {
       setData([]);
       setError(null);
-      setHasRawData(false);
+      // Reset state
     }
   }, [activityId]);
 

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, Heart, Target, BarChart3, AlertCircle, RefreshCw } from 'lucide-react';
-import { useVariationAnalysis } from '@/hooks/useVariationAnalysis';
+import { useOptimizedVariationAnalysis } from '@/hooks/useOptimizedVariationAnalysis';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 interface VariationAnalysisCardProps {
@@ -10,7 +10,7 @@ interface VariationAnalysisCardProps {
 }
 
 export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) => {
-  const { analysis, loading, error, refetch } = useVariationAnalysis(activity);
+  const { analysis, loading, error, refetch } = useOptimizedVariationAnalysis(activity);
 
   if (loading) {
     return (
