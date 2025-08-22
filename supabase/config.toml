@@ -152,3 +152,9 @@ verify_jwt = false
 
 [functions.process-activity-data-etl]
 verify_jwt = true
+
+[functions.force-activity-etl]
+verify_jwt = false
+
+[functions.manual-etl-process]
+verify_jwt = false

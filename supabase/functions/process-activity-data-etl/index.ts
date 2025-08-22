@@ -130,48 +130,56 @@ async function fetchGarminData(supabase: any, user_id: string, activity_id: stri
     .select('*')
     .eq('user_id', user_id)
     .eq('activity_id', activity_id)
+    .order('sample_timestamp', { ascending: true })
 
   if (garminData?.length > 0) {
-    const details = garminData[0]
-    
-    // Processar dados de colunas diretas
-    if (details.latitude_in_degree && details.longitude_in_degree) {
-      data.push({
+    // Process each individual row as a sample point
+    for (const details of garminData) {
+      const point: SeriesPoint = {
         distance: details.total_distance_in_meters || 0,
         heart_rate: details.heart_rate,
         speed: details.speed_meters_per_second,
-        pace: details.speed_meters_per_second ? 1000 / (details.speed_meters_per_second * 60) : undefined,
         latitude: details.latitude_in_degree,
         longitude: details.longitude_in_degree,
         elevation: details.elevation_in_meters,
         timestamp: details.sample_timestamp
-      })
+      }
+
+      // Calculate pace from speed
+      if (details.speed_meters_per_second && details.speed_meters_per_second > 0) {
+        point.pace = 1000 / (details.speed_meters_per_second * 60)
+      }
+
+      data.push(point)
     }
 
-    // Processar samples JSONB
-    if (details.samples) {
-      const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
-      
-      for (const sample of samples) {
-        if (typeof sample === 'object' && sample !== null) {
-          const point: SeriesPoint = {
-            distance: sample.distance || sample.total_distance || 0,
-            heart_rate: sample.heart_rate || sample.heartrate || sample.hr,
-            latitude: sample.latitude || sample.lat,
-            longitude: sample.longitude || sample.lng || sample.lon,
-            elevation: sample.elevation || sample.alt,
-            timestamp: sample.timestamp || sample.time
-          }
+    // If no individual row data found, try processing samples JSONB from first row
+    if (data.length === 0) {
+      const details = garminData[0]
+      if (details.samples) {
+        const samples = Array.isArray(details.samples) ? details.samples : [details.samples]
+        
+        for (const sample of samples) {
+          if (typeof sample === 'object' && sample !== null) {
+            const point: SeriesPoint = {
+              distance: sample.distance || sample.total_distance || sample.totalDistanceInMeters || 0,
+              heart_rate: sample.heart_rate || sample.heartrate || sample.hr || sample.heartRate,
+              latitude: sample.latitude || sample.lat || sample.latitudeInDegree,
+              longitude: sample.longitude || sample.lng || sample.lon || sample.longitudeInDegree,
+              elevation: sample.elevation || sample.alt || sample.elevationInMeters,
+              timestamp: sample.timestamp || sample.time || sample.startTimeInSeconds,
+              speed: sample.speed || sample.speedMetersPerSecond
+            }
 
-          // Calcular pace a partir de speed
-          if (sample.speed && sample.speed > 0) {
-            point.speed = sample.speed
-            point.pace = 1000 / (sample.speed * 60)
-          } else if (sample.pace) {
-            point.pace = sample.pace
-          }
+            // Calculate pace from speed
+            if (point.speed && point.speed > 0) {
+              point.pace = 1000 / (point.speed * 60)
+            } else if (sample.pace) {
+              point.pace = sample.pace
+            }
 
-          data.push(point)
+            data.push(point)
+          }
         }
       }
     }
