@@ -88,10 +88,50 @@ Deno.serve(async (req) => {
     console.log(`[reprocess] Found ${logCandidates.length} webhook logs with activityDetails for ${dateStr}`)
 
     // Unificar candidatos (prioriza falhas explícitas, mas reprocessa logs também)
-    const combined = [
+    let combined: Array<any> = [
       ...candidates.map(r => ({ src: 'sync', id: r.id, user_id: r.user_id, payload: r.webhook_payload })),
       ...logCandidates.map(l => ({ src: 'log', id: l.id, user_id: l.user_id, payload: l.payload }))
     ]
+
+    // Também considerar TODAS as atividades de hoje (reprocessa idempotente via upsert)
+    const { data: acts, error: actErr } = await supabase
+      .from('garmin_activities')
+      .select('user_id,activity_id,summary_id,activity_date,start_time_in_seconds')
+      .eq('activity_date', dateStr)
+      .order('start_time_in_seconds', { ascending: true })
+
+    if (actErr) {
+      console.error('[reprocess] activities query error', actErr)
+    } else if (acts && acts.length > 0) {
+      console.log(`[reprocess] Found ${acts.length} activities for ${dateStr}`)
+
+      // Opcional: poderíamos filtrar atividades já com detalhes, mas o upsert é idempotente
+      for (const a of acts) {
+        // Busca token ativo do usuário
+        const { data: tokenRow, error: tokenErr } = await supabase
+          .from('garmin_tokens')
+          .select('access_token')
+          .eq('user_id', a.user_id)
+          .eq('is_active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (tokenErr || !tokenRow?.access_token) {
+          console.warn('[reprocess] missing token for activity', a.activity_id)
+          continue
+        }
+
+        combined.push({
+          src: 'activity',
+          id: a.activity_id,
+          user_id: a.user_id,
+          activity_id: a.activity_id,
+          summary_id: a.summary_id,
+          garmin_access_token: tokenRow.access_token,
+        })
+      }
+    }
 
     let processed = 0
     let success = 0
@@ -100,17 +140,21 @@ Deno.serve(async (req) => {
     for (const row of combined) {
       processed++
       try {
-        // Repassa como webhook para evitar o modo admin e a exigência de token de usuário
+        const body: any = { webhook_triggered: true, user_id: row.user_id }
+        if (row.payload) {
+          body.webhook_payload = row.payload
+        } else if (row.activity_id) {
+          body.activity_id = row.activity_id
+          if (row.summary_id) body.summary_id = row.summary_id
+          if (row.garmin_access_token) body.garmin_access_token = row.garmin_access_token
+        }
+
         const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
           headers: {
             Authorization: `Bearer ${serviceKey}`,
             'Content-Type': 'application/json'
           },
-          body: {
-            webhook_triggered: true,
-            user_id: row.user_id,
-            webhook_payload: row.payload
-          }
+          body
         })
 
         if (error || data?.error) {
