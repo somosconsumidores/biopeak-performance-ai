@@ -347,6 +347,20 @@ serve(async (req) => {
             console.error(`[sync-polar-activities] Failed to fetch samples for activity ${activityData.id}:`, sampleError);
             // Don't fail the whole sync if samples fail
           }
+
+          // Trigger ETL to precompute optimized tables for frontend consumption
+          try {
+            const etl = await supabase.functions.invoke('process-activity-data-etl', {
+              body: { user_id, activity_id: activityData.id, activity_source: 'polar' }
+            });
+            if (etl.error || etl.data?.success === false) {
+              console.error('[sync-polar-activities] ETL error:', etl.error || etl.data);
+            } else {
+              console.log('[sync-polar-activities] ETL triggered for activity', activityData.id);
+            }
+          } catch (etlError) {
+            console.error('[sync-polar-activities] Failed to trigger ETL:', etlError);
+          }
         }
 
       } catch (activityError) {

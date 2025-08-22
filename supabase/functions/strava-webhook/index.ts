@@ -293,6 +293,24 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       console.error('Failed to calculate Strava performance metrics:', metricsError)
     }
 
+    // Trigger ETL to precompute optimized tables for frontend consumption
+    try {
+      const etlResp = await serviceRoleClient.functions.invoke('process-activity-data-etl', {
+        body: {
+          user_id: userData.user_id,
+          activity_id: String(payload.object_id),
+          activity_source: 'strava'
+        }
+      })
+      if (etlResp.error || etlResp.data?.success === false) {
+        console.error('Error triggering ETL for Strava activity:', etlResp.error || etlResp.data)
+      } else {
+        console.log('Triggered ETL for Strava activity:', payload.object_id)
+      }
+    } catch (etlError) {
+      console.error('Failed to trigger ETL for Strava activity:', etlError)
+    }
+
     // Update webhook log
     await serviceRoleClient
       .from('strava_webhook_logs')

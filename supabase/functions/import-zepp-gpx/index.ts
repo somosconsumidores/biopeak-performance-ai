@@ -327,6 +327,20 @@ Deno.serve(async (req) => {
       // Don't fail the main operation if stats calculation fails
     }
 
+    // Trigger ETL to precompute optimized tables for frontend consumption
+    try {
+      const etl = await serviceSupabase.functions.invoke('process-activity-data-etl', {
+        body: { user_id: user.id, activity_id: activityId, activity_source: 'zepp_gpx' }
+      });
+      if (etl.error || etl.data?.success === false) {
+        console.error('Failed to trigger ETL for Zepp GPX:', etl.error || etl.data);
+      } else {
+        console.log('Triggered ETL for Zepp GPX activity:', activityId);
+      }
+    } catch (etlErr) {
+      console.error('ETL invocation error (Zepp GPX):', etlErr);
+    }
+
     const response = {
       success: true,
       activity_id: activityId,
