@@ -1,4 +1,3 @@
-
 project_id = "grcwlmltlcltmwbhdpky"
 
 [functions.recover-polar-webhook-activities]
@@ -140,4 +139,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.calculate-fitness-score]
+verify_jwt = true
+
+[functions.build-activity-chart-cache]
+verify_jwt = true
+
+[functions.backfill-variation-analysis-runner]
 verify_jwt = true
