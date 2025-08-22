@@ -45,6 +45,82 @@ Deno.serve(async (req) => {
     // Parâmetros opcionais
     let body: any = {}
     try { body = await req.json() } catch {}
+    
+    // Se activity_id específico for fornecido, processar apenas ele
+    if (body?.activity_id) {
+      const activityId = body.activity_id
+      console.log(`[reprocess] Processing specific activity: ${activityId}`)
+      
+      // Buscar a atividade
+      const { data: activity, error: actErr } = await supabase
+        .from('garmin_activities')
+        .select('user_id,activity_id,summary_id,activity_date')
+        .eq('activity_id', activityId)
+        .maybeSingle()
+        
+      if (actErr || !activity) {
+        return new Response(JSON.stringify({ 
+          error: 'Activity not found', 
+          activity_id: activityId 
+        }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      
+      // Buscar token ativo do usuário
+      const { data: tokenRow, error: tokenErr } = await supabase
+        .from('garmin_tokens')
+        .select('access_token')
+        .eq('user_id', activity.user_id)
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (tokenErr || !tokenRow?.access_token) {
+        return new Response(JSON.stringify({ 
+          error: 'No active token found for user', 
+          activity_id: activityId,
+          user_id: activity.user_id
+        }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('sync-garmin-activity-details', {
+          headers: {
+            Authorization: `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            webhook_triggered: true,
+            user_id: activity.user_id,
+            activity_id: activity.activity_id,
+            summary_id: activity.summary_id,
+            garmin_access_token: tokenRow.access_token
+          }
+        })
+
+        if (error || data?.error) {
+          return new Response(JSON.stringify({
+            activity_id: activityId,
+            success: false,
+            error: error?.message || data?.error || 'Sync failed'
+          }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        return new Response(JSON.stringify({
+          activity_id: activityId,
+          success: true,
+          message: 'Activity reprocessed successfully'
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        
+      } catch (e) {
+        return new Response(JSON.stringify({
+          activity_id: activityId,
+          success: false,
+          error: 'Unexpected error during reprocessing'
+        }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
+    
     const dateStr: string = body?.date || new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 
     const from = `${dateStr}T00:00:00Z`

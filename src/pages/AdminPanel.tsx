@@ -4,6 +4,7 @@ import { AdminRoute } from '@/components/AdminRoute';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useAdminActions } from '@/hooks/useAdminActions';
 import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck } from 'lucide-react';
@@ -46,6 +47,8 @@ export const AdminPanel = () => {
   const { toast } = useToast();
   const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
   const [reprocessingGarminDetails, setReprocessingGarminDetails] = useState(false);
+  const [reprocessingSpecificActivity, setReprocessingSpecificActivity] = useState(false);
+  const [specificActivityId, setSpecificActivityId] = useState('');
   const [tokenStats, setTokenStats] = useState<TokenStats>({
     total: 0,
     active: 0,
@@ -230,6 +233,40 @@ export const AdminPanel = () => {
       });
     } finally {
       setReprocessingGarminDetails(false);
+    }
+  };
+
+  const handleReprocessSpecificActivity = async () => {
+    if (!specificActivityId) return;
+    
+    setReprocessingSpecificActivity(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reprocess-garmin-details-errors-today', {
+        body: { activity_id: specificActivityId },
+      });
+      if (error) throw error;
+      const result: any = data || {};
+      
+      if (result.success) {
+        toast({
+          title: "Atividade reprocessada",
+          description: `Atividade ${specificActivityId} foi reprocessada com sucesso`,
+        });
+        setSpecificActivityId('');
+      } else {
+        throw new Error(result.error || 'Falha no reprocessamento');
+      }
+      
+      await fetchStats();
+    } catch (error: any) {
+      console.error('Error reprocessing specific activity:', error);
+      toast({
+        title: "Erro no reprocessamento",
+        description: error.message || "Falha ao reprocessar atividade específica",
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingSpecificActivity(false);
     }
   };
 
@@ -484,6 +521,24 @@ export const AdminPanel = () => {
                   <Activity className={`h-4 w-4 ${reprocessingGarminDetails ? 'animate-spin' : ''}`} />
                   {reprocessingGarminDetails ? 'Reprocessando...' : 'Reprocessar erros de hoje (Garmin Detalhes)'}
                 </Button>
+
+                <div className="flex gap-2 items-center">
+                  <Input
+                    placeholder="ID da atividade"
+                    value={specificActivityId}
+                    onChange={(e) => setSpecificActivityId(e.target.value)}
+                    className="w-40"
+                  />
+                  <Button
+                    onClick={handleReprocessSpecificActivity}
+                    disabled={reprocessingSpecificActivity || !specificActivityId}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Activity className={`h-4 w-4 ${reprocessingSpecificActivity ? 'animate-spin' : ''}`} />
+                    {reprocessingSpecificActivity ? 'Reprocessando...' : 'Reprocessar atividade'}
+                  </Button>
+                </div>
                 
                 {tokenStats.expired > 0 && (
                   <Badge variant="destructive">
