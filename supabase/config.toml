@@ -148,4 +148,4 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.reprocess-garmin-details-errors-today]
-verify_jwt = true
+verify_jwt = false
