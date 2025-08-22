@@ -68,11 +68,36 @@ Deno.serve(async (req) => {
     const candidates = (failed || []).filter(r => r.webhook_payload)
     console.log(`[reprocess] Found ${failed?.length || 0} failed, ${candidates.length} with payload to reprocess`)
 
+    // Além de falhas, buscar todos os webhooks de detalhes do dia
+    const { data: logs, error: logsErr } = await supabase
+      .from('garmin_webhook_logs')
+      .select('id,user_id,payload,webhook_type,created_at')
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .order('created_at', { ascending: true })
+
+    if (logsErr) {
+      console.error('[reprocess] logs query error', logsErr)
+    }
+
+    const logCandidates = (logs || []).filter(l => {
+      const p = l?.payload as any
+      return p && (Array.isArray(p.activityDetails) ? p.activityDetails.length > 0 : !!p.activityDetails)
+    })
+
+    console.log(`[reprocess] Found ${logCandidates.length} webhook logs with activityDetails for ${dateStr}`)
+
+    // Unificar candidatos (prioriza falhas explícitas, mas reprocessa logs também)
+    const combined = [
+      ...candidates.map(r => ({ src: 'sync', id: r.id, user_id: r.user_id, payload: r.webhook_payload })),
+      ...logCandidates.map(l => ({ src: 'log', id: l.id, user_id: l.user_id, payload: l.payload }))
+    ]
+
     let processed = 0
     let success = 0
     const errors: Array<{ id: string, reason: string }> = []
 
-    for (const row of candidates) {
+    for (const row of combined) {
       processed++
       try {
         // Repassa como webhook para evitar o modo admin e a exigência de token de usuário
@@ -84,19 +109,19 @@ Deno.serve(async (req) => {
           body: {
             webhook_triggered: true,
             user_id: row.user_id,
-            webhook_payload: row.webhook_payload
+            webhook_payload: row.payload
           }
         })
 
         if (error || data?.error) {
           console.error('[reprocess] invoke error', row.id, error || data?.error)
-          errors.push({ id: row.id, reason: (error?.message || data?.error || 'unknown') })
+          errors.push({ id: String(row.id), reason: (error?.message || data?.error || 'unknown') })
         } else {
           success++
         }
       } catch (e) {
         console.error('[reprocess] unexpected', row.id, e)
-        errors.push({ id: row.id, reason: 'unexpected error' })
+        errors.push({ id: String(row.id), reason: 'unexpected error' })
       }
     }
 
@@ -104,6 +129,7 @@ Deno.serve(async (req) => {
       date: dateStr,
       found_failed: failed?.length || 0,
       with_payload: candidates.length,
+      found_logs: logCandidates.length,
       processed,
       success,
       failed: errors.length,
