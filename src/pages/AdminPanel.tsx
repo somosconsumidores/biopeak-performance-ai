@@ -544,7 +544,7 @@ export const AdminPanel = () => {
                       setReprocessingSpecificActivity(true);
                       try {
                         const { data, error } = await supabase.functions.invoke('reprocess-garmin-details-errors-today', {
-                          body: { activity_id: specificActivityId, use_webhook_payload: true, batch_size: 200 },
+                          body: { activity_id: specificActivityId, use_webhook_payload: true, strict_webhook_only: true, batch_size: 200 },
                         });
                         if (error) throw error;
                         const result: any = data || {};

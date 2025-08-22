@@ -50,8 +50,9 @@ Deno.serve(async (req) => {
     if (body?.activity_id) {
       const activityId = body.activity_id
       const useWebhookPayload = !!body?.use_webhook_payload
+      const strictWebhookOnly = !!body?.strict_webhook_only
       const customBatchSize = Number(body?.batch_size)
-      console.log(`[reprocess] Processing specific activity: ${activityId} | useWebhookPayload=${useWebhookPayload} | batchSize=${customBatchSize || 'default'}`)
+      console.log(`[reprocess] Processing specific activity: ${activityId} | useWebhookPayload=${useWebhookPayload} | strictWebhookOnly=${strictWebhookOnly} | batchSize=${customBatchSize || 'default'}`)
       
       // Buscar a atividade
       const { data: activity, error: actErr } = await supabase
@@ -67,8 +68,9 @@ Deno.serve(async (req) => {
         }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
-      // Tenta reprocessar via payload do webhook se solicitado
-      if (useWebhookPayload) {
+      // Tenta reprocessar via payload do webhook quando solicitado OU em modo estrito (sem fallback de API)
+      const tryWebhook = useWebhookPayload || strictWebhookOnly
+      if (tryWebhook) {
         try {
           let fromDate: string
           let toDate: string
@@ -150,9 +152,27 @@ Deno.serve(async (req) => {
             }
           }
 
+          if (strictWebhookOnly) {
+            console.warn(`[reprocess] No webhook payload found for activity ${activityId} (strict_webhook_only=true) -> NOT calling API`)
+            return new Response(JSON.stringify({
+              activity_id: activityId,
+              success: false,
+              source: 'webhook_log',
+              error: 'Nenhum payload de detalhes encontrado para esta atividade'
+            }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+          }
+
           console.warn(`[reprocess] No webhook payload found for activity ${activityId}, falling back to API`)
         } catch (e) {
           console.error('[reprocess] Error searching webhook logs:', e)
+          if (strictWebhookOnly) {
+            return new Response(JSON.stringify({
+              activity_id: activityId,
+              success: false,
+              source: 'webhook_log',
+              error: 'Erro ao buscar payload do webhook para esta atividade'
+            }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+          }
           // fallthrough to API path
         }
       }
