@@ -149,3 +149,6 @@ verify_jwt = true
 
 [functions.reprocess-garmin-details-errors-today]
 verify_jwt = false
+
+[functions.process-activity-data-etl]
+verify_jwt = true

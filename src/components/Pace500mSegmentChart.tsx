@@ -70,7 +70,7 @@ export const Pace1kmSegmentChart = ({
     let segmentDataPoints = 0;
 
     for (const point of data) {
-      const currentDistance = point.distance_km ? point.distance_km * 1000 : 0;
+      const currentDistance = point.distance ? point.distance * 1000 : 0;
       
       // Check if we've reached the next 1km segment
       if (currentDistance >= currentSegment * segmentSize) {
@@ -93,8 +93,8 @@ export const Pace1kmSegmentChart = ({
       }
 
       // Add current point to segment calculations
-      if (point.pace_min_per_km && point.pace_min_per_km > 0) {
-        segmentPaceSum += point.pace_min_per_km;
+      if (point.pace && point.pace > 0) {
+        segmentPaceSum += point.pace;
         segmentDataPoints++;
       }
       if (point.heart_rate && point.heart_rate > 0) {

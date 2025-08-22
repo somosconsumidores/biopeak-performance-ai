@@ -178,24 +178,24 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
   }
 
   // Calculate average values for reference lines (excluding null values for pace)
-  const validPaceData = data.filter(item => item.pace_min_per_km !== null && item.pace_min_per_km > 0);
-  const avgHeartRate = data.reduce((sum, item) => sum + item.heart_rate, 0) / data.length;
-  const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace_min_per_km!, 0) / validPaceData.length : 0;
+  const validPaceData = data.filter(item => item.pace !== null && item.pace && item.pace > 0);
+  const avgHeartRate = data.reduce((sum, item) => sum + (item.heart_rate || 0), 0) / data.length;
+  const avgPace = validPaceData.length > 0 ? validPaceData.reduce((sum, item) => sum + item.pace!, 0) / validPaceData.length : 0;
 
   // Custom tooltip optimized for mobile
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const minutes = Math.floor(data.pace_min_per_km || 0);
-      const seconds = Math.round(((data.pace_min_per_km || 0) - minutes) * 60);
-      const paceDisplay = data.pace_min_per_km && data.pace_min_per_km > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
+      const minutes = Math.floor(data.pace || 0);
+      const seconds = Math.round(((data.pace || 0) - minutes) * 60);
+      const paceDisplay = data.pace && data.pace > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}/km` : "Parado";
       
       return (
         <div className={`bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg ${
           isMobile ? 'p-2 max-w-[200px]' : 'p-3'
         }`}>
           <p className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
-            {isMobile ? `${data.distance_km.toFixed(1)}km` : `Distância: ${data.distance_km.toFixed(2)}km`}
+            {isMobile ? `${data.distance?.toFixed(1)}km` : `Distância: ${data.distance?.toFixed(2)}km`}
           </p>
           <p className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
             {isMobile ? paceDisplay : `Ritmo: ${paceDisplay}`}
@@ -231,7 +231,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
             >
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis 
-                dataKey="distance_km" 
+                dataKey="distance" 
                 type="number"
                 domain={[0, 'dataMax']}
                 tickFormatter={(value) => isMobile ? `${value.toFixed(0)}km` : `${value.toFixed(1)}km`}
@@ -241,7 +241,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               />
               <YAxis 
                 yAxisId="pace"
-                dataKey="pace_min_per_km"
+                dataKey="pace"
                 domain={['dataMin - 0.2', 'dataMax + 0.2']}
                 tickFormatter={(value) => {
                   if (value === null || value === undefined) return '';
@@ -291,8 +291,8 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
               <Line 
                 yAxisId="pace"
                 type="monotone" 
-                dataKey="pace_min_per_km" 
-                stroke="hsl(var(--primary))" 
+                dataKey="pace" 
+                stroke="hsl(var(--primary))"
                 strokeWidth={isMobile ? 1.5 : 2}
                 dot={false}
                 activeDot={{ r: isMobile ? 3 : 4, fill: "hsl(var(--primary))" }}
@@ -323,7 +323,7 @@ export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate
             <span className="truncate">FC: {Math.round(avgHeartRate)} bpm</span>
           </div>
           <div className="text-muted-foreground text-center sm:text-left">
-            <span className="truncate">Distância: {data.length > 0 ? data[data.length - 1].distance_km.toFixed(1) : 0}km</span>
+            <span className="truncate">Distância: {data.length > 0 ? data[data.length - 1].distance?.toFixed(1) : 0}km</span>
           </div>
         </div>
       </CardContent>
