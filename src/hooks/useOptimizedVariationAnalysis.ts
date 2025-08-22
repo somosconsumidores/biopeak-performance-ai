@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 interface VariationAnalysisResult {
@@ -15,9 +16,12 @@ interface VariationAnalysisResult {
 
 export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) => {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const [analysis, setAnalysis] = useState<VariationAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const isAdminRoute = window.location.pathname.startsWith('/admin');
 
   const calculateVariationCoefficients = async (activityData: UnifiedActivity) => {
     if (!user) return;
@@ -32,11 +36,19 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
       const activitySource = activityData.source.toLowerCase();
       console.log('Activity source detected:', activitySource);
 
+      // Determine owner and adjust query for admin route
+      const activityOwnerId = isAdminRoute ? (
+        await supabase
+          .from('all_activities')  
+          .select('user_id')
+          .eq('activity_id', activityData.activity_id)
+      ).data?.[0]?.user_id || user.id : user.id;
+
       // Buscar dados otimizados da tabela activity_variation_analysis
       const { data: variationData, error: variationError } = await supabase
         .from('activity_variation_analysis')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', activityOwnerId)
         .eq('activity_id', activityData.activity_id)
         .eq('activity_source', activitySource)
         .maybeSingle();
@@ -52,13 +64,12 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
         
         // Tentar processar via ETL
         try {
-          const { error: etlError } = await supabase.functions.invoke('process-activity-data-etl', {
-            body: { 
-              user_id: user.id,
-              activity_id: activityData.activity_id,
-              activity_source: activitySource
-            }
-          });
+          const etlFunction = isAdminRoute && isAdmin ? 'admin-trigger-etl' : 'process-activity-data-etl';
+          const etlBody = isAdminRoute && isAdmin 
+            ? { activity_id: activityData.activity_id, activity_source: activitySource }
+            : { user_id: activityOwnerId, activity_id: activityData.activity_id, activity_source: activitySource };
+          
+          const { error: etlError } = await supabase.functions.invoke(etlFunction, { body: etlBody });
 
           if (etlError) {
             console.error('ETL processing error:', etlError);
@@ -70,7 +81,7 @@ export const useOptimizedVariationAnalysis = (activity: UnifiedActivity | null) 
           const { data: newVariationData } = await supabase
             .from('activity_variation_analysis')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', activityOwnerId)
             .eq('activity_id', activityData.activity_id)
             .eq('activity_source', activitySource)
             .maybeSingle();

@@ -11,9 +11,12 @@ interface HeartRatePaceData {
 
 export const useActivityDetailsChart = (activityId: string | null) => {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const [data, setData] = useState<HeartRatePaceData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const isAdminRoute = window.location.pathname.startsWith('/admin');
 
   const hasData = useMemo(() => data.length > 0, [data]);
   const hasRawData = useMemo(() => 
@@ -30,19 +33,20 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       // First get the activity source from all_activities table
       const { data: activityData } = await supabase
         .from('all_activities')
-        .select('activity_source')
-        .eq('user_id', user.id)
+        .select('activity_source, user_id')
         .eq('activity_id', id)
-        .maybeSingle();
+        .then(result => isAdminRoute ? result : { ...result, data: result.data?.filter(d => d.user_id === user.id) })
+        .then(result => ({ ...result, data: result.data?.[0] || null }));
 
       const activitySource = activityData?.activity_source || 'garmin';
-      console.log('Activity source detected:', activitySource);
+      const activityOwnerId = activityData?.user_id || user.id;
+      console.log('Activity source detected:', activitySource, 'Owner:', activityOwnerId);
       
       // Check activity_chart_data table
       const { data: chartData, error: chartError } = await supabase
         .from('activity_chart_data')
         .select('series_data, data_points_count')
-        .eq('user_id', user.id)
+        .eq('user_id', activityOwnerId)
         .eq('activity_id', id)
         .eq('activity_source', activitySource)
         .maybeSingle();
@@ -62,13 +66,12 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       console.log('No optimized data found, triggering ETL processing...');
       
       try {
-        const { error: etlError } = await supabase.functions.invoke('process-activity-data-etl', {
-          body: { 
-            user_id: user.id,
-            activity_id: id,
-            activity_source: activitySource
-          }
-        });
+        const etlFunction = isAdminRoute && isAdmin ? 'admin-trigger-etl' : 'process-activity-data-etl';
+        const etlBody = isAdminRoute && isAdmin 
+          ? { activity_id: id, activity_source: activitySource }
+          : { user_id: activityOwnerId, activity_id: id, activity_source: activitySource };
+        
+        const { error: etlError } = await supabase.functions.invoke(etlFunction, { body: etlBody });
 
         if (etlError) {
           console.error('ETL processing error:', etlError);
@@ -79,7 +82,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         const { data: newChartData } = await supabase
           .from('activity_chart_data')
           .select('series_data, data_points_count')
-          .eq('user_id', user.id)
+          .eq('user_id', activityOwnerId)
           .eq('activity_id', id)
           .eq('activity_source', activitySource)
           .maybeSingle();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface HeartRateZone {
   zone: string;
@@ -14,10 +15,13 @@ interface HeartRateZone {
 
 export const useOptimizedHeartRateZones = (activityId: string | null) => {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const [zones, setZones] = useState<HeartRateZone[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasData, setHasData] = useState(false);
+  
+  const isAdminRoute = window.location.pathname.startsWith('/admin');
 
   const calculateZones = async (id: string) => {
     if (!user) return;
@@ -33,19 +37,20 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
       // First get the activity source from all_activities table
       const { data: activityData } = await supabase
         .from('all_activities')
-        .select('activity_source')
-        .eq('user_id', user.id)
+        .select('activity_source, user_id')
         .eq('activity_id', id)
-        .maybeSingle();
+        .then(result => isAdminRoute ? result : { ...result, data: result.data?.filter(d => d.user_id === user.id) })
+        .then(result => ({ ...result, data: result.data?.[0] || null }));
 
       const activitySource = activityData?.activity_source || 'garmin';
-      console.log('Activity source detected:', activitySource);
+      const activityOwnerId = activityData?.user_id || user.id;
+      console.log('Activity source detected:', activitySource, 'Owner:', activityOwnerId);
 
       // Buscar dados otimizados da tabela activity_heart_rate_zones
       const { data: zoneData, error: zoneError } = await supabase
         .from('activity_heart_rate_zones')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', activityOwnerId)
         .eq('activity_id', id)
         .eq('activity_source', activitySource)
         .maybeSingle();
@@ -61,13 +66,12 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
         
         // Tentar processar via ETL
         try {
-          const { error: etlError } = await supabase.functions.invoke('process-activity-data-etl', {
-            body: { 
-              user_id: user.id,
-              activity_id: id,
-              activity_source: activitySource
-            }
-          });
+          const etlFunction = isAdminRoute && isAdmin ? 'admin-trigger-etl' : 'process-activity-data-etl';
+          const etlBody = isAdminRoute && isAdmin 
+            ? { activity_id: id, activity_source: activitySource }
+            : { user_id: activityOwnerId, activity_id: id, activity_source: activitySource };
+          
+          const { error: etlError } = await supabase.functions.invoke(etlFunction, { body: etlBody });
 
           if (etlError) {
             console.error('ETL processing error:', etlError);
@@ -79,7 +83,7 @@ export const useOptimizedHeartRateZones = (activityId: string | null) => {
           const { data: newZoneData } = await supabase
             .from('activity_heart_rate_zones')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', activityOwnerId)
             .eq('activity_id', id)
             .eq('activity_source', activitySource)
             .maybeSingle();
