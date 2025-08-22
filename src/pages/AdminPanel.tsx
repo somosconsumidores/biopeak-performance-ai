@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UserRegistrationChart } from '@/components/UserRegistrationChart';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
 import { SurveyManagement } from '@/components/SurveyManagement';
+import { VariationBackfillSection } from '@/components/VariationBackfillSection';
 
 interface TokenStats {
   total: number;
@@ -461,6 +462,8 @@ export const AdminPanel = () => {
               </div>
             </CardContent>
           </Card>
+
+          <VariationBackfillSection />
 
           {/* Polar Webhook Recovery */}
           <Card>
