@@ -391,29 +391,22 @@ export const Onboarding = () => {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="w-full sm:w-auto order-2 sm:order-1 accessible-button touch-target"
-              >
-                Voltar
-              </Button>
-              
+            <div className="flex flex-col gap-3 pt-6 w-full">
               {currentStep < totalSteps ? (
                 <Button
                   onClick={handleNext}
                   disabled={!canProceed()}
                   className={cn(
-                    "w-full sm:w-auto order-1 sm:order-2 accessible-button touch-target",
-                    "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold",
+                    "w-full h-12 text-base font-semibold",
+                    "bg-gradient-to-r from-primary to-accent text-primary-foreground",
                     "transition-all duration-300 ease-out",
-                    "hover:scale-105 hover:shadow-lg active:scale-95",
+                    "hover:scale-[1.02] hover:shadow-lg active:scale-95",
+                    "touch-manipulation select-none",
                     canProceed() 
                       ? "opacity-100 hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]" 
                       : "opacity-50 cursor-not-allowed"
                   )}
+                  style={{ minHeight: '48px', fontSize: '16px' }}
                 >
                   Próximo
                 </Button>
@@ -422,14 +415,16 @@ export const Onboarding = () => {
                   onClick={handleFinish}
                   disabled={!canProceed() || loading}
                   className={cn(
-                    "w-full sm:w-auto order-1 sm:order-2 accessible-button touch-target",
-                    "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold",
+                    "w-full h-12 text-base font-semibold",
+                    "bg-gradient-to-r from-primary to-accent text-primary-foreground",
                     "transition-all duration-300 ease-out",
-                    "hover:scale-105 hover:shadow-lg active:scale-95",
+                    "hover:scale-[1.02] hover:shadow-lg active:scale-95",
+                    "touch-manipulation select-none",
                     (canProceed() && !loading)
                       ? "opacity-100 hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
                       : "opacity-50 cursor-not-allowed"
                   )}
+                  style={{ minHeight: '48px', fontSize: '16px' }}
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -439,6 +434,17 @@ export const Onboarding = () => {
                   ) : (
                     "Finalizar"
                   )}
+                </Button>
+              )}
+              
+              {currentStep > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={handleBack}
+                  className="w-full h-12 text-base font-medium touch-manipulation select-none"
+                  style={{ minHeight: '48px', fontSize: '16px' }}
+                >
+                  Voltar
                 </Button>
               )}
             </div>
