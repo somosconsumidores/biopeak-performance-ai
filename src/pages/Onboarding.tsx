@@ -143,7 +143,7 @@ export const Onboarding = () => {
 
     const success = await saveOnboardingData(onboardingData);
     if (success) {
-      navigate("/dashboard");
+      navigate("/sync");
     }
   };
 
