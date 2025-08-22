@@ -162,6 +162,15 @@ async function processActivityDetailsInBackground(
       
       totalProcessed++;
       
+      // Trigger ETL in background for this activity as well (non-blocking)
+      try {
+        supabaseClient.functions.invoke('process-activity-data-etl', {
+          body: { user_id: userId, activity_id: detail.activityId, activity_source: 'garmin' }
+        });
+      } catch (e) {
+        console.error('[bg-task] Failed to trigger ETL:', e);
+      }
+      
       // Log progress every 10 activities
       if (totalProcessed % 10 === 0) {
         console.log(`[bg-task] Progress: ${totalProcessed}/${activityDetails.length} activities processed`);
@@ -366,6 +375,14 @@ async function processWebhookActivityDetails(
       }
       
       totalProcessed++;
+      // Trigger ETL in background for this activity (non-blocking)
+      try {
+        supabaseClient.functions.invoke('process-activity-data-etl', {
+          body: { user_id: userId, activity_id: detail.activityId, activity_source: 'garmin' }
+        });
+      } catch (e) {
+        console.error('[webhook-process] Failed to trigger ETL:', e);
+      }
       
     } catch (error) {
       console.error(`[webhook-process] Unexpected error processing activity detail:`, error);

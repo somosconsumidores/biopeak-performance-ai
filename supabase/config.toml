@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.manual-etl-process]
 verify_jwt = false
+
+[functions.admin-trigger-etl]
+verify_jwt = true
