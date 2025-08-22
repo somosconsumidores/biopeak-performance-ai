@@ -2934,6 +2934,57 @@ export type Database = {
         }
         Relationships: []
       }
+      variation_analysis: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          built_at: string
+          created_at: string
+          data_points: number
+          diagnosis: string | null
+          has_valid_data: boolean
+          heart_rate_cv: number | null
+          heart_rate_cv_category: string | null
+          id: string
+          pace_cv: number | null
+          pace_cv_category: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source: string
+          built_at?: string
+          created_at?: string
+          data_points?: number
+          diagnosis?: string | null
+          has_valid_data?: boolean
+          heart_rate_cv?: number | null
+          heart_rate_cv_category?: string | null
+          id?: string
+          pace_cv?: number | null
+          pace_cv_category?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          built_at?: string
+          created_at?: string
+          data_points?: number
+          diagnosis?: string | null
+          has_valid_data?: boolean
+          heart_rate_cv?: number | null
+          heart_rate_cv_category?: string | null
+          id?: string
+          pace_cv?: number | null
+          pace_cv_category?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       zepp_activities: {
         Row: {
           activity_date: string | null
@@ -3302,6 +3353,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_variation_analysis: {
+        Args: {
+          p_activity_id: string
+          p_activity_source: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       calculate_vo2_max: {
         Args: {
           activity_type_param: string
