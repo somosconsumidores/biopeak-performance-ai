@@ -13,6 +13,7 @@ import { UserRegistrationChart } from '@/components/UserRegistrationChart';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
 import { SurveyManagement } from '@/components/SurveyManagement';
 import { VariationBackfillSection } from '@/components/VariationBackfillSection';
+import { AdminActivityChartPreview } from '@/components/AdminActivityChartPreview';
 
 interface TokenStats {
   total: number;
@@ -445,11 +446,7 @@ export const AdminPanel = () => {
           {/* Preview do gráfico de atividade gerado do JSON (para validação) */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">Pré-visualização do Gráfico (JSON ➜ activity_chart_data)</h2>
-            {/* Import lazy to avoid circular deps */}
-            {(() => {
-              const Comp = require('@/components/AdminActivityChartPreview').AdminActivityChartPreview;
-              return <Comp />;
-            })()}
+            <AdminActivityChartPreview />
           </div>
 
           {/* Top 10 Usuários Mais Ativos */}
