@@ -129,6 +129,8 @@ export const Onboarding = () => {
   };
 
   const handleFinish = async () => {
+    console.log('🔍 ONBOARDING_PAGE: Starting finish process');
+    
     const formattedBirthDate = birthDay && birthMonth && birthYear 
       ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
       : undefined;
@@ -141,9 +143,15 @@ export const Onboarding = () => {
       athletic_level: athleticLevel,
     };
 
+    console.log('🔍 ONBOARDING_PAGE: Saving onboarding data', onboardingData);
+    
     const success = await saveOnboardingData(onboardingData);
     if (success) {
-      navigate("/sync");
+      console.log('🔍 ONBOARDING_PAGE: Save successful, navigating to /sync');
+      // Force navigation with replace to prevent back navigation
+      navigate("/sync", { replace: true });
+    } else {
+      console.log('🔍 ONBOARDING_PAGE: Save failed');
     }
   };
 

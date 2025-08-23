@@ -195,14 +195,29 @@ function ProtectedRoute({
   skipOnboardingCheck?: boolean;
 }) {
   const { user, loading } = useAuth();
-  const { checkOnboardingStatus } = useOnboarding();
+  const { checkOnboardingStatus, isOnboardingCompleted } = useOnboarding();
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   
   useEffect(() => {
     const checkStatus = async () => {
       if (user && !skipOnboardingCheck) {
+        console.log('🔍 PROTECTED_ROUTE: Checking onboarding status', { 
+          userId: user.id, 
+          localState: isOnboardingCompleted,
+          pathname: window.location.pathname 
+        });
+        
+        // If local state indicates completion, skip database check
+        if (isOnboardingCompleted === true) {
+          console.log('🔍 PROTECTED_ROUTE: Using local state - onboarding completed');
+          setNeedsOnboarding(false);
+          setIsCheckingOnboarding(false);
+          return;
+        }
+        
         const isCompleted = await checkOnboardingStatus();
+        console.log('🔍 PROTECTED_ROUTE: Database check result', { isCompleted });
         setNeedsOnboarding(!isCompleted);
       }
       setIsCheckingOnboarding(false);
@@ -213,7 +228,7 @@ function ProtectedRoute({
     } else if (!loading) {
       setIsCheckingOnboarding(false);
     }
-  }, [user, loading, skipOnboardingCheck, checkOnboardingStatus]);
+  }, [user, loading, skipOnboardingCheck, checkOnboardingStatus, isOnboardingCompleted]);
   
   if (loading || isCheckingOnboarding) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
@@ -222,12 +237,20 @@ function ProtectedRoute({
   }
   
   if (!user) {
+    console.log('🔍 PROTECTED_ROUTE: No user, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
   
   if (needsOnboarding && !skipOnboardingCheck && window.location.pathname !== '/onboarding') {
+    console.log('🔍 PROTECTED_ROUTE: Needs onboarding, redirecting to /onboarding');
     return <Navigate to="/onboarding" replace />;
   }
+  
+  console.log('🔍 PROTECTED_ROUTE: Access granted', { 
+    needsOnboarding, 
+    skipOnboardingCheck, 
+    pathname: window.location.pathname 
+  });
   
   return <>{children}</>;
 }

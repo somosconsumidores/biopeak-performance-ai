@@ -28,6 +28,7 @@ export const useOnboarding = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [onboardingData, setOnboardingData] = useState<UserOnboarding | null>(null);
+  const [localOnboardingCompleted, setLocalOnboardingCompleted] = useState<boolean | null>(null);
 
   const fetchOnboardingData = async () => {
     if (!user) return;
@@ -61,16 +62,19 @@ export const useOnboarding = () => {
     }
 
     setLoading(true);
+    console.log('🔍 ONBOARDING: Starting save process', { userId: user.id, data });
+    
     try {
-      const { error } = await supabase
+      // Save onboarding data
+      const { error: onboardingError } = await supabase
         .from('user_onboarding')
         .upsert({
           user_id: user.id,
           ...data,
         });
 
-      if (error) {
-        console.error('Error saving onboarding data:', error);
+      if (onboardingError) {
+        console.error('Error saving onboarding data:', onboardingError);
         toast({
           title: "Erro",
           description: "Erro ao salvar dados do onboarding",
@@ -79,8 +83,10 @@ export const useOnboarding = () => {
         return false;
       }
 
+      console.log('🔍 ONBOARDING: Onboarding data saved, updating profile...');
+
       // Update profile to mark onboarding as completed
-      await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
           onboarding_completed: true,
@@ -89,11 +95,30 @@ export const useOnboarding = () => {
         })
         .eq('user_id', user.id);
 
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar perfil",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('🔍 ONBOARDING: Profile updated successfully');
+
+      // Set local state immediately to prevent race condition
+      setLocalOnboardingCompleted(true);
+      
       toast({
         title: "Sucesso!",
         description: "Perfil configurado com sucesso",
       });
 
+      // Add a small delay to ensure database propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('🔍 ONBOARDING: Save process completed successfully');
       await fetchOnboardingData();
       return true;
     } catch (error) {
@@ -112,7 +137,15 @@ export const useOnboarding = () => {
   const checkOnboardingStatus = async () => {
     if (!user) return false;
 
+    // If we have local state indicating completion, use it immediately
+    if (localOnboardingCompleted === true) {
+      console.log('🔍 ONBOARDING: Using local state - completed');
+      return true;
+    }
+
     try {
+      console.log('🔍 ONBOARDING: Checking database status for user', user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('onboarding_completed')
@@ -125,7 +158,13 @@ export const useOnboarding = () => {
         return true;
       }
 
-      return data?.onboarding_completed || false;
+      const isCompleted = data?.onboarding_completed || false;
+      console.log('🔍 ONBOARDING: Database status', { isCompleted });
+      
+      // Update local state to match database
+      setLocalOnboardingCompleted(isCompleted);
+      
+      return isCompleted;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       // Em caso de erro, assume que o onboarding foi completado para evitar redirect loops
@@ -136,6 +175,9 @@ export const useOnboarding = () => {
   useEffect(() => {
     if (user) {
       fetchOnboardingData();
+    } else {
+      // Reset local state when user logs out
+      setLocalOnboardingCompleted(null);
     }
   }, [user]);
 
@@ -145,5 +187,6 @@ export const useOnboarding = () => {
     saveOnboardingData,
     checkOnboardingStatus,
     refetch: fetchOnboardingData,
+    isOnboardingCompleted: localOnboardingCompleted,
   };
 };
