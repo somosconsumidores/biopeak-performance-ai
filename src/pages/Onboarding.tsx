@@ -148,8 +148,8 @@ export const Onboarding = () => {
     const success = await saveOnboardingData(onboardingData);
     if (success) {
       console.log('🔍 ONBOARDING_PAGE: Save successful, navigating to /sync');
-      // Force navigation with replace to prevent back navigation
-      navigate("/sync", { replace: true });
+      // Use window.location to force navigation and bypass React Router
+      window.location.href = '/sync';
     } else {
       console.log('🔍 ONBOARDING_PAGE: Save failed');
     }

@@ -135,7 +135,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/sync" element={
-          <ProtectedRoute>
+          <ProtectedRoute skipOnboardingCheck={true}>
             <GarminSync />
           </ProtectedRoute>
         } />
