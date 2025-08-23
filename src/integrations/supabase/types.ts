@@ -188,6 +188,258 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_chart_data: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          avg_heart_rate: number | null
+          avg_pace_min_km: number | null
+          avg_speed_ms: number | null
+          created_at: string
+          data_points_count: number
+          duration_seconds: number | null
+          id: string
+          max_heart_rate: number | null
+          processed_at: string
+          series_data: Json
+          total_distance_meters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          avg_heart_rate?: number | null
+          avg_pace_min_km?: number | null
+          avg_speed_ms?: number | null
+          created_at?: string
+          data_points_count?: number
+          duration_seconds?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          processed_at?: string
+          series_data?: Json
+          total_distance_meters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          avg_heart_rate?: number | null
+          avg_pace_min_km?: number | null
+          avg_speed_ms?: number | null
+          created_at?: string
+          data_points_count?: number
+          duration_seconds?: number | null
+          id?: string
+          max_heart_rate?: number | null
+          processed_at?: string
+          series_data?: Json
+          total_distance_meters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      activity_coordinates: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          bounding_box: Json | null
+          coordinates: Json
+          created_at: string
+          id: string
+          sampled_points: number
+          starting_latitude: number | null
+          starting_longitude: number | null
+          total_points: number
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          bounding_box?: Json | null
+          coordinates?: Json
+          created_at?: string
+          id?: string
+          sampled_points?: number
+          starting_latitude?: number | null
+          starting_longitude?: number | null
+          total_points?: number
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          bounding_box?: Json | null
+          coordinates?: Json
+          created_at?: string
+          id?: string
+          sampled_points?: number
+          starting_latitude?: number | null
+          starting_longitude?: number | null
+          total_points?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      activity_heart_rate_zones: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          created_at: string
+          id: string
+          max_heart_rate: number
+          total_time_seconds: number
+          user_id: string
+          zone_1_percentage: number | null
+          zone_1_time_seconds: number | null
+          zone_2_percentage: number | null
+          zone_2_time_seconds: number | null
+          zone_3_percentage: number | null
+          zone_3_time_seconds: number | null
+          zone_4_percentage: number | null
+          zone_4_time_seconds: number | null
+          zone_5_percentage: number | null
+          zone_5_time_seconds: number | null
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          created_at?: string
+          id?: string
+          max_heart_rate: number
+          total_time_seconds: number
+          user_id: string
+          zone_1_percentage?: number | null
+          zone_1_time_seconds?: number | null
+          zone_2_percentage?: number | null
+          zone_2_time_seconds?: number | null
+          zone_3_percentage?: number | null
+          zone_3_time_seconds?: number | null
+          zone_4_percentage?: number | null
+          zone_4_time_seconds?: number | null
+          zone_5_percentage?: number | null
+          zone_5_time_seconds?: number | null
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          created_at?: string
+          id?: string
+          max_heart_rate?: number
+          total_time_seconds?: number
+          user_id?: string
+          zone_1_percentage?: number | null
+          zone_1_time_seconds?: number | null
+          zone_2_percentage?: number | null
+          zone_2_time_seconds?: number | null
+          zone_3_percentage?: number | null
+          zone_3_time_seconds?: number | null
+          zone_4_percentage?: number | null
+          zone_4_time_seconds?: number | null
+          zone_5_percentage?: number | null
+          zone_5_time_seconds?: number | null
+        }
+        Relationships: []
+      }
+      activity_segments: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          avg_heart_rate: number | null
+          avg_pace_min_km: number | null
+          avg_speed_ms: number | null
+          created_at: string
+          duration_seconds: number | null
+          elevation_gain_meters: number | null
+          end_distance_meters: number
+          id: string
+          segment_number: number
+          start_distance_meters: number
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          avg_heart_rate?: number | null
+          avg_pace_min_km?: number | null
+          avg_speed_ms?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          end_distance_meters: number
+          id?: string
+          segment_number: number
+          start_distance_meters: number
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          avg_heart_rate?: number | null
+          avg_pace_min_km?: number | null
+          avg_speed_ms?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          end_distance_meters?: number
+          id?: string
+          segment_number?: number
+          start_distance_meters?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      activity_variation_analysis: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          created_at: string
+          data_points: number
+          diagnosis: string | null
+          has_valid_data: boolean
+          heart_rate_cv: number | null
+          heart_rate_cv_category: string | null
+          id: string
+          pace_cv: number | null
+          pace_cv_category: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          created_at?: string
+          data_points?: number
+          diagnosis?: string | null
+          has_valid_data?: boolean
+          heart_rate_cv?: number | null
+          heart_rate_cv_category?: string | null
+          id?: string
+          pace_cv?: number | null
+          pace_cv_category?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          created_at?: string
+          data_points?: number
+          diagnosis?: string | null
+          has_valid_data?: boolean
+          heart_rate_cv?: number | null
+          heart_rate_cv_category?: string | null
+          id?: string
+          pace_cv?: number | null
+          pace_cv_category?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json
