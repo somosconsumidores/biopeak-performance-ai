@@ -282,12 +282,55 @@ Deno.serve(async (req) => {
       throw new Error("Missing webhook_log_id or (activity_id + user_id)");
     }
 
-    // Extract series
-    const rawSeries = extractSamples(payload);
+    // Determine user and activity
+    const userId = logUserId || user_id;
+    const activityId = srcActivityId || activity_id || "unknown";
 
-    if (!rawSeries.length) {
+    // Extract series from payload
+    let rawSeries: SeriesPoint[] = extractSamples(payload);
+
+    // Fallback: if payload doesn't contain samples (typical for notifications),
+    // try to build from garmin_activity_details table
+    if ((!rawSeries || rawSeries.length === 0) && userId && activityId) {
+      // 1) Try row-per-sample data
+      const { data: rows, error: rowsErr } = await supabase
+        .from("garmin_activity_details")
+        .select("sample_timestamp, total_distance_in_meters, speed_meters_per_second, heart_rate, power_in_watts, elevation_in_meters")
+        .eq("user_id", userId)
+        .eq("activity_id", activityId)
+        .order("sample_timestamp", { ascending: true })
+        .limit(200000);
+
+      if (!rowsErr && rows && rows.length > 0) {
+        rawSeries = rows.map((r: any) => ({
+          t: typeof r.sample_timestamp === "number" ? r.sample_timestamp : (r.sample_timestamp ? Number(r.sample_timestamp) : null),
+          distance_m: r.total_distance_in_meters ?? null,
+          speed_ms: r.speed_meters_per_second ?? null,
+          pace_min_km: paceFromSpeed(r.speed_meters_per_second ?? null),
+          heart_rate: r.heart_rate ?? null,
+          power_watts: r.power_in_watts ?? null,
+          elevation_m: r.elevation_in_meters ?? null,
+        }));
+      } else {
+        // 2) Try JSONB samples stored in a details row
+        const { data: jRows, error: jErr } = await supabase
+          .from("garmin_activity_details")
+          .select("samples")
+          .eq("user_id", userId)
+          .eq("activity_id", activityId)
+          .not("samples", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (!jErr && jRows && jRows.length > 0 && jRows[0]?.samples) {
+          rawSeries = extractSamples({ samples: jRows[0].samples });
+        }
+      }
+    }
+
+    if (!rawSeries || rawSeries.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, message: "No samples found in payload" }),
+        JSON.stringify({ success: false, message: "No samples found (payload or database)" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -306,9 +349,6 @@ Deno.serve(async (req) => {
     const avgPace = paceFromSpeed(avgSpeed);
     const avgHr = safeAvg(sampled.map(p => p.heart_rate ?? null));
     const maxHr = safeMax(sampled.map(p => p.heart_rate ?? null));
-
-    const userId = logUserId!;
-    const activityId = srcActivityId || activity_id || "unknown";
 
     // Clean previous entries
     await supabase
