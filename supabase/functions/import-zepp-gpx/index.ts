@@ -127,41 +127,52 @@ Deno.serve(async (req) => {
 
     const duration = endTimeMs > startTimeMs ? Math.round((endTimeMs - startTimeMs) / 1000) : 0;
 
-    // Process each track point
+    // Precompute per-point values for efficient insertion
+    const timestamps: (number | null)[] = [];
+    const cumulativeDistances: number[] = [];
+    const speeds: (number | null)[] = [];
+    const durations: (number | null)[] = [];
+
+    let cumulative = 0;
     for (let i = 0; i < allTrackPoints.length; i++) {
       const point = allTrackPoints[i];
       const lat = parseFloat(point['@_lat']);
       const lon = parseFloat(point['@_lon']);
       const elevation = point.ele ? parseFloat(point.ele) : null;
-      const heartRate = point.extensions?.['ns3:TrackPointExtension']?.['ns3:hr'] ? 
-        parseInt(point.extensions['ns3:TrackPointExtension']['ns3:hr']) : null;
+      const heartRate = point.extensions?.['ns3:TrackPointExtension']?.['ns3:hr']
+        ? parseInt(point.extensions['ns3:TrackPointExtension']['ns3:hr'])
+        : null;
+      const ts = point.time ? new Date(point.time).getTime() : null;
+      timestamps.push(ts);
 
-      // Calculate distance from previous point
+      // Calculate distance and speed relative to previous point
+      let speed: number | null = null;
       if (i > 0) {
         const prevPoint = allTrackPoints[i - 1];
         const prevLat = parseFloat(prevPoint['@_lat']);
         const prevLon = parseFloat(prevPoint['@_lon']);
-        
         const segmentDistance = haversineDistance(prevLat, prevLon, lat, lon);
+        cumulative += segmentDistance;
         totalDistance += segmentDistance;
 
-        // Calculate speed if we have time data
-        if (point.time && prevPoint.time) {
-          const timeDiff = (new Date(point.time).getTime() - new Date(prevPoint.time).getTime()) / 1000;
+        const prevTs = timestamps[i - 1];
+        if (ts && prevTs) {
+          const timeDiff = (ts - prevTs) / 1000;
           if (timeDiff > 0) {
-            const speed = segmentDistance / timeDiff;
+            speed = segmentDistance / timeDiff;
             speedSum += speed;
             speedCount++;
             maxSpeed = Math.max(maxSpeed, speed);
           }
         }
+      } else {
+        cumulative = 0;
       }
 
       // Process elevation
       if (elevation !== null) {
         minElevation = Math.min(minElevation, elevation);
         maxElevation = Math.max(maxElevation, elevation);
-        
         if (i > 0) {
           const prevElevation = allTrackPoints[i - 1].ele ? parseFloat(allTrackPoints[i - 1].ele) : null;
           if (prevElevation !== null) {
@@ -181,6 +192,11 @@ Deno.serve(async (req) => {
         heartRateCount++;
         maxHeartRate = Math.max(maxHeartRate, heartRate);
       }
+
+      // Store arrays
+      speeds.push(speed);
+      cumulativeDistances.push(cumulative);
+      durations.push(ts && startTimeMs ? Math.round((ts - startTimeMs) / 1000) : null);
     }
 
     // Calculate averages
@@ -228,71 +244,64 @@ Deno.serve(async (req) => {
 
     console.log(`Activity inserted with ID: ${insertedActivity.id}`);
 
-    // Insert track points in batches
-    const batchSize = 1000;
+    // Insert track points in batches with adaptive retries
+    const INITIAL_BATCH_SIZE = 200;
     let insertedPoints = 0;
 
-    for (let i = 0; i < allTrackPoints.length; i += batchSize) {
-      const batch = allTrackPoints.slice(i, i + batchSize);
-      const pointsData = batch.map((point, index) => {
+    async function insertChunk(points: any[], attempt = 1): Promise<void> {
+      if (points.length === 0) return;
+      try {
+        const { error } = await serviceSupabase
+          .from('zepp_gpx_activity_details')
+          .insert(points);
+
+        if (error) {
+          const msg = (error as any).message || '';
+          const code = (error as any).code || '';
+          const isTimeout = code === '57014' || msg.toLowerCase().includes('statement timeout');
+          if (isTimeout && points.length > 25) {
+            const mid = Math.floor(points.length / 2);
+            console.warn(`Timeout on insert of ${points.length} rows. Splitting into ${mid} + ${points.length - mid}`);
+            await insertChunk(points.slice(0, mid), attempt + 1);
+            await insertChunk(points.slice(mid), attempt + 1);
+            return;
+          }
+          throw error;
+        }
+
+        insertedPoints += points.length;
+        console.log(`Inserted ${insertedPoints}/${allTrackPoints.length} track points`);
+      } catch (e) {
+        console.error('Insert chunk failed:', e);
+        throw new Error(`Failed to insert activity details: ${(e as any).message || e}`);
+      }
+    }
+
+    for (let i = 0; i < allTrackPoints.length; i += INITIAL_BATCH_SIZE) {
+      const batch = allTrackPoints.slice(i, i + INITIAL_BATCH_SIZE).map((point, index) => {
+        const idx = i + index;
         const lat = parseFloat(point['@_lat']);
         const lon = parseFloat(point['@_lon']);
         const elevation = point.ele ? parseFloat(point.ele) : null;
-        const heartRate = point.extensions?.['ns3:TrackPointExtension']?.['ns3:hr'] ? 
-          parseInt(point.extensions['ns3:TrackPointExtension']['ns3:hr']) : null;
-        const timestamp = point.time ? new Date(point.time).getTime() : null;
-
-        // Calculate cumulative distance up to this point
-        let cumulativeDistance = 0;
-        for (let j = 1; j <= i + index; j++) {
-          if (j < allTrackPoints.length) {
-            const currentPoint = allTrackPoints[j];
-            const prevPoint = allTrackPoints[j - 1];
-            const currentLat = parseFloat(currentPoint['@_lat']);
-            const currentLon = parseFloat(currentPoint['@_lon']);
-            const prevLat = parseFloat(prevPoint['@_lat']);
-            const prevLon = parseFloat(prevPoint['@_lon']);
-            cumulativeDistance += haversineDistance(prevLat, prevLon, currentLat, currentLon);
-          }
-        }
-
-        // Calculate speed if we have time data
-        let speed = null;
-        if (i + index > 0 && point.time && allTrackPoints[i + index - 1]?.time) {
-          const timeDiff = (new Date(point.time).getTime() - new Date(allTrackPoints[i + index - 1].time).getTime()) / 1000;
-          if (timeDiff > 0) {
-            const prevLat = parseFloat(allTrackPoints[i + index - 1]['@_lat']);
-            const prevLon = parseFloat(allTrackPoints[i + index - 1]['@_lon']);
-            const segmentDistance = haversineDistance(prevLat, prevLon, lat, lon);
-            speed = segmentDistance / timeDiff;
-          }
-        }
+        const heartRate = point.extensions?.['ns3:TrackPointExtension']?.['ns3:hr']
+          ? parseInt(point.extensions['ns3:TrackPointExtension']['ns3:hr'])
+          : null;
 
         return {
           user_id: user.id,
           activity_id: activityId,
-          sample_timestamp: timestamp,
+          sample_timestamp: timestamps[idx],
           heart_rate: heartRate,
-          speed_meters_per_second: speed,
+          speed_meters_per_second: speeds[idx],
           latitude_in_degree: lat,
           longitude_in_degree: lon,
           elevation_in_meters: elevation,
-          total_distance_in_meters: cumulativeDistance,
-          duration_in_seconds: timestamp && startTimeMs ? Math.round((timestamp - startTimeMs) / 1000) : null
+          total_distance_in_meters: cumulativeDistances[idx],
+          duration_in_seconds: durations[idx]
         };
       });
-
-      const { error: detailsError } = await serviceSupabase
-        .from('zepp_gpx_activity_details')
-        .insert(pointsData);
-
-      if (detailsError) {
-        console.error(`Error inserting batch ${i / batchSize + 1}:`, detailsError);
-        throw new Error(`Failed to insert activity details: ${detailsError.message}`);
-      }
-
-      insertedPoints += pointsData.length;
-      console.log(`Inserted ${insertedPoints}/${allTrackPoints.length} track points`);
+      console.log(`Inserting batch ${(i / INITIAL_BATCH_SIZE) + 1} with ${batch.length} points`);
+      await insertChunk(batch);
     }
 
     // Calculate performance metrics for the activity
