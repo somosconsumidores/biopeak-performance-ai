@@ -253,6 +253,20 @@ Deno.serve(async (req) => {
 
     console.log('[import-strava-gpx] details inserted', { rows: detailRows.length });
 
+    // Build activity_chart_data for this activity
+    try {
+      await service.functions.invoke('calculate-activity-chart-data', {
+        body: {
+          activity_id: String(summaryInsert.activity_id),
+          user_id: user.id,
+          activity_source: 'strava_gpx',
+          internal_call: true,
+        },
+      });
+    } catch (e) {
+      console.error('[import-strava-gpx] chart data calc failed:', e);
+    }
+
     // Calculate statistics metrics
     try {
       await service.functions.invoke('calculate-statistics-metrics', {

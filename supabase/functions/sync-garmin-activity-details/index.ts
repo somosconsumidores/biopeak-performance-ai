@@ -982,6 +982,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Also trigger activity_chart_data calculation for all synced activities
+    try {
+      const uniqueActivityIds = [...new Set(filteredDetails.map((detail: any) => detail.activityId))]
+      for (const activityId of uniqueActivityIds) {
+        try {
+          await supabaseClient.functions.invoke('calculate-activity-chart-data', {
+            body: {
+              activity_id: String(activityId),
+              user_id: user.id,
+              activity_source: 'garmin',
+              internal_call: true,
+            },
+          })
+          console.log(`[sync-activity-details] Chart data calculated for ${activityId}`)
+        } catch (e) {
+          console.error(`[sync-activity-details] Chart data calc failed for ${activityId}:`, e)
+        }
+      }
+    } catch (e) {
+      console.error('[sync-activity-details] Failed to trigger chart data calculations:', e)
+    }
+
     return new Response(
       JSON.stringify(result),
       { 

@@ -163,6 +163,21 @@ Deno.serve(async (req) => {
 
     console.log('Successfully saved streams to database');
 
+    // Trigger activity chart data calculation
+    try {
+      await supabase.functions.invoke('calculate-activity-chart-data', {
+        body: {
+          activity_id: String(activity_id),
+          user_id: currentUserId,
+          activity_source: 'strava',
+          internal_call: true,
+        },
+      });
+      console.log('Activity chart data calculated for Strava activity:', activity_id);
+    } catch (e) {
+      console.error('Failed to calculate activity chart data (Strava):', e);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

@@ -170,15 +170,30 @@ async function fetchAndStorePolarSamples(
           console.log(`[sync-polar-activities] Successfully inserted ${chunk.length} samples for activity ${activityId}`);
         }
       }
-    } else {
-      console.log(`[sync-polar-activities] No valid samples found for activity ${activityId}`);
-    }
+      } else {
+        console.log(`[sync-polar-activities] No valid samples found for activity ${activityId}`);
+      }
 
-  } catch (error) {
-    console.error(`[sync-polar-activities] Error fetching samples for activity ${activityId}:`, error);
-    throw error;
+      // Trigger activity_chart_data calculation for this Polar activity
+      try {
+        await supabase.functions.invoke('calculate-activity-chart-data', {
+          body: {
+            activity_id: String(activityId),
+            user_id: userId,
+            activity_source: 'polar',
+            internal_call: true,
+          },
+        });
+        console.log(`[sync-polar-activities] Chart data calculated for activity ${activityId}`);
+      } catch (e) {
+        console.error(`[sync-polar-activities] Failed to calculate chart data for activity ${activityId}:`, e);
+      }
+
+    } catch (error) {
+      console.error(`[sync-polar-activities] Error fetching samples for activity ${activityId}:`, error);
+      throw error;
+    }
   }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

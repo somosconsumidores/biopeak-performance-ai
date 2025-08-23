@@ -304,6 +304,21 @@ Deno.serve(async (req) => {
       await insertChunk(batch);
     }
 
+    // Build activity_chart_data for this activity
+    try {
+      await serviceSupabase.functions.invoke('calculate-activity-chart-data', {
+        body: {
+          activity_id: String(activityId),
+          user_id: user.id,
+          activity_source: 'zepp_gpx',
+          internal_call: true,
+        },
+      });
+      console.log('Activity chart data calculated (Zepp GPX)');
+    } catch (e) {
+      console.error('Failed to calculate activity chart data (Zepp GPX):', e);
+    }
+
     // Calculate performance metrics for the activity
     try {
       const { error: metricsError } = await serviceSupabase.functions.invoke('calculate-gpx-performance-metrics', {
