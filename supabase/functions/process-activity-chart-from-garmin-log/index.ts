@@ -1,0 +1,349 @@
+// deno-lint-ignore-file no-explicit-any
+import { createClient } from "@supabase/supabase-js";
+import { corsHeaders } from "../_shared/cors.ts";
+
+// Helper types
+type SeriesPoint = {
+  t?: number | null;
+  distance_m?: number | null;
+  speed_ms?: number | null;
+  pace_min_km?: number | null;
+  heart_rate?: number | null;
+  power_watts?: number | null;
+  elevation_m?: number | null;
+};
+
+function paceFromSpeed(speed?: number | null): number | null {
+  if (!speed || speed <= 0) return null;
+  return 1000 / (speed * 60);
+}
+
+function safeAvg(nums: (number | null | undefined)[]): number | null {
+  const vals = nums.filter((n): n is number => typeof n === "number" && isFinite(n));
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+function safeMax(nums: (number | null | undefined)[]): number | null {
+  const vals = nums.filter((n): n is number => typeof n === "number" && isFinite(n));
+  if (!vals.length) return null;
+  return Math.max(...vals);
+}
+
+function toKm(m?: number | null) {
+  return (m ?? 0) / 1000;
+}
+
+// Robust extraction of samples from Garmin webhook payloads with different shapes
+function extractSamples(payload: any): SeriesPoint[] {
+  // 1) Direct samples array of objects
+  const tryFields = (obj: any, keys: string[]): any => {
+    for (const k of keys) if (obj && obj[k] !== undefined) return obj[k];
+    return undefined;
+  };
+
+  const normalizeSample = (s: any): SeriesPoint => {
+    const speed = tryFields(s, [
+      "speed_meters_per_second",
+      "speedMetersPerSecond",
+      "speed_ms",
+      "velocity_smooth",
+      "speed",
+    ]);
+    const dist = tryFields(s, [
+      "total_distance_in_meters",
+      "totalDistanceInMeters",
+      "distance_m",
+      "distance",
+    ]);
+    const hr = tryFields(s, ["heart_rate", "heartRate", "heartrate", "hr"]);
+    const pow = tryFields(s, ["power_in_watts", "power", "powerInWatts", "watts"]);
+    const ele = tryFields(s, ["elevation_in_meters", "elevation", "elevationInMeters", "altitude"]);
+    const ts = tryFields(s, ["sample_timestamp", "ts", "t", "timestamp", "offsetInSeconds"]);
+
+    const speedNum = typeof speed === "number" ? speed : (speed ? Number(speed) : null);
+    const distNum = typeof dist === "number" ? dist : (dist ? Number(dist) : null);
+    const hrNum = typeof hr === "number" ? hr : (hr ? Number(hr) : null);
+    const powNum = typeof pow === "number" ? pow : (pow ? Number(pow) : null);
+    const eleNum = typeof ele === "number" ? ele : (ele ? Number(ele) : null);
+    const tsNum = typeof ts === "number" ? ts : (ts ? Number(ts) : null);
+
+    return {
+      t: Number.isFinite(tsNum) ? tsNum : null,
+      distance_m: Number.isFinite(distNum) ? distNum : null,
+      speed_ms: Number.isFinite(speedNum) ? speedNum : null,
+      pace_min_km: paceFromSpeed(Number.isFinite(speedNum) ? speedNum : null),
+      heart_rate: Number.isFinite(hrNum) ? hrNum : null,
+      power_watts: Number.isFinite(powNum) ? powNum : null,
+      elevation_m: Number.isFinite(eleNum) ? eleNum : null,
+    } as SeriesPoint;
+  };
+
+  if (Array.isArray(payload?.samples)) {
+    return payload.samples.map(normalizeSample);
+  }
+
+  // 2) samples as object of arrays -> zip
+  const sampleObj = payload?.samples;
+  if (sampleObj && typeof sampleObj === "object" && !Array.isArray(sampleObj)) {
+    const keys = [
+      "speed_meters_per_second",
+      "speedMetersPerSecond",
+      "speed_ms",
+      "velocity_smooth",
+      "speed",
+      "total_distance_in_meters",
+      "totalDistanceInMeters",
+      "distance_m",
+      "distance",
+      "heart_rate",
+      "heartRate",
+      "heartrate",
+      "hr",
+      "power_in_watts",
+      "power",
+      "powerInWatts",
+      "watts",
+      "elevation_in_meters",
+      "elevation",
+      "elevationInMeters",
+      "altitude",
+      "sample_timestamp",
+      "ts",
+      "t",
+      "timestamp",
+      "offsetInSeconds",
+    ];
+    const arrays: Record<string, any[]> = {};
+    let maxLen = 0;
+    for (const k of keys) {
+      if (Array.isArray(sampleObj[k])) {
+        arrays[k] = sampleObj[k];
+        maxLen = Math.max(maxLen, sampleObj[k].length);
+      }
+    }
+    if (maxLen > 0) {
+      const out: SeriesPoint[] = [];
+      for (let i = 0; i < maxLen; i++) {
+        const s: any = {};
+        for (const [k, arr] of Object.entries(arrays)) s[k] = arr[i];
+        out.push(normalizeSample(s));
+      }
+      return out;
+    }
+  }
+
+  // 3) activityDetails structure (arrays per metric)
+  const d = payload?.activityDetails || payload?.activity_detail || payload?.details;
+  if (d && typeof d === "object") {
+    const arrays: Record<string, any[]> = {};
+    let maxLen = 0;
+    for (const [k, v] of Object.entries(d)) {
+      if (Array.isArray(v)) { arrays[k] = v as any[]; maxLen = Math.max(maxLen, (v as any[]).length); }
+    }
+    if (maxLen > 0) {
+      const out: SeriesPoint[] = [];
+      for (let i = 0; i < maxLen; i++) {
+        const s: any = {
+          speed: arrays["speed"]?.[i] ?? arrays["speedMetersPerSecond"]?.[i],
+          distance: arrays["distance"]?.[i] ?? arrays["totalDistanceInMeters"]?.[i],
+          heartRate: arrays["heartRate"]?.[i] ?? arrays["heartrate"]?.[i],
+          power: arrays["power"]?.[i] ?? arrays["powerInWatts"]?.[i],
+          elevation: arrays["elevation"]?.[i] ?? arrays["elevationInMeters"]?.[i],
+          timestamp: arrays["timestamp"]?.[i] ?? arrays["offsetInSeconds"]?.[i],
+        };
+        out.push(normalizeSample(s));
+      }
+      return out;
+    }
+  }
+
+  // Nothing found
+  return [];
+}
+
+// Distance-anchored sampling: ensure anchors at each km and cap to ~2000 points
+function distanceAnchoredSample(series: SeriesPoint[], cap = 2000): SeriesPoint[] {
+  if (!series.length) return [];
+
+  // sort by distance when available, else by t
+  const sorted = [...series].sort((a, b) => {
+    const ad = a.distance_m ?? -1, bd = b.distance_m ?? -1;
+    if (ad !== -1 && bd !== -1) return ad - bd;
+    const at = a.t ?? 0, bt = b.t ?? 0; return at - bt;
+  });
+
+  // compute filled cumulative distance if missing by monotonic fill
+  let lastDist = 0;
+  for (const p of sorted) {
+    if (p.distance_m == null || !isFinite(p.distance_m)) {
+      p.distance_m = lastDist; // keep previous
+    } else {
+      lastDist = p.distance_m;
+    }
+  }
+
+  const totalDist = sorted[sorted.length - 1].distance_m || 0;
+  const totalKm = Math.max(1, Math.floor(totalDist / 1000));
+
+  const anchors: SeriesPoint[] = [];
+  let kmIdx = 1;
+  let cursor = 0;
+  while (kmIdx <= totalKm && cursor < sorted.length) {
+    const target = kmIdx * 1000;
+    // find first point with distance >= target
+    while (cursor < sorted.length && (sorted[cursor].distance_m ?? 0) < target) cursor++;
+    if (cursor < sorted.length) anchors.push(sorted[cursor]);
+    kmIdx++;
+  }
+
+  // Always include first & last
+  if (sorted.length) {
+    anchors.unshift(sorted[0]);
+    anchors.push(sorted[sorted.length - 1]);
+  }
+
+  // If still above cap, thin uniformly
+  const unique = dedupeByIndex(anchors);
+  if (unique.length <= cap) return unique;
+
+  const step = Math.ceil(unique.length / cap);
+  const sampled: SeriesPoint[] = [];
+  for (let i = 0; i < unique.length; i += step) sampled.push(unique[i]);
+  if (sampled[sampled.length - 1] !== unique[unique.length - 1]) sampled.push(unique[unique.length - 1]);
+  return sampled;
+}
+
+function dedupeByIndex(points: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  let lastKey = "";
+  for (const p of points) {
+    const key = `${p.t ?? ''}|${p.distance_m ?? ''}`;
+    if (key !== lastKey) out.push(p);
+    lastKey = key;
+  }
+  return out;
+}
+
+Deno.serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const { webhook_log_id, activity_id, user_id } = await req.json().catch(() => ({}));
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    let payload: any = null;
+    let logUserId: string | null = null;
+    let srcActivityId: string | null = null;
+
+    if (webhook_log_id) {
+      const { data: logRow, error: logErr } = await supabase
+        .from("garmin_webhook_logs")
+        .select("id, user_id, webhook_type, payload")
+        .eq("id", webhook_log_id)
+        .single();
+      if (logErr || !logRow) throw new Error(`Log not found: ${logErr?.message}`);
+
+      const type = (logRow.webhook_type || '').toLowerCase();
+      if (!type.includes("activity") || !type.includes("detail")) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Not an activity details log" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      payload = logRow.payload;
+      logUserId = logRow.user_id;
+      // Try to get activity id from payload common fields
+      srcActivityId = payload?.activityId?.toString() || payload?.summaryId?.toString() || payload?.activity_id?.toString() || null;
+    } else if (activity_id && user_id) {
+      // Fallback path: query the latest matching log by activity id
+      const { data: logs, error } = await supabase
+        .from("garmin_webhook_logs")
+        .select("id, user_id, payload, webhook_type, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+
+      const found = (logs || []).find(l => {
+        const pid = l.payload?.activityId?.toString() || l.payload?.summaryId?.toString() || l.payload?.activity_id?.toString();
+        return pid === activity_id && (l.webhook_type || '').toLowerCase().includes("detail");
+      });
+      if (!found) throw new Error("No matching activity_details log found");
+      payload = found.payload; logUserId = found.user_id; srcActivityId = activity_id;
+    } else {
+      throw new Error("Missing webhook_log_id or (activity_id + user_id)");
+    }
+
+    // Extract series
+    const rawSeries = extractSamples(payload);
+
+    if (!rawSeries.length) {
+      return new Response(
+        JSON.stringify({ success: false, message: "No samples found in payload" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const sampled = distanceAnchoredSample(rawSeries, 2000);
+
+    // Derive stats
+    const durationSeconds = (() => {
+      const ts = sampled.map(p => p.t ?? null).filter((x): x is number => typeof x === 'number');
+      if (ts.length >= 2) return Math.max(...ts) - Math.min(...ts);
+      return null;
+    })();
+
+    const totalDistance = sampled[sampled.length - 1].distance_m ?? null;
+    const avgSpeed = safeAvg(sampled.map(p => p.speed_ms ?? null));
+    const avgPace = paceFromSpeed(avgSpeed);
+    const avgHr = safeAvg(sampled.map(p => p.heart_rate ?? null));
+    const maxHr = safeMax(sampled.map(p => p.heart_rate ?? null));
+
+    const userId = logUserId!;
+    const activityId = srcActivityId || activity_id || "unknown";
+
+    // Clean previous entries
+    await supabase
+      .from("activity_chart_data")
+      .delete()
+      .eq("user_id", userId)
+      .eq("activity_source", "garmin")
+      .eq("activity_id", activityId);
+
+    const insertPayload = {
+      user_id: userId,
+      activity_id: activityId,
+      activity_source: "garmin",
+      series_data: sampled,
+      data_points_count: sampled.length,
+      duration_seconds: durationSeconds,
+      total_distance_meters: totalDistance,
+      avg_speed_ms: avgSpeed,
+      avg_pace_min_km: avgPace,
+      avg_heart_rate: avgHr ? Math.round(avgHr) : null,
+      max_heart_rate: maxHr ? Math.round(maxHr) : null,
+    } as any;
+
+    const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
+    if (insErr) throw insErr;
+
+    return new Response(
+      JSON.stringify({ success: true, inserted: sampled.length, activity_id: activityId }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e: any) {
+    console.error("Error in process-activity-chart-from-garmin-log:", e);
+    return new Response(
+      JSON.stringify({ success: false, error: e?.message || String(e) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

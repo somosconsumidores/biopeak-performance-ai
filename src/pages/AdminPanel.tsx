@@ -442,6 +442,16 @@ export const AdminPanel = () => {
           {/* Logins Únicos por Dia */}
           <UserUniqueLoginsChart />
 
+          {/* Preview do gráfico de atividade gerado do JSON (para validação) */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Pré-visualização do Gráfico (JSON ➜ activity_chart_data)</h2>
+            {/* Import lazy to avoid circular deps */}
+            {(() => {
+              const Comp = require('@/components/AdminActivityChartPreview').AdminActivityChartPreview;
+              return <Comp />;
+            })()}
+          </div>
+
           {/* Top 10 Usuários Mais Ativos */}
           <Card>
             <CardHeader>
