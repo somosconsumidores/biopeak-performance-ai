@@ -148,21 +148,47 @@ Deno.serve(async (req) => {
       throw deleteError;
     }
 
-    // Insert all time points in batch
-    const { data: result, error: insertError } = await supabase
-      .from('strava_activity_details')
-      .insert(timePoints)
-      .select();
+    // Insert time points in batches to avoid timeouts
+    const BATCH_SIZE = 500;
+    let insertedCount = 0;
 
-    if (insertError) {
-      console.error('Error inserting time points:', insertError);
-      throw insertError;
+    for (let i = 0; i < timePoints.length; i += BATCH_SIZE) {
+      const batch = timePoints.slice(i, i + BATCH_SIZE);
+      console.log(`Inserting batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(timePoints.length / BATCH_SIZE)} with ${batch.length} records`);
+
+      const { error: batchError } = await supabase
+        .from('strava_activity_details')
+        .insert(batch);
+
+      if (batchError) {
+        console.error('Batch insert error:', batchError);
+        const isTimeout = batchError.code === '57014' || (batchError.message && batchError.message.includes('timeout'));
+        if (isTimeout && batch.length > 1) {
+          const retrySize = Math.max(100, Math.floor(BATCH_SIZE / 2));
+          console.log(`Retrying batch with smaller sub-batches of ${retrySize}`);
+          for (let r = 0; r < batch.length; r += retrySize) {
+            const sub = batch.slice(r, r + retrySize);
+            const { error: subErr } = await supabase
+              .from('strava_activity_details')
+              .insert(sub);
+            if (subErr) {
+              console.error('Sub-batch insert error:', subErr);
+              throw subErr;
+            }
+            insertedCount += sub.length;
+          }
+        } else {
+          throw batchError;
+        }
+      } else {
+        insertedCount += batch.length;
+      }
     }
 
-    console.log(`Successfully saved ${result.length} time points to database`);
-
+    console.log(`Successfully saved ${insertedCount} time points to database`);
+    
     console.log('Successfully saved streams to database');
-
+    
     // Trigger activity chart data calculation
     try {
       await supabase.functions.invoke('calculate-activity-chart-data', {
@@ -181,7 +207,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        data: result,
+        data: { inserted: insertedCount },
         message: 'Activity streams fetched and saved successfully',
       }),
       {
