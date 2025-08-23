@@ -267,24 +267,6 @@ Deno.serve(async (req) => {
       // Don't fail the main operation if stats calculation fails
     }
 
-    // Trigger ETL to precompute optimized tables for frontend consumption
-    try {
-      const etl = await service.functions.invoke('process-activity-data-etl', {
-        body: {
-          user_id: user.id,
-          activity_id: summaryInsert.activity_id,
-          activity_source: 'strava_gpx'
-        }
-      });
-      if (etl.error || etl.data?.success === false) {
-        console.error('[import-strava-gpx] ETL error:', etl.error || etl.data);
-      } else {
-        console.log('[import-strava-gpx] ETL triggered for activity', summaryInsert.activity_id);
-      }
-    } catch (e) {
-      console.error('[import-strava-gpx] Failed to trigger ETL:', e);
-    }
-
     return new Response(JSON.stringify({
       success: true,
       activity_id: summaryInsert.activity_id,
