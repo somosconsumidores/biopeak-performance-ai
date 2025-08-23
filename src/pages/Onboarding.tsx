@@ -232,25 +232,27 @@ export const Onboarding = () => {
             {/* Step 1: Goal Selection */}
             {currentStep === 1 && (
               <div className="space-y-4">
-                <RadioGroup value={selectedGoal} onValueChange={setSelectedGoal}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {GOALS.map((goal) => {
-                      const Icon = goal.icon;
-                      return (
-                        <div key={goal.id} className="flex items-center space-x-2">
-                          <RadioGroupItem value={goal.id} id={goal.id} />
-                          <Label
-                            htmlFor={goal.id}
-                            className="flex items-center space-x-3 cursor-pointer flex-1 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                          >
-                            <Icon className="h-5 w-5 text-primary" />
-                            <span className="text-sm font-medium">{goal.label}</span>
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </RadioGroup>
+                <div className="space-y-2">
+                  <Label htmlFor="goal-select" className="text-base font-medium">Escolha seu objetivo principal</Label>
+                  <Select value={selectedGoal} onValueChange={setSelectedGoal}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Selecione seu objetivo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GOALS.map((goal) => {
+                        const Icon = goal.icon;
+                        return (
+                          <SelectItem key={goal.id} value={goal.id}>
+                            <div className="flex items-center space-x-3">
+                              <Icon className="h-4 w-4 text-primary" />
+                              <span>{goal.label}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
                 {selectedGoal === "other" && (
                   <div className="mt-4">
