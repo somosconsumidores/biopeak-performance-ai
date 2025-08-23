@@ -423,7 +423,8 @@ body {
 /* Mobile-specific optimizations for onboarding */
 .onboarding-container {
   height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   touch-action: manipulation;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
