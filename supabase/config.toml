@@ -152,3 +152,6 @@ verify_jwt = false
 
 [functions.process-activity-chart-from-garmin-log]
 verify_jwt = false
+
+[functions.build-activity-chart-from-strava-streams]
+verify_jwt = true

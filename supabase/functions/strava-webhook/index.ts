@@ -263,6 +263,27 @@ async function handleActivityCreated(serviceRoleClient: any, payload: any) {
       console.error('Failed to call activity streams function:', streamsError)
     }
 
+    // NEW: Build chart data directly from streams (parallel pipeline)
+    try {
+      const buildResp = await serviceRoleClient.functions.invoke('build-activity-chart-from-strava-streams', {
+        body: {
+          activity_id: payload.object_id,
+          user_id: userData.user_id,
+          access_token: accessToken,
+          internal_call: true,
+          full_precision: true
+        }
+      })
+
+      if (buildResp.error || !buildResp.data?.success) {
+        console.error('Error building chart from streams:', buildResp.error || buildResp.data)
+      } else {
+        console.log('Built chart data from streams for activity:', payload.object_id)
+      }
+    } catch (buildErr) {
+      console.error('Failed to call build-activity-chart-from-strava-streams:', buildErr)
+    }
+
     // Calculate performance metrics for Strava activity (parity with Garmin)
     try {
       // Resolve internal UUID for the activity we just upserted
