@@ -231,9 +231,20 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Health check
+  if (req.method === "GET") {
+    console.info("[process-activity-chart] health-check", { url: req.url });
+    return new Response(
+      JSON.stringify({ ok: true, name: "process-activity-chart-from-garmin-log", ts: new Date().toISOString() }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
+    console.info("[process-activity-chart] request start", { method: req.method, url: req.url });
     const url = new URL(req.url);
     const { webhook_log_id, activity_id, user_id } = await req.json().catch(() => ({}));
+    console.info("[process-activity-chart] input", { has_webhook_log_id: !!webhook_log_id, activity_id, user_id });
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -287,6 +298,7 @@ Deno.serve(async (req) => {
     const activityId = srcActivityId || activity_id || "unknown";
 
     // Extract series from payload
+    let sampleSource = 'payload';
     let rawSeries: SeriesPoint[] = extractSamples(payload);
 
     // Fallback: if payload doesn't contain samples (typical for notifications),
@@ -311,6 +323,7 @@ Deno.serve(async (req) => {
           power_watts: r.power_in_watts ?? null,
           elevation_m: r.elevation_in_meters ?? null,
         }));
+        sampleSource = 'details_rows';
       } else {
         // 2) Try JSONB samples stored in a details row
         const { data: jRows, error: jErr } = await supabase
@@ -324,6 +337,7 @@ Deno.serve(async (req) => {
 
         if (!jErr && jRows && jRows.length > 0 && jRows[0]?.samples) {
           rawSeries = extractSamples({ samples: jRows[0].samples });
+          sampleSource = 'details_json';
         }
       }
     }
@@ -375,8 +389,10 @@ Deno.serve(async (req) => {
     const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
     if (insErr) throw insErr;
 
+    console.info("[process-activity-chart] inserted", { rows: 1, points: sampled.length, userId, activityId });
+
     return new Response(
-      JSON.stringify({ success: true, inserted: sampled.length, activity_id: activityId }),
+      JSON.stringify({ success: true, inserted: sampled.length, activity_id: activityId, user_id: userId, source: sampleSource }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {

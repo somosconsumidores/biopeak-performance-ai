@@ -71,6 +71,10 @@ export const AdminPanel = () => {
   });
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [webhookLogId, setWebhookLogId] = useState('');
+  const [activityUserId, setActivityUserId] = useState('');
+  const [chartProcessing, setChartProcessing] = useState(false);
+  const [recentCharts, setRecentCharts] = useState<any[]>([]);
 
   const fetchStats = async () => {
     setRefreshing(true);
@@ -268,6 +272,37 @@ export const AdminPanel = () => {
       });
     } finally {
       setReprocessingSpecificActivity(false);
+    }
+  };
+
+  const handleProcessActivityChart = async () => {
+    if (!webhookLogId && !(activityUserId && specificActivityId)) {
+      toast({ title: "Dados insuficientes", description: "Informe webhook_log_id ou (user_id e activity_id).", variant: "destructive" });
+      return;
+    }
+    setChartProcessing(true);
+    try {
+      const body: any = webhookLogId ? { webhook_log_id: webhookLogId } : { user_id: activityUserId, activity_id: specificActivityId };
+      const { data, error } = await supabase.functions.invoke('process-activity-chart-from-garmin-log', { body });
+      if (error) throw error;
+      const res: any = data || {};
+      if (!res.success) throw new Error(res.error || 'Falha no processamento');
+      toast({ title: "Gráfico processado", description: `Pontos: ${res.inserted} • Fonte: ${res.source || 'desconhecida'}` });
+      const uid = res.user_id || activityUserId;
+      if (uid) {
+        const { data: charts } = await supabase
+          .from('activity_chart_data')
+          .select('activity_id, data_points_count, created_at')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false })
+          .limit(3);
+        setRecentCharts(charts || []);
+      }
+    } catch (err: any) {
+      console.error('process-activity-chart error:', err);
+      toast({ title: "Erro", description: err.message || 'Falha ao processar', variant: "destructive" });
+    } finally {
+      setChartProcessing(false);
     }
   };
 
@@ -489,6 +524,41 @@ export const AdminPanel = () => {
 
           {/* Survey Management */}
           <SurveyManagement />
+
+          {/* Processar gráfico (Garmin) manualmente */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Processar gráfico (Garmin) manualmente</CardTitle>
+              <CardDescription>Acione a função process-activity-chart-from-garmin-log via webhook_log_id ou (user_id + activity_id)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input placeholder="webhook_log_id" value={webhookLogId} onChange={(e) => setWebhookLogId(e.target.value)} />
+                <Input placeholder="user_id" value={activityUserId} onChange={(e) => setActivityUserId(e.target.value)} />
+                <Input placeholder="activity_id" value={specificActivityId} onChange={(e) => setSpecificActivityId(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleProcessActivityChart} disabled={chartProcessing} className="flex items-center gap-2">
+                  <Activity className={`h-4 w-4 ${chartProcessing ? 'animate-spin' : ''}`} />
+                  {chartProcessing ? 'Processando...' : 'Processar gráfico (Garmin)'}
+                </Button>
+              </div>
+
+              {recentCharts.length > 0 && (
+                <div className="pt-2">
+                  <h4 className="text-sm font-medium mb-2">Últimos gráficos deste usuário</h4>
+                  <div className="space-y-2">
+                    {recentCharts.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50">
+                        <div className="text-sm">Atividade {c.activity_id}</div>
+                        <div className="text-xs text-muted-foreground">{c.data_points_count} pontos • {new Date(c.created_at).toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Actions */}
           <Card>
