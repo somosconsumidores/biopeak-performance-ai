@@ -96,18 +96,21 @@ export const AdminActivityChartPreview = () => {
                 if (value == null) return '';
                 const m = Math.floor(value); const s = Math.round((value-m)*60); return `${m}:${s.toString().padStart(2,'0')}`;
               }} stroke="hsl(var(--primary))" />
-              <YAxis yAxisId="hr" orientation="right" domain={['dataMin - 10', 'dataMax + 10']} stroke="hsl(var(--secondary))" />
-              <Tooltip formatter={(val: any, name: any) => {
-                if (name === 'pace_min_per_km') {
-                  const m = Math.floor(val); const s = Math.round((val-m)*60); return [`${m}:${s.toString().padStart(2,'0')}/km`, 'Ritmo'];
-                }
-                if (name === 'heart_rate') return [`${Math.round(val)} bpm`, 'FC'];
-                return [val, name];
-              }} />
-              {avgPace && <ReferenceLine yAxisId="pace" y={avgPace} stroke="hsl(var(--primary))" strokeDasharray="5 5" />}
-              {avgHr && <ReferenceLine yAxisId="hr" y={avgHr} stroke="hsl(var(--secondary))" strokeDasharray="5 5" />}
-              <Line yAxisId="pace" type="monotone" dataKey="pace_min_per_km" stroke="hsl(var(--primary))" dot={false} />
-              <Line yAxisId="hr" type="monotone" dataKey="heart_rate" stroke="hsl(var(--secondary))" dot={false} />
+              <YAxis yAxisId="hr" orientation="right" domain={['dataMin - 10', 'dataMax + 10']} stroke="hsl(var(--destructive))" />
+              <Tooltip 
+                formatter={(val: any, name: any) => {
+                  if (name === 'pace_min_per_km') {
+                    const m = Math.floor(val); const s = Math.round((val-m)*60); return [`${m}:${s.toString().padStart(2,'0')}/km`, 'Ritmo'];
+                  }
+                  if (name === 'heart_rate') return [`${Math.round(val)} bpm`, 'Frequência Cardíaca'];
+                  return [val, name];
+                }} 
+                labelFormatter={(label) => `Distância: ${Number(label).toFixed(1)}km`}
+              />
+              {avgPace && <ReferenceLine yAxisId="pace" y={avgPace} stroke="hsl(var(--primary))" strokeDasharray="5 5" label={`Ritmo médio: ${Math.floor(avgPace)}:${Math.round((avgPace-Math.floor(avgPace))*60).toString().padStart(2,'0')}/km`} />}
+              {avgHr && <ReferenceLine yAxisId="hr" y={avgHr} stroke="hsl(var(--destructive))" strokeDasharray="5 5" label={`FC média: ${Math.round(avgHr)} bpm`} />}
+              <Line yAxisId="pace" type="monotone" dataKey="pace_min_per_km" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Ritmo (min/km)" />
+              <Line yAxisId="hr" type="monotone" dataKey="heart_rate" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} name="Frequência Cardíaca (bpm)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
