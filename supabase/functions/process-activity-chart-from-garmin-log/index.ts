@@ -225,6 +225,58 @@ function dedupeByIndex(points: SeriesPoint[]): SeriesPoint[] {
   return out;
 }
 
+// Largest-Triangle-Three-Buckets (LTTB) downsampling algorithm
+// Preserves visually important points (peaks, valleys, trends)
+function lttbDownsample(data: SeriesPoint[], threshold: number): SeriesPoint[] {
+  if (data.length <= threshold || threshold <= 2) return data;
+
+  const sampled: SeriesPoint[] = [];
+  const bucketSize = (data.length - 2) / (threshold - 2);
+  
+  // Always include first point
+  sampled.push(data[0]);
+  
+  for (let i = 0; i < threshold - 2; i++) {
+    const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+    const avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+    const avgRangeLength = avgRangeEnd - avgRangeStart;
+    
+    let avgX = 0, avgY = 0;
+    for (let j = avgRangeStart; j < avgRangeEnd && j < data.length; j++) {
+      avgX += j;
+      avgY += data[j].pace_min_km || data[j].heart_rate || 0;
+    }
+    avgX /= avgRangeLength;
+    avgY /= avgRangeLength;
+    
+    const rangeOffs = Math.floor(i * bucketSize) + 1;
+    const rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+    
+    const pointA = sampled[sampled.length - 1];
+    const pointAX = sampled.length - 1;
+    const pointAY = pointA.pace_min_km || pointA.heart_rate || 0;
+    
+    let maxArea = -1;
+    let maxAreaPoint: SeriesPoint = data[rangeOffs];
+    
+    for (let j = rangeOffs; j < rangeTo && j < data.length; j++) {
+      const pointY = data[j].pace_min_km || data[j].heart_rate || 0;
+      const area = Math.abs((pointAX - avgX) * (pointY - pointAY) - (pointAX - j) * (avgY - pointAY));
+      if (area > maxArea) {
+        maxArea = area;
+        maxAreaPoint = data[j];
+      }
+    }
+    
+    sampled.push(maxAreaPoint);
+  }
+  
+  // Always include last point
+  sampled.push(data[data.length - 1]);
+  
+  return sampled;
+}
+
 Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -243,8 +295,8 @@ Deno.serve(async (req) => {
   try {
     console.info("[process-activity-chart] request start", { method: req.method, url: req.url });
     const url = new URL(req.url);
-    const { webhook_log_id, activity_id, user_id } = await req.json().catch(() => ({}));
-    console.info("[process-activity-chart] input", { has_webhook_log_id: !!webhook_log_id, activity_id, user_id });
+    const { webhook_log_id, activity_id, user_id, full_precision } = await req.json().catch(() => ({}));
+    console.info("[process-activity-chart] input", { has_webhook_log_id: !!webhook_log_id, activity_id, user_id, full_precision });
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -349,7 +401,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const sampled = distanceAnchoredSample(rawSeries, 2000);
+    // Apply sampling logic based on full_precision parameter
+    let sampled: SeriesPoint[];
+    if (full_precision === true) {
+      // Use all points, only deduplicate
+      sampled = dedupeByIndex(rawSeries);
+      // Safety net: if too many points (>10k), apply LTTB downsampling to 5k
+      if (sampled.length > 10000) {
+        console.warn(`[process-activity-chart] Large dataset (${sampled.length} points), applying LTTB to 5000 points`);
+        sampled = lttbDownsample(sampled, 5000);
+      }
+    } else {
+      // Default: distance-anchored sampling
+      sampled = distanceAnchoredSample(rawSeries, 2000);
+    }
 
     // Derive stats
     const durationSeconds = (() => {

@@ -12,6 +12,7 @@ interface CalcBody {
   activity_id: string
   activity_source: Source
   internal_call?: boolean
+  full_precision?: boolean
 }
 
 function paceFromSpeed(speed?: number | null): number | null {
@@ -23,6 +24,55 @@ function safeAvg(nums: (number | null | undefined)[]): number | null {
   const arr = nums.filter((n): n is number => typeof n === 'number' && isFinite(n))
   if (arr.length === 0) return null
   return arr.reduce((a, b) => a + b, 0) / arr.length
+}
+
+// LTTB downsampling for large datasets
+function lttbDownsample(data: any[], threshold: number): any[] {
+  if (data.length <= threshold || threshold <= 2) return data;
+
+  const sampled: any[] = [];
+  const bucketSize = (data.length - 2) / (threshold - 2);
+  
+  sampled.push(data[0]);
+  
+  for (let i = 0; i < threshold - 2; i++) {
+    const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+    const avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+    const avgRangeLength = avgRangeEnd - avgRangeStart;
+    
+    let avgX = 0, avgY = 0;
+    for (let j = avgRangeStart; j < avgRangeEnd && j < data.length; j++) {
+      avgX += j;
+      avgY += data[j].pace_min_km || data[j].hr || 0;
+    }
+    avgX /= avgRangeLength;
+    avgY /= avgRangeLength;
+    
+    const rangeOffs = Math.floor(i * bucketSize) + 1;
+    const rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+    
+    const pointA = sampled[sampled.length - 1];
+    const pointAX = sampled.length - 1;
+    const pointAY = pointA.pace_min_km || pointA.hr || 0;
+    
+    let maxArea = -1;
+    let maxAreaPoint: any = data[rangeOffs];
+    
+    for (let j = rangeOffs; j < rangeTo && j < data.length; j++) {
+      const pointY = data[j].pace_min_km || data[j].hr || 0;
+      const area = Math.abs((pointAX - avgX) * (pointY - pointAY) - (pointAX - j) * (avgY - pointAY));
+      if (area > maxArea) {
+        maxArea = area;
+        maxAreaPoint = data[j];
+      }
+    }
+    
+    sampled.push(maxAreaPoint);
+  }
+  
+  sampled.push(data[data.length - 1]);
+  
+  return sampled;
 }
 
 Deno.serve(async (req) => {
@@ -37,7 +87,7 @@ Deno.serve(async (req) => {
     )
 
     const body = (await req.json()) as CalcBody
-    const { user_id, activity_id, activity_source } = body
+    const { user_id, activity_id, activity_source, full_precision } = body
 
     if (!activity_id || !activity_source) {
       return new Response(JSON.stringify({ error: 'activity_id and activity_source are required' }), {
@@ -132,7 +182,7 @@ Deno.serve(async (req) => {
 
     // Build normalized series
     type SeriesPoint = { time_s: number; distance_m: number | null; hr: number | null; speed_ms: number | null; pace_min_km: number | null }
-    const series: SeriesPoint[] = []
+    let series: SeriesPoint[] = []
 
     let timeS = 0
     for (let i = 0; i < rows.length; i++) {
@@ -201,6 +251,25 @@ Deno.serve(async (req) => {
       const vals = series.map(s => s.hr).filter((v): v is number => typeof v === 'number')
       return vals.length ? Math.max(...vals) : null
     })()
+
+    // Apply full precision logic
+    if (full_precision !== true && series.length > 2000) {
+      // Default sampling: keep every Nth point to stay around 2000 points
+      const step = Math.ceil(series.length / 2000);
+      const sampled: SeriesPoint[] = [];
+      for (let i = 0; i < series.length; i += step) {
+        sampled.push(series[i]);
+      }
+      // Always include last point
+      if (sampled[sampled.length - 1] !== series[series.length - 1]) {
+        sampled.push(series[series.length - 1]);
+      }
+      series = sampled;
+    } else if (full_precision === true && series.length > 10000) {
+      // Safety net: if too many points even with full precision, apply LTTB
+      console.warn(`[calculate-activity-chart-data] Large dataset (${series.length} points), applying LTTB to 5000 points`);
+      series = lttbDownsample(series, 5000);
+    }
 
     const data_points_count = series.length
 

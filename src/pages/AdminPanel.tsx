@@ -282,7 +282,7 @@ export const AdminPanel = () => {
     }
     setChartProcessing(true);
     try {
-      const body: any = webhookLogId ? { webhook_log_id: webhookLogId } : { user_id: activityUserId, activity_id: specificActivityId };
+      const body: any = webhookLogId ? { webhook_log_id: webhookLogId, full_precision: true } : { user_id: activityUserId, activity_id: specificActivityId, full_precision: true };
       const { data, error } = await supabase.functions.invoke('process-activity-chart-from-garmin-log', { body });
       if (error) throw error;
       const res: any = data || {};
