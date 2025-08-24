@@ -401,9 +401,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Apply sampling logic based on full_precision parameter
+    // Apply sampling logic: default to full precision unless explicitly disabled
     let sampled: SeriesPoint[];
-    if (full_precision === true) {
+    const useFullPrecision = full_precision !== false;
+    if (useFullPrecision) {
       // Use all points, only deduplicate
       sampled = dedupeByIndex(rawSeries);
       // Safety net: if too many points (>10k), apply LTTB downsampling to 5k
@@ -412,7 +413,7 @@ Deno.serve(async (req) => {
         sampled = lttbDownsample(sampled, 5000);
       }
     } else {
-      // Default: distance-anchored sampling
+      // Distance-anchored sampling (explicit opt-out)
       sampled = distanceAnchoredSample(rawSeries, 2000);
     }
 
