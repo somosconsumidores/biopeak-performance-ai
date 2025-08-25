@@ -171,9 +171,6 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
             <CardTitle className="flex items-center space-x-2">
               <Brain className="h-5 w-5 text-primary" />
               <span>Análise IA Profunda</span>
-              <Badge variant="outline" className="text-xs">
-                Fase 2
-              </Badge>
             </CardTitle>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
