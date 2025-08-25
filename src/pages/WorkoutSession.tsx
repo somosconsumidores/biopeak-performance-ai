@@ -419,14 +419,16 @@ export const WorkoutSession = () => {
             </div>
           </ScrollReveal>
 
-          {/* Deep Analysis Section - FASE 2 */}
-          <div className="mb-8 mt-8">
-            <ActivitySourceInfo 
-              activity={currentActivity as UnifiedActivity} 
-              feature="performance_analysis" 
-            />
-            <DeepAnalysisSection activity={currentActivity as UnifiedActivity} />
-          </div>
+          {/* Deep Analysis Section - Only for authorized users */}
+          {(user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com') && (
+            <div className="mb-8 mt-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="performance_analysis" 
+              />
+              <DeepAnalysisSection activity={currentActivity as UnifiedActivity} />
+            </div>
+          )}
 
           {/* Heart Rate Zones */}
           <div className="grid lg:grid-cols-2 gap-8 mb-8">
