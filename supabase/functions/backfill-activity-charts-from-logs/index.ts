@@ -75,36 +75,44 @@ const dryRun = body?.dry_run ?? false
     const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    // Client com JWT do usuário para validar permissão
-    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    })
+const authHeader = req.headers.get('Authorization') ?? ''
 
-    const { data: userData, error: userErr } = await supabaseAuth.auth.getUser()
-    if (userErr || !userData?.user) {
-      console.log('[backfill-activity-charts-from-logs] Auth error:', userErr)
-      return new Response(
-        JSON.stringify({ error: 'Não autenticado' }),
-        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      )
-    }
+    const isServiceRoleCall = !!SUPABASE_SERVICE_ROLE_KEY && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
 
-    // Verifica se é admin
+    // Admin client para operações no BD
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    const { data: isAdmin, error: roleErr } = await supabaseAdmin.rpc('has_role', {
-      _user_id: userData.user.id,
-      _role: 'admin',
-    })
 
-    if (roleErr) {
-      console.log('[backfill-activity-charts-from-logs] has_role error:', roleErr)
-    }
+    if (!isServiceRoleCall) {
+      // Client com JWT do usuário para validar permissão
+      const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      })
 
-    if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Acesso negado: apenas administradores' }),
-        { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      )
+      const { data: userData, error: userErr } = await supabaseAuth.auth.getUser()
+      if (userErr || !userData?.user) {
+        console.log('[backfill-activity-charts-from-logs] Auth error:', userErr)
+        return new Response(
+          JSON.stringify({ error: 'Não autenticado' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        )
+      }
+
+      // Verifica se é admin
+      const { data: isAdmin, error: roleErr } = await supabaseAdmin.rpc('has_role', {
+        _user_id: userData.user.id,
+        _role: 'admin',
+      })
+
+      if (roleErr) {
+        console.log('[backfill-activity-charts-from-logs] has_role error:', roleErr)
+      }
+
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: 'Acesso negado: apenas administradores' }),
+          { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        )
+      }
     }
 
     // Monta a query de logs
