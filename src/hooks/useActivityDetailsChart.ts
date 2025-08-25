@@ -1,4 +1,3 @@
-// Updated hook to use summary_id consistently
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,7 +14,70 @@ export const useActivityDetailsChart = (activityId: string | null) => {
   const [error, setError] = useState<string | null>(null);
   const [hasRawData, setHasRawData] = useState(false);
 
-  // New helper: try cache first, optionally trigger builder, then fallback to existing flow
+  // NEW: Fetch from activity_chart_data (prioritized for Garmin and Strava)
+  const fetchFromActivityChartData = async (id: string): Promise<HeartRatePaceData[] | null> => {
+    try {
+      console.log('🔍 Fetching from activity_chart_data for activity:', id);
+      
+      const { data: chartData, error } = await supabase
+        .from('activity_chart_data')
+        .select('series_data, activity_source, data_points_count')
+        .eq('activity_id', id)
+        .single();
+
+      if (error) {
+        console.log('❌ No data in activity_chart_data:', error.message);
+        return null;
+      }
+
+      if (!chartData || !chartData.series_data || !Array.isArray(chartData.series_data)) {
+        console.log('❌ Invalid series_data in activity_chart_data');
+        return null;
+      }
+
+      console.log(`✅ Found ${chartData.data_points_count} data points from activity_chart_data (${chartData.activity_source})`);
+
+      // Transform series_data to HeartRatePaceData format
+      const processedData: HeartRatePaceData[] = chartData.series_data.map((point: any) => {
+        let distance_km = 0;
+        let heart_rate = point.heart_rate || point.hr || 0;
+        let pace_min_per_km = null;
+        let speed_meters_per_second = 0;
+
+        // Handle distance
+        if (point.distance_km !== undefined) {
+          distance_km = point.distance_km;
+        } else if (point.distance_meters !== undefined) {
+          distance_km = point.distance_meters / 1000;
+        } else if (point.distance !== undefined) {
+          distance_km = point.distance / 1000;
+        }
+
+        // Handle speed and pace
+        if (point.speed_ms !== undefined && point.speed_ms > 0) {
+          speed_meters_per_second = point.speed_ms;
+          pace_min_per_km = (1000 / speed_meters_per_second) / 60;
+        } else if (point.pace_min_km !== undefined && point.pace_min_km > 0) {
+          pace_min_per_km = point.pace_min_km;
+          speed_meters_per_second = 1000 / (pace_min_per_km * 60);
+        }
+
+        return {
+          distance_km,
+          heart_rate,
+          pace_min_per_km,
+          speed_meters_per_second
+        };
+      });
+
+      return processedData.filter(item => item.heart_rate > 0);
+    } catch (err) {
+      console.error('❌ Error fetching from activity_chart_data:', err);
+      return null;
+    }
+  };
+
+  // Cache approach (existing logic)
   const tryCacheThenMaybeBuild = async (id: string): Promise<boolean> => {
     console.log('⚡ Cache: trying to load chart cache for', id);
     // Try to get any source cached for this activity_id (RLS ensures only current user)
@@ -85,37 +147,52 @@ export const useActivityDetailsChart = (activityId: string | null) => {
     setError(null);
     
     try {
-      // NEW: Fast path via cache
+      // PRIORITY 1: Try activity_chart_data first (new unified approach for Garmin and Strava)
+      console.log('🔄 Starting activity chart data fetch for:', id);
+      
+      let chartData = await fetchFromActivityChartData(id);
+      
+      if (chartData && chartData.length > 0) {
+        console.log('✅ Using activity_chart_data - no fallback needed');
+        setData(chartData);
+        setHasRawData(true);
+        setLoading(false);
+        return;
+      }
+
+      // PRIORITY 2: Try cache approach (existing logic)
       const cacheHit = await tryCacheThenMaybeBuild(id);
       if (cacheHit) {
         setLoading(false);
         return;
       }
 
-      console.log('🔍 DEBUG: Fetching data for activity ID:', id);
+      // PRIORITY 3: Fallback to legacy data sources (Polar, Zepp GPX, Strava GPX only)
+      console.log('🔍 DEBUG: Fallback to legacy data sources for activity ID:', id);
       
-      // Try Garmin data first
       let allDetails = [];
-      let dataSource = 'garmin';
+      let dataSource = 'polar';
       
-      // First check Garmin total count
-      const { count: garminCount, error: garminCountError } = await supabase
-        .from('garmin_activity_details')
+      // Try Polar data
+      console.log('🔍 DEBUG: Trying Polar data');
+      
+      const { count: polarCount, error: polarCountError } = await supabase
+        .from('polar_activity_details')
         .select('*', { count: 'exact', head: true })
         .eq('activity_id', id)
         .not('total_distance_in_meters', 'is', null);
 
-      if (garminCountError) throw garminCountError;
-      console.log('🔍 DEBUG: Garmin records count:', garminCount);
+      if (polarCountError) throw polarCountError;
+      console.log('🔍 DEBUG: Polar records count:', polarCount);
 
-      if (garminCount && garminCount > 0) {
-        // Fetch Garmin data in chunks
+      if (polarCount && polarCount > 0) {
+        // Fetch Polar data in chunks
         const chunkSize = 1000;
         let currentOffset = 0;
         
-        while (currentOffset < garminCount) {
+        while (currentOffset < polarCount) {
           const { data: chunk, error: chunkError } = await supabase
-            .from('garmin_activity_details')
+            .from('polar_activity_details')
             .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
             .eq('activity_id', id)
             .not('total_distance_in_meters', 'is', null)
@@ -126,7 +203,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           
           if (chunk && chunk.length > 0) {
             allDetails.push(...chunk);
-            console.log(`🔍 DEBUG: Fetched Garmin chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+            console.log(`🔍 DEBUG: Fetched Polar chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
           }
           
           currentOffset += chunkSize;
@@ -135,68 +212,80 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           if (!chunk || chunk.length < chunkSize) break;
         }
       } else {
-        // Try Polar data if no Garmin data
-        console.log('🔍 DEBUG: No Garmin data found, trying Polar data');
-        dataSource = 'polar';
-        
-        const { count: polarCount, error: polarCountError } = await supabase
-          .from('polar_activity_details')
+        // Try Zepp GPX data if no Polar data
+        console.log('🔍 DEBUG: No Polar data found, trying Zepp GPX details');
+        dataSource = 'zepp_gpx';
+
+        const { count: zeppCount, error: zeppCountError } = await supabase
+          .from('zepp_gpx_activity_details')
           .select('*', { count: 'exact', head: true })
           .eq('activity_id', id)
           .not('total_distance_in_meters', 'is', null);
 
-        if (polarCountError) throw polarCountError;
-        console.log('🔍 DEBUG: Polar records count:', polarCount);
+        if (zeppCountError) throw zeppCountError;
+        console.log('🔍 DEBUG: Zepp GPX records count:', zeppCount);
 
-        if (polarCount && polarCount > 0) {
-          // Fetch Polar data in chunks
+        if (zeppCount && zeppCount > 0) {
           const chunkSize = 1000;
           let currentOffset = 0;
-          
-          while (currentOffset < polarCount) {
+
+          while (currentOffset < zeppCount) {
             const { data: chunk, error: chunkError } = await supabase
-              .from('polar_activity_details')
-              .select('heart_rate, speed_meters_per_second, total_distance_in_meters, samples, sample_timestamp')
+              .from('zepp_gpx_activity_details')
+              .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
               .eq('activity_id', id)
               .not('total_distance_in_meters', 'is', null)
-              .order('total_distance_in_meters', { ascending: true })
+              .order('sample_timestamp', { ascending: true })
               .range(currentOffset, currentOffset + chunkSize - 1);
 
             if (chunkError) throw chunkError;
-            
+
             if (chunk && chunk.length > 0) {
               allDetails.push(...chunk);
-              console.log(`🔍 DEBUG: Fetched Polar chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+              console.log(`🔍 DEBUG: Fetched Zepp GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
             }
-            
+
             currentOffset += chunkSize;
-            
-            // Break if we got less than expected (end of data)
+
             if (!chunk || chunk.length < chunkSize) break;
           }
         } else {
-          // Try Zepp GPX data if no Polar data
-          console.log('🔍 DEBUG: No Polar data found, trying Zepp GPX details');
-          dataSource = 'zepp_gpx';
+          // Final fallback to Strava GPX data
+          console.log('🔍 DEBUG: No Zepp GPX data found, trying Strava GPX details');
+          
+          // First, check if this is a Strava GPX activity and get the correct activity_id
+          const { data: stravaGpxActivity, error: stravaGpxActivityErr } = await supabase
+            .from('strava_gpx_activities')
+            .select('activity_id')
+            .eq('id', id)
+            .maybeSingle();
+          
+          let stravaGpxActivityId = id; // Default to the passed ID
+          if (!stravaGpxActivityErr && stravaGpxActivity) {
+            stravaGpxActivityId = stravaGpxActivity.activity_id;
+            console.log(`🔍 DEBUG: Found Strava GPX activity, using activity_id: ${stravaGpxActivityId}`);
+          }
 
-          const { count: zeppCount, error: zeppCountError } = await supabase
-            .from('zepp_gpx_activity_details')
+          dataSource = 'strava_gpx';
+
+          const { count: gpxCount, error: gpxCountError } = await supabase
+            .from('strava_gpx_activity_details')
             .select('*', { count: 'exact', head: true })
-            .eq('activity_id', id)
+            .eq('activity_id', stravaGpxActivityId)
             .not('total_distance_in_meters', 'is', null);
 
-          if (zeppCountError) throw zeppCountError;
-          console.log('🔍 DEBUG: Zepp GPX records count:', zeppCount);
+          if (gpxCountError) throw gpxCountError;
+          console.log('🔍 DEBUG: Strava GPX records count:', gpxCount);
 
-          if (zeppCount && zeppCount > 0) {
+          if (gpxCount && gpxCount > 0) {
             const chunkSize = 1000;
             let currentOffset = 0;
 
-            while (currentOffset < zeppCount) {
+            while (currentOffset < gpxCount) {
               const { data: chunk, error: chunkError } = await supabase
-                .from('zepp_gpx_activity_details')
+                .from('strava_gpx_activity_details')
                 .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
-                .eq('activity_id', id)
+                .eq('activity_id', stravaGpxActivityId)
                 .not('total_distance_in_meters', 'is', null)
                 .order('sample_timestamp', { ascending: true })
                 .range(currentOffset, currentOffset + chunkSize - 1);
@@ -205,65 +294,12 @@ export const useActivityDetailsChart = (activityId: string | null) => {
 
               if (chunk && chunk.length > 0) {
                 allDetails.push(...chunk);
-                console.log(`🔍 DEBUG: Fetched Zepp GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
+                console.log(`🔍 DEBUG: Fetched Strava GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
               }
 
               currentOffset += chunkSize;
 
               if (!chunk || chunk.length < chunkSize) break;
-            }
-          } else {
-            // Final fallback to Strava GPX data
-            console.log('🔍 DEBUG: No Zepp GPX data found, trying Strava GPX details');
-            
-            // First, check if this is a Strava GPX activity and get the correct activity_id
-            const { data: stravaGpxActivity, error: stravaGpxActivityErr } = await supabase
-              .from('strava_gpx_activities')
-              .select('activity_id')
-              .eq('id', id)
-              .maybeSingle();
-            
-            let stravaGpxActivityId = id; // Default to the passed ID
-            if (!stravaGpxActivityErr && stravaGpxActivity) {
-              stravaGpxActivityId = stravaGpxActivity.activity_id;
-              console.log(`🔍 DEBUG: Found Strava GPX activity, using activity_id: ${stravaGpxActivityId}`);
-            }
-
-            dataSource = 'strava_gpx';
-
-            const { count: gpxCount, error: gpxCountError } = await supabase
-              .from('strava_gpx_activity_details')
-              .select('*', { count: 'exact', head: true })
-              .eq('activity_id', stravaGpxActivityId)
-              .not('total_distance_in_meters', 'is', null);
-
-            if (gpxCountError) throw gpxCountError;
-            console.log('🔍 DEBUG: Strava GPX records count:', gpxCount);
-
-            if (gpxCount && gpxCount > 0) {
-              const chunkSize = 1000;
-              let currentOffset = 0;
-
-              while (currentOffset < gpxCount) {
-                const { data: chunk, error: chunkError } = await supabase
-                  .from('strava_gpx_activity_details')
-                  .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
-                  .eq('activity_id', stravaGpxActivityId)
-                  .not('total_distance_in_meters', 'is', null)
-                  .order('sample_timestamp', { ascending: true })
-                  .range(currentOffset, currentOffset + chunkSize - 1);
-
-                if (chunkError) throw chunkError;
-
-                if (chunk && chunk.length > 0) {
-                  allDetails.push(...chunk);
-                  console.log(`🔍 DEBUG: Fetched Strava GPX chunk ${currentOffset}-${currentOffset + chunk.length - 1}, total so far: ${allDetails.length}`);
-                }
-
-                currentOffset += chunkSize;
-
-                if (!chunk || chunk.length < chunkSize) break;
-              }
             }
           }
         }
@@ -295,32 +331,16 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       
       setHasRawData(allDetails.length > 0);
       console.log(`🔍 DEBUG: Using ${dataSource} data source with ${allDetails.length} total records`);
-      
-      console.log('🔍 DEBUG: Total records fetched:', allDetails.length);
-      if (allDetails.length > 0) {
-        const maxDistanceDB = Math.max(...allDetails.map(d => d.total_distance_in_meters || 0)) / 1000;
-        console.log('🔍 DEBUG: Max distance in DB:', maxDistanceDB, 'km');
-      }
 
       // Filter for records with heart rate
       const details = allDetails.filter(record => record.heart_rate !== null && record.heart_rate > 0);
       console.log('🔍 DEBUG: Records after HR filter:', details.length);
-      
-      if (details.length > 0) {
-        const maxDistanceFiltered = Math.max(...details.map(d => d.total_distance_in_meters || 0)) / 1000;
-        console.log('🔍 DEBUG: Max distance after HR filter:', maxDistanceFiltered, 'km');
-      }
       
       const processedData = details.map((sample, index) => {
         // Calculate pace, handling zero speed cases
         let pace_min_per_km: number | null = null;
         if (sample.speed_meters_per_second && sample.speed_meters_per_second > 0) {
           pace_min_per_km = (1000 / sample.speed_meters_per_second) / 60;
-        }
-        
-        // Log some sample pace calculations for debugging
-        if (index < 5) {
-          console.log(`🔍 DEBUG: Sample ${index}: speed=${sample.speed_meters_per_second}, pace=${pace_min_per_km}, distance=${sample.total_distance_in_meters}`);
         }
         
         return {
@@ -331,55 +351,14 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         };
       });
 
-      console.log('🔍 DEBUG: Records after processing:', processedData.length);
-      if (processedData.length > 0) {
-        const maxDistanceProcessed = Math.max(...processedData.map(d => d.distance_km));
-        console.log('🔍 DEBUG: Max distance after processing:', maxDistanceProcessed, 'km');
-      }
-
-      // Count records before final filter
-      const validHRRecords = processedData.filter(item => item.heart_rate > 0);
-      const validPaceRecords = processedData.filter(item => item.pace_min_per_km !== null && item.pace_min_per_km > 0);
-      const validBothRecords = processedData.filter(item => 
-        item.heart_rate > 0 && item.pace_min_per_km !== null && item.pace_min_per_km > 0
-      );
-
-      console.log('🔍 DEBUG: Valid HR records:', validHRRecords.length);
-      console.log('🔍 DEBUG: Valid pace records:', validPaceRecords.length);
-      console.log('🔍 DEBUG: Valid both HR+pace records:', validBothRecords.length);
-
       // Apply final filter - include records with valid heart rate
-      const chartData = processedData
-        .filter(item => {
-          // Include records with valid heart rate (speed can be 0 if stopped)
-          return item.heart_rate > 0;
-        })
+      const finalData = processedData
+        .filter(item => item.heart_rate > 0)
         .sort((a, b) => a.distance_km - b.distance_km);
 
-      console.log('🔍 DEBUG: Final chart data points:', chartData.length);
-      if (chartData.length > 0) {
-        const maxDistanceFinal = Math.max(...chartData.map(d => d.distance_km));
-        console.log('🔍 DEBUG: Max distance in final chart data:', maxDistanceFinal, 'km');
-        console.log('🔍 DEBUG: First 5 chart points:', chartData.slice(0, 5));
-        console.log('🔍 DEBUG: Last 5 chart points:', chartData.slice(-5));
-      }
-
-      // Check for gaps in distance
-      if (chartData.length > 1) {
-        const distances = chartData.map(d => d.distance_km).sort((a, b) => a - b);
-        const gaps = [];
-        for (let i = 1; i < distances.length; i++) {
-          const gap = distances[i] - distances[i-1];
-          if (gap > 0.5) { // Gap larger than 500m
-            gaps.push({ from: distances[i-1], to: distances[i], gap });
-          }
-        }
-        if (gaps.length > 0) {
-          console.log('🔍 DEBUG: Large distance gaps found:', gaps);
-        }
-      }
+      console.log('🔍 DEBUG: Final chart data points:', finalData.length);
       
-      setData(chartData);
+      setData(finalData);
     } catch (err) {
       console.error('Error fetching activity details:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');

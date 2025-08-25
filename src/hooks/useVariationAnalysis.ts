@@ -19,6 +19,61 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // NEW: Fetch from activity_chart_data (prioritized for Garmin and Strava)
+  const fetchFromActivityChartData = async (activityId: string): Promise<{ heartRates: number[], paces: number[] } | null> => {
+    try {
+      console.log('🔍 [Variation] Fetching from activity_chart_data for activity:', activityId);
+      
+      const { data: chartData, error } = await supabase
+        .from('activity_chart_data')
+        .select('series_data, activity_source, data_points_count')
+        .eq('activity_id', activityId)
+        .single();
+
+      if (error) {
+        console.log('❌ [Variation] No data in activity_chart_data:', error.message);
+        return null;
+      }
+
+      if (!chartData || !chartData.series_data || !Array.isArray(chartData.series_data)) {
+        console.log('❌ [Variation] Invalid series_data in activity_chart_data');
+        return null;
+      }
+
+      console.log(`✅ [Variation] Found ${chartData.data_points_count} data points from activity_chart_data (${chartData.activity_source})`);
+
+      const heartRates: number[] = [];
+      const paces: number[] = [];
+
+      chartData.series_data.forEach((point: any) => {
+        // Extract heart rate
+        const hr = point.heart_rate || point.hr || 0;
+        if (hr > 0) {
+          heartRates.push(hr);
+        }
+
+        // Extract pace
+        let pace = null;
+        if (point.pace_min_km !== undefined && point.pace_min_km > 0) {
+          pace = point.pace_min_km;
+        } else if (point.speed_ms !== undefined && point.speed_ms > 0) {
+          pace = (1000 / point.speed_ms) / 60;
+        }
+
+        if (pace && pace > 0) {
+          paces.push(pace);
+        }
+      });
+
+      console.log(`✅ [Variation] Extracted ${heartRates.length} HR samples, ${paces.length} pace samples`);
+      
+      return heartRates.length >= 10 || paces.length >= 10 ? { heartRates, paces } : null;
+    } catch (err) {
+      console.error('❌ [Variation] Error fetching from activity_chart_data:', err);
+      return null;
+    }
+  };
+
   const calculateVariationCoefficients = async () => {
     if (!user || !activity) {
       setAnalysis(null);
@@ -49,178 +104,195 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        let activityDetails: any[] = [];
-        let detailsError: any = null;
-
-        // Determinar qual tabela usar baseado na fonte da atividade
-        if (activity.source === 'GARMIN') {
-          console.log(`🔍 Análise CV GARMIN: Buscando dados para atividade ${activity.activity_id} (tentativa ${attempt})`);
-
-          // Buscar todos os pontos necessários; amostrar client-side para representatividade
-          const result = await supabase
-            .from('garmin_activity_details')
-            .select('heart_rate, speed_meters_per_second, sample_timestamp')
-            .eq('user_id', user.id)
-            .eq('activity_id', activity.activity_id)
-            .not('heart_rate', 'is', null)
-            .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true });
-
-          activityDetails = result.data || [];
-          detailsError = result.error;
-        } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
-          const result = await supabase
-            .from('strava_gpx_activity_details')
-            .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
-            .eq('activity_id', activity.activity_id)
-            .not('heart_rate', 'is', null)
-            .not('total_distance_in_meters', 'is', null)
-            .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true });
-
-          let rawDetails = result.data || [];
-          detailsError = result.error;
-
-          // Calcular velocidade a partir da distância e tempo se não estiver disponível
-          if (rawDetails.length > 1) {
-            for (let i = 1; i < rawDetails.length; i++) {
-              const prev = rawDetails[i - 1];
-              const cur = rawDetails[i];
-              const tPrev = new Date(prev.sample_timestamp).getTime();
-              const tCur = new Date(cur.sample_timestamp).getTime();
-              const dt = (tCur - tPrev) / 1000; // segundos
-              const dPrev = Number(prev.total_distance_in_meters || 0);
-              const dCur = Number(cur.total_distance_in_meters || 0);
-              const dd = dCur - dPrev;
-              const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
-
-              if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
-                cur.speed_meters_per_second = speed;
-              }
-            }
-          }
-
-          activityDetails = rawDetails;
-        } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
-          const result = await supabase
-            .from('strava_activity_details')
-            .select('heartrate, velocity_smooth, time_seconds')
-            .eq('user_id', user.id)
-            .eq('strava_activity_id', parseInt(activity.strava_activity_id?.toString() || activity.activity_id))
-            .not('heartrate', 'is', null)
-            .gt('heartrate', 0)
-            .order('time_seconds', { ascending: true });
-
-          let rawDetails = result.data || [];
-          detailsError = result.error;
-
-          // Converter para formato padrão
-          activityDetails = rawDetails.map(d => ({
-            heart_rate: d.heartrate,
-            speed_meters_per_second: d.velocity_smooth || null,
-            sample_timestamp: d.time_seconds
-          }));
-        } else if (activity.source === 'ZEPP') {
-          const result = await supabase
-            .from('zepp_gpx_activity_details')
-            .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
-            .eq('activity_id', activity.activity_id)
-            .not('heart_rate', 'is', null)
-            .not('total_distance_in_meters', 'is', null)
-            .gt('heart_rate', 0)
-            .order('sample_timestamp', { ascending: true });
-
-          let rawDetails = result.data || [];
-          detailsError = result.error;
-
-          if (rawDetails.length > 1) {
-            for (let i = 1; i < rawDetails.length; i++) {
-              const prev = rawDetails[i - 1];
-              const cur = rawDetails[i];
-              const tPrev = new Date(prev.sample_timestamp).getTime();
-              const tCur = new Date(cur.sample_timestamp).getTime();
-              const dt = (tCur - tPrev) / 1000; // segundos
-              const dPrev = Number(prev.total_distance_in_meters || 0);
-              const dCur = Number(cur.total_distance_in_meters || 0);
-              const dd = dCur - dPrev;
-              const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
-
-              if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
-                cur.speed_meters_per_second = speed;
-              }
-            }
-          }
-
-          activityDetails = rawDetails;
-        } else if (activity.source === 'POLAR') {
-          const result = await supabase
-            .from('polar_activity_details')
-            .select('heart_rate, speed_meters_per_second, sample_timestamp')
-            .eq('user_id', user.id)
-            .eq('activity_id', activity.activity_id)
-            .not('heart_rate', 'is', null)
-            .not('speed_meters_per_second', 'is', null)
-            .gt('heart_rate', 0)
-            .gt('speed_meters_per_second', 0)
-            .order('sample_timestamp', { ascending: true });
-
-          activityDetails = result.data || [];
-          detailsError = result.error;
-        } else {
-          throw new Error(`Fonte de atividade não suportada: ${activity.source}`);
-        }
-
-        if (detailsError) {
-          console.error('🔍 Erro na busca de detalhes:', detailsError);
-          throw new Error(`Erro ao buscar detalhes: ${detailsError.message || detailsError}`);
-        }
-
-        if (!activityDetails || activityDetails.length < 10) {
-          setAnalysis({
-            paceCV: 0,
-            heartRateCV: 0,
-            paceCVCategory: 'Baixo',
-            heartRateCVCategory: 'Baixo',
-            diagnosis: 'Dados insuficientes para análise (mínimo 10 pontos)',
-            hasValidData: false,
-            dataPoints: activityDetails?.length || 0
-          });
-          setLoading(false);
-          return;
-        }
-
-        // Amostragem estratificada para representar toda a atividade
-        const sampledData = stratifiedSample(activityDetails, 300);
-
-        // Extrair dados de FC e converter velocidade para pace usando dados amostrados
-        const heartRates = sampledData
-          .map(d => d.heart_rate)
-          .filter((hr: number | null | undefined) => typeof hr === 'number' && hr > 0) as number[];
-
-        // Verificar quantos registros têm dados de velocidade válidos
-        const recordsWithSpeed = sampledData.filter(d =>
-          d.speed_meters_per_second &&
-          d.speed_meters_per_second > 0 &&
-          !isNaN(d.speed_meters_per_second)
-        );
-
-        // Calcular paces (min/km)
+        let heartRates: number[] = [];
         let paces: number[] = [];
-        if (recordsWithSpeed.length >= 10) {
-          paces = recordsWithSpeed
-            .map(d => 1000 / (d.speed_meters_per_second * 60));
-        } else {
-          const allSpeedRecords = sampledData.filter(d =>
-            d.speed_meters_per_second !== null &&
-            d.speed_meters_per_second !== undefined &&
+
+        // PRIORITY 1: Try activity_chart_data for Garmin and Strava
+        if (activity.source === 'GARMIN' || activity.source === 'STRAVA') {
+          console.log(`🔍 [Variation] Trying activity_chart_data for ${activity.source} activity ${activity.activity_id} (attempt ${attempt})`);
+          
+          const chartDataResult = await fetchFromActivityChartData(activity.activity_id);
+          if (chartDataResult) {
+            heartRates = chartDataResult.heartRates;
+            paces = chartDataResult.paces;
+            console.log(`✅ [Variation] Using activity_chart_data: ${heartRates.length} HR, ${paces.length} pace samples`);
+          }
+        }
+
+        // FALLBACK: Use legacy data sources for other sources or if chart data not available
+        if (heartRates.length < 10 && paces.length < 10) {
+          console.log(`🔍 [Variation] Fallback to legacy sources for ${activity.source} activity ${activity.activity_id} (attempt ${attempt})`);
+          
+          let activityDetails: any[] = [];
+          let detailsError: any = null;
+
+          if (activity.source === 'GARMIN') {
+            // Legacy Garmin fallback (should rarely be used now)
+            const result = await supabase
+              .from('garmin_activity_details')
+              .select('heart_rate, speed_meters_per_second, sample_timestamp')
+              .eq('user_id', user.id)
+              .eq('activity_id', activity.activity_id)
+              .not('heart_rate', 'is', null)
+              .gt('heart_rate', 0)
+              .order('sample_timestamp', { ascending: true });
+
+            activityDetails = result.data || [];
+            detailsError = result.error;
+          } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
+            const result = await supabase
+              .from('strava_gpx_activity_details')
+              .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
+              .eq('activity_id', activity.activity_id)
+              .not('heart_rate', 'is', null)
+              .not('total_distance_in_meters', 'is', null)
+              .gt('heart_rate', 0)
+              .order('sample_timestamp', { ascending: true });
+
+            let rawDetails = result.data || [];
+            detailsError = result.error;
+
+            // Calcular velocidade a partir da distância e tempo se não estiver disponível
+            if (rawDetails.length > 1) {
+              for (let i = 1; i < rawDetails.length; i++) {
+                const prev = rawDetails[i - 1];
+                const cur = rawDetails[i];
+                const tPrev = new Date(prev.sample_timestamp).getTime();
+                const tCur = new Date(cur.sample_timestamp).getTime();
+                const dt = (tCur - tPrev) / 1000; // segundos
+                const dPrev = Number(prev.total_distance_in_meters || 0);
+                const dCur = Number(cur.total_distance_in_meters || 0);
+                const dd = dCur - dPrev;
+                const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
+
+                if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
+                  cur.speed_meters_per_second = speed;
+                }
+              }
+            }
+
+            activityDetails = rawDetails;
+          } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
+            // Legacy Strava fallback (should rarely be used now)
+            const result = await supabase
+              .from('strava_activity_details')
+              .select('heartrate, velocity_smooth, time_seconds')
+              .eq('user_id', user.id)
+              .eq('strava_activity_id', parseInt(activity.strava_activity_id?.toString() || activity.activity_id))
+              .not('heartrate', 'is', null)
+              .gt('heartrate', 0)
+              .order('time_seconds', { ascending: true });
+
+            let rawDetails = result.data || [];
+            detailsError = result.error;
+
+            // Converter para formato padrão
+            activityDetails = rawDetails.map(d => ({
+              heart_rate: d.heartrate,
+              speed_meters_per_second: d.velocity_smooth || null,
+              sample_timestamp: d.time_seconds
+            }));
+          } else if (activity.source === 'ZEPP') {
+            const result = await supabase
+              .from('zepp_gpx_activity_details')
+              .select('heart_rate, speed_meters_per_second, total_distance_in_meters, sample_timestamp')
+              .eq('activity_id', activity.activity_id)
+              .not('heart_rate', 'is', null)
+              .not('total_distance_in_meters', 'is', null)
+              .gt('heart_rate', 0)
+              .order('sample_timestamp', { ascending: true });
+
+            let rawDetails = result.data || [];
+            detailsError = result.error;
+
+            if (rawDetails.length > 1) {
+              for (let i = 1; i < rawDetails.length; i++) {
+                const prev = rawDetails[i - 1];
+                const cur = rawDetails[i];
+                const tPrev = new Date(prev.sample_timestamp).getTime();
+                const tCur = new Date(cur.sample_timestamp).getTime();
+                const dt = (tCur - tPrev) / 1000; // segundos
+                const dPrev = Number(prev.total_distance_in_meters || 0);
+                const dCur = Number(cur.total_distance_in_meters || 0);
+                const dd = dCur - dPrev;
+                const speed = dt > 0 && dd >= 0 ? dd / dt : 0;
+
+                if (!cur.speed_meters_per_second || cur.speed_meters_per_second <= 0) {
+                  cur.speed_meters_per_second = speed;
+                }
+              }
+            }
+
+            activityDetails = rawDetails;
+          } else if (activity.source === 'POLAR') {
+            const result = await supabase
+              .from('polar_activity_details')
+              .select('heart_rate, speed_meters_per_second, sample_timestamp')
+              .eq('user_id', user.id)
+              .eq('activity_id', activity.activity_id)
+              .not('heart_rate', 'is', null)
+              .not('speed_meters_per_second', 'is', null)
+              .gt('heart_rate', 0)
+              .gt('speed_meters_per_second', 0)
+              .order('sample_timestamp', { ascending: true });
+
+            activityDetails = result.data || [];
+            detailsError = result.error;
+          } else {
+            throw new Error(`Fonte de atividade não suportada: ${activity.source}`);
+          }
+
+          if (detailsError) {
+            console.error('🔍 Erro na busca de detalhes:', detailsError);
+            throw new Error(`Erro ao buscar detalhes: ${detailsError.message || detailsError}`);
+          }
+
+          if (!activityDetails || activityDetails.length < 10) {
+            setAnalysis({
+              paceCV: 0,
+              heartRateCV: 0,
+              paceCVCategory: 'Baixo',
+              heartRateCVCategory: 'Baixo',
+              diagnosis: 'Dados insuficientes para análise (mínimo 10 pontos)',
+              hasValidData: false,
+              dataPoints: activityDetails?.length || 0
+            });
+            setLoading(false);
+            return;
+          }
+
+          // Amostragem estratificada para representar toda a atividade
+          const sampledData = stratifiedSample(activityDetails, 300);
+
+          // Extrair dados de FC e converter velocidade para pace usando dados amostrados
+          heartRates = sampledData
+            .map(d => d.heart_rate)
+            .filter((hr: number | null | undefined) => typeof hr === 'number' && hr > 0) as number[];
+
+          // Verificar quantos registros têm dados de velocidade válidos
+          const recordsWithSpeed = sampledData.filter(d =>
+            d.speed_meters_per_second &&
+            d.speed_meters_per_second > 0 &&
             !isNaN(d.speed_meters_per_second)
           );
-          if (allSpeedRecords.length >= 10) {
-            paces = allSpeedRecords
-              .map(d => {
-                const speed = d.speed_meters_per_second || 0.1;
-                return speed > 0 ? 1000 / (speed * 60) : 60;
-              });
+
+          // Calcular paces (min/km)
+          if (recordsWithSpeed.length >= 10) {
+            paces = recordsWithSpeed
+              .map(d => 1000 / (d.speed_meters_per_second * 60));
+          } else {
+            const allSpeedRecords = sampledData.filter(d =>
+              d.speed_meters_per_second !== null &&
+              d.speed_meters_per_second !== undefined &&
+              !isNaN(d.speed_meters_per_second)
+            );
+            if (allSpeedRecords.length >= 10) {
+              paces = allSpeedRecords
+                .map(d => {
+                  const speed = d.speed_meters_per_second || 0.1;
+                  return speed > 0 ? 1000 / (speed * 60) : 60;
+                });
+            }
           }
         }
 
@@ -232,7 +304,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
             heartRateCVCategory: 'Baixo',
             diagnosis: `Dados de velocidade/FC insuficientes para análise robusta`,
             hasValidData: false,
-            dataPoints: sampledData.length
+            dataPoints: heartRates.length + paces.length
           });
           setLoading(false);
           return;
@@ -276,7 +348,7 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           heartRateCVCategory,
           diagnosis,
           hasValidData: true,
-          dataPoints: sampledData.length
+          dataPoints: heartRates.length + paces.length
         });
 
         setLoading(false);

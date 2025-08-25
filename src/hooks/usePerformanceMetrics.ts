@@ -54,7 +54,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
 
     const fetchMetrics = async () => {
       try {
-        console.log('🔄 Fetching pre-calculated performance metrics for activity:', activityId);
+        console.log('🔄 Fetching performance metrics for activity:', activityId);
         const startTime = Date.now();
         
         // Get the current user
@@ -62,6 +62,53 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         if (!user) {
           throw new Error('User not authenticated');
         }
+
+        // PRIORITY 1: Try to get from activity_chart_data (for Garmin and Strava)
+        const { data: chartData, error: chartError } = await supabase
+          .from('activity_chart_data')
+          .select('*')
+          .eq('activity_id', activityId)
+          .single();
+
+        if (chartData && !chartError) {
+          console.log('✅ Using activity_chart_data for performance metrics');
+          const metrics = formatMetricsFromChartData(chartData);
+          setMetrics(metrics);
+          setLoading(false);
+          return;
+        }
+
+        console.log('📋 Fallback: trying pre-calculated performance metrics');
+        
+        // PRIORITY 2: Get pre-calculated metrics (existing logic)
+        const { data: metricsData, error: metricsError } = await supabase
+          .from('performance_metrics')
+          .select('*')
+          .eq('activity_id', activityId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (metricsData) {
+          const formatted = formatMetricsFromDB(metricsData);
+          setMetrics(formatted);
+        } else {
+          // ... keep existing fallback code
+          throw new Error('No performance data available');
+        }
+        
+        const endTime = Date.now();
+        console.log(`✅ Performance metrics loaded in ${endTime - startTime}ms`);
+        
+      } catch (err: any) {
+        console.error('❌ Error fetching performance metrics:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, [activityId]);
 
         // 1) Detect source and normalize the activity ID up-front (prevents N/A due to ID mismatch)
         console.log('🔍 Detecting activity source. Activity ID:', activityId, 'User ID:', user.id);
