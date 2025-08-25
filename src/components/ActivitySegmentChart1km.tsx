@@ -279,9 +279,6 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
             <div className="flex items-center space-x-1">
               <span className="text-sm font-medium text-primary border-b-2 border-primary pb-1">Detalhes por km</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-sm text-muted-foreground">Detalhes por intervalo</span>
-            </div>
           </div>
           
           {/* Segment selection buttons */}
