@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { BarChart3, RotateCcw } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -33,7 +32,6 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const isMobile = useIsMobile();
 
   const fetchData = async () => {
     if (!activityId) {
