@@ -1,5 +1,24 @@
 import { useMemo } from 'react';
 
+// Função para converter pace string "MM:SS" para number (minutos decimais)
+const paceStringToMinutes = (paceStr: string): number => {
+  if (!paceStr || typeof paceStr !== 'string') return 0;
+  const parts = paceStr.split(':');
+  if (parts.length !== 2) return 0;
+  const minutes = parseInt(parts[0]);
+  const seconds = parseInt(parts[1]);
+  if (isNaN(minutes) || isNaN(seconds)) return 0;
+  return minutes + (seconds / 60);
+};
+
+// Função para converter minutos decimais para "MM:SS"
+const minutesToPaceString = (minutes: number): string => {
+  if (!minutes || isNaN(minutes) || minutes <= 0) return '';
+  const min = Math.floor(minutes);
+  const sec = Math.round((minutes % 1) * 60);
+  return `${min}:${String(sec).padStart(2, '0')}`;
+};
+
 // Função para calcular pace baseado na intensidade
 const calculatePaceRange = (baseMinPace: number, baseMaxPace: number, intensity: string) => {
   const intensityLower = intensity.toLowerCase();
@@ -215,12 +234,9 @@ export default function WeeklyAIPlanCard() {
                               {briefing.workout.guidance.pace_min_per_km && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-muted-foreground">Pace alvo:</span>
-                                  <span className="font-medium text-foreground">
-                                    {formatPaceRange(
-                                      Number(briefing.workout.guidance.pace_min_per_km.min), 
-                                      Number(briefing.workout.guidance.pace_min_per_km.max)
-                                    )}
-                                  </span>
+                                   <span className="font-medium text-foreground">
+                                     {briefing.workout.guidance.pace_min_per_km.min} a {briefing.workout.guidance.pace_min_per_km.max}
+                                   </span>
                                 </div>
                               )}
                               {briefing.workout.guidance.hr_bpm && (
@@ -265,8 +281,14 @@ export default function WeeklyAIPlanCard() {
                                    {briefing.workout.guidance?.pace_min_per_km && s.intensity && (
                                      <div className="text-xs text-muted-foreground">
                                        {(() => {
-                                         const baseMin = Number(briefing.workout.guidance.pace_min_per_km.min);
-                                         const baseMax = Number(briefing.workout.guidance.pace_min_per_km.max);
+                                         // Converter strings "MM:SS" para numbers
+                                         const baseMinStr = briefing.workout.guidance.pace_min_per_km.min;
+                                         const baseMaxStr = briefing.workout.guidance.pace_min_per_km.max;
+                                         
+                                         if (!baseMinStr || !baseMaxStr) return null;
+                                         
+                                         const baseMin = paceStringToMinutes(baseMinStr);
+                                         const baseMax = paceStringToMinutes(baseMaxStr);
                                          
                                          // Só mostrar se os valores base são válidos
                                          if (isNaN(baseMin) || isNaN(baseMax) || baseMin <= 0 || baseMax <= 0) {
@@ -274,9 +296,12 @@ export default function WeeklyAIPlanCard() {
                                          }
                                          
                                          const adjustedPace = calculatePaceRange(baseMin, baseMax, s.intensity);
-                                         const paceText = formatPaceRange(adjustedPace.min, adjustedPace.max);
+                                         const paceMinStr = minutesToPaceString(adjustedPace.min);
+                                         const paceMaxStr = minutesToPaceString(adjustedPace.max);
                                          
-                                         return paceText !== 'N/A' ? `Pace sugerido: ${paceText}` : null;
+                                         if (!paceMinStr || !paceMaxStr) return null;
+                                         
+                                         return `Pace sugerido: ${paceMinStr} a ${paceMaxStr}`;
                                        })()}
                                      </div>
                                    )}

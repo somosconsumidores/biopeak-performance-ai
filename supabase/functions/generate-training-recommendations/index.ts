@@ -429,13 +429,23 @@ Gere recomendações específicas, práticas e baseadas nos dados fornecidos. Ma
 
     console.log('🤖 OpenAI response received, parsing recommendations...');
 
+    // Extract clean JSON from AI response (handle code fences)
+    const rawContent = aiContent || '';
+    console.log('Raw AI response:', rawContent);
+    
+    // Remove code fences and extract JSON
+    const fencedClean = rawContent.replace(/```json|```/gi, '').trim();
+    const jsonMatch = fencedClean.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : fencedClean;
+
     // Parse AI response
     let recommendations: TrainingRecommendations;
     try {
-      recommendations = JSON.parse(aiContent);
+      recommendations = JSON.parse(jsonStr);
+      console.log('✅ Successfully parsed AI recommendations');
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
-      console.log('Raw AI response:', aiContent);
+      console.log('Cleaned JSON string:', jsonStr);
       
       // Fallback with comprehensive recommendations
       recommendations = {
