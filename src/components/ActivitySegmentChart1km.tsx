@@ -32,6 +32,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [segmentSize, setSegmentSize] = useState<1 | 5>(1); // 1km or 5km segments
 
   const fetchData = async () => {
     if (!activityId) {
@@ -90,9 +91,9 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     if (!data || !data.series_data || data.series_data.length === 0) return [];
 
     const segments: SegmentData[] = [];
-    const segmentSize = 1000; // 1000 meters per segment
+    const segmentSizeMeters = segmentSize * 1000; // Convert km to meters
 
-    // Group data by 1km segments
+    // Group data by selected segment size
     let currentSegment = 1;
     let segmentPaceSum = 0;
     let segmentHRSum = 0;
@@ -105,17 +106,20 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
       const currentDistance = point.distance_m || 0;
       const currentTime = point.timestamp || point.elapsed_time || 0;
       
-      // Check if we've reached the next 1km segment
-      if (currentDistance >= currentSegment * segmentSize) {
+      // Check if we've reached the next segment
+      if (currentDistance >= currentSegment * segmentSizeMeters) {
         // Save current segment if we have data
         if (segmentDataPoints > 0) {
           const segmentTime = currentTime - segmentStartTime;
+          const startKm = (currentSegment - 1) * segmentSize + 1;
+          const endKm = currentSegment * segmentSize;
+          
           segments.push({
-            segment: `${currentSegment}km`,
+            segment: segmentSize === 1 ? `${currentSegment}km` : `${startKm}-${endKm}km`,
             segmentNumber: currentSegment,
             avgPace: segmentPaceSum / segmentDataPoints,
             avgHeartRate: segmentHRPoints > 0 ? Math.round(segmentHRSum / segmentHRPoints) : 0,
-            distance: currentSegment * segmentSize,
+            distance: currentSegment * segmentSizeMeters,
             cumulativeTime: currentTime,
             segmentTime: segmentTime
           });
@@ -150,9 +154,11 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
       const finalPoint = data.series_data[data.series_data.length - 1];
       const finalTime = finalPoint?.timestamp || finalPoint?.elapsed_time || 0;
       const segmentTime = finalTime - segmentStartTime;
+      const startKm = (currentSegment - 1) * segmentSize + 1;
+      const endKm = currentSegment * segmentSize;
       
       segments.push({
-        segment: `${currentSegment}km`,
+        segment: segmentSize === 1 ? `${currentSegment}km` : `${startKm}-${endKm}km`,
         segmentNumber: currentSegment,
         avgPace: segmentPaceSum / segmentDataPoints,
         avgHeartRate: segmentHRPoints > 0 ? Math.round(segmentHRSum / segmentHRPoints) : 0,
@@ -163,7 +169,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     }
 
     return segments;
-  }, [data]);
+  }, [data, segmentSize]);
 
   const formatPace = (pace: number) => {
     if (!pace || pace <= 0) return '--';
@@ -296,10 +302,20 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
             <span className="text-sm text-muted-foreground">{segmentData.length} registros</span>
             <div className="flex-1"></div>
             <div className="flex items-center space-x-2">
-              <Button variant="default" size="sm" className="px-3 py-1 text-xs">
+              <Button 
+                variant={segmentSize === 1 ? "default" : "ghost"} 
+                size="sm" 
+                className="px-3 py-1 text-xs"
+                onClick={() => setSegmentSize(1)}
+              >
                 1 km
               </Button>
-              <Button variant="ghost" size="sm" className="px-3 py-1 text-xs text-muted-foreground">
+              <Button 
+                variant={segmentSize === 5 ? "default" : "ghost"} 
+                size="sm" 
+                className={`px-3 py-1 text-xs ${segmentSize === 5 ? '' : 'text-muted-foreground'}`}
+                onClick={() => setSegmentSize(5)}
+              >
                 5 km
               </Button>
             </div>
@@ -311,7 +327,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50">
-                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">km</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">{segmentSize === 1 ? 'km' : 'Segmento'}</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo(km)</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo cardíaco</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Tempo</th>
@@ -325,7 +341,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                       {index === fastestSegmentIndex && (
                         <div className="w-0 h-0 border-l-[6px] border-l-green-500 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent mr-2"></div>
                       )}
-                      <span className="text-sm font-medium">{segment.segmentNumber}</span>
+                      <span className="text-sm font-medium">{segmentSize === 1 ? segment.segmentNumber : segment.segment}</span>
                     </div>
                   </td>
                   <td className="py-3 px-2">
