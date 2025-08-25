@@ -44,8 +44,10 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         let pace_min_per_km = null;
         let speed_meters_per_second = 0;
 
-        // Handle distance
-        if (point.distance_km !== undefined) {
+        // Handle distance - prioritize distance_m from actual structure
+        if (point.distance_m !== undefined) {
+          distance_km = point.distance_m / 1000;
+        } else if (point.distance_km !== undefined) {
           distance_km = point.distance_km;
         } else if (point.distance_meters !== undefined) {
           distance_km = point.distance_meters / 1000;
@@ -53,13 +55,16 @@ export const useActivityDetailsChart = (activityId: string | null) => {
           distance_km = point.distance / 1000;
         }
 
-        // Handle speed and pace
+        // Handle speed and pace - prioritize speed_ms from actual structure
         if (point.speed_ms !== undefined && point.speed_ms > 0) {
           speed_meters_per_second = point.speed_ms;
           pace_min_per_km = (1000 / speed_meters_per_second) / 60;
         } else if (point.pace_min_km !== undefined && point.pace_min_km > 0) {
           pace_min_per_km = point.pace_min_km;
           speed_meters_per_second = 1000 / (pace_min_per_km * 60);
+        } else if (point.speed_meters_per_second !== undefined && point.speed_meters_per_second > 0) {
+          speed_meters_per_second = point.speed_meters_per_second;
+          pace_min_per_km = (1000 / speed_meters_per_second) / 60;
         }
 
         return {

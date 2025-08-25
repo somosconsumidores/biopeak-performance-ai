@@ -18,6 +18,117 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
+  // NEW: try activity_chart_data first (for Garmin and Strava)
+  const tryLoadZonesFromActivityChartData = async (id: string): Promise<boolean> => {
+    console.log('⚡ ZONES: Trying activity_chart_data for', id);
+    
+    try {
+      const { data: chartData, error } = await supabase
+        .from('activity_chart_data')
+        .select('series_data, activity_source')
+        .eq('activity_id', id)
+        .single();
+
+      if (error || !chartData?.series_data || !Array.isArray(chartData.series_data)) {
+        console.log('❌ No data in activity_chart_data for zones:', error?.message);
+        return false;
+      }
+
+      console.log(`✅ Found ${chartData.series_data.length} data points from activity_chart_data (${chartData.activity_source})`);
+
+      // Extract heart rate data from series_data
+      const heartRateData = chartData.series_data
+        .map((point: any) => point.heart_rate || point.hr)
+        .filter((hr: number) => hr && hr > 0);
+
+      if (heartRateData.length === 0) {
+        console.log('❌ No heart rate data found in activity_chart_data');
+        return false;
+      }
+
+      // Calculate zones using the heart rate data
+      await calculateZonesFromHeartRateData(heartRateData);
+      return true;
+
+    } catch (err) {
+      console.error('❌ Error fetching from activity_chart_data for zones:', err);
+      return false;
+    }
+  };
+
+  // Helper function to calculate zones from heart rate array
+  const calculateZonesFromHeartRateData = async (heartRateData: number[]) => {
+    // Get user's profile to calculate theoretical max HR
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('birth_date')
+      .eq('user_id', user.id)
+      .single();
+
+    // Calculate theoretical max HR based on age
+    let theoreticalMaxHR = 190; // Default fallback
+    if (profile?.birth_date) {
+      const birthDate = new Date(profile.birth_date);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear() -
+        (today.getMonth() < birthDate.getMonth() ||
+         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+      theoreticalMaxHR = 220 - age;
+      console.log('🔍 ZONES: User age:', age, 'Theoretical Max HR:', theoreticalMaxHR);
+    }
+
+    // Determine max HR basis
+    const dataMaxHR = Math.max(...heartRateData);
+    const maxHR = userMaxHR || theoreticalMaxHR || dataMaxHR;
+    console.log('🔍 ZONES: Max HR used for zones:', maxHR, '(data max:', dataMaxHR, ')');
+
+    // Define heart rate zones based on % of max HR
+    const zoneDefinitions = [
+      { zone: 'Zona 1', label: 'Recuperação', minPercent: 0,  maxPercent: 60,  color: 'bg-blue-500' },
+      { zone: 'Zona 2', label: 'Aeróbica',    minPercent: 60, maxPercent: 70,  color: 'bg-green-500' },
+      { zone: 'Zona 3', label: 'Limiar',      minPercent: 70, maxPercent: 80,  color: 'bg-yellow-500' },
+      { zone: 'Zona 4', label: 'Anaeróbica',  minPercent: 80, maxPercent: 90,  color: 'bg-orange-500' },
+      { zone: 'Zona 5', label: 'Máxima',      minPercent: 90, maxPercent: 150, color: 'bg-red-500' },
+    ];
+
+    const totalSamples = heartRateData.length;
+    
+    const calculatedZones: HeartRateZone[] = zoneDefinitions.map((zoneDef, index) => {
+      const minHR = Math.round((zoneDef.minPercent / 100) * maxHR);
+      const maxHR_zone = Math.round((zoneDef.maxPercent / 100) * maxHR);
+
+      let samplesInZone = 0;
+      for (const hr of heartRateData) {
+        const inZone = index === zoneDefinitions.length - 1
+          ? hr >= minHR
+          : hr >= minHR && hr < maxHR_zone;
+        if (inZone) samplesInZone++;
+      }
+
+      const percentage = totalSamples > 0 ? Math.round((samplesInZone / totalSamples) * 100) : 0;
+      const timeInZone = samplesInZone; // Using sample count as approximation
+
+      return {
+        zone: zoneDef.zone,
+        label: zoneDef.label,
+        minHR,
+        maxHR: maxHR_zone,
+        percentage,
+        timeInZone,
+        color: zoneDef.color,
+      };
+    });
+
+    console.log('🔍 ZONES: Zone distribution from chart data:', calculatedZones.map(z => ({
+      zone: z.zone,
+      range: `${z.minHR}-${z.maxHR} bpm`,
+      samples: z.timeInZone,
+      percentage: z.percentage + '%'
+    })));
+
+    setZones(calculatedZones);
+  };
+
   // NEW: try precomputed zones from cache first
   const tryLoadZonesFromCache = async (id: string): Promise<boolean> => {
     console.log('⚡ ZONES Cache: trying to load zones for', id);
@@ -58,12 +169,22 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     try {
       console.log('🔍 ZONES: Calculating zones for activity ID:', id, 'User ID:', user?.id);
 
-      // NEW: Cache-first
+      // PRIORITY 1: Try activity_chart_data first (for Garmin and Strava)
+      const chartDataSuccess = await tryLoadZonesFromActivityChartData(id);
+      if (chartDataSuccess) {
+        setLoading(false);
+        return;
+      }
+
+      // PRIORITY 2: Cache-first
       const cacheHit = await tryLoadZonesFromCache(id);
       if (cacheHit) {
         setLoading(false);
         return;
       }
+
+      // PRIORITY 3: Legacy data sources (Polar, GPX, etc.)
+      console.log('🔍 ZONES: Fallback to legacy data sources');
 
       // Optional: trigger builder in background to speed up futuras visualizações
       supabase.functions.invoke('build-activity-chart-cache', {
