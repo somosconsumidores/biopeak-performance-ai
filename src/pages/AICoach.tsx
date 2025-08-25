@@ -2,9 +2,30 @@ import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
-import { Brain, Sparkles } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Brain, Sparkles, Lock, Construction } from 'lucide-react';
 
 export const AICoach = () => {
+  const { user, loading } = useAuth();
+
+  // Check if user is admin@biopeak.com
+  const isAdminUser = user?.email === 'admin@biopeak.com';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <ParticleBackground />
+        <Header />
+        <div className="pt-32 px-4">
+          <div className="container mx-auto max-w-4xl text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />
@@ -30,10 +51,43 @@ export const AICoach = () => {
             </div>
           </ScrollReveal>
 
-          {/* Weekly AI Plan Card */}
-          <ScrollReveal delay={100}>
-            <WeeklyAIPlanCard />
-          </ScrollReveal>
+          {/* Content - Show based on access */}
+          {isAdminUser ? (
+            <ScrollReveal delay={100}>
+              <WeeklyAIPlanCard />
+            </ScrollReveal>
+          ) : (
+            <ScrollReveal delay={100}>
+              <Card className="glass-card border-glass-border">
+                <CardContent className="py-12">
+                  <div className="text-center space-y-6">
+                    <div className="flex items-center justify-center gap-3 mb-6">
+                      <div className="p-4 rounded-full bg-primary/10">
+                        <Construction className="h-12 w-12 text-primary" />
+                      </div>
+                      <Lock className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h2 className="text-2xl font-bold">Feature em desenvolvimento</h2>
+                      <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                        Aguarde novidades!
+                      </p>
+                    </div>
+                    
+                    <div className="pt-4">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span className="text-sm text-primary font-medium">
+                          Funcionalidade exclusiva em breve
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
         </div>
       </div>
     </div>
