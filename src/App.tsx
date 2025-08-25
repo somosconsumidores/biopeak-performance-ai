@@ -30,6 +30,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AdminPanel } from "./pages/AdminPanel";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
+import { AICoach } from "./pages/AICoach";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -163,6 +164,11 @@ function AppRoutes() {
         <Route path="/sleep-feedbacks" element={
           <ProtectedRoute>
             <SleepFeedbacks />
+          </ProtectedRoute>
+        } />
+        <Route path="/ai-coach" element={
+          <ProtectedRoute>
+            <AICoach />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
