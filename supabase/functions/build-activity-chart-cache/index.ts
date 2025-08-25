@@ -454,6 +454,53 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: upErr2.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Also upsert normalized data into activity_chart_data so other components can use it (segments, histograms)
+    const maxHr = (() => {
+      const vals = sampled.map(p => p.heart_rate).filter((v): v is number => typeof v === 'number');
+      return vals.length ? Math.max(...vals) : null;
+    })();
+    const seriesForChartData = sampled.map(p => ({
+      distance_m: Math.round((p.distance_km ?? 0) * 1000),
+      hr: p.heart_rate ?? null,
+      speed_ms: p.speed_meters_per_second ?? null,
+      pace_min_km: p.pace_min_per_km ?? (p.speed_meters_per_second ? (1000 / (p.speed_meters_per_second * 60)) : null),
+    }));
+    const chartDataPayload = {
+      user_id: userId,
+      activity_id: body.activity_id,
+      activity_source: source,
+      series_data: seriesForChartData,
+      data_points_count: seriesForChartData.length,
+      duration_seconds: null,
+      total_distance_meters: Math.round((distanceKm || 0) * 1000),
+      avg_speed_ms: (avgPace && avgPace > 0) ? (1000 / (avgPace * 60)) : null,
+      avg_pace_min_km: avgPace ?? null,
+      avg_heart_rate: avgHr ?? null,
+      max_heart_rate: maxHr,
+    } as const;
+
+    const { data: existingRow, error: selErr } = await supabaseAdmin
+      .from('activity_chart_data')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('activity_source', source)
+      .eq('activity_id', body.activity_id)
+      .maybeSingle();
+    if (selErr) console.warn('[build-activity-chart-cache] select activity_chart_data error:', selErr.message);
+
+    if (existingRow?.id) {
+      const { error: updErr } = await supabaseAdmin
+        .from('activity_chart_data')
+        .update({ ...chartDataPayload, updated_at: new Date().toISOString() })
+        .eq('id', existingRow.id);
+      if (updErr) console.warn('[build-activity-chart-cache] update activity_chart_data error:', updErr.message);
+    } else {
+      const { error: insErr } = await supabaseAdmin
+        .from('activity_chart_data')
+        .insert(chartDataPayload);
+      if (insErr) console.warn('[build-activity-chart-cache] insert activity_chart_data error:', insErr.message);
+    }
+
     console.log("[build-activity-chart-cache] Done", {
       userId, source, activity_id: body.activity_id, series: sampled.length, zones: zones.length,
     });

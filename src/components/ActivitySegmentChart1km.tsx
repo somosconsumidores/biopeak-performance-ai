@@ -47,20 +47,32 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
         .from('activity_chart_data')
         .select('activity_id, activity_source, series_data, avg_pace_min_km, avg_heart_rate')
         .eq('activity_id', activityId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          throw new Error('Atividade não encontrada na tabela activity_chart_data');
+        console.warn('Activity chart data fetch error:', fetchError.message);
+      }
+
+      // If not found or empty, try building cache (which will also upsert activity_chart_data) and re-fetch
+      if (!activityData || !activityData.series_data || activityData.series_data.length === 0) {
+        const { error: fnErr } = await supabase.functions.invoke('build-activity-chart-cache', {
+          body: { activity_id: activityId, version: 1 },
+        });
+        if (fnErr) {
+          throw fnErr;
         }
-        throw fetchError;
+        await new Promise((r) => setTimeout(r, 1200));
+        const { data: retryData, error: retryErr } = await supabase
+          .from('activity_chart_data')
+          .select('activity_id, activity_source, series_data, avg_pace_min_km, avg_heart_rate')
+          .eq('activity_id', activityId)
+          .maybeSingle();
+        if (retryErr) throw retryErr;
+        if (!retryData) throw new Error('Atividade não encontrada na tabela activity_chart_data');
+        setData(retryData);
+      } else {
+        setData(activityData);
       }
-
-      if (!activityData) {
-        throw new Error('Dados da atividade não encontrados');
-      }
-
-      setData(activityData);
     } catch (err: any) {
       console.error('Error fetching activity data:', err);
       setError(err.message || 'Erro ao buscar dados da atividade');
