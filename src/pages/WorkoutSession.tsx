@@ -39,6 +39,7 @@ import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
 import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
+import { HistogramChart } from '@/components/HistogramChart';
 import { VariationAnalysisCard } from '@/components/VariationAnalysisCard';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
@@ -312,6 +313,26 @@ export const WorkoutSession = () => {
                 </div>
               </CardContent>
             </Card>
+          </ScrollReveal>
+
+          {/* Histogram Chart */}
+          <ScrollReveal delay={140}>
+            <div className="mb-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="heart_rate" 
+              />
+              {/* Ocultar histograma para atividades Polar */}
+              {(currentActivity as any)?.source === 'POLAR' ? (
+                <Card className="glass-card border-glass-border">
+                  <CardContent className="py-6 text-center text-muted-foreground text-sm">
+                    Histogramas não estão disponíveis para atividades Polar no momento.
+                  </CardContent>
+                </Card>
+              ) : (
+                <HistogramChart activityId={currentActivity.activity_id} />
+              )}
+            </div>
           </ScrollReveal>
 
           {/* Heart Rate vs Pace Chart */}
