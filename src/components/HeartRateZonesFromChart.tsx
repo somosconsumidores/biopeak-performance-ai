@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,22 +19,18 @@ interface HeartRateZone {
 
 interface HeartRateZonesFromChartProps {
   className?: string;
+  activityId?: string | null;
 }
 
-export const HeartRateZonesFromChart = ({ className }: HeartRateZonesFromChartProps) => {
-  const [activityId, setActivityId] = useState('');
+export const HeartRateZonesFromChart = ({ className, activityId }: HeartRateZonesFromChartProps) => {
   const [maxHROverride, setMaxHROverride] = useState('');
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async (id: string) => {
-    if (!id.trim()) {
-      toast({
-        title: "ID da atividade obrigatório",
-        description: "Por favor, insira o ID da atividade",
-        variant: "destructive"
-      });
+    if (!id?.trim()) {
+      setChartData(null);
       return;
     }
 
@@ -59,10 +55,7 @@ export const HeartRateZonesFromChart = ({ className }: HeartRateZonesFromChartPr
       }
 
       setChartData(data);
-      toast({
-        title: "Dados carregados com sucesso",
-        description: `Atividade ${id} da fonte ${data.activity_source}`,
-      });
+      // Removed success toast for auto-loading
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);
       toast({
@@ -173,7 +166,39 @@ export const HeartRateZonesFromChart = ({ className }: HeartRateZonesFromChartPr
       dataPoints: heartRates.length,
       totalPoints: seriesData.length,
     };
-  }, [chartData]);
+  }, [chartData, maxHROverride]);
+
+  // Auto-fetch when activityId changes
+  React.useEffect(() => {
+    if (activityId) {
+      fetchData(activityId);
+    } else {
+      setChartData(null);
+    }
+  }, [activityId]);
+
+  if (!activityId) {
+    return (
+      <Card className={`glass-card border-glass-border ${className}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <Heart className="h-6 w-6 text-primary" />
+            <div>
+              <h3 className="text-xl font-semibold">Zonas de Frequência Cardíaca</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Selecione uma atividade no preview acima para analisar as zonas de FC
+              </p>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-6">
+          <div className="text-center text-muted-foreground">
+            Nenhuma atividade selecionada
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={`glass-card border-glass-border ${className}`}>
@@ -190,18 +215,8 @@ export const HeartRateZonesFromChart = ({ className }: HeartRateZonesFromChartPr
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Controles */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium">ID da Atividade</label>
-            <Input
-              type="text"
-              placeholder="ex: 20170090255"
-              value={activityId}
-              onChange={(e) => setActivityId(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-          <div>
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
             <label className="text-sm font-medium">FCmax Override (opcional)</label>
             <Input
               type="number"
@@ -211,25 +226,12 @@ export const HeartRateZonesFromChart = ({ className }: HeartRateZonesFromChartPr
               disabled={loading}
             />
           </div>
-          <div className="flex items-end">
-            <Button
-              onClick={() => fetchData(activityId)}
-              disabled={loading || !activityId.trim()}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Carregando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Analisar
-                </>
-              )}
-            </Button>
-          </div>
+          {loading && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Carregando...
+            </div>
+          )}
         </div>
 
         {/* Estatísticas dos dados */}

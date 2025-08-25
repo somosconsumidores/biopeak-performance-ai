@@ -80,6 +80,7 @@ export const AdminPanel = () => {
   const [chartProcessing, setChartProcessing] = useState(false);
   const [recentCharts, setRecentCharts] = useState<any[]>([]);
   const [segmentTestActivityId, setSegmentTestActivityId] = useState('');
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
 
   const fetchStats = async () => {
     setRefreshing(true);
@@ -486,116 +487,35 @@ export const AdminPanel = () => {
           {/* Preview do gráfico de atividade gerado do JSON (para validação) */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">Pré-visualização do Gráfico (JSON ➜ activity_chart_data)</h2>
-            <AdminActivityChartPreview />
+            <AdminActivityChartPreview onActivitySelect={setSelectedActivityId} />
           </div>
 
-          {/* Teste do gráfico de segmentos baseado em activity_chart_data */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-foreground">Teste de Gráfico por Segmentos (activity_chart_data)</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Testar Análise por Segmentos (1km)</CardTitle>
-                <CardDescription>
-                  Digite o activity_id para testar o novo componente baseado em activity_chart_data
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="activity_id (ex: 20162761971)"
-                    value={segmentTestActivityId}
-                    onChange={(e) => setSegmentTestActivityId(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={() => setSegmentTestActivityId('')}
-                    variant="outline"
-                    disabled={!segmentTestActivityId}
-                  >
-                    Limpar
-                  </Button>
-                </div>
-                {segmentTestActivityId && (
-                  <ActivitySegmentChart1km activityId={segmentTestActivityId} />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Teste de Análise de Variação baseado em activity_chart_data */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-foreground">Teste de Análise de Variação (activity_chart_data)</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Análise de Coeficiente de Variação</CardTitle>
-                <CardDescription>
-                  Reproduz a análise de variação do /workout usando dados de activity_chart_data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ActivityVariationAnalysis />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Teste de Indicadores de Performance baseado em activity_chart_data */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-foreground">Teste de Indicadores de Performance (activity_chart_data)</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Indicadores de Performance</CardTitle>
-                <CardDescription>
-                  Reproduz os indicadores de performance do /workout usando dados de activity_chart_data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PerformanceIndicatorsFromChart />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Teste de Zonas de FC baseado em activity_chart_data */}
-          <div className="space-y-4">
-            <HeartRateZonesFromChart />
-          </div>
-
-          {/* Top 10 Usuários Mais Ativos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 10 Usuários Mais Ativos</CardTitle>
-              <CardDescription>
-                Usuários com mais dias de login na plataforma
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {topUsers.map((user, index) => (
-                  <div key={user.user_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <Badge variant={index < 3 ? "default" : "secondary"}>
-                        #{index + 1}
-                      </Badge>
-                      <div>
-                        <p className="font-medium text-sm">{user.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {user.login_days} {user.login_days === 1 ? 'dia' : 'dias'} de login
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">{user.login_days}</p>
-                      <p className="text-xs text-muted-foreground">dias</p>
-                    </div>
-                  </div>
-                ))}
-                {topUsers.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
-                    Nenhum usuário encontrado
-                  </p>
-                )}
+          {/* Análises Sincronizadas */}
+          {selectedActivityId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-foreground">
+                  Análises da Atividade {selectedActivityId}
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedActivityId(null)}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Limpar Seleção
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ActivitySegmentChart1km activityId={selectedActivityId} />
+                <ActivityVariationAnalysis activityId={selectedActivityId} />
+                <PerformanceIndicatorsFromChart activityId={selectedActivityId} />
+                <HeartRateZonesFromChart activityId={selectedActivityId} />
+              </div>
+            </div>
+          )}
 
           {/* Survey Management */}
           <SurveyManagement />

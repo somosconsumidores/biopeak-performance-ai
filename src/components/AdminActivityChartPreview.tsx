@@ -19,7 +19,11 @@ interface ACDRow {
   series_data: Array<{ distance_m?: number | null; pace_min_km?: number | null; heart_rate?: number | null }>
 }
 
-export const AdminActivityChartPreview = () => {
+interface AdminActivityChartPreviewProps {
+  onActivitySelect?: (activityId: string | null) => void;
+}
+
+export const AdminActivityChartPreview = ({ onActivitySelect }: AdminActivityChartPreviewProps) => {
   const { user } = useAuth();
   const [activities, setActivities] = useState<ACDRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -37,7 +41,10 @@ export const AdminActivityChartPreview = () => {
         .limit(20);
       if (!error && data) {
         setActivities(data as any);
-        if (data.length > 0) setSelectedId(data[0].id);
+        if (data.length > 0) {
+          setSelectedId(data[0].id);
+          onActivitySelect?.(data[0].activity_id);
+        }
       }
       setLoading(false);
     };
@@ -92,7 +99,11 @@ export const AdminActivityChartPreview = () => {
       <CardContent className="space-y-4">
         <div className="flex gap-4 items-center flex-wrap">
           <div className="w-64">
-            <Select value={selectedId || ''} onValueChange={setSelectedId}>
+            <Select value={selectedId || ''} onValueChange={(value) => {
+              setSelectedId(value);
+              const selectedActivity = filteredActivities.find(a => a.id === value);
+              onActivitySelect?.(selectedActivity?.activity_id || null);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder={loading ? 'Carregando...' : 'Selecione uma atividade'} />
               </SelectTrigger>

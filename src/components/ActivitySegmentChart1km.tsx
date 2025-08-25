@@ -29,12 +29,18 @@ interface ActivityData {
 
 export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmProps) => {
   const [data, setData] = useState<ActivityData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMobile = useIsMobile();
 
   const fetchData = async () => {
+    if (!activityId) {
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const { data: activityData, error: fetchError } = await supabase
@@ -64,9 +70,8 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
   };
 
   useEffect(() => {
-    if (activityId) {
-      fetchData();
-    }
+    setLoading(true);
+    fetchData();
   }, [activityId]);
 
   const handleRefresh = async () => {

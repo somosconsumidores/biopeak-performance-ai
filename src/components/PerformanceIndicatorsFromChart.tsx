@@ -130,15 +130,19 @@ interface PerformanceData {
   dataPoints: number;
 }
 
-export const PerformanceIndicatorsFromChart = () => {
-  const [activityId, setActivityId] = useState('');
+interface PerformanceIndicatorsFromChartProps {
+  activityId?: string | null;
+}
+
+export const PerformanceIndicatorsFromChart = ({ activityId }: PerformanceIndicatorsFromChartProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null);
 
   const calculatePerformanceFromChartData = async () => {
-    if (!activityId.trim()) {
-      setError('Por favor, insira um Activity ID');
+    if (!activityId?.trim()) {
+      setPerformanceData(null);
+      setError(null);
       return;
     }
 
@@ -151,7 +155,7 @@ export const PerformanceIndicatorsFromChart = () => {
       const { data: chartData, error: chartError } = await supabase
         .from('activity_chart_data')
         .select('series_data, activity_source, data_points_count')
-        .eq('activity_id', activityId.trim())
+        .eq('activity_id', activityId!.trim())
         .single();
 
       if (chartError) {
@@ -325,6 +329,11 @@ export const PerformanceIndicatorsFromChart = () => {
     }
   };
 
+  // Auto-calculate when activityId changes
+  React.useEffect(() => {
+    calculatePerformanceFromChartData();
+  }, [activityId]);
+
   const hasHeartRateData = performanceData?.heartRate.averageHr !== null;
 
   const metricCards = performanceData ? [
@@ -397,35 +406,26 @@ export const PerformanceIndicatorsFromChart = () => {
     }
   ] : [];
 
-  return (
-    <div className="space-y-6">
-      {/* Input para Activity ID */}
+  if (!activityId) {
+    return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Target className="h-5 w-5 text-primary" />
-            <span>Indicadores de Performance (activity_chart_data)</span>
+            <span>Indicadores de Performance</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex space-x-2">
-            <Input
-              type="text"
-              placeholder="Insira o Activity ID"
-              value={activityId}
-              onChange={(e) => setActivityId(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={calculatePerformanceFromChartData} disabled={loading}>
-              {loading ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
+        <CardContent className="py-6">
+          <div className="text-center text-muted-foreground">
+            Selecione uma atividade no preview acima para ver os indicadores de performance
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
 
       {/* Erro */}
       {error && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,15 +17,19 @@ interface VariationAnalysisResult {
   activitySource: string;
 }
 
-export const ActivityVariationAnalysis = () => {
-  const [activityId, setActivityId] = useState('');
+interface ActivityVariationAnalysisProps {
+  activityId?: string | null;
+}
+
+export const ActivityVariationAnalysis = ({ activityId }: ActivityVariationAnalysisProps) => {
   const [analysis, setAnalysis] = useState<VariationAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const calculateVariationFromChartData = async () => {
-    if (!activityId.trim()) {
-      setError('Por favor, insira um Activity ID');
+    if (!activityId?.trim()) {
+      setAnalysis(null);
+      setError(null);
       return;
     }
 
@@ -38,7 +42,7 @@ export const ActivityVariationAnalysis = () => {
       const { data: chartData, error: chartError } = await supabase
         .from('activity_chart_data')
         .select('series_data, activity_source, data_points_count')
-        .eq('activity_id', activityId.trim())
+        .eq('activity_id', activityId!.trim())
         .single();
 
       if (chartError) {
@@ -158,6 +162,11 @@ export const ActivityVariationAnalysis = () => {
     }
   };
 
+  // Auto-calculate when activityId changes
+  React.useEffect(() => {
+    calculateVariationFromChartData();
+  }, [activityId]);
+
   const getCVBadgeClass = (category: 'Baixo' | 'Alto') => {
     if (category === 'Baixo') {
       return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600';
@@ -166,35 +175,26 @@ export const ActivityVariationAnalysis = () => {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Input para Activity ID */}
+  if (!activityId) {
+    return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Análise de Variação (activity_chart_data)</span>
+            <span>Análise de Variação</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex space-x-2">
-            <Input
-              type="text"
-              placeholder="Insira o Activity ID"
-              value={activityId}
-              onChange={(e) => setActivityId(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={calculateVariationFromChartData} disabled={loading}>
-              {loading ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
+        <CardContent className="py-6">
+          <div className="text-center text-muted-foreground">
+            Selecione uma atividade no preview acima para analisar a variação
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
 
       {/* Resultado da Análise */}
       {error && (
