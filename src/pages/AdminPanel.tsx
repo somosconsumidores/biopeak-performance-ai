@@ -15,6 +15,7 @@ import { SurveyManagement } from '@/components/SurveyManagement';
 import { VariationBackfillSection } from '@/components/VariationBackfillSection';
 import { AdminActivityChartPreview } from '@/components/AdminActivityChartPreview';
 import { ActivitySegmentChart1km } from '@/components/ActivitySegmentChart1km';
+import { ActivityVariationAnalysis } from '@/components/ActivityVariationAnalysis';
 
 interface TokenStats {
   total: number;
@@ -515,6 +516,22 @@ export const AdminPanel = () => {
                 {segmentTestActivityId && (
                   <ActivitySegmentChart1km activityId={segmentTestActivityId} />
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Teste de Análise de Variação baseado em activity_chart_data */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Teste de Análise de Variação (activity_chart_data)</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>Análise de Coeficiente de Variação</CardTitle>
+                <CardDescription>
+                  Reproduz a análise de variação do /workout usando dados de activity_chart_data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ActivityVariationAnalysis />
               </CardContent>
             </Card>
           </div>
