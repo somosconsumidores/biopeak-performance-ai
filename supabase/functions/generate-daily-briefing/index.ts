@@ -117,16 +117,41 @@ serve(async (req) => {
       );
     }
 
-    const prompt = `Gere um briefing diário de até ~200 palavras para o atleta, baseado nos dados abaixo. Inclua: (1) como está a recuperação (sono), (2) qual treino do dia e intensidade por zona, (3) justificativa curta e (4) uma dica prática. Evite jargões excessivos.
+    const prompt = `Gere um briefing diário compacto (≤ 800 caracteres) para o atleta com base nos dados abaixo. Saída em JSON VÁLIDO, sem markdown, sem crases, sem emojis, apenas JSON. Campos exigidos:
+
+{
+  "briefing": "texto simples sem markdown nem emojis",
+  "rationale": "texto simples curto",
+  "workout": {
+    "sport": "running|cycling|strength",
+    "duration_min": number,
+    "intensity": "easy|moderate|hard",
+    "guidance": {
+      "primary": "pace|hr",
+      "pace_min_per_km": { "min": "MM:SS", "max": "MM:SS" } | null,
+      "hr_bpm": { "min": number, "max": number } | null,
+      "hr_zone": "Z1|Z2|Z3|Z4|Z5" | null
+    },
+    "structure": [
+      { "name": "Aquecimento", "minutes": 10, "intensity": "easy" },
+      { "name": "Bloco Principal", "minutes": 25, "intensity": "moderate" },
+      { "name": "Desaquecimento", "minutes": 10, "intensity": "easy" }
+    ]
+  }
+}
+
+Regras:
+- O briefing deve mencionar a recuperação (sono) e a carga recente.
+- O treino do dia deve estar concretamente especificado: esporte, duração e FAIXA de intensidade por pace (min/km) e/ou faixa de FC (bpm) ou zona (Z1–Z5).
+- Ajuste a intensidade considerando o sono da última noite, média 7d e carga 7d.
+- Se faltarem dados, use valores conservadores e seja explícito.
 
 DADOS:
 - Data: ${parts.date}
 - Sono última noite: score ${parts.sleep.last?.score ?? 'n/d'}, duração ${parts.sleep.last?.duration_min ?? 'n/d'} min
 - Sono média 7d: ${parts.sleep.avg7d ?? 'n/d'}
 - Carga 7d: ${parts.load7d.distance_km} km, ${parts.load7d.duration_min} min
-- VO2max atual: ${parts.vo2max ?? 'n/d'}
-
-Responda em JSON com os campos: briefing, suggested_workout, rationale.`;
+- VO2max atual: ${parts.vo2max ?? 'n/d'}`;
 
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -152,18 +177,46 @@ Responda em JSON com os campos: briefing, suggested_workout, rationale.`;
     }
 
     const aiJson = await aiRes.json();
-    const content: string = aiJson.choices[0].message.content;
+    const rawContent: string = aiJson.choices?.[0]?.message?.content ?? '';
 
-    let parsed: { briefing: string; suggested_workout?: string; rationale?: string };
+    // Extract clean JSON (handle code fences or extra text)
+    const fencedClean = rawContent.replace(/```json|```/gi, '').trim();
+    const jsonMatch = fencedClean.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : fencedClean;
+
+    let parsed: any = {};
     try {
-      parsed = JSON.parse(content);
-    } catch {
-      parsed = { briefing: content } as any;
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      console.warn('Failed to parse AI JSON, using raw text as briefing');
+      parsed = { briefing: rawContent };
     }
+
+    const cleanText = (s?: string) =>
+      (s ?? '')
+        .replace(/[*_`~>#\-+|]/g, ' ')
+        .replace(/[\u{1F300}-\u{1FAFF}]/gu, '') // remove emojis
+        .replace(/[\u0000-\u001F\u007F]/g, ' ') // control chars
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+    const workout = parsed.workout ?? null;
+    const suggestedFromWorkout = workout
+      ? `${workout.sport || 'corrida'} ${workout.duration_min ? `${workout.duration_min} min` : ''} ${workout.intensity ? `(${workout.intensity})` : ''}` +
+        `${workout?.guidance?.pace_min_per_km?.min && workout?.guidance?.pace_min_per_km?.max
+            ? `, pace ${workout.guidance.pace_min_per_km.min}-${workout.guidance.pace_min_per_km.max} min/km`
+            : ''}` +
+        `${workout?.guidance?.hr_bpm?.min && workout?.guidance?.hr_bpm?.max
+            ? `, FC ${workout.guidance.hr_bpm.min}-${workout.guidance.hr_bpm.max} bpm`
+            : workout?.guidance?.hr_zone ? `, ${workout.guidance.hr_zone}` : ''}`
+      : undefined;
 
     const payload = {
       date: todayStr,
-      ...parsed,
+      briefing: cleanText(parsed.briefing),
+      suggested_workout: cleanText(parsed.suggested_workout) || suggestedFromWorkout,
+      rationale: cleanText(parsed.rationale),
+      workout,
       keyMetrics: parts
     };
 

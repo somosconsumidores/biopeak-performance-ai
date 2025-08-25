@@ -24,9 +24,13 @@ export default function WeeklyAIPlanCard() {
   ] as const), []);
 
   const onSpeak = () => {
-    if (briefing?.briefing) {
-      speak(briefing.briefing, { voice: 'Aria', speed: 1.0 });
-    }
+    if (!briefing?.briefing) return;
+    const w = briefing.workout;
+    const details = w ? ` Treino do dia: ${w.sport || 'corrida'} ${w.duration_min ? `${w.duration_min} min` : ''} ${w.intensity ? `(${w.intensity})` : ''}` +
+      `${w?.guidance?.pace_min_per_km ? `, pace ${w.guidance.pace_min_per_km.min}-${w.guidance.pace_min_per_km.max} min por km` : ''}` +
+      `${w?.guidance?.hr_bpm ? `, frequência cardíaca ${w.guidance.hr_bpm.min}-${w.guidance.hr_bpm.max} bpm` : w?.guidance?.hr_zone ? `, ${w.guidance.hr_zone}` : ''}` : '';
+    const text = `${briefing.briefing} ${details}`.replace(/[*_`~>#\-+|]/g, ' ').replace(/[\u{1F300}-\u{1FAFF}]/gu, '').replace(/\s{2,}/g,' ');
+    speak(text, { voice: 'Aria', speed: 1.0 });
   };
 
   return (
@@ -74,9 +78,30 @@ export default function WeeklyAIPlanCard() {
               )}
             </div>
           </div>
-          {briefing?.suggested_workout && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Sugestão do dia: <span className="font-medium text-foreground">{briefing.suggested_workout}</span>
+          {(briefing?.suggested_workout || briefing?.workout) && (
+            <div className="mt-2 text-xs text-muted-foreground space-y-1">
+              {briefing?.suggested_workout && (
+                <div>Sugestão do dia: <span className="font-medium text-foreground">{briefing.suggested_workout}</span></div>
+              )}
+              {briefing?.workout && (
+                <div className="text-xs">
+                  <div><span className="font-medium text-foreground">{briefing.workout.sport}</span> • {briefing.workout.duration_min} min • {briefing.workout.intensity}</div>
+                  {briefing.workout.guidance?.pace_min_per_km && (
+                    <div>Pace alvo: {briefing.workout.guidance.pace_min_per_km.min}-{briefing.workout.guidance.pace_min_per_km.max} min/km</div>
+                  )}
+                  {briefing.workout.guidance?.hr_bpm && (
+                    <div>FC alvo: {briefing.workout.guidance.hr_bpm.min}-{briefing.workout.guidance.hr_bpm.max} bpm</div>
+                  )}
+                  {!briefing.workout.guidance?.hr_bpm && briefing.workout.guidance?.hr_zone && (
+                    <div>Zona alvo: {briefing.workout.guidance.hr_zone}</div>
+                  )}
+                  {briefing.workout.structure?.length ? (
+                    <div className="pt-1">
+                      Estrutura: {briefing.workout.structure.map((s, i) => `${s.name} ${s.minutes} min${s.intensity ? ` (${s.intensity})` : ''}`).join(' • ')}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           )}
         </div>
