@@ -1,4 +1,34 @@
 // NEW: Hook to calculate performance metrics from activity_chart_data
+
+interface PerformanceMetrics {
+  activity_source?: string;
+  calories?: number;
+  duration?: number;
+  efficiency: {
+    powerPerBeat: number | null;
+    distancePerMinute: number | null;
+    comment: string;
+  };
+  pace: {
+    averageSpeedKmh: number | null;
+    paceVariationCoefficient: number | null;
+    comment: string;
+  };
+  heartRate: {
+    averageHr: number | null;
+    maxHr?: number | null;
+    relativeIntensity: number | null;
+    relativeReserve: number | null;
+    comment: string;
+  };
+  effortDistribution: {
+    beginning: number | null;
+    middle: number | null;
+    end: number | null;
+    comment: string;
+  };
+}
+
 export function formatMetricsFromChartData(chartData: any): PerformanceMetrics {
   if (!chartData?.series_data || !Array.isArray(chartData.series_data)) {
     return getEmptyMetrics();
