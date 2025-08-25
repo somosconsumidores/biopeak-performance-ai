@@ -2,6 +2,7 @@ import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
+import DanielsVo2MaxCard from '@/components/DanielsVo2MaxCard';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Brain, Sparkles, Lock, Construction } from 'lucide-react';
@@ -53,9 +54,15 @@ export const AICoach = () => {
 
           {/* Content - Show based on access */}
           {isAdminUser ? (
-            <ScrollReveal delay={100}>
-              <WeeklyAIPlanCard />
-            </ScrollReveal>
+            <div className="space-y-6">
+              <ScrollReveal delay={100}>
+                <WeeklyAIPlanCard />
+              </ScrollReveal>
+              
+              <ScrollReveal delay={200}>
+                <DanielsVo2MaxCard />
+              </ScrollReveal>
+            </div>
           ) : (
             <ScrollReveal delay={100}>
               <Card className="glass-card border-glass-border">
