@@ -16,7 +16,10 @@ import {
   Lightbulb,
   BarChart3,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Lock,
+  Construction,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -82,8 +85,8 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
   const [loading, setLoading] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  // Check if user is admin
-  const isAdmin = user?.email === 'admin@biopeak.com';
+  // Check if user has access to deep analysis
+  const hasAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';
 
   const generateDeepAnalysis = async () => {
     if (!activity) return;
@@ -120,7 +123,7 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
   };
 
   const generatePremiumReport = async () => {
-    if (!activity || !isAdmin) return;
+    if (!activity || user?.email !== 'admin@biopeak.com') return;
 
     setGeneratingReport(true);
     try {
@@ -188,7 +191,7 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
                 <span>{loading ? 'Analisando...' : 'Gerar Análise'}</span>
               </Button>
               
-              {isAdmin && (
+              {user?.email === 'admin@biopeak.com' && (
                 <Button
                   onClick={generatePremiumReport}
                   disabled={generatingReport}
@@ -209,7 +212,32 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
         </CardHeader>
         
         <CardContent>
-          {!deepAnalysis ? (
+          {!hasAccess ? (
+            <div className="text-center py-12 space-y-6">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <div className="p-4 rounded-full bg-primary/10">
+                  <Construction className="h-12 w-12 text-primary" />
+                </div>
+                <Lock className="h-8 w-8 text-muted-foreground" />
+              </div>
+              
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold">Feature em desenvolvimento</h2>
+                <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                  Aguarde novidades!
+                </p>
+              </div>
+              
+              <div className="pt-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-primary font-medium">
+                    Funcionalidade exclusiva em breve
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : !deepAnalysis ? (
             <div className="text-center py-8 space-y-4">
               <div className="flex justify-center">
                 <div className="p-4 rounded-full bg-primary/10">
@@ -236,7 +264,7 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
                   <TrendingUp className="h-3 w-3 mr-1" />
                   Análise de Variação
                 </Badge>
-                {isAdmin && (
+                {user?.email === 'admin@biopeak.com' && (
                   <Badge variant="secondary" className="text-xs">
                     <FileText className="h-3 w-3 mr-1" />
                     Relatório Premium PDF
