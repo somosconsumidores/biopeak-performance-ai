@@ -330,7 +330,6 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">{segmentSize === 1 ? 'km' : 'Segmento'}</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo(km)</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo cardíaco</th>
-                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Tempo</th>
               </tr>
             </thead>
             <tbody>
@@ -361,9 +360,6 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                   </td>
                   <td className="py-3 px-2">
                     <span className="text-sm">{segment.avgHeartRate > 0 ? segment.avgHeartRate : '--'}</span>
-                  </td>
-                  <td className="py-3 px-2">
-                    <span className="text-sm">{formatTime(segment.cumulativeTime)}</span>
                   </td>
                 </tr>
               ))}
