@@ -262,16 +262,24 @@ export default function WeeklyAIPlanCard() {
                                       Intensidade: {s.intensity}
                                     </div>
                                   )}
-                                  {briefing.workout.guidance?.pace_min_per_km && s.intensity && (
-                                    <div className="text-xs text-muted-foreground">
-                                      {(() => {
-                                        const baseMin = Number(briefing.workout.guidance.pace_min_per_km.min);
-                                        const baseMax = Number(briefing.workout.guidance.pace_min_per_km.max);
-                                        const adjustedPace = calculatePaceRange(baseMin, baseMax, s.intensity);
-                                        return `Pace sugerido: ${formatPaceRange(adjustedPace.min, adjustedPace.max)}`;
-                                      })()}
-                                    </div>
-                                  )}
+                                   {briefing.workout.guidance?.pace_min_per_km && s.intensity && (
+                                     <div className="text-xs text-muted-foreground">
+                                       {(() => {
+                                         const baseMin = Number(briefing.workout.guidance.pace_min_per_km.min);
+                                         const baseMax = Number(briefing.workout.guidance.pace_min_per_km.max);
+                                         
+                                         // Só mostrar se os valores base são válidos
+                                         if (isNaN(baseMin) || isNaN(baseMax) || baseMin <= 0 || baseMax <= 0) {
+                                           return null;
+                                         }
+                                         
+                                         const adjustedPace = calculatePaceRange(baseMin, baseMax, s.intensity);
+                                         const paceText = formatPaceRange(adjustedPace.min, adjustedPace.max);
+                                         
+                                         return paceText !== 'N/A' ? `Pace sugerido: ${paceText}` : null;
+                                       })()}
+                                     </div>
+                                   )}
                                 </div>
                               ))}
                             </div>
