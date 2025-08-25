@@ -43,6 +43,38 @@ export function formatMetricsFromChartData(chartData: any): PerformanceMetrics {
   const maxHR = heartRates.length > 0 ? Math.max(...heartRates) : null;
   const avgSpeed = speeds.length > 0 ? speeds.reduce((a: number, b: number) => a + b, 0) / speeds.length : null;
 
+  // Calculate effort distribution from heart rate data
+  let effortDistribution = {
+    beginning: null as number | null,
+    middle: null as number | null,
+    end: null as number | null,
+    comment: 'Sem dados de FC suficientes'
+  };
+
+  if (heartRates.length >= 3) {
+    const third = Math.floor(heartRates.length / 3);
+    const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    
+    const beginning = avg(heartRates.slice(0, third));
+    const middle = avg(heartRates.slice(third, 2 * third));
+    const end = avg(heartRates.slice(2 * third));
+    
+    const maxEffort = Math.max(beginning, middle, end);
+    const minEffort = Math.min(beginning, middle, end);
+    
+    let comment = 'Sem dados suficientes';
+    if (maxEffort - minEffort <= 10) comment = 'Esforço muito consistente';
+    else if (maxEffort - minEffort <= 20) comment = 'Esforço moderadamente consistente';
+    else comment = 'Esforço variável';
+    
+    effortDistribution = {
+      beginning,
+      middle,
+      end,
+      comment
+    };
+  }
+
   return {
     activity_source: chartData.activity_source,
     duration: chartData.duration_seconds,
@@ -63,12 +95,7 @@ export function formatMetricsFromChartData(chartData: any): PerformanceMetrics {
       relativeReserve: null,
       comment: avgHR ? `FC média: ${Math.round(avgHR)} bpm` : 'Sem dados de FC'
     },
-    effortDistribution: {
-      beginning: null,
-      middle: null,
-      end: null,
-      comment: 'Calculado a partir de dados unificados'
-    }
+    effortDistribution
   };
 }
 
