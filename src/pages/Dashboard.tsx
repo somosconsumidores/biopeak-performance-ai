@@ -693,23 +693,25 @@ export const Dashboard = () => {
           {sleepAnalytics && (
             <ScrollReveal delay={450}>
               <Card className="glass-card border-glass-border mb-6 md:mb-8">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Moon className="w-4 h-4 text-primary" />
-                      <h3 className="text-lg font-semibold">Análise do Sono</h3>
-                    </div>
-                    {(() => {
-                      const analysisData = getSleepAnalysisData();
-                      return analysisData ? (
-                        <SleepAnalysisDialog 
-                          sleepData={analysisData.sleepData}
-                          overtrainingData={analysisData.overtrainingData}
-                        />
-                      ) : null;
-                    })()}
-                  </div>
-                </CardHeader>
+                 <CardHeader>
+                   <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
+                     <div className="flex items-center gap-2">
+                       <Moon className="w-4 h-4 text-primary" />
+                       <h3 className="text-lg font-semibold">Análise do Sono</h3>
+                     </div>
+                     {(() => {
+                       const analysisData = getSleepAnalysisData();
+                       return analysisData ? (
+                         <div className={isMobile ? 'w-full mt-2' : ''}>
+                           <SleepAnalysisDialog 
+                             sleepData={analysisData.sleepData}
+                             overtrainingData={analysisData.overtrainingData}
+                           />
+                         </div>
+                       ) : null;
+                     })()}
+                   </div>
+                 </CardHeader>
                 <CardContent>
                   <div className="grid lg:grid-cols-2 gap-6">
                     {/* Sleep Score & Duration */}
