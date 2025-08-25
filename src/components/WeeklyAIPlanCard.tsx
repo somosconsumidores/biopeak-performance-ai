@@ -36,6 +36,11 @@ const calculatePaceRange = (baseMinPace: number, baseMaxPace: number, intensity:
 
 // Função para formatar pace (garantir ordem correta: menor para maior)
 const formatPaceRange = (min: number, max: number) => {
+  // Verificar se os valores são válidos
+  if (isNaN(min) || isNaN(max) || min <= 0 || max <= 0) {
+    return 'N/A';
+  }
+  
   const minFormatted = `${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, '0')}`;
   const maxFormatted = `${Math.floor(max)}:${String(Math.round((max % 1) * 60)).padStart(2, '0')}`;
   
