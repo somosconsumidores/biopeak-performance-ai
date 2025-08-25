@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAdminActions } from '@/hooks/useAdminActions';
 import { supabase } from '@/integrations/supabase/client';
-import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck } from 'lucide-react';
+import { RefreshCw, Users, Key, AlertTriangle, Activity, UserCheck, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserRegistrationChart } from '@/components/UserRegistrationChart';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
@@ -48,7 +48,7 @@ interface TopUser {
 }
 
 export const AdminPanel = () => {
-  const { renewExpiredTokens, loading } = useAdminActions();
+  const { renewExpiredTokens, backfillActivityCharts, loading } = useAdminActions();
   const { toast } = useToast();
   const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
   const [reprocessingGarminDetails, setReprocessingGarminDetails] = useState(false);
@@ -746,6 +746,51 @@ export const AdminPanel = () => {
           </Card>
 
           <VariationBackfillSection />
+
+          {/* Activity Charts Backfill */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Backfill Activity Charts
+              </CardTitle>
+              <CardDescription>
+                Processar logs de webhooks para gerar dados de gráficos de atividades
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Busca todos os logs de webhook do tipo "activity_details_notification" 
+                  para o usuário especificado e processa cada um para gerar dados de gráficos.
+                </p>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await backfillActivityCharts('fa155754-46c5-4f12-99e2-54a9673ff74f');
+                      await fetchStats();
+                    } catch (error) {
+                      console.error('Backfill error:', error);
+                    }
+                  }}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Processar Activity Charts (215 logs)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Polar Webhook Recovery */}
           <Card>

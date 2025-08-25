@@ -36,8 +36,39 @@ export const useAdminActions = () => {
     }
   };
 
+  const backfillActivityCharts = async (userId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-activity-charts-from-logs', {
+        body: { user_id: userId }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Backfill de Activity Charts",
+        description: `Processamento concluído: ${data?.processed || 0} logs processados, ${data?.success || 0} sucessos, ${data?.errors || 0} erros`,
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error in backfill activity charts:', error);
+      toast({
+        title: "Erro no Backfill",
+        description: "Falha ao processar logs de atividades",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     renewExpiredTokens,
+    backfillActivityCharts,
     loading
   };
 };
