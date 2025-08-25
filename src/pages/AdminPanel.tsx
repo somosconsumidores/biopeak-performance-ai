@@ -16,6 +16,7 @@ import { VariationBackfillSection } from '@/components/VariationBackfillSection'
 import { AdminActivityChartPreview } from '@/components/AdminActivityChartPreview';
 import { ActivitySegmentChart1km } from '@/components/ActivitySegmentChart1km';
 import { ActivityVariationAnalysis } from '@/components/ActivityVariationAnalysis';
+import { PerformanceIndicatorsFromChart } from '@/components/PerformanceIndicatorsFromChart';
 
 interface TokenStats {
   total: number;
@@ -532,6 +533,22 @@ export const AdminPanel = () => {
               </CardHeader>
               <CardContent>
                 <ActivityVariationAnalysis />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Teste de Indicadores de Performance baseado em activity_chart_data */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Teste de Indicadores de Performance (activity_chart_data)</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>Indicadores de Performance</CardTitle>
+                <CardDescription>
+                  Reproduz os indicadores de performance do /workout usando dados de activity_chart_data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PerformanceIndicatorsFromChart />
               </CardContent>
             </Card>
           </div>
