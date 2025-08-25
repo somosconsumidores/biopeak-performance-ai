@@ -27,6 +27,35 @@ interface WorkoutAnalysis {
     nextWorkoutSuggestions: string;
     nutritionTips: string;
   };
+  deepAnalysis: {
+    consistencyDiagnosis: {
+      heartRateConsistency: string;
+      paceConsistency: string;
+      overallConsistency: string;
+    };
+    segmentAnalysis: {
+      problemSegments: Array<{
+        segmentNumber: number;
+        issue: string;
+        recommendation: string;
+      }>;
+      bestSegments: Array<{
+        segmentNumber: number;
+        strength: string;
+      }>;
+    };
+    variationInsights: {
+      paceVariation: string;
+      heartRateVariation: string;
+      diagnosis: string;
+      recommendations: string[];
+    };
+    technicalInsights: {
+      runningEconomy: string;
+      fatiguePattern: string;
+      tacticalAnalysis: string;
+    };
+  };
 }
 
 serve(async (req) => {
@@ -270,6 +299,71 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
+    // FASE 2: ANÁLISE PROFUNDA - Buscar dados adicionais
+    console.log('🤖 Deep Analysis: Fetching additional data for comprehensive analysis...');
+
+    // 1. Buscar dados de histograma (activity_chart_data)
+    let histogramData: any = null;
+    const { data: chartData } = await supabase
+      .from('activity_chart_data')
+      .select('series_data, data_points_count, avg_heart_rate, avg_pace_min_km, activity_source')
+      .eq('activity_id', activityId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (chartData && chartData.series_data) {
+      histogramData = {
+        totalPoints: chartData.data_points_count,
+        avgHeartRate: chartData.avg_heart_rate,
+        avgPace: chartData.avg_pace_min_km,
+        source: chartData.activity_source,
+        samples: Array.isArray(chartData.series_data) ? chartData.series_data.slice(0, 100) : [] // Limitar amostras para prompt
+      };
+      console.log(`✅ Histogram data found: ${histogramData.totalPoints} points from ${histogramData.source}`);
+    }
+
+    // 2. Buscar segmentos de 1km (activity_segments)
+    let segmentsData: any[] = [];
+    const { data: segments } = await supabase
+      .from('activity_segments')
+      .select('segment_number, avg_heart_rate, avg_pace_min_km, duration_seconds, elevation_gain_meters')
+      .eq('activity_id', activityId)
+      .eq('user_id', user.id)
+      .order('segment_number');
+
+    if (segments && segments.length > 0) {
+      segmentsData = segments;
+      console.log(`✅ Segment data found: ${segments.length} segments`);
+    }
+
+    // 3. Buscar análise de variação (activity_variation_analysis)
+    let variationData: any = null;
+    const { data: variation } = await supabase
+      .from('activity_variation_analysis')
+      .select('heart_rate_cv, pace_cv, heart_rate_cv_category, pace_cv_category, diagnosis, has_valid_data, data_points')
+      .eq('activity_id', activityId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (variation) {
+      variationData = variation;
+      console.log(`✅ Variation analysis found: HR CV=${variation.heart_rate_cv}, Pace CV=${variation.pace_cv}`);
+    }
+
+    // 4. Buscar melhores segmentos (activity_best_segments)
+    let bestSegmentsData: any = null;
+    const { data: bestSegments } = await supabase
+      .from('activity_best_segments')
+      .select('best_1km_pace_min_km, segment_start_distance_meters, segment_end_distance_meters, segment_duration_seconds')
+      .eq('activity_id', activityId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (bestSegments) {
+      bestSegmentsData = bestSegments;
+      console.log(`✅ Best segments found: Best 1km pace=${bestSegments.best_1km_pace_min_km}`);
+    }
+
     // Calculate user age if birth date is available
     let userAge = null;
     if (profile?.birth_date) {
@@ -345,7 +439,7 @@ serve(async (req) => {
     const isLimitedData = activitySource === 'strava' || activityDetails.length === 0;
     console.log(`📊 Data analysis: source=${activitySource}, limited=${isLimitedData}, highIntensity=${isHighIntensityWorkout}`);
 
-    // Prepare analysis data
+    // Prepare analysis data with deep analysis components
     const analysisData = {
       activity: {
         type: activity.activity_type,
@@ -369,6 +463,13 @@ serve(async (req) => {
         height: profile?.height_cm,
       },
       detailedData: activityDetails || [],
+      // FASE 2: Deep Analysis Data
+      deepAnalysisData: {
+        histogram: histogramData,
+        segments: segmentsData,
+        variation: variationData,
+        bestSegments: bestSegmentsData,
+      },
     };
 
     // Create specialized prompts based on data availability and activity type
@@ -411,6 +512,38 @@ serve(async (req) => {
       ${userAge ? `Idade do usuário: ${userAge} anos` : ''}
       ${profile?.weight_kg ? `Peso: ${profile.weight_kg}kg` : ''}
       
+      🔬 DADOS PARA ANÁLISE PROFUNDA (FASE 2):
+      
+      ${histogramData ? `
+      📊 HISTOGRAMA DE CONSISTÊNCIA:
+      - Total de pontos: ${histogramData.totalPoints}
+      - FC média: ${histogramData.avgHeartRate || 'N/A'} bpm
+      - Pace média: ${histogramData.avgPace || 'N/A'} min/km
+      - Fonte: ${histogramData.source}
+      - Amostras (primeiras 100): ${JSON.stringify(histogramData.samples.slice(0, 20))}...
+      ` : ''}
+      
+      ${segmentsData.length > 0 ? `
+      🏃 ANÁLISE POR SEGMENTOS DE 1KM:
+      ${segmentsData.map((seg, i) => `
+      - Segmento ${seg.segment_number}: FC ${seg.avg_heart_rate || 'N/A'} bpm, Pace ${seg.avg_pace_min_km || 'N/A'} min/km, Duração ${seg.duration_seconds}s, Elevação +${seg.elevation_gain_meters || 0}m`).join('')}
+      ` : ''}
+      
+      ${variationData ? `
+      📈 ANÁLISE DE VARIAÇÃO:
+      - Coeficiente de Variação FC: ${(variationData.heart_rate_cv * 100)?.toFixed(1) || 'N/A'}% (${variationData.heart_rate_cv_category})
+      - Coeficiente de Variação Pace: ${(variationData.pace_cv * 100)?.toFixed(1) || 'N/A'}% (${variationData.pace_cv_category})
+      - Diagnóstico automático: ${variationData.diagnosis}
+      - Pontos de dados: ${variationData.data_points}
+      ` : ''}
+      
+      ${bestSegmentsData ? `
+      🏆 MELHOR SEGMENTO:
+      - Melhor 1km: ${bestSegmentsData.best_1km_pace_min_km} min/km
+      - Distância: ${bestSegmentsData.segment_start_distance_meters}m - ${bestSegmentsData.segment_end_distance_meters}m
+      - Duração: ${bestSegmentsData.segment_duration_seconds}s
+      ` : ''}
+      
       INSTRUÇÕES ESPECIAIS PARA DADOS LIMITADOS:
       ${isLimitedData ? `
       - Analise a CONSISTÊNCIA DO PACE: variação, estabilidade, padrões
@@ -422,6 +555,24 @@ serve(async (req) => {
       - Forneça RECOMENDAÇÕES PRÁTICAS mesmo com dados limitados
       - Seja CRIATIVO e PERSPICAZ com os insights
       ` : 'Use todos os dados detalhados disponíveis para uma análise completa.'}
+      
+      INSTRUÇÕES PARA ANÁLISE PROFUNDA:
+      ${histogramData || segmentsData.length > 0 || variationData ? `
+      🎯 ANÁLISE DE CONSISTÊNCIA: Use os dados do histograma para diagnosticar:
+      - Padrões de FC e pace ao longo do tempo
+      - Identificar momentos de instabilidade ou picos anômalos
+      - Avaliar a distribuição estatística dos dados
+      
+      🏃 DETECÇÃO DE SEGMENTOS PROBLEMA: Use os dados de segmentos de 1km para:
+      - Identificar segmentos com performance abaixo da média
+      - Detectar fadiga progressiva ou recuperação inadequada
+      - Correlacionar elevação com performance
+      
+      📊 INSIGHTS DE VARIAÇÃO: Use os coeficientes de variação para:
+      - Explicar o tipo de treino baseado na variabilidade
+      - Sugerir melhorias na estratégia de pacing
+      - Identificar padrões de inconsistência
+      ` : ''}
       
       Forneça uma análise estruturada em JSON com exactly este formato:
       {
@@ -438,6 +589,39 @@ serve(async (req) => {
           "estimatedRecoveryTime": "tempo estimado de recuperação",
           "nextWorkoutSuggestions": "sugestões para próximo treino",
           "nutritionTips": "dicas de nutrição pós-treino"
+        },
+        "deepAnalysis": {
+          "consistencyDiagnosis": {
+            "heartRateConsistency": "diagnóstico da consistência da FC baseado nos dados do histograma",
+            "paceConsistency": "diagnóstico da consistência do pace baseado nos dados do histograma",
+            "overallConsistency": "diagnóstico geral de consistência"
+          },
+          "segmentAnalysis": {
+            "problemSegments": [
+              {
+                "segmentNumber": 1,
+                "issue": "descrição do problema identificado",
+                "recommendation": "recomendação específica para o segmento"
+              }
+            ],
+            "bestSegments": [
+              {
+                "segmentNumber": 1,
+                "strength": "o que funcionou bem neste segmento"
+              }
+            ]
+          },
+          "variationInsights": {
+            "paceVariation": "análise da variação do pace usando CV",
+            "heartRateVariation": "análise da variação da FC usando CV",
+            "diagnosis": "diagnóstico integrado baseado nos CVs",
+            "recommendations": ["recomendações baseadas na análise de variação"]
+          },
+          "technicalInsights": {
+            "runningEconomy": "análise da economia de corrida baseada nos dados disponíveis",
+            "fatiguePattern": "padrão de fadiga identificado nos segmentos",
+            "tacticalAnalysis": "análise tática da estratégia de prova"
+          }
         }
       }
       
@@ -537,6 +721,28 @@ serve(async (req) => {
           estimatedRecoveryTime: activity.duration_in_seconds > 3600 ? '24-48 horas' : '12-24 horas',
           nextWorkoutSuggestions: `Próximo treino: ${activity.activity_type === 'Run' ? 'Corrida leve ou cross-training' : 'Atividade de intensidade moderada'}`,
           nutritionTips: 'Hidratação constante e reposição de carboidratos nas primeiras 2 horas pós-treino'
+        },
+        deepAnalysis: {
+          consistencyDiagnosis: {
+            heartRateConsistency: histogramData ? 'Análise baseada em dados parciais' : 'Dados insuficientes para análise detalhada',
+            paceConsistency: histogramData ? 'Análise baseada em dados parciais' : 'Dados insuficientes para análise detalhada',
+            overallConsistency: 'Análise de fallback - dados limitados'
+          },
+          segmentAnalysis: {
+            problemSegments: [],
+            bestSegments: []
+          },
+          variationInsights: {
+            paceVariation: variationData ? `CV Pace: ${(variationData.pace_cv * 100)?.toFixed(1)}%` : 'Dados não disponíveis',
+            heartRateVariation: variationData ? `CV FC: ${(variationData.heart_rate_cv * 100)?.toFixed(1)}%` : 'Dados não disponíveis',
+            diagnosis: variationData?.diagnosis || 'Diagnóstico não disponível',
+            recommendations: ['Mantenha consistência nos treinos futuros']
+          },
+          technicalInsights: {
+            runningEconomy: 'Análise baseada em métricas básicas disponíveis',
+            fatiguePattern: 'Padrão de fadiga não detectável com dados atuais',
+            tacticalAnalysis: 'Estratégia aparenta ser adequada para o tipo de atividade'
+          }
         }
       };
     }
