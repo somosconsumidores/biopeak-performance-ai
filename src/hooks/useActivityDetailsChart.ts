@@ -75,7 +75,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
         };
       });
 
-      return processedData.filter(item => item.heart_rate > 0);
+      return processedData;
     } catch (err) {
       console.error('❌ Error fetching from activity_chart_data:', err);
       return null;

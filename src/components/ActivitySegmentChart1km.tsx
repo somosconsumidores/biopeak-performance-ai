@@ -104,7 +104,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
 
     for (const point of data.series_data) {
       const currentDistance = point.distance_m || 0;
-      const currentTime = point.timestamp || point.elapsed_time || 0;
+      const currentTime = point.timestamp || point.elapsed_time || point.time_s || 0;
       
       // Check if we've reached the next segment
       if (currentDistance >= currentSegment * segmentSizeMeters) {
@@ -152,7 +152,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     // Add final segment if we have data
     if (segmentDataPoints > 0) {
       const finalPoint = data.series_data[data.series_data.length - 1];
-      const finalTime = finalPoint?.timestamp || finalPoint?.elapsed_time || 0;
+      const finalTime = finalPoint?.timestamp || finalPoint?.elapsed_time || finalPoint?.time_s || 0;
       const segmentTime = finalTime - segmentStartTime;
       const startKm = (currentSegment - 1) * segmentSize + 1;
       const endKm = currentSegment * segmentSize;

@@ -214,6 +214,29 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Fill missing per-point speed/pace using distance/time deltas (important for GPX sources)
+    for (let i = 1; i < series.length; i++) {
+      const prev = series[i - 1]
+      const cur = series[i]
+      const dt = (cur.time_s ?? 0) - (prev.time_s ?? 0)
+      if ((!cur.speed_ms || cur.speed_ms <= 0) && typeof cur.distance_m === 'number' && typeof prev.distance_m === 'number' && dt > 0) {
+        const dd = cur.distance_m - prev.distance_m
+        if (dd >= 0) {
+          const sp = dd / dt
+          cur.speed_ms = sp
+          cur.pace_min_km = paceFromSpeed(sp)
+        }
+      }
+      // If pace exists but speed missing, derive speed
+      if ((cur.pace_min_km && cur.pace_min_km > 0) && (!cur.speed_ms || cur.speed_ms <= 0)) {
+        cur.speed_ms = 1000 / (cur.pace_min_km * 60)
+      }
+      // If speed exists but pace missing, derive pace
+      if ((cur.speed_ms && cur.speed_ms > 0) && (!cur.pace_min_km || cur.pace_min_km <= 0)) {
+        cur.pace_min_km = paceFromSpeed(cur.speed_ms)
+      }
+    }
+
     // Derive stats
     const duration_seconds = Math.max(...series.map(s => s.time_s || 0))
     const total_distance_meters = (() => {
