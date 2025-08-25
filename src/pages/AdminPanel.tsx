@@ -17,6 +17,7 @@ import { AdminActivityChartPreview } from '@/components/AdminActivityChartPrevie
 import { ActivitySegmentChart1km } from '@/components/ActivitySegmentChart1km';
 import { ActivityVariationAnalysis } from '@/components/ActivityVariationAnalysis';
 import { PerformanceIndicatorsFromChart } from '@/components/PerformanceIndicatorsFromChart';
+import { HeartRateZonesFromChart } from '@/components/HeartRateZonesFromChart';
 
 interface TokenStats {
   total: number;
@@ -551,6 +552,11 @@ export const AdminPanel = () => {
                 <PerformanceIndicatorsFromChart />
               </CardContent>
             </Card>
+          </div>
+
+          {/* Teste de Zonas de FC baseado em activity_chart_data */}
+          <div className="space-y-4">
+            <HeartRateZonesFromChart />
           </div>
 
           {/* Top 10 Usuários Mais Ativos */}
