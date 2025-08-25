@@ -1,4 +1,51 @@
 import { useMemo } from 'react';
+
+// Função para calcular pace baseado na intensidade
+const calculatePaceRange = (baseMinPace: number, baseMaxPace: number, intensity: string) => {
+  const intensityLower = intensity.toLowerCase();
+  
+  if (intensityLower.includes('aquecimento') || intensityLower.includes('warm') || intensityLower.includes('easy')) {
+    // Aquecimento: pace mais lento (adiciona 30-60s)
+    return {
+      min: Math.floor((baseMinPace + 0.5) * 100) / 100,
+      max: Math.floor((baseMaxPace + 1.0) * 100) / 100
+    };
+  } else if (intensityLower.includes('volta') || intensityLower.includes('cool') || intensityLower.includes('recupera')) {
+    // Volta à calma: pace mais lento (adiciona 20-40s)
+    return {
+      min: Math.floor((baseMinPace + 0.3) * 100) / 100,
+      max: Math.floor((baseMaxPace + 0.7) * 100) / 100
+    };
+  } else if (intensityLower.includes('forte') || intensityLower.includes('tempo') || intensityLower.includes('threshold')) {
+    // Intensidade forte: pace mais rápido (subtrai 15-30s)
+    return {
+      min: Math.max(3.0, Math.floor((baseMinPace - 0.5) * 100) / 100),
+      max: Math.max(3.5, Math.floor((baseMaxPace - 0.25) * 100) / 100)
+    };
+  } else if (intensityLower.includes('intervalado') || intensityLower.includes('interval') || intensityLower.includes('tiro')) {
+    // Intervalado: pace bem mais rápido (subtrai 30-60s)
+    return {
+      min: Math.max(2.5, Math.floor((baseMinPace - 1.0) * 100) / 100),
+      max: Math.max(3.0, Math.floor((baseMaxPace - 0.5) * 100) / 100)
+    };
+  }
+  
+  // Intensidade moderada: pace base
+  return { min: baseMinPace, max: baseMaxPace };
+};
+
+// Função para formatar pace (garantir ordem correta: menor para maior)
+const formatPaceRange = (min: number, max: number) => {
+  const minFormatted = `${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, '0')}`;
+  const maxFormatted = `${Math.floor(max)}:${String(Math.round((max % 1) * 60)).padStart(2, '0')}`;
+  
+  // Garantir que sempre mostre do menor para o maior
+  if (min <= max) {
+    return `${minFormatted} a ${maxFormatted}`;
+  } else {
+    return `${maxFormatted} a ${minFormatted}`;
+  }
+};
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,13 +150,13 @@ export default function WeeklyAIPlanCard() {
                   <div className="w-full">
                     {isSpeaking ? (
                       <Button 
-                        variant="default" 
+                        variant="destructive" 
                         size="lg"
                         onClick={stop}
-                        className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg"
+                        className="w-full shadow-lg"
                       >
                         <Pause className="h-4 w-4 mr-2" />
-                        Parar Áudio
+                        Parar Reprodução
                       </Button>
                     ) : (
                       <Button 
@@ -120,7 +167,7 @@ export default function WeeklyAIPlanCard() {
                         className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg"
                       >
                         <Play className="h-4 w-4 mr-2" />
-                        🎧 Ouvir Briefing Completo (90s)
+                        Ouvir Briefing
                       </Button>
                     )}
                   </div>
@@ -164,7 +211,10 @@ export default function WeeklyAIPlanCard() {
                                 <div className="flex justify-between items-center">
                                   <span className="text-muted-foreground">Pace alvo:</span>
                                   <span className="font-medium text-foreground">
-                                    {briefing.workout.guidance.pace_min_per_km.min}-{briefing.workout.guidance.pace_min_per_km.max} min/km
+                                    {formatPaceRange(
+                                      Number(briefing.workout.guidance.pace_min_per_km.min), 
+                                      Number(briefing.workout.guidance.pace_min_per_km.max)
+                                    )}
                                   </span>
                                 </div>
                               )}
@@ -207,9 +257,14 @@ export default function WeeklyAIPlanCard() {
                                       Intensidade: {s.intensity}
                                     </div>
                                   )}
-                                  {briefing.workout.guidance?.pace_min_per_km && (
+                                  {briefing.workout.guidance?.pace_min_per_km && s.intensity && (
                                     <div className="text-xs text-muted-foreground">
-                                      Pace sugerido: {briefing.workout.guidance.pace_min_per_km.min}-{briefing.workout.guidance.pace_min_per_km.max} min/km
+                                      {(() => {
+                                        const baseMin = Number(briefing.workout.guidance.pace_min_per_km.min);
+                                        const baseMax = Number(briefing.workout.guidance.pace_min_per_km.max);
+                                        const adjustedPace = calculatePaceRange(baseMin, baseMax, s.intensity);
+                                        return `Pace sugerido: ${formatPaceRange(adjustedPace.min, adjustedPace.max)}`;
+                                      })()}
                                     </div>
                                   )}
                                 </div>
