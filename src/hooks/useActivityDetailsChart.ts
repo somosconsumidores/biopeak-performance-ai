@@ -37,8 +37,30 @@ export const useActivityDetailsChart = (activityId: string | null) => {
 
       console.log(`✅ Found ${chartData.data_points_count} data points from activity_chart_data (${chartData.activity_source})`);
 
+      let seriesRaw: any[] = chartData.series_data;
+      if (chartData.data_points_count >= 1000) {
+        try {
+          console.log('🔄 Requesting full-precision rebuild (calculate-activity-chart-data)');
+          await supabase.functions.invoke('calculate-activity-chart-data', {
+            body: { activity_id: id, activity_source: chartData.activity_source, full_precision: true },
+          });
+          await new Promise((r) => setTimeout(r, 800));
+          const { data: refreshed } = await supabase
+            .from('activity_chart_data')
+            .select('series_data, data_points_count')
+            .eq('activity_id', id)
+            .maybeSingle();
+          if (refreshed?.series_data && Array.isArray(refreshed.series_data) && (refreshed.data_points_count ?? 0) > chartData.data_points_count) {
+            console.log(`✅ Full precision series ready: ${refreshed.data_points_count} points`);
+            seriesRaw = refreshed.series_data;
+          }
+        } catch (e) {
+          console.warn('⚠️ Full-precision rebuild not applied:', (e as any)?.message || e);
+        }
+      }
+
       // Transform series_data to HeartRatePaceData format
-      const processedData: HeartRatePaceData[] = chartData.series_data.map((point: any) => {
+      const processedData: HeartRatePaceData[] = seriesRaw.map((point: any) => {
         let distance_km = 0;
         let heart_rate = point.heart_rate || point.hr || 0;
         let pace_min_per_km = null;

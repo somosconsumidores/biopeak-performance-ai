@@ -75,6 +75,26 @@ function lttbDownsample(data: any[], threshold: number): any[] {
   return sampled;
 }
 
+// Fetch all rows in pages to bypass the 1000-row default limit
+async function fetchAllPaged<T = any>(client: any, table: string, select: string, filters: Record<string, any>, order?: { column: string; ascending: boolean }, pageSize = 1000): Promise<T[]> {
+  let from = 0;
+  const all: T[] = [];
+  while (true) {
+    let q = client.from(table).select(select).range(from, from + pageSize - 1);
+    for (const [k, v] of Object.entries(filters)) {
+      q = q.eq(k, v as any);
+    }
+    if (order) q = q.order(order.column, { ascending: order.ascending });
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...(data as T[]));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -124,53 +144,48 @@ Deno.serve(async (req) => {
 
     const uid = await resolveUserId()
 
-    // Fetch samples per source
+    // Fetch samples per source (paged to get ALL points)
     let rows: any[] = []
     if (activity_source === 'garmin') {
-      const { data, error } = await supabase
-        .from('garmin_activity_details')
-        .select('sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, timer_duration_in_seconds, moving_duration_in_seconds')
-        .eq('user_id', uid)
-        .eq('activity_id', activity_id)
-        .order('sample_timestamp', { ascending: true })
-      if (error) throw error
-      rows = data || []
+      rows = await fetchAllPaged(
+        supabase,
+        'garmin_activity_details',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, timer_duration_in_seconds, moving_duration_in_seconds',
+        { user_id: uid, activity_id },
+        { column: 'sample_timestamp', ascending: true }
+      )
     } else if (activity_source === 'strava') {
-      const { data, error } = await supabase
-        .from('strava_activity_details')
-        .select('time_seconds, distance, heartrate, velocity_smooth')
-        .eq('user_id', uid)
-        .eq('strava_activity_id', Number(activity_id))
-        .order('time_seconds', { ascending: true })
-      if (error) throw error
-      rows = data || []
+      rows = await fetchAllPaged(
+        supabase,
+        'strava_activity_details',
+        'time_seconds, distance, heartrate, velocity_smooth',
+        { user_id: uid, strava_activity_id: Number(activity_id) },
+        { column: 'time_seconds', ascending: true }
+      )
     } else if (activity_source === 'polar') {
-      const { data, error } = await supabase
-        .from('polar_activity_details')
-        .select('sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds')
-        .eq('user_id', uid)
-        .eq('activity_id', activity_id)
-        .order('sample_timestamp', { ascending: true })
-      if (error) throw error
-      rows = data || []
+      rows = await fetchAllPaged(
+        supabase,
+        'polar_activity_details',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds',
+        { user_id: uid, activity_id },
+        { column: 'sample_timestamp', ascending: true }
+      )
     } else if (activity_source === 'strava_gpx') {
-      const { data, error } = await supabase
-        .from('strava_gpx_activity_details')
-        .select('sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second')
-        .eq('user_id', uid)
-        .eq('activity_id', activity_id)
-        .order('sample_timestamp', { ascending: true })
-      if (error) throw error
-      rows = data || []
+      rows = await fetchAllPaged(
+        supabase,
+        'strava_gpx_activity_details',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second',
+        { user_id: uid, activity_id },
+        { column: 'sample_timestamp', ascending: true }
+      )
     } else if (activity_source === 'zepp_gpx') {
-      const { data, error } = await supabase
-        .from('zepp_gpx_activity_details')
-        .select('sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds')
-        .eq('user_id', uid)
-        .eq('activity_id', activity_id)
-        .order('sample_timestamp', { ascending: true })
-      if (error) throw error
-      rows = data || []
+      rows = await fetchAllPaged(
+        supabase,
+        'zepp_gpx_activity_details',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds',
+        { user_id: uid, activity_id },
+        { column: 'sample_timestamp', ascending: true }
+      )
     }
 
     if (!rows || rows.length === 0) {

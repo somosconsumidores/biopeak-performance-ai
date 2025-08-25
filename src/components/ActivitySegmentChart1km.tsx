@@ -71,6 +71,26 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
         if (!retryData) throw new Error('Atividade não encontrada na tabela activity_chart_data');
         setData(retryData);
       } else {
+        // If capped at ~1000 points, request a full-precision rebuild to fetch all points
+        if (activityData.series_data.length >= 1000) {
+          try {
+            await supabase.functions.invoke('calculate-activity-chart-data', {
+              body: { activity_id: activityId, activity_source: activityData.activity_source, full_precision: true },
+            });
+            await new Promise((r) => setTimeout(r, 800));
+            const { data: refreshed } = await supabase
+              .from('activity_chart_data')
+              .select('activity_id, activity_source, series_data, avg_pace_min_km, avg_heart_rate')
+              .eq('activity_id', activityId)
+              .maybeSingle();
+            if (refreshed?.series_data && refreshed.series_data.length > activityData.series_data.length) {
+              setData(refreshed);
+              return;
+            }
+          } catch (e) {
+            console.warn('Full-precision rebuild for segments failed:', (e as any)?.message || e);
+          }
+        }
         setData(activityData);
       }
     } catch (err: any) {
