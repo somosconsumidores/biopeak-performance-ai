@@ -199,6 +199,16 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     };
   }, [segmentData]);
 
+  // Find the index of the fastest segment (lowest pace)
+  const fastestSegmentIndex = useMemo(() => {
+    if (!segmentData || segmentData.length === 0) return -1;
+    const validSegments = segmentData.filter(s => s.avgPace > 0);
+    if (validSegments.length === 0) return -1;
+    
+    const minPace = Math.min(...validSegments.map(s => s.avgPace));
+    return segmentData.findIndex(s => s.avgPace === minPace);
+  }, [segmentData]);
+
   if (loading) {
     return (
       <Card className="glass-card border-glass-border">
@@ -312,7 +322,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                 <tr key={segment.segmentNumber} className="border-b border-border/30 hover:bg-muted/30">
                   <td className="py-3 px-2">
                     <div className="flex items-center">
-                      {index === 6 && (
+                      {index === fastestSegmentIndex && (
                         <div className="w-0 h-0 border-l-[6px] border-l-green-500 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent mr-2"></div>
                       )}
                       <span className="text-sm font-medium">{segment.segmentNumber}</span>
@@ -324,7 +334,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                       <div className="flex-1 bg-muted rounded-full h-2 relative">
                         <div 
                           className={`h-2 rounded-full transition-all duration-300 ${
-                            index === 6 ? 'bg-green-500' : 'bg-blue-400'
+                            index === fastestSegmentIndex ? 'bg-green-500' : 'bg-blue-400'
                           }`}
                           style={{ 
                             width: `${getProgressWidth(segment.avgPace, paceRange.min, paceRange.max)}%` 
