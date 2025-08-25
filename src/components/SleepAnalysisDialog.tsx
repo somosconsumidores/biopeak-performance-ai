@@ -6,6 +6,7 @@ import { Brain, Loader2, Save, Check } from 'lucide-react';
 import { useSleepAIAnalysis, SleepAnalysisData, OvertrainingAnalysisData } from '@/hooks/useSleepAIAnalysis';
 import { useSleepFeedback } from '@/hooks/useSleepFeedback';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SleepAnalysisDialogProps {
   sleepData: SleepAnalysisData;
@@ -18,6 +19,7 @@ export const SleepAnalysisDialog = ({ sleepData, overtrainingData }: SleepAnalys
   const { analysis, loading, error, analyzeSleep, clearAnalysis } = useSleepAIAnalysis();
   const { saveFeedback, loading: saving } = useSleepFeedback();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleAnalyze = async () => {
     clearAnalysis();
@@ -86,14 +88,30 @@ export const SleepAnalysisDialog = ({ sleepData, overtrainingData }: SleepAnalys
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          size="sm" 
-          className="flex items-center space-x-2 hover:bg-primary/10"
+          size={isMobile ? "default" : "sm"}
+          className={`
+            flex items-center justify-center gap-2 
+            hover:bg-primary/10 transition-all duration-200
+            ${isMobile 
+              ? 'w-full h-12 text-base font-medium px-4 py-3 rounded-lg' 
+              : 'h-9 text-sm px-3 py-2'
+            }
+            active:scale-95 touch-manipulation
+          `}
         >
-          <Brain className="h-4 w-4" />
-          <span>Peça a IA para analisar seu sono</span>
+          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} flex-shrink-0`} />
+          <span className={isMobile ? 'text-center leading-tight' : ''}>
+            {isMobile ? 'Analisar Sono com IA' : 'Peça a IA para analisar seu sono'}
+          </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className={`
+        ${isMobile 
+          ? 'max-w-[95vw] w-[95vw] max-h-[90vh] m-2' 
+          : 'max-w-4xl max-h-[80vh]'
+        } 
+        overflow-y-auto
+      `}>
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Brain className="h-5 w-5 text-primary" />
