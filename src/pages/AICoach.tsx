@@ -10,8 +10,8 @@ import { Brain, Sparkles, Lock, Construction } from 'lucide-react';
 export const AICoach = () => {
   const { user, loading } = useAuth();
 
-  // Check if user is admin@biopeak.com
-  const isAdminUser = user?.email === 'admin@biopeak.com';
+  // Check if user has premium access
+  const hasAdminAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ export const AICoach = () => {
           </ScrollReveal>
 
           {/* Content - Show based on access */}
-          {isAdminUser ? (
+          {hasAdminAccess ? (
             <div className="space-y-6">
               <ScrollReveal delay={100}>
                 <WeeklyAIPlanCard />
