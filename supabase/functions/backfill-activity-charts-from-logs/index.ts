@@ -38,13 +38,31 @@ Deno.serve(async (req) => {
       )
     }
 
-    const body = (await req.json()) as BackfillBody
-    const userId = body?.user_id
-    const webhookType = body?.webhook_type ?? 'activity_details_notification'
-    const since = body?.since
-    const until = body?.until
-    const limit = body?.limit ?? 500
-    const dryRun = body?.dry_run ?? false
+let body: BackfillBody
+try {
+  body = (await req.json()) as BackfillBody
+} catch (parseErr) {
+  return new Response(
+    JSON.stringify({
+      error: 'JSON inválido no corpo da requisição',
+      details: String(parseErr),
+      example: {
+        user_id: 'fa155754-46c5-4f12-99e2-54a9673ff74f',
+        dry_run: true,
+        limit: 500,
+        since: '2025-01-01T00:00:00Z',
+        until: '2025-01-31T23:59:59Z'
+      }
+    }),
+    { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+  )
+}
+const userId = body?.user_id
+const webhookType = body?.webhook_type ?? 'activity_details_notification'
+const since = body?.since
+const until = body?.until
+const limit = body?.limit ?? 500
+const dryRun = body?.dry_run ?? false
 
     if (!userId) {
       return new Response(
