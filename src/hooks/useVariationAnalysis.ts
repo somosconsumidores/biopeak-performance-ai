@@ -127,18 +127,10 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
           let detailsError: any = null;
 
           if (activity.source === 'GARMIN') {
-            // Legacy Garmin fallback (should rarely be used now)
-            const result = await supabase
-              .from('garmin_activity_details')
-              .select('heart_rate, speed_meters_per_second, sample_timestamp')
-              .eq('user_id', user.id)
-              .eq('activity_id', activity.activity_id)
-              .not('heart_rate', 'is', null)
-              .gt('heart_rate', 0)
-              .order('sample_timestamp', { ascending: true });
-
-            activityDetails = result.data || [];
-            detailsError = result.error;
+            // No fallback - activity_chart_data should be available for all Garmin activities
+            console.log('❌ [Variation] No data in activity_chart_data for Garmin activity - this should not happen');
+            activityDetails = [];
+            detailsError = null;
           } else if (activity.source === 'STRAVA' && activity.device_name === 'Strava GPX') {
             const result = await supabase
               .from('strava_gpx_activity_details')
@@ -173,25 +165,10 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
 
             activityDetails = rawDetails;
           } else if (activity.source === 'STRAVA' && activity.device_name === 'STRAVA') {
-            // Legacy Strava fallback (should rarely be used now)
-            const result = await supabase
-              .from('strava_activity_details')
-              .select('heartrate, velocity_smooth, time_seconds')
-              .eq('user_id', user.id)
-              .eq('strava_activity_id', parseInt(activity.strava_activity_id?.toString() || activity.activity_id))
-              .not('heartrate', 'is', null)
-              .gt('heartrate', 0)
-              .order('time_seconds', { ascending: true });
-
-            let rawDetails = result.data || [];
-            detailsError = result.error;
-
-            // Converter para formato padrão
-            activityDetails = rawDetails.map(d => ({
-              heart_rate: d.heartrate,
-              speed_meters_per_second: d.velocity_smooth || null,
-              sample_timestamp: d.time_seconds
-            }));
+            // No fallback - activity_chart_data should be available for all Strava activities
+            console.log('❌ [Variation] No data in activity_chart_data for Strava activity - this should not happen');
+            activityDetails = [];
+            detailsError = null;
           } else if (activity.source === 'ZEPP') {
             const result = await supabase
               .from('zepp_gpx_activity_details')

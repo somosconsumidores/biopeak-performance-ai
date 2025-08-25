@@ -191,75 +191,31 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         body: { activity_id: id, version: 1 }
       }).catch((e) => console.warn('⚠️ ZONES builder invoke error:', e?.message || e));
 
-      // Robust source detection: try Garmin first, then Strava, then GPX fallback
+      // Only GPX sources for fallback (Polar, Strava GPX, Zepp GPX)
       let activityDetails: any[] | null = null;
 
-      // 1) Try Garmin details for this user/activity
-      const { data: garminDetails, error: garminErr } = await supabase
-        .from('garmin_activity_details')
+      // Try GPX-derived details by activity_id (Polar, Strava GPX, Zepp GPX)
+      console.log('🔍 ZONES: Trying GPX sources as fallback');
+      
+      // Try Strava GPX first
+      const { data: stravaGpxDetails, error: stravaGpxErr } = await supabase
+        .from('strava_gpx_activity_details')
         .select('heart_rate, sample_timestamp')
-        .eq('user_id', user.id)
         .eq('activity_id', id)
         .order('sample_timestamp', { ascending: true });
-      if (garminErr) throw garminErr;
-
-      if (garminDetails && garminDetails.length > 0) {
-        activityDetails = garminDetails;
+      if (stravaGpxErr) throw stravaGpxErr;
+      
+      if (stravaGpxDetails && stravaGpxDetails.length > 0) {
+        activityDetails = stravaGpxDetails;
       } else {
-        // 2) Try Strava details if the id is numeric
-        const stravaId = Number(id);
-        if (!Number.isNaN(stravaId)) {
-          const { data: stravaDetails, error: stravaErr } = await supabase
-            .from('strava_activity_details')
-            .select('heartrate, time_seconds, time_index')
-            .eq('strava_activity_id', stravaId)
-            .order('time_index', { ascending: true });
-          if (stravaErr) throw stravaErr;
-
-          if (!stravaDetails || stravaDetails.length === 0) {
-            console.log('🔁 ZONES: No Strava details found. Invoking edge function to fetch streams...');
-            try {
-              await supabase.functions.invoke('strava-activity-streams', {
-                body: { activity_id: stravaId }
-              });
-              const { data: retryDetails } = await supabase
-                .from('strava_activity_details')
-                .select('heartrate, time_seconds, time_index')
-                .eq('strava_activity_id', stravaId)
-                .order('time_index', { ascending: true });
-              activityDetails = retryDetails || [];
-            } catch (fetchErr) {
-              console.warn('⚠️ ZONES: Failed to fetch Strava streams:', fetchErr);
-              activityDetails = [];
-            }
-          } else {
-            activityDetails = stravaDetails;
-          }
-        }
-
-        // 3) Fallback: try GPX-derived details by activity_id (Strava and Zepp)
-        if (!activityDetails || activityDetails.length === 0) {
-          // Try Strava GPX first
-          const { data: stravaGpxDetails, error: stravaGpxErr } = await supabase
-            .from('strava_gpx_activity_details')
-            .select('heart_rate, sample_timestamp')
-            .eq('activity_id', id)
-            .order('sample_timestamp', { ascending: true });
-          if (stravaGpxErr) throw stravaGpxErr;
-          
-          if (stravaGpxDetails && stravaGpxDetails.length > 0) {
-            activityDetails = stravaGpxDetails;
-          } else {
-            // Try Zepp GPX if no Strava GPX data
-            const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
-              .from('zepp_gpx_activity_details')
-              .select('heart_rate, sample_timestamp')
-              .eq('activity_id', id)
-              .order('sample_timestamp', { ascending: true });
-            if (zeppGpxErr) throw zeppGpxErr;
-            activityDetails = zeppGpxDetails || [];
-          }
-        }
+        // Try Zepp GPX if no Strava GPX data
+        const { data: zeppGpxDetails, error: zeppGpxErr } = await supabase
+          .from('zepp_gpx_activity_details')
+          .select('heart_rate, sample_timestamp')
+          .eq('activity_id', id)
+          .order('sample_timestamp', { ascending: true });
+        if (zeppGpxErr) throw zeppGpxErr;
+        activityDetails = zeppGpxDetails || [];
       }
 
       console.log('🔍 ZONES: Raw query results:', {
