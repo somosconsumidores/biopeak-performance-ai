@@ -3602,7 +3602,69 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_all_activities_with_vo2_daniels: {
+        Row: {
+          active_kilocalories: number | null
+          activity_date: string | null
+          activity_id: string | null
+          activity_source: string | null
+          activity_type: string | null
+          average_heart_rate: number | null
+          created_at: string | null
+          device_name: string | null
+          id: string | null
+          max_heart_rate: number | null
+          pace_min_per_km: number | null
+          total_distance_meters: number | null
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          total_time_minutes: number | null
+          updated_at: string | null
+          user_id: string | null
+          vo2_max_daniels: number | null
+        }
+        Insert: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id?: string | null
+          activity_source?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string | null
+          device_name?: string | null
+          id?: string | null
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          vo2_max_daniels?: never
+        }
+        Update: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id?: string | null
+          activity_source?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string | null
+          device_name?: string | null
+          id?: string | null
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          vo2_max_daniels?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_variation_analysis: {
@@ -3620,6 +3682,10 @@ export type Database = {
           max_hr: number
           pace_min_km: number
         }
+        Returns: number
+      }
+      calculate_vo2_max_daniels: {
+        Args: { distance_meters: number; time_minutes: number }
         Returns: number
       }
       can_sync_user: {
