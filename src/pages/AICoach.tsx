@@ -3,6 +3,7 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
 import DanielsVo2MaxCard from '@/components/DanielsVo2MaxCard';
+import { AICoachChat } from '@/components/AICoachChat';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Brain, Sparkles, Lock, Construction } from 'lucide-react';
@@ -61,6 +62,10 @@ export const AICoach = () => {
               
               <ScrollReveal delay={200}>
                 <DanielsVo2MaxCard />
+              </ScrollReveal>
+              
+              <ScrollReveal delay={300}>
+                <AICoachChat />
               </ScrollReveal>
             </div>
           ) : (
