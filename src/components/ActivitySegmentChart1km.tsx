@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BarChart3, RotateCcw } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
@@ -17,6 +16,8 @@ interface SegmentData {
   avgPace: number;
   avgHeartRate: number;
   distance: number;
+  cumulativeTime: number; // in seconds
+  segmentTime: number; // in seconds
 }
 
 interface ActivityData {
@@ -99,21 +100,28 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     let segmentHRSum = 0;
     let segmentDataPoints = 0;
     let segmentHRPoints = 0;
+    let lastSegmentEndTime = 0;
+    let segmentStartTime = 0;
 
     for (const point of data.series_data) {
       const currentDistance = point.distance_m || 0;
+      const currentTime = point.timestamp || point.elapsed_time || 0;
       
       // Check if we've reached the next 1km segment
       if (currentDistance >= currentSegment * segmentSize) {
         // Save current segment if we have data
         if (segmentDataPoints > 0) {
+          const segmentTime = currentTime - segmentStartTime;
           segments.push({
-            segment: `${(currentSegment - 1) * (segmentSize/1000) + 1}-${currentSegment * (segmentSize/1000)}km`,
+            segment: `${currentSegment}km`,
             segmentNumber: currentSegment,
             avgPace: segmentPaceSum / segmentDataPoints,
             avgHeartRate: segmentHRPoints > 0 ? Math.round(segmentHRSum / segmentHRPoints) : 0,
-            distance: currentSegment * segmentSize
+            distance: currentSegment * segmentSize,
+            cumulativeTime: currentTime,
+            segmentTime: segmentTime
           });
+          lastSegmentEndTime = currentTime;
         }
 
         // Move to next segment
@@ -122,6 +130,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
         segmentHRSum = 0;
         segmentDataPoints = 0;
         segmentHRPoints = 0;
+        segmentStartTime = lastSegmentEndTime;
       }
 
       // Add current point to segment calculations
@@ -140,15 +149,18 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
 
     // Add final segment if we have data
     if (segmentDataPoints > 0) {
-      const finalDistance = data.series_data[data.series_data.length - 1]?.distance_m || 0;
-      const finalSegmentKm = Math.ceil(finalDistance / 1000);
+      const finalPoint = data.series_data[data.series_data.length - 1];
+      const finalTime = finalPoint?.timestamp || finalPoint?.elapsed_time || 0;
+      const segmentTime = finalTime - segmentStartTime;
       
       segments.push({
-        segment: `${(currentSegment - 1) * (segmentSize/1000) + 1}-${finalSegmentKm}km`,
+        segment: `${currentSegment}km`,
         segmentNumber: currentSegment,
         avgPace: segmentPaceSum / segmentDataPoints,
         avgHeartRate: segmentHRPoints > 0 ? Math.round(segmentHRSum / segmentHRPoints) : 0,
-        distance: finalDistance
+        distance: finalPoint?.distance_m || 0,
+        cumulativeTime: finalTime,
+        segmentTime: segmentTime
       });
     }
 
@@ -159,34 +171,35 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     if (!pace || pace <= 0) return '--';
     const minutes = Math.floor(pace);
     const seconds = Math.round((pace - minutes) * 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, '0')}'${seconds.toString().padStart(2, '0')}"`;
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const paceData = payload.find((p: any) => p.dataKey === 'avgPace');
-      const hrData = payload.find((p: any) => p.dataKey === 'avgHeartRate');
-      
-      return (
-        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-medium mb-2">{label}</p>
-          {paceData && (
-            <p className="text-primary text-sm">
-              <span className="inline-block w-3 h-3 bg-primary rounded mr-2"></span>
-              Pace: {formatPace(paceData.value)}
-            </p>
-          )}
-          {hrData && hrData.value > 0 && (
-            <p className="text-sm" style={{ color: '#9333ea' }}>
-              <span className="inline-block w-3 h-3 rounded mr-2" style={{ backgroundColor: '#9333ea' }}></span>
-              FC: {hrData.value} bpm
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
+  const formatTime = (seconds: number) => {
+    if (!seconds || seconds <= 0) return '--';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const decimals = Math.floor((seconds % 1) * 100);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${decimals.toString().padStart(2, '0')}`;
   };
+
+  const getProgressWidth = (pace: number, minPace: number, maxPace: number) => {
+    if (!pace || !minPace || !maxPace) return 0;
+    // Invert the calculation because lower pace is better
+    const range = maxPace - minPace;
+    if (range === 0) return 50;
+    const relativePosition = (maxPace - pace) / range;
+    return Math.max(10, Math.min(90, relativePosition * 80 + 10));
+  };
+
+  // Calculate pace range for progress bars
+  const paceRange = useMemo(() => {
+    if (!segmentData || segmentData.length === 0) return { min: 0, max: 0 };
+    const paces = segmentData.filter(s => s.avgPace > 0).map(s => s.avgPace);
+    return {
+      min: Math.min(...paces),
+      max: Math.max(...paces)
+    };
+  }, [segmentData]);
 
   if (loading) {
     return (
@@ -262,58 +275,79 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={segmentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-              <XAxis 
-                dataKey="segment"
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                interval={isMobile ? 1 : 0}
-                angle={isMobile ? -45 : 0}
-                textAnchor={isMobile ? 'end' : 'middle'}
-                height={isMobile ? 60 : 40}
-              />
-              <YAxis 
-                yAxisId="pace"
-                orientation="left"
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                tickFormatter={(value) => formatPace(value)}
-                domain={['dataMin - 0.2', 'dataMax + 0.2']}
-              />
-              <YAxis 
-                yAxisId="hr"
-                orientation="right"
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                tickFormatter={(value) => `${value}`}
-                domain={['dataMin - 5', 'dataMax + 5']}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ fontSize: isMobile ? '12px' : '14px' }}
-                iconType="rect"
-              />
-              <Bar 
-                yAxisId="pace"
-                dataKey="avgPace" 
-                fill="hsl(var(--primary))" 
-                name="Pace Médio" 
-                opacity={0.8}
-                radius={[2, 2, 0, 0]}
-              />
-              <Line 
-                yAxisId="hr"
-                type="monotone" 
-                dataKey="avgHeartRate" 
-                stroke="#9333ea" 
-                name="FC Média"
-                strokeWidth={2}
-                dot={{ fill: '#9333ea', strokeWidth: 2, r: 3 }}
-                activeDot={{ r: 5, stroke: '#9333ea', strokeWidth: 2 }}
-                connectNulls={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+        {/* Tab-style header */}
+        <div className="mb-4">
+          <div className="flex items-center space-x-6 mb-2">
+            <div className="flex items-center space-x-1">
+              <span className="text-sm font-medium text-primary border-b-2 border-primary pb-1">Detalhes por km</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="text-sm text-muted-foreground">Detalhes por intervalo</span>
+            </div>
+          </div>
+          
+          {/* Segment selection buttons */}
+          <div className="flex items-center space-x-2 mb-4">
+            <span className="text-sm text-muted-foreground">{segmentData.length} registros</span>
+            <div className="flex-1"></div>
+            <div className="flex items-center space-x-2">
+              <Button variant="default" size="sm" className="px-3 py-1 text-xs">
+                1 km
+              </Button>
+              <Button variant="ghost" size="sm" className="px-3 py-1 text-xs text-muted-foreground">
+                5 km
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border/50">
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">km</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo(km)</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo cardíaco</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Tempo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {segmentData.map((segment, index) => (
+                <tr key={segment.segmentNumber} className="border-b border-border/30 hover:bg-muted/30">
+                  <td className="py-3 px-2">
+                    <div className="flex items-center">
+                      {index === 6 && (
+                        <div className="w-0 h-0 border-l-[6px] border-l-green-500 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent mr-2"></div>
+                      )}
+                      <span className="text-sm font-medium">{segment.segmentNumber}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center space-x-3 min-w-[120px]">
+                      <span className="text-sm font-medium w-12">{formatPace(segment.avgPace)}</span>
+                      <div className="flex-1 bg-muted rounded-full h-2 relative">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            index === 6 ? 'bg-green-500' : 'bg-blue-400'
+                          }`}
+                          style={{ 
+                            width: `${getProgressWidth(segment.avgPace, paceRange.min, paceRange.max)}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className="text-sm">{segment.avgHeartRate > 0 ? segment.avgHeartRate : '--'}</span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className="text-sm">{formatTime(segment.cumulativeTime)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         
         {/* Summary Information */}
@@ -330,7 +364,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
               <div className="text-muted-foreground">Pace Médio</div>
             </div>
             <div className="text-center">
-              <div className="font-medium" style={{ color: '#9333ea' }}>
+              <div className="font-medium text-[#9333ea]">
                 {Math.round(segmentData.filter(s => s.avgHeartRate > 0).reduce((sum, seg) => sum + seg.avgHeartRate, 0) / segmentData.filter(s => s.avgHeartRate > 0).length) || 0} bpm
               </div>
               <div className="text-muted-foreground">FC Média</div>
