@@ -174,6 +174,7 @@ export const PerformanceIndicatorsFromChart = () => {
       const speeds: number[] = [];
       let totalDistance = 0;
       let totalTime = 0;
+      let hasTimeData = false;
 
       seriesData.forEach((point: any, index: number) => {
         // Heart rate
@@ -196,17 +197,28 @@ export const PerformanceIndicatorsFromChart = () => {
           totalDistance = distance;
         }
 
-        // Tempo acumulado
-        const elapsed = point.elapsed_time_seconds;
+        // Tempo acumulado - verificar diferentes campos possíveis
+        const elapsed = point.elapsed_time_seconds || point.t || point.time || point.elapsed_time;
         if (typeof elapsed === 'number' && elapsed > totalTime) {
           totalTime = elapsed;
+          hasTimeData = true;
         }
       });
 
       // Calcular métricas de eficiência
       const distanceKm = totalDistance / 1000;
       const timeMinutes = totalTime / 60;
-      const distancePerMinute = timeMinutes > 0 ? distanceKm / timeMinutes : null;
+      let distancePerMinute: number | null = null;
+
+      // Se não temos dados de tempo, tentar estimar usando velocidade média
+      if (!hasTimeData || timeMinutes === 0) {
+        if (speeds.length > 0) {
+          const avgSpeedKmh = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
+          distancePerMinute = avgSpeedKmh / 60; // km/h para km/min
+        }
+      } else {
+        distancePerMinute = timeMinutes > 0 ? distanceKm / timeMinutes : null;
+      }
 
       // Calcular métricas de pace
       const averageSpeedKmh = speeds.length > 0 
@@ -247,9 +259,13 @@ export const PerformanceIndicatorsFromChart = () => {
       }
 
       // Gerar comentários
-      const efficiencyComment = distancePerMinute 
-        ? `Eficiência de movimento: ${distancePerMinute.toFixed(2)} km/min`
-        : 'Dados insuficientes para calcular eficiência';
+      let efficiencyComment = 'Dados insuficientes para calcular eficiência';
+      if (distancePerMinute) {
+        const method = hasTimeData ? 'baseado no tempo' : 'estimado pela velocidade média';
+        efficiencyComment = `Eficiência: ${distancePerMinute.toFixed(2)} km/min (${method})`;
+      } else if (!hasTimeData && speeds.length === 0) {
+        efficiencyComment = 'Sem dados de tempo ou velocidade para calcular eficiência';
+      }
 
       let paceComment = 'Dados insuficientes';
       if (paceVariationCoefficient !== null) {
