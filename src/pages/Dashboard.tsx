@@ -6,6 +6,7 @@ import { ScrollReveal } from '@/components/ScrollReveal';
 import { CommitmentsCard } from '@/components/CommitmentsCard';
 import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
 import { AchievementSection } from '@/components/AchievementSection';
+import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -199,6 +200,13 @@ export const Dashboard = () => {
               <p className="text-sm sm:text-base text-muted-foreground">
                 Visão geral da sua evolução atlética e insights inteligentes
               </p>
+            </div>
+          </ScrollReveal>
+
+          {/* Weekly AI Plan Card */}
+          <ScrollReveal delay={110}>
+            <div className="mb-6 md:mb-8">
+              <WeeklyAIPlanCard />
             </div>
           </ScrollReveal>
 

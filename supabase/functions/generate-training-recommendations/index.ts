@@ -133,6 +133,86 @@ serve(async (req) => {
       userHeight: profile?.height_cm
     };
 
+    // Enrich context: chart variability (pace/HR), VO2max and sleep
+    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: chartRows, error: chartErr } = await supabase
+      .from('activity_chart_data')
+      .select('avg_pace_min_km, avg_heart_rate, processed_at')
+      .eq('user_id', user.id)
+      .gte('processed_at', thirtyDaysAgoISO);
+
+    if (chartErr) console.log('activity_chart_data error', chartErr);
+
+    const paceVals = (chartRows || []).map(r => Number(r.avg_pace_min_km)).filter(v => !!v && isFinite(v));
+    const hrVals = (chartRows || []).map(r => Number(r.avg_heart_rate)).filter(v => !!v && isFinite(v));
+
+    const mean = (arr: number[]) => arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : 0;
+    const sd = (arr: number[]) => {
+      if (!arr.length) return 0;
+      const m = mean(arr);
+      const variance = arr.reduce((acc, v) => acc + Math.pow(v - m, 2), 0) / arr.length;
+      return Math.sqrt(variance);
+    };
+
+    const chartAvgPace = Math.round(mean(paceVals) * 100) / 100;
+    const chartAvgHR = Math.round(mean(hrVals));
+    const chartPaceCV = chartAvgPace > 0 ? Math.round((sd(paceVals) / chartAvgPace) * 100) / 100 : null;
+    const chartHRCV = chartAvgHR > 0 ? Math.round((sd(hrVals) / chartAvgHR) * 100) / 100 : null;
+
+    // Latest VO2max via mapping
+    let vo2MaxCurrent: number | null = null;
+    const { data: mapping } = await supabase
+      .from('garmin_user_mapping')
+      .select('garmin_user_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('last_seen_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (mapping?.garmin_user_id) {
+      const { data: vo2 } = await supabase
+        .from('garmin_vo2max')
+        .select('vo2_max_running, calendar_date')
+        .eq('garmin_user_id', mapping.garmin_user_id)
+        .order('calendar_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      vo2MaxCurrent = vo2?.vo2_max_running ?? null;
+    }
+
+    // Sleep: last night and 7-day avg
+    const sevenDaysAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
+
+    const { data: lastSleep } = await supabase
+      .from('garmin_sleep_summaries')
+      .select('calendar_date, sleep_score, sleep_time_in_seconds, deep_sleep_duration_in_seconds, rem_sleep_duration_in_seconds, light_sleep_duration_in_seconds')
+      .eq('user_id', user.id)
+      .order('calendar_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: sleepWeek } = await supabase
+      .from('garmin_sleep_summaries')
+      .select('sleep_score')
+      .eq('user_id', user.id)
+      .gte('calendar_date', sevenDaysAgoISO);
+
+    const sleepWeekScores = (sleepWeek || []).map(s => Number(s.sleep_score)).filter(v => !!v && isFinite(v));
+    const sleepAvg = sleepWeekScores.length ? Math.round(mean(sleepWeekScores)) : null;
+
+    const enrichedContext = {
+      chartAvgPaceMinKm: chartAvgPace || null,
+      chartAvgHeartRate: chartAvgHR || null,
+      chartPaceCV: chartPaceCV,
+      chartHeartRateCV: chartHRCV,
+      vo2MaxCurrent,
+      lastSleepScore: lastSleep?.sleep_score ?? null,
+      lastSleepDate: lastSleep?.calendar_date ?? null,
+      avgSleepScore7d: sleepAvg
+    }; 
+
     // Check if OpenAI API key is available
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
@@ -239,7 +319,7 @@ serve(async (req) => {
       });
     }
 
-    // Prepare OpenAI prompt for training recommendations
+    // Prepare OpenAI prompt for training recommendations (with enriched context)
     const prompt = `Como um treinador de corrida especializado, analise os dados de treino e gere recomendações personalizadas de treino.
 
 DADOS DO ATLETA:
@@ -256,12 +336,21 @@ DADOS DO ATLETA:
 - Alto volume: ${dataContext.isHighVolume ? 'Sim' : 'Não'}
 - Foco em corrida: ${dataContext.isRunningFocused ? 'Sim' : 'Não'}
 
+DADOS ADICIONAIS (VARIAÇÃO/VO2/SONO):
+- Pace médio (charts): ${enrichedContext.chartAvgPaceMinKm ?? 'n/d'} min/km
+- Variabilidade de pace (CV): ${enrichedContext.chartPaceCV ?? 'n/d'}
+- FC média (charts): ${enrichedContext.chartAvgHeartRate ?? 'n/d'} bpm
+- Variabilidade de FC (CV): ${enrichedContext.chartHeartRateCV ?? 'n/d'}
+- VO₂max atual: ${enrichedContext.vo2MaxCurrent ?? 'n/d'} ml/kg/min
+- Última noite (sono): score ${enrichedContext.lastSleepScore ?? 'n/d'}
+- Média 7 dias (sono): ${enrichedContext.avgSleepScore7d ?? 'n/d'}
+
 INSTRUÇÕES:
-1. Analise o perfil de treino do atleta
-2. Identifique pontos fortes e areas de melhoria
-3. Gere recomendações específicas e práticas
-4. Inclua variedade de tipos de treino
-5. Considere periodização e prevenção de lesões
+1. Analise o perfil de treino do atleta com base nos dados acima
+2. Considere variação de ritmo/FC (CV) para sugerir trabalhos de consistência, quando necessário
+3. Adapte intensidades por zona levando em conta VO₂max e qualidade do sono recente
+4. Traga um plano semanal específico e equilibrado (intervalado, tempo run, fácil, longão, descanso)
+5. Previna overtraining (ajuste volume/intensidade se sono ruim)
 6. Sugira metas realistas e mensuráveis
 
 FORMATO DE RESPOSTA (JSON):
