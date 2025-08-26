@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useAuth } from '@/hooks/useAuth';
 import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
 import { WeeklyPlanView } from '@/components/WeeklyPlanView';
 import { WeeklyGroupedView } from '@/components/WeeklyGroupedView';
@@ -7,13 +8,65 @@ import { PlanOverview } from '@/components/PlanOverview';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Target, TrendingUp, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Target, TrendingUp, Trash2, Construction, Lock, Sparkles } from 'lucide-react';
 import { ScrollReveal } from '@/components/ScrollReveal';
 
 export default function TrainingPlan() {
+  const { user } = useAuth();
   const { plan, workouts, loading, error, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const [showWizard, setShowWizard] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Check if user has access to training plans
+  const hasTrainingPlanAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';
+
+  // Show access restriction for non-authorized users
+  if (!hasTrainingPlanAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <ScrollReveal>
+          <div className="text-center max-w-2xl mx-auto">
+            <div className="mb-8">
+              <Target className="h-16 w-16 mx-auto mb-4 text-primary" />
+              <h1 className="text-3xl font-bold mb-4">Plano de Treino</h1>
+              <p className="text-muted-foreground mb-8">
+                Desenvolva um plano personalizado baseado no seu histórico, objetivos e disponibilidade.
+              </p>
+            </div>
+
+            <Card className="glass-card border-glass-border">
+              <CardContent className="py-12">
+                <div className="text-center space-y-6">
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <div className="p-4 rounded-full bg-primary/10">
+                      <Construction className="h-12 w-12 text-primary" />
+                    </div>
+                    <Lock className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold">Feature em desenvolvimento</h2>
+                    <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                      Aguarde novidades!
+                    </p>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-primary font-medium">
+                        Funcionalidade exclusiva em breve
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollReveal>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
