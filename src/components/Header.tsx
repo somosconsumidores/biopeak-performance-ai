@@ -37,7 +37,7 @@ export const Header = () => {
     { name: t('workouts'), href: '/workouts' },
     { name: t('insights'), href: '/insights' },
     { name: 'Coach IA Premium', href: '/ai-coach' },
-    { name: 'BioPeak AI Coach', href: '/training' },
+    { name: 'Plano de Treino', href: '/training-plan' },
     { name: 'Feedbacks de Sono', href: '/sleep-feedbacks' },
     { name: t('profile'), href: '/profile' },
   ];
