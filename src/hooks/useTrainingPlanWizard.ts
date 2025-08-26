@@ -199,47 +199,57 @@ export function useTrainingPlanWizard() {
         }
       }
 
-      // Create training plan preferences
-      const { data: preferences, error: preferencesError } = await supabase
-        .from('training_plan_preferences')
+      // Create the training plan first (required for preferences foreign key)
+      const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
+      const { data: plan, error: planError } = await supabase
+        .from('training_plans')
         .insert({
           user_id: user.id,
-          goal: wizardData.goal,
-          goal_description: wizardData.goalDescription,
-          athlete_level: wizardData.athleteLevel.toLowerCase(),
-          weekly_frequency: wizardData.weeklyFrequency,
-          available_days: wizardData.availableDays,
-          long_run_day: wizardData.longRunDay,
-          estimated_times: wizardData.estimatedTimes,
-          race_date: wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+          plan_name: `Plano ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
+          goal_type: wizardData.goal,
+          start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd'),
+          weeks: wizardData.planDurationWeeks,
+          status: 'draft',
+          target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
         })
         .select()
         .single();
+
+      if (planError || !plan) {
+        console.error('Error creating plan:', planError);
+        return false;
+      }
+
+      // Then create preferences linked to the plan
+      const dayIdx: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+      const daysArray = wizardData.availableDays.map(d => dayIdx[d] ?? 0);
+      const longRunIdx = dayIdx[wizardData.longRunDay] ?? 6;
+
+      const { error: preferencesError } = await supabase
+        .from('training_plan_preferences')
+        .insert({
+          user_id: user.id,
+          plan_id: plan.id,
+          days_per_week: wizardData.weeklyFrequency,
+          days_of_week: daysArray,
+          long_run_weekday: longRunIdx,
+          start_asap: false,
+          start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+        });
 
       if (preferencesError) {
         console.error('Error creating preferences:', preferencesError);
         return false;
       }
 
-      // Create the training plan
-      const { data: plan, error: planError } = await supabase
-        .from('training_plans')
-        .insert({
-          user_id: user.id,
-          title: `Plano de ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
-          description: `Plano personalizado para ${wizardData.athleteLevel.toLowerCase()} - ${wizardData.weeklyFrequency}x por semana`,
-          goal: wizardData.goal,
-          athlete_level: wizardData.athleteLevel.toLowerCase(),
-          start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
-          end_date: format(addDays(wizardData.startDate, wizardData.planDurationWeeks * 7), 'yyyy-MM-dd'),
-          weekly_frequency: wizardData.weeklyFrequency,
-          status: 'pending_generation',
-        })
-        .select()
-        .single();
-
-      if (planError) {
-        console.error('Error creating plan:', planError);
+      // Trigger Edge Function to generate the detailed plan
+      const { error: fnError } = await supabase.functions.invoke('generate-training-plan', {
+        body: { plan_id: plan.id },
+      });
+      if (fnError) {
+        console.error('Error invoking generate-training-plan:', fnError);
+        // Even if function fails, the plan exists; return false to show error
         return false;
       }
 
