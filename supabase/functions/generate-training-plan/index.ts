@@ -334,16 +334,21 @@ serve(async (req) => {
       },
     };
 
-    let aiPlan: any = null;
+let aiPlan: any = null;
+let usedFallback = false;
+let fallbackReason: string | null = null;
 
     if (!haveKey) {
       console.log("⚠️ OPENAI_API_KEY not set. Using enhanced fallback generation.");
+      usedFallback = true;
+      fallbackReason = "no_openai_key";
       
       // Enhanced fallback with better workout distribution
       const generateEnhancedFallback = () => {
         const workouts: any[] = [];
         const longDay = (prefs?.long_run_weekday ?? 6);
         const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, prefs?.days_per_week ?? 4);
+        const targetPaces = safeTargetPaces;
         
         for (let w = 1; w <= plan.weeks; w++) {
           // Periodization phases
@@ -525,13 +530,13 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-5-mini-2025-08-07",
           messages: [
             { role: "system", content: system },
             { role: "user", content: JSON.stringify(userPrompt) },
           ],
-          temperature: 0.7,
-          max_tokens: 4000,
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4000,
         }),
       });
 
@@ -539,10 +544,13 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
         const txt = await openaiRes.text();
         console.error("OpenAI error:", txt);
         console.log("⚠️ Falling back to enhanced generator due to OpenAI failure.");
+        usedFallback = true;
+        fallbackReason = "openai_http_error";
         const generateFallback = () => {
           const workouts: any[] = [];
           const longDay = (prefs?.long_run_weekday ?? 6);
           const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, (prefs?.days_per_week ?? 4));
+          const targetPaces = safeTargetPaces;
           for (let w = 1; w <= plan.weeks; w++) {
             const phase = w <= plan.weeks * 0.4 ? 'base' : w <= plan.weeks * 0.75 ? 'build' : w <= plan.weeks * 0.9 ? 'peak' : 'taper';
             const isRecoveryWeek = w % 4 === 0;
@@ -562,11 +570,11 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                 if (phase === 'build' || phase === 'peak') {
                   title = `Longão ${distance_km}km com bloco em ritmo de prova`;
                   description = `${distance_km}km total. Últimos 6-8km em ritmo de meia maratona (${targetPaces?.pace_half_marathon?.toFixed(2) || '5:30'}/km)`;
-                  target_pace = targetPaces?.pace_half_marathon?.toFixed(2) || '5:30';
+                  target_pace = safeTargetPaces?.pace_half_marathon?.toFixed(2) || '5:30';
                 } else {
                   title = `Longão aeróbico ${distance_km}km`;
                   description = `Corrida contínua em ritmo confortável, zona 2`;
-                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '6:00';
+                  target_pace = safeTargetPaces?.pace_easy?.toFixed(2) || '6:00';
                 }
                 hr_zone = 2;
               } else {
@@ -574,12 +582,12 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                 if (workoutIndex === 0 && phase !== 'base') {
                   workoutType = 'interval';
                   hr_zone = 4;
-                  const intervalTypes = [
-                    { name: '6x800m', duration: 30, pace: targetPaces?.pace_interval_800m, desc: 'rec 2min entre tiros' },
-                    { name: '5x1000m', duration: 35, pace: targetPaces?.pace_interval_1km, desc: 'rec 2min30s entre tiros' },
-                    { name: '8x400m', duration: 25, pace: targetPaces?.pace_interval_400m, desc: 'rec 90s entre tiros' },
-                    { name: '4x1600m', duration: 40, pace: targetPaces?.pace_interval_1km, desc: 'rec 3min entre tiros' },
-                  ];
+                    const intervalTypes = [
+                      { name: '6x800m', duration: 30, pace: safeTargetPaces?.pace_interval_800m, desc: 'rec 2min entre tiros' },
+                      { name: '5x1000m', duration: 35, pace: safeTargetPaces?.pace_interval_1km, desc: 'rec 2min30s entre tiros' },
+                      { name: '8x400m', duration: 25, pace: safeTargetPaces?.pace_interval_400m, desc: 'rec 90s entre tiros' },
+                      { name: '4x1600m', duration: 40, pace: safeTargetPaces?.pace_interval_1km, desc: 'rec 3min entre tiros' },
+                    ];
                   const interval = intervalTypes[w % intervalTypes.length];
                   title = interval.name;
                   description = `Aquecimento 15min + ${interval.name} em ${interval.pace?.toFixed(2) || '4:30'}/km (${interval.desc}) + desaquecimento 10min`;
@@ -592,14 +600,14 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                   duration_min = Math.round(tempoDistance * volumeMultiplier);
                   title = `Tempo run ${duration_min}min`;
                   description = `Aquecimento 15min + ${duration_min}min em ritmo de limiar (${targetPaces?.pace_tempo?.toFixed(2) || '4:50'}/km) + desaquecimento 10min`;
-                  target_pace = targetPaces?.pace_tempo?.toFixed(2) || '4:50';
+                  target_pace = safeTargetPaces?.pace_tempo?.toFixed(2) || '4:50';
                 } else {
                   workoutType = w % 7 === 0 ? 'recovery' : 'easy';
                   hr_zone = workoutType === 'recovery' ? 1 : 2;
                   distance_km = Math.round((5 + w * 0.5) * volumeMultiplier);
                   title = workoutType === 'recovery' ? `Recuperativo ${distance_km}km` : `Treino base ${distance_km}km`;
                   description = workoutType === 'recovery' ? 'Corrida muito leve, foco na recuperação' : 'Corrida aeróbica confortável';
-                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '5:45';
+                  target_pace = safeTargetPaces?.pace_easy?.toFixed(2) || '5:45';
                 }
               }
               workouts.push({
@@ -660,7 +668,11 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                 throw e2;
               }
             }
-            
+            // Validate plan structure before post-processing
+            if (!rawPlan || !Array.isArray(rawPlan.workouts)) {
+              throw new Error('Invalid plan schema from OpenAI');
+            }
+
             // SAFETY POST-PROCESSOR - Apply safety clamps to all generated workouts
             console.log("🛡️ Applying safety post-processor to OpenAI plan...");
             const safeWorkouts = rawPlan.workouts?.map((workout: any) => {
@@ -699,6 +711,8 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
         } catch (parseErr) {
           console.error("JSON parse error:", parseErr);
           console.log("⚠️ Falling back due to JSON parse failure.");
+          usedFallback = true;
+          fallbackReason = "json_parse_error";
           
           const generateSafeFallback = () => {
             const workouts: any[] = [];
@@ -887,6 +901,8 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
         plan_id: plan.id,
         workouts_created: rows.length,
         summary: aiPlan?.plan_summary || null,
+        used_fallback: usedFallback,
+        fallback_reason: fallbackReason,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
