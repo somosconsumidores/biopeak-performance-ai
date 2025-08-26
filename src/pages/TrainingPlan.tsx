@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useAuth } from '@/hooks/useAuth';
 import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
@@ -13,12 +13,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Calendar, Target, TrendingUp, Trash2, Construction, Lock, Sparkles, ArrowLeft } from 'lucide-react';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function TrainingPlan() {
   const { user } = useAuth();
   const { plan, workouts, loading, error, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const [showWizard, setShowWizard] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [recalibrated, setRecalibrated] = useState(false);
+
+  // Auto-recalibrate plan paces for safety (runs once per plan load)
+  useEffect(() => {
+    if (plan && !recalibrated) {
+      (async () => {
+        try {
+          console.info('🛡️ Triggering safety recalibration for plan', plan.id);
+          await supabase.functions.invoke('recalibrate-training-plan', { body: { plan_id: plan.id } });
+          await refreshPlan();
+        } catch (e) {
+          console.error('Recalibration error', e);
+        } finally {
+          setRecalibrated(true);
+        }
+      })();
+    }
+  }, [plan, recalibrated, refreshPlan]);
 
   // Check if user has access to training plans
   const hasTrainingPlanAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';

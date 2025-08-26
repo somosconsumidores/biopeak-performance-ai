@@ -24,17 +24,14 @@ serve(async (req) => {
     const user = userResult?.user;
     if (!user) throw new Error("Invalid auth token");
     
-    // Check if user is admin
+    // Check if user is admin (optional - owner can also run)
     const { data: userRole } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
       .maybeSingle();
-      
-    if (!userRole) {
-      throw new Error("Unauthorized: Admin access required");
-    }
+    const isAdmin = !!userRole;
 
     const body = await req.json().catch(() => ({}));
     const { plan_id, user_email } = body;
@@ -74,6 +71,10 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!plan) throw new Error("Plan not found");
+
+    if (!isAdmin && user.id !== plan.user_id) {
+      throw new Error("Unauthorized: only the plan owner or an admin can recalibrate");
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
