@@ -498,7 +498,46 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
             { role: "system", content: system },
             { role: "user", content: JSON.stringify(userPrompt) },
           ],
-          response_format: { type: "json_object" },
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "training_plan",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  plan_summary: {
+                    type: "object",
+                    properties: {
+                      periodization: { type: "array", items: { type: "string" } },
+                      notes: { type: "string" }
+                    }
+                  },
+                  workouts: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        week: { type: "integer" },
+                        weekday: { type: "string" },
+                        type: { type: "string" },
+                        title: { type: "string" },
+                        description: { type: ["string","null"] },
+                        distance_km: { type: ["number","null"] },
+                        duration_min: { type: ["number","null"] },
+                        target_hr_zone: { type: ["integer","null"] },
+                        target_pace_min_per_km: { type: ["string","null"] },
+                        intensity: { type: ["string","null"] },
+                        specific_instructions: { type: ["string","null"] }
+                      },
+                      required: ["week","weekday","type","title"]
+                    }
+                  }
+                },
+                required: ["workouts"]
+              }
+            }
+          },
           max_completion_tokens: 4000,
         }),
       });
@@ -598,9 +637,27 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
        else {
         try {
           const openAIResult = await openaiRes.json();
-          if (openAIResult.choices?.[0]?.message?.content) {
-            const content = openAIResult.choices[0].message.content;
-            
+          const choice = openAIResult?.choices?.[0];
+          let rawPlan: any | null = null;
+
+          // Prefer parsed object when using response_format=json_schema
+          const maybeParsed = choice?.message && (choice.message as any).parsed;
+          if (maybeParsed && typeof maybeParsed === "object") {
+            rawPlan = maybeParsed;
+          } else {
+            // Fallback to parsing message.content
+            const maybeContent: any = choice?.message?.content;
+            const contentStr =
+              typeof maybeContent === "string"
+                ? maybeContent
+                : (Array.isArray(maybeContent) && typeof maybeContent[0]?.text === "string")
+                ? maybeContent[0].text
+                : "";
+
+            if (!contentStr) {
+              throw new Error("Invalid OpenAI response: no content or parsed");
+            }
+
             // Helpers to robustly extract and sanitize JSON from LLM output
             const stripFences = (s: string) => s.replace(/```json|```/gi, "").trim();
             const extractJsonBlock = (s: string) => {
@@ -609,18 +666,13 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
             };
             const sanitizeJson = (s: string) =>
               s
-                // remove // line comments
                 .replace(/(^|\s)\/\/.*$/gm, "")
-                // remove /* */ block comments
                 .replace(/\/\*[\s\S]*?\*\//g, "")
-                // normalize newlines
                 .replace(/\r\n/g, "\n")
-                // remove trailing commas before } or ]
                 .replace(/,(\s*[}\]])/g, "$1");
 
-            const cleaned = stripFences(String(content));
+            const cleaned = stripFences(String(contentStr));
             const jsonCandidate = extractJsonBlock(cleaned);
-            let rawPlan: any;
             try {
               rawPlan = JSON.parse(jsonCandidate);
             } catch (e1) {
@@ -631,46 +683,45 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                 throw e2;
               }
             }
-            // Validate plan structure before post-processing
-            if (!rawPlan || !Array.isArray(rawPlan.workouts)) {
-              throw new Error('Invalid plan schema from OpenAI');
-            }
-
-            // SAFETY POST-PROCESSOR - Apply safety clamps to all generated workouts
-            console.log("🛡️ Applying safety post-processor to OpenAI plan...");
-            const safeWorkouts = rawPlan.workouts?.map((workout: any) => {
-              const originalPace = parseFloat(workout.target_pace_min_per_km);
-              if (!isNaN(originalPace)) {
-                const { pace: safePace, warnings } = safetyCalibrator.applySafetyClamps(
-                  workout.type, 
-                  originalPace, 
-                  workout.duration_min
-                );
-                
-                if (warnings.length > 0) {
-                  console.log(`🔧 Workout safety adjustments for ${workout.title}:`, warnings);
-                }
-                
-                return {
-                  ...workout,
-                  target_pace_min_per_km: safePace.toFixed(2),
-                  safety_adjusted: originalPace !== safePace,
-                  original_pace: originalPace !== safePace ? originalPace.toFixed(2) : undefined,
-                };
-              }
-              return workout;
-            }) || [];
-            
-            aiPlan = {
-              ...rawPlan,
-              workouts: safeWorkouts,
-              safety_processor_applied: true,
-            };
-            
-            console.log("✅ OpenAI plan parsed and safety-processed successfully");
-          } else {
-            throw new Error("Invalid OpenAI response structure");
           }
+
+          // Validate plan structure before post-processing
+          if (!rawPlan || !Array.isArray(rawPlan.workouts)) {
+            throw new Error("Invalid plan schema from OpenAI");
+          }
+
+          // SAFETY POST-PROCESSOR - Apply safety clamps to all generated workouts
+          console.log("🛡️ Applying safety post-processor to OpenAI plan...");
+          const safeWorkouts = rawPlan.workouts?.map((workout: any) => {
+            const originalPace = parseFloat(workout.target_pace_min_per_km);
+            if (!isNaN(originalPace)) {
+              const { pace: safePace, warnings } = safetyCalibrator.applySafetyClamps(
+                workout.type,
+                originalPace,
+                workout.duration_min
+              );
+
+              if (warnings.length > 0) {
+                console.log(`🔧 Workout safety adjustments for ${workout.title}:`, warnings);
+              }
+
+              return {
+                ...workout,
+                target_pace_min_per_km: safePace.toFixed(2),
+                safety_adjusted: originalPace !== safePace,
+                original_pace: originalPace !== safePace ? originalPace.toFixed(2) : undefined,
+              };
+            }
+            return workout;
+          }) || [];
+
+          aiPlan = {
+            ...rawPlan,
+            workouts: safeWorkouts,
+            safety_processor_applied: true,
+          };
+
+          console.log("✅ OpenAI plan parsed and safety-processed successfully");
         } catch (parseErr) {
           console.error("JSON parse error:", parseErr);
           console.log("⚠️ Falling back due to JSON parse failure.");
