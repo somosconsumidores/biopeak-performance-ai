@@ -213,7 +213,7 @@ export function useTrainingPlanWizard() {
           start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
           end_date: format(endDate, 'yyyy-MM-dd'),
           weeks: wizardData.planDurationWeeks,
-          status: 'draft',
+          status: 'pending',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
         });
 

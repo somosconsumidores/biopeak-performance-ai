@@ -68,13 +68,13 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (planError && planError.code !== 'PGRST116') {
+      if (planError) {
         throw planError;
       }
 
-      setPlan(planData);
+      setPlan(planData || null);
 
       if (planData) {
         // Fetch workouts for the active plan
