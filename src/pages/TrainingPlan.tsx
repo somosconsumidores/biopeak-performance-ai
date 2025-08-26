@@ -144,7 +144,7 @@ export default function TrainingPlan() {
               disabled={isDeleting}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              {isDeleting ? 'Deletando...' : 'Deletar Plano'}
+              {isDeleting ? 'Cancelando...' : 'Cancelar Plano'}
             </Button>
           </div>
         </div>

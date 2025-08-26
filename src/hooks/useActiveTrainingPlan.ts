@@ -154,7 +154,7 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     try {
       const { error } = await supabase
         .from('training_plans')
-        .update({ status: 'deleted' })
+        .update({ status: 'cancelled' })
         .eq('id', plan.id);
 
       if (error) throw error;
@@ -163,8 +163,8 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
       setPlan(null);
       setWorkouts([]);
     } catch (err) {
-      console.error('Error deleting plan:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete plan');
+      console.error('Error cancelling plan:', err);
+      setError(err instanceof Error ? err.message : 'Failed to cancel plan');
     }
   };
 
