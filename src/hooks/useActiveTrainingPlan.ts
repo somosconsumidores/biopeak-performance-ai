@@ -17,19 +17,20 @@ export interface TrainingPlan {
 export interface TrainingWorkout {
   id: string;
   plan_id: string;
-  week_number: number;
-  day_of_week: number;
   workout_type: string;
-  workout_name: string;
+  title: string;
   description: string;
   duration_minutes?: number;
-  distance_km?: number;
+  distance_meters?: number;
   target_pace_min_km?: number;
-  target_heart_rate_zone?: string;
-  instructions: string;
-  is_completed: boolean;
-  completed_at?: string;
-  scheduled_date: string;
+  target_hr_zone?: string;
+  workout_date: string;
+  status: string;
+  completed_activity_id?: string;
+  completed_activity_source?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface UseActiveTrainingPlanReturn {
@@ -38,8 +39,8 @@ interface UseActiveTrainingPlanReturn {
   loading: boolean;
   error: string | null;
   refreshPlan: () => Promise<void>;
-  completeWorkout: (workoutId: string) => Promise<void>;
-  uncompleteWorkout: (workoutId: string) => Promise<void>;
+  markWorkoutCompleted: (workoutId: string, activityId?: string, activitySource?: string) => Promise<void>;
+  markWorkoutPlanned: (workoutId: string) => Promise<void>;
 }
 
 export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
@@ -78,8 +79,7 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
           .from('training_plan_workouts')
           .select('*')
           .eq('plan_id', planData.id)
-          .order('week_number', { ascending: true })
-          .order('day_of_week', { ascending: true });
+          .order('workout_date', { ascending: true });
 
         if (workoutsError) {
           throw workoutsError;
@@ -97,13 +97,14 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     }
   };
 
-  const completeWorkout = async (workoutId: string) => {
+  const markWorkoutCompleted = async (workoutId: string, activityId?: string, activitySource?: string) => {
     try {
       const { error } = await supabase
         .from('training_plan_workouts')
         .update({
-          is_completed: true,
-          completed_at: new Date().toISOString()
+          status: 'completed',
+          completed_activity_id: activityId,
+          completed_activity_source: activitySource
         })
         .eq('id', workoutId);
 
@@ -111,22 +112,23 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
 
       setWorkouts(prev => prev.map(w => 
         w.id === workoutId 
-          ? { ...w, is_completed: true, completed_at: new Date().toISOString() }
+          ? { ...w, status: 'completed', completed_activity_id: activityId, completed_activity_source: activitySource }
           : w
       ));
     } catch (err) {
-      console.error('Error completing workout:', err);
-      setError(err instanceof Error ? err.message : 'Failed to complete workout');
+      console.error('Error marking workout as completed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to mark workout as completed');
     }
   };
 
-  const uncompleteWorkout = async (workoutId: string) => {
+  const markWorkoutPlanned = async (workoutId: string) => {
     try {
       const { error } = await supabase
         .from('training_plan_workouts')
         .update({
-          is_completed: false,
-          completed_at: null
+          status: 'planned',
+          completed_activity_id: null,
+          completed_activity_source: null
         })
         .eq('id', workoutId);
 
@@ -134,12 +136,12 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
 
       setWorkouts(prev => prev.map(w => 
         w.id === workoutId 
-          ? { ...w, is_completed: false, completed_at: undefined }
+          ? { ...w, status: 'planned', completed_activity_id: null, completed_activity_source: null }
           : w
       ));
     } catch (err) {
-      console.error('Error uncompleting workout:', err);
-      setError(err instanceof Error ? err.message : 'Failed to uncomplete workout');
+      console.error('Error marking workout as planned:', err);
+      setError(err instanceof Error ? err.message : 'Failed to mark workout as planned');
     }
   };
 
@@ -157,7 +159,7 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     loading,
     error,
     refreshPlan,
-    completeWorkout,
-    uncompleteWorkout,
+    markWorkoutCompleted,
+    markWorkoutPlanned,
   };
 };

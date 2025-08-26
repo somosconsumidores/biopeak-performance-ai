@@ -19,48 +19,47 @@ const DAYS_OF_WEEK = [
 ];
 
 export function WeeklyPlanView({ plan, workouts }: WeeklyPlanViewProps) {
-  const { completeWorkout, uncompleteWorkout } = useActiveTrainingPlan();
-  const [currentWeek, setCurrentWeek] = useState(1);
+  const { markWorkoutCompleted, markWorkoutPlanned } = useActiveTrainingPlan();
+  const [currentPage, setCurrentPage] = useState(0);
   
-  const totalWeeks = plan.weeks;
-  const weekWorkouts = workouts.filter(w => w.week_number === currentWeek);
+  const workoutsPerPage = 7;
+  const totalPages = Math.ceil(workouts.length / workoutsPerPage);
+  const currentWorkouts = workouts
+    .sort((a, b) => parseISO(a.workout_date).getTime() - parseISO(b.workout_date).getTime())
+    .slice(currentPage * workoutsPerPage, (currentPage + 1) * workoutsPerPage);
   
   const handleWorkoutToggle = async (workout: TrainingWorkout, completed: boolean) => {
     try {
       if (completed) {
-        await completeWorkout(workout.id);
+        await markWorkoutCompleted(workout.id);
       } else {
-        await uncompleteWorkout(workout.id);
+        await markWorkoutPlanned(workout.id);
       }
     } catch (error) {
       console.error('Error toggling workout:', error);
     }
   };
 
-  const getWorkoutForDay = (dayOfWeek: number) => {
-    return weekWorkouts.find(w => w.day_of_week === dayOfWeek);
-  };
-
   const getWorkoutTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      'Easy Run': 'bg-green-100 text-green-800 border-green-200',
-      'Long Run': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Tempo Run': 'bg-orange-100 text-orange-800 border-orange-200',
-      'Interval': 'bg-red-100 text-red-800 border-red-200',
-      'Recovery': 'bg-gray-100 text-gray-800 border-gray-200',
-      'Rest': 'bg-gray-100 text-gray-800 border-gray-200',
+      'easy': 'bg-green-100 text-green-800 border-green-200',
+      'long_run': 'bg-blue-100 text-blue-800 border-blue-200',
+      'tempo': 'bg-orange-100 text-orange-800 border-orange-200',
+      'interval': 'bg-red-100 text-red-800 border-red-200',
+      'recovery': 'bg-gray-100 text-gray-800 border-gray-200',
+      'rest': 'bg-gray-100 text-gray-800 border-gray-200',
     };
     return colors[type] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   return (
     <div className="space-y-6">
-      {/* Week Navigation */}
+      {/* Page Navigation */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Semana {currentWeek}</h2>
+          <h2 className="text-2xl font-bold">Treinos Programados</h2>
           <p className="text-muted-foreground">
-            {weekWorkouts.length} treinos programados
+            {currentWorkouts.length} treinos desta página
           </p>
         </div>
         
@@ -68,140 +67,126 @@ export function WeeklyPlanView({ plan, workouts }: WeeklyPlanViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentWeek(Math.max(1, currentWeek - 1))}
-            disabled={currentWeek <= 1}
+            onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+            disabled={currentPage <= 0}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
           <span className="text-sm font-medium px-3">
-            {currentWeek} / {totalWeeks}
+            {currentPage + 1} / {totalPages}
           </span>
           
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentWeek(Math.min(totalWeeks, currentWeek + 1))}
-            disabled={currentWeek >= totalWeeks}
+            onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+            disabled={currentPage >= totalPages - 1}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Weekly Calendar */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-        {DAYS_OF_WEEK.map((day, index) => {
-          const workout = getWorkoutForDay(index);
-          
-          return (
-            <Card key={index} className={`min-h-[200px] ${workout ? 'ring-1 ring-primary/20' : ''}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">{day}</CardTitle>
-                {workout && (
-                  <CardDescription className="text-xs">
-                    {format(parseISO(workout.scheduled_date), 'dd/MM')}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                {workout ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge 
-                        variant="outline" 
-                        className={getWorkoutTypeColor(workout.workout_type)}
-                      >
-                        {workout.workout_type}
-                      </Badge>
-                      <Checkbox
-                        checked={workout.is_completed}
-                        onCheckedChange={(checked) => 
-                          handleWorkoutToggle(workout, checked as boolean)
-                        }
-                      />
+      {/* Workouts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {currentWorkouts.map((workout) => (
+          <Card key={workout.id} className={`${workout.status === 'completed' ? 'ring-1 ring-green-500/20' : ''}`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                  {format(parseISO(workout.workout_date), 'dd/MM/yyyy')}
+                </CardTitle>
+                <Checkbox
+                  checked={workout.status === 'completed'}
+                  onCheckedChange={(checked) => 
+                    handleWorkoutToggle(workout, checked as boolean)
+                  }
+                />
+              </div>
+              <Badge 
+                variant="outline" 
+                className={getWorkoutTypeColor(workout.workout_type)}
+              >
+                {workout.workout_type}
+              </Badge>
+            </CardHeader>
+            
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-medium text-sm mb-1">{workout.title}</h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {workout.description}
+                  </p>
+                </div>
+                
+                <div className="space-y-1 text-xs">
+                  {workout.duration_minutes && (
+                    <div className="flex items-center space-x-1">
+                      <Timer className="h-3 w-3" />
+                      <span>{workout.duration_minutes} min</span>
                     </div>
-                    
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">{workout.workout_name}</h4>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {workout.description}
-                      </p>
+                  )}
+                  
+                  {workout.distance_meters && (
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="h-3 w-3" />
+                      <span>{(workout.distance_meters / 1000).toFixed(1)} km</span>
                     </div>
-                    
-                    <div className="space-y-1 text-xs">
-                      {workout.duration_minutes && (
-                        <div className="flex items-center space-x-1">
-                          <Timer className="h-3 w-3" />
-                          <span>{workout.duration_minutes} min</span>
-                        </div>
-                      )}
-                      
-                      {workout.distance_km && (
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="h-3 w-3" />
-                          <span>{workout.distance_km} km</span>
-                        </div>
-                      )}
-                      
-                      {workout.target_pace_min_km && (
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{workout.target_pace_min_km.toFixed(2)} min/km</span>
-                        </div>
-                      )}
-                      
-                      {workout.target_heart_rate_zone && (
-                        <div className="flex items-center space-x-1">
-                          <Heart className="h-3 w-3" />
-                          <span>Zona {workout.target_heart_rate_zone}</span>
-                        </div>
-                      )}
+                  )}
+                  
+                  {workout.target_pace_min_km && (
+                    <div className="flex items-center space-x-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{workout.target_pace_min_km.toFixed(2)} min/km</span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground">
-                    <p className="text-sm">Descanso</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                  )}
+                  
+                  {workout.target_hr_zone && (
+                    <div className="flex items-center space-x-1">
+                      <Heart className="h-3 w-3" />
+                      <span>Zona {workout.target_hr_zone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Week Summary */}
-      {weekWorkouts.length > 0 && (
+      {/* Summary */}
+      {workouts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Resumo da Semana</CardTitle>
+            <CardTitle>Resumo Geral</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Total de Treinos</p>
-                <p className="text-xl font-bold">{weekWorkouts.length}</p>
+                <p className="text-xl font-bold">{workouts.length}</p>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground">Completos</p>
                 <p className="text-xl font-bold text-green-600">
-                  {weekWorkouts.filter(w => w.is_completed).length}
+                  {workouts.filter(w => w.status === 'completed').length}
                 </p>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground">Distância Total</p>
                 <p className="text-xl font-bold">
-                  {weekWorkouts.reduce((sum, w) => sum + (w.distance_km || 0), 0).toFixed(1)} km
+                  {workouts.reduce((sum, w) => sum + ((w.distance_meters || 0) / 1000), 0).toFixed(1)} km
                 </p>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground">Tempo Total</p>
                 <p className="text-xl font-bold">
-                  {Math.round(weekWorkouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) / 60)}h
+                  {Math.round(workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) / 60)}h
                 </p>
               </div>
             </div>

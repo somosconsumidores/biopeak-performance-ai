@@ -12,7 +12,7 @@ interface PlanOverviewProps {
 }
 
 export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
-  const completedWorkouts = workouts.filter(w => w.is_completed).length;
+  const completedWorkouts = workouts.filter(w => w.status === 'completed').length;
   const totalWorkouts = workouts.length;
   const completionPercentage = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
 
@@ -24,8 +24,8 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
   const timeProgress = Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
 
   const upcomingWorkouts = workouts
-    .filter(w => !w.is_completed && parseISO(w.scheduled_date) >= today)
-    .sort((a, b) => parseISO(a.scheduled_date).getTime() - parseISO(b.scheduled_date).getTime())
+    .filter(w => w.status !== 'completed' && parseISO(w.workout_date) >= today)
+    .sort((a, b) => parseISO(a.workout_date).getTime() - parseISO(b.workout_date).getTime())
     .slice(0, 3);
 
   return (
@@ -173,15 +173,12 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
               {upcomingWorkouts.map((workout) => (
                 <div key={workout.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <h4 className="font-medium">{workout.workout_name}</h4>
+                    <h4 className="font-medium">{workout.title}</h4>
                     <p className="text-sm text-muted-foreground">{workout.workout_type}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium">
-                      {format(parseISO(workout.scheduled_date), 'dd/MM', { locale: ptBR })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Semana {workout.week_number}
+                      {format(parseISO(workout.workout_date), 'dd/MM', { locale: ptBR })}
                     </p>
                   </div>
                 </div>

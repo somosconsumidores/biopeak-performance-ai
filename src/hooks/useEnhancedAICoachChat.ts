@@ -62,18 +62,16 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
           targetEventDate: plan.target_event_date
         },
         workouts: workouts.map(w => ({
-          week: w.week_number,
-          day: w.day_of_week,
           type: w.workout_type,
-          name: w.workout_name,
+          name: w.title,
           description: w.description,
-          completed: w.is_completed,
-          scheduledDate: w.scheduled_date
+          completed: w.status === 'completed',
+          scheduledDate: w.workout_date
         })),
         progress: {
           totalWorkouts: workouts.length,
-          completedWorkouts: workouts.filter(w => w.is_completed).length,
-          completionRate: workouts.length > 0 ? (workouts.filter(w => w.is_completed).length / workouts.length) * 100 : 0
+          completedWorkouts: workouts.filter(w => w.status === 'completed').length,
+          completionRate: workouts.length > 0 ? (workouts.filter(w => w.status === 'completed').length / workouts.length) * 100 : 0
         }
       } : null;
 
