@@ -8,6 +8,7 @@ import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
 import { CalendarIcon, Trophy, X, AlertCircle } from 'lucide-react';
 import { format, differenceInWeeks, isBefore, addWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface RaceDateStepProps {
   wizardData: TrainingPlanWizardData;
@@ -173,7 +174,7 @@ export function RaceDateStep({ wizardData, updateWizardData }: RaceDateStepProps
                 onSelect={handleDateSelect}
                 disabled={(date) => date < new Date()}
                 initialFocus
-                className="pointer-events-auto mx-auto"
+                className={cn("p-3 pointer-events-auto mx-auto")}
               />
             </Card>
           )}
