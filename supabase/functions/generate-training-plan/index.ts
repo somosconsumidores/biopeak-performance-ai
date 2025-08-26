@@ -629,10 +629,37 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
           const openAIResult = await openaiRes.json();
           if (openAIResult.choices?.[0]?.message?.content) {
             const content = openAIResult.choices[0].message.content;
-            const cleaned = String(content).replace(/```json|```/gi, "").trim();
-            const match = cleaned.match(/\{[\s\S]*\}/);
-            const jsonStr = match ? match[0] : cleaned;
-            const rawPlan = JSON.parse(jsonStr);
+            
+            // Helpers to robustly extract and sanitize JSON from LLM output
+            const stripFences = (s: string) => s.replace(/```json|```/gi, "").trim();
+            const extractJsonBlock = (s: string) => {
+              const m = s.match(/\{[\s\S]*\}/);
+              return m ? m[0] : s;
+            };
+            const sanitizeJson = (s: string) =>
+              s
+                // remove // line comments
+                .replace(/(^|\s)\/\/.*$/gm, "")
+                // remove /* */ block comments
+                .replace(/\/\*[\s\S]*?\*\//g, "")
+                // normalize newlines
+                .replace(/\r\n/g, "\n")
+                // remove trailing commas before } or ]
+                .replace(/,(\s*[}\]])/g, "$1");
+
+            const cleaned = stripFences(String(content));
+            const jsonCandidate = extractJsonBlock(cleaned);
+            let rawPlan: any;
+            try {
+              rawPlan = JSON.parse(jsonCandidate);
+            } catch (e1) {
+              try {
+                rawPlan = JSON.parse(sanitizeJson(jsonCandidate));
+              } catch (e2) {
+                console.error("❌ OpenAI plan JSON parse failed twice. First:", (e1 as any)?.message, "Second:", (e2 as any)?.message);
+                throw e2;
+              }
+            }
             
             // SAFETY POST-PROCESSOR - Apply safety clamps to all generated workouts
             console.log("🛡️ Applying safety post-processor to OpenAI plan...");
