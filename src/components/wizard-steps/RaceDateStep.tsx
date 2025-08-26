@@ -172,7 +172,11 @@ export function RaceDateStep({ wizardData, updateWizardData }: RaceDateStepProps
                 mode="single"
                 selected={wizardData.raceDate}
                 onSelect={handleDateSelect}
-                disabled={(date) => date < new Date()}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today;
+                }}
                 initialFocus
                 className={cn("p-3 pointer-events-auto mx-auto")}
               />
