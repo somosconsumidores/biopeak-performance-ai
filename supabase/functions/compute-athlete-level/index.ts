@@ -18,15 +18,88 @@ function zscore(arr: number[]) {
   return { mean, std }
 }
 
-// Lightweight K-means implementation (k=4 by default)
-function kmeans(data: number[][], k = 4, maxIter = 50) {
+// Seeded RNG for deterministic behavior
+function seededRandom(seed = 1337) {
+  let x = seed >>> 0
+  return () => {
+    x ^= x << 13
+    x ^= x >>> 17
+    x ^= x << 5
+    // Map to [0,1)
+    return ((x >>> 0) % 1_000_000) / 1_000_000
+  }
+}
+
+// First principal component weights via power iteration on standardized data
+function computePC1Weights(X: number[][], maxIter = 100, tol = 1e-6) {
+  if (!X.length) return [1, 1, 1, 1].map((v, _, a) => 1 / Math.sqrt(a.length))
+  const dim = X[0].length
+  // Init weights slightly biased to distance to stabilize sign
+  let w = Array.from({ length: dim }, (_, i) => (i === 0 ? 1 : 0.5))
+  const normalize = (v: number[]) => {
+    const n = Math.hypot(...v) || 1
+    return v.map((x) => x / n)
+  }
+  w = normalize(w)
+
+  const XtXw = () => {
+    // t = X * w
+    const t = X.map((row) => row.reduce((s, v, i) => s + v * w[i], 0))
+    // w_next = (X^T * t) / n
+    const res = new Array(dim).fill(0)
+    for (let i = 0; i < X.length; i++) {
+      const ti = t[i]
+      for (let j = 0; j < dim; j++) res[j] += X[i][j] * ti
+    }
+    for (let j = 0; j < dim; j++) res[j] /= X.length
+    return res
+  }
+
+  for (let it = 0; it < maxIter; it++) {
+    const wNext = normalize(XtXw())
+    const diff = Math.hypot(...w.map((v, j) => v - wNext[j]))
+    w = wNext
+    if (diff < tol) break
+  }
+  // Ensure the direction aligns positively with weekly distance (feature 0)
+  if (w[0] < 0) w = w.map((v) => -v)
+  return w
+}
+
+// K-means with k-means++ initialization (seeded)
+function kmeans(data: number[][], k = 4, maxIter = 50, seed = 1337) {
   if (data.length === 0) return { centroids: [], labels: [] as number[] }
   const dim = data[0].length
-  // Init: pick first k unique points (deterministic for stability)
-  const centroids = data.slice(0, k).map((v) => v.slice())
-  let labels = new Array(data.length).fill(0)
+  const rand = seededRandom(seed)
 
   const dist2 = (a: number[], b: number[]) => a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0)
+
+  // k-means++ init
+  const centroids: number[][] = []
+  centroids.push(data[Math.floor(rand() * data.length)].slice())
+  while (centroids.length < k) {
+    const d2 = data.map((p) => {
+      let best = Infinity
+      for (const c of centroids) {
+        const d = dist2(p, c)
+        if (d < best) best = d
+      }
+      return best
+    })
+    const sum = d2.reduce((s, v) => s + v, 0) || 1
+    let r = rand() * sum
+    let idx = 0
+    for (let i = 0; i < d2.length; i++) {
+      r -= d2[i]
+      if (r <= 0) {
+        idx = i
+        break
+      }
+    }
+    centroids.push(data[idx].slice())
+  }
+
+  let labels = new Array(data.length).fill(0)
 
   for (let iter = 0; iter < maxIter; iter++) {
     // Assign
@@ -82,17 +155,29 @@ Deno.serve(async (req) => {
     const { user_id, lookback_days = 56 } = await req.json()
     if (!user_id) throw new Error('Missing user_id')
 
-    const since = new Date()
-    since.setDate(since.getDate() - Number(lookback_days))
-    const sinceStr = since.toISOString().split('T')[0]
+    // Adaptive lookback: try provided days, then extend to 120 and 180 if few recent runs for target user
+    let effectiveLookback = Math.min(Math.max(Number(lookback_days) || 56, 14), 180)
+    const candidates = Array.from(new Set([effectiveLookback, 120, 180]))
 
-    // Fetch last ~8 weeks of running activities across users (unified table)
-    const { data: acts, error: actsErr } = await supabase
-      .from('all_activities')
-      .select('user_id, activity_date, total_distance_meters, total_time_minutes, pace_min_per_km, activity_type')
-      .gte('activity_date', sinceStr)
+    let acts: any[] = []
+    for (const lb of candidates) {
+      const since = new Date()
+      since.setDate(since.getDate() - lb)
+      const sinceStr = since.toISOString().split('T')[0]
 
-    if (actsErr) throw actsErr
+      const { data, error } = await supabase
+        .from('all_activities')
+        .select('user_id, activity_date, total_distance_meters, total_time_minutes, pace_min_per_km, activity_type')
+        .gte('activity_date', sinceStr)
+
+      if (error) throw error
+      acts = data || []
+
+      const runActsProbe = acts.filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'))
+      const userRunCount = runActsProbe.filter((a: any) => a.user_id === user_id).length
+      effectiveLookback = lb
+      if (userRunCount >= 6 || lb === 180) break
+    }
 
     const runActs = (acts || []).filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'))
 
@@ -101,6 +186,7 @@ Deno.serve(async (req) => {
       totalTimeMin: number
       count: number
       bestPace3k?: number
+      bestPace1k?: number
     }
 
     const perUser = new Map<string, Acc>()
@@ -117,8 +203,13 @@ Deno.serve(async (req) => {
       acc.totalTimeMin += timeMin
       acc.count += 1
 
-      if (dist >= 3000 && timeMin >= 8 && isPaceValid(pace)) {
-        acc.bestPace3k = Math.min(acc.bestPace3k ?? Infinity, pace)
+      if (isPaceValid(pace)) {
+        if (dist >= 3000 && timeMin >= 8) {
+          acc.bestPace3k = Math.min(acc.bestPace3k ?? Infinity, pace)
+        }
+        if (dist >= 1000 && timeMin >= 4) {
+          acc.bestPace1k = Math.min(acc.bestPace1k ?? Infinity, pace)
+        }
       }
 
       perUser.set(uid, acc)
@@ -127,10 +218,10 @@ Deno.serve(async (req) => {
     // Build feature vectors per user (weekly averages)
     const rows: { uid: string; weeklyKm: number; weeklyFreq: number; weeklyMin: number; speedKmPerMin: number | null }[] = []
     for (const [uid, acc] of perUser.entries()) {
-      const weeklyKm = (acc.totalDist / 1000) / (lookback_days / 7)
-      const weeklyFreq = acc.count / (lookback_days / 7)
-      const weeklyMin = acc.totalTimeMin / (lookback_days / 7)
-      const speedKmPerMin = acc.bestPace3k ? 1 / acc.bestPace3k : null
+      const weeklyKm = (acc.totalDist / 1000) / (effectiveLookback / 7)
+      const weeklyFreq = acc.count / (effectiveLookback / 7)
+      const weeklyMin = acc.totalTimeMin / (effectiveLookback / 7)
+      const speedKmPerMin = acc.bestPace3k ? 1 / acc.bestPace3k : (acc.bestPace1k ? 1 / acc.bestPace1k : null)
       rows.push({ uid, weeklyKm, weeklyFreq, weeklyMin, speedKmPerMin })
     }
 
@@ -155,7 +246,9 @@ Deno.serve(async (req) => {
     const { centroids, labels } = kmeans(standardized, 4)
 
     // Order clusters by composite score (higher is better)
-    const composite = (v: number[]) => v[0] * 0.4 + v[1] * 0.2 + v[2] * 0.15 + v[3] * 0.25
+    // Data-driven composite via PCA (PC1)
+    const pc1 = computePC1Weights(standardized)
+    const composite = (v: number[]) => v.reduce((s, val, i) => s + val * pc1[i], 0)
     const clusterScores = centroids.map((c, idx) => ({ idx, score: composite(c) }))
     clusterScores.sort((a, b) => a.score - b.score) // ascending
     const rankToLabel = ['Beginner', 'Intermediate', 'Advanced', 'Elite'] as const
