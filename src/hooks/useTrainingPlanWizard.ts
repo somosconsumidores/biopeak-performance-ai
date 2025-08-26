@@ -1,0 +1,270 @@
+import { useState, useEffect } from 'react';
+import { useAthleteAnalysis } from './useAthleteAnalysis';
+import { useProfile } from './useProfile';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+import { addDays, format } from 'date-fns';
+
+export interface TrainingPlanWizardData {
+  // Step 1: Goal selection
+  goal: string;
+  goalDescription?: string;
+  
+  // Step 2: Athlete level confirmation/adjustment
+  athleteLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
+  adjustedLevel?: boolean;
+  
+  // Step 3: Birth date confirmation
+  birthDate?: Date;
+  
+  // Step 4: Gender collection
+  gender?: 'male' | 'female';
+  
+  // Step 5: Current time confirmation
+  estimatedTimes: {
+    k5?: string;
+    k10?: string;
+    k21?: string;
+    k42?: string;
+  };
+  adjustedTimes?: boolean;
+  
+  // Step 6: Weekly frequency
+  weeklyFrequency: number;
+  
+  // Step 7: Available days
+  availableDays: string[];
+  
+  // Step 8: Long run day preference
+  longRunDay: string;
+  
+  // Step 9: Start date
+  startDate: Date;
+  
+  // Step 10: Plan duration
+  planDurationWeeks: number;
+  
+  // Step 11: Race date (optional)
+  raceDate?: Date;
+  hasRaceDate: boolean;
+  
+  // Step 12: Summary and generation (no additional data)
+}
+
+const GOALS = [
+  { id: 'general_fitness', label: 'Condicionamento Físico Geral' },
+  { id: 'weight_loss', label: 'Perda de Peso' },
+  { id: '5k', label: 'Primeira Corrida de 5K' },
+  { id: '10k', label: 'Corrida de 10K' },
+  { id: 'half_marathon', label: 'Meia Maratona (21K)' },
+  { id: 'marathon', label: 'Maratona (42K)' },
+  { id: 'improve_times', label: 'Melhorar Tempos Atuais' },
+  { id: 'return_running', label: 'Retorno à Corrida' },
+  { id: 'maintenance', label: 'Manutenção da Forma' },
+];
+
+const DAYS_OF_WEEK = [
+  { id: 'monday', label: 'Segunda-feira' },
+  { id: 'tuesday', label: 'Terça-feira' },
+  { id: 'wednesday', label: 'Quarta-feira' },
+  { id: 'thursday', label: 'Quinta-feira' },
+  { id: 'friday', label: 'Sexta-feira' },
+  { id: 'saturday', label: 'Sábado' },
+  { id: 'sunday', label: 'Domingo' },
+];
+
+export function useTrainingPlanWizard() {
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const athleteAnalysis = useAthleteAnalysis();
+  
+  const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [wizardData, setWizardData] = useState<TrainingPlanWizardData>({
+    goal: '',
+    athleteLevel: 'Beginner',
+    estimatedTimes: {},
+    weeklyFrequency: 3,
+    availableDays: [],
+    longRunDay: 'sunday',
+    startDate: addDays(new Date(), 7), // Start next week by default
+    planDurationWeeks: 12,
+    hasRaceDate: false,
+  });
+
+  // Initialize data from athlete analysis and profile when available
+  useEffect(() => {
+    if (athleteAnalysis.level && !wizardData.adjustedLevel) {
+      setWizardData(prev => ({
+        ...prev,
+        athleteLevel: athleteAnalysis.level!,
+      }));
+    }
+  }, [athleteAnalysis.level, wizardData.adjustedLevel]);
+
+  useEffect(() => {
+    if (athleteAnalysis.raceEstimates && Object.keys(athleteAnalysis.raceEstimates).length > 0) {
+      setWizardData(prev => ({
+        ...prev,
+        estimatedTimes: {
+          k5: athleteAnalysis.raceEstimates.k5?.formatted,
+          k10: athleteAnalysis.raceEstimates.k10?.formatted,
+          k21: athleteAnalysis.raceEstimates.k21?.formatted,
+          k42: athleteAnalysis.raceEstimates.k42?.formatted,
+        },
+      }));
+    }
+  }, [athleteAnalysis.raceEstimates]);
+
+  useEffect(() => {
+    if (profile?.birth_date && !wizardData.birthDate) {
+      setWizardData(prev => ({
+        ...prev,
+        birthDate: new Date(profile.birth_date!),
+      }));
+    }
+  }, [profile, wizardData.birthDate]);
+
+  const totalSteps = 12;
+
+  const updateWizardData = (updates: Partial<TrainingPlanWizardData>) => {
+    setWizardData(prev => ({ ...prev, ...updates }));
+  };
+
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return !!wizardData.goal;
+      case 2:
+        return !!wizardData.athleteLevel;
+      case 3:
+        return !!wizardData.birthDate;
+      case 4:
+        return !!wizardData.gender;
+      case 5:
+        return true; // Times are optional/can be estimated
+      case 6:
+        return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
+      case 7:
+        return wizardData.availableDays.length >= wizardData.weeklyFrequency;
+      case 8:
+        return !!wizardData.longRunDay && wizardData.availableDays.includes(wizardData.longRunDay);
+      case 9:
+        return !!wizardData.startDate;
+      case 10:
+        return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
+      case 11:
+        return !wizardData.hasRaceDate || !!wizardData.raceDate;
+      case 12:
+        return true; // Summary step
+      default:
+        return false;
+    }
+  };
+
+  const generateTrainingPlan = async () => {
+    if (!user) return false;
+
+    setLoading(true);
+    try {
+      // First, update profile with any missing data
+      const profileUpdates: any = {};
+      if (wizardData.birthDate && !profile?.birth_date) {
+        profileUpdates.birth_date = format(wizardData.birthDate, 'yyyy-MM-dd');
+      }
+      if (wizardData.gender) {
+        profileUpdates.gender = wizardData.gender;
+      }
+
+      if (Object.keys(profileUpdates).length > 0) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('user_id', user.id);
+
+        if (profileError) {
+          console.error('Error updating profile:', profileError);
+        }
+      }
+
+      // Create training plan preferences
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('training_plan_preferences')
+        .insert({
+          user_id: user.id,
+          goal: wizardData.goal,
+          goal_description: wizardData.goalDescription,
+          athlete_level: wizardData.athleteLevel.toLowerCase(),
+          weekly_frequency: wizardData.weeklyFrequency,
+          available_days: wizardData.availableDays,
+          long_run_day: wizardData.longRunDay,
+          estimated_times: wizardData.estimatedTimes,
+          race_date: wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+        })
+        .select()
+        .single();
+
+      if (preferencesError) {
+        console.error('Error creating preferences:', preferencesError);
+        return false;
+      }
+
+      // Create the training plan
+      const { data: plan, error: planError } = await supabase
+        .from('training_plans')
+        .insert({
+          user_id: user.id,
+          title: `Plano de ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
+          description: `Plano personalizado para ${wizardData.athleteLevel.toLowerCase()} - ${wizardData.weeklyFrequency}x por semana`,
+          goal: wizardData.goal,
+          athlete_level: wizardData.athleteLevel.toLowerCase(),
+          start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+          end_date: format(addDays(wizardData.startDate, wizardData.planDurationWeeks * 7), 'yyyy-MM-dd'),
+          weekly_frequency: wizardData.weeklyFrequency,
+          status: 'pending_generation',
+        })
+        .select()
+        .single();
+
+      if (planError) {
+        console.error('Error creating plan:', planError);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error generating training plan:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    currentStep,
+    totalSteps,
+    wizardData,
+    loading,
+    athleteAnalysis,
+    profile,
+    goals: GOALS,
+    daysOfWeek: DAYS_OF_WEEK,
+    updateWizardData,
+    nextStep,
+    previousStep,
+    canProceed: canProceed(),
+    generateTrainingPlan,
+  };
+}
