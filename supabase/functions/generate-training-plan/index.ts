@@ -505,18 +505,22 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
               strict: true,
               schema: {
                 type: "object",
+                additionalProperties: false,
                 properties: {
                   plan_summary: {
                     type: "object",
+                    additionalProperties: false,
                     properties: {
                       periodization: { type: "array", items: { type: "string" } },
                       notes: { type: "string" }
-                    }
+                    },
+                    required: ["periodization", "notes"]
                   },
                   workouts: {
                     type: "array",
                     items: {
                       type: "object",
+                      additionalProperties: false,
                       properties: {
                         week: { type: "integer" },
                         weekday: { type: "string" },
