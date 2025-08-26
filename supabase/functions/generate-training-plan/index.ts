@@ -105,6 +105,35 @@ serve(async (req) => {
     const maxHrVals = runs.map((r: any) => Number(r.max_heart_rate)).filter((v) => Number.isFinite(v) && v > 0);
     const observedMaxHr = maxHrVals.length ? Math.max(...maxHrVals) : null;
 
+    // Calculate target paces based on best performance (Riegel formula)
+    const calculateTargetPaces = (bestPaceMinKm: number) => {
+      // Base time for best pace distance (assuming 5k for best pace)
+      const base5kTimeMin = bestPaceMinKm * 5;
+      
+      // Calculate target paces using Riegel formula: T2 = T1 * (D2/D1)^1.06
+      const riegel = (baseTimeMin: number, baseDistKm: number, targetDistKm: number) => {
+        return baseTimeMin * Math.pow(targetDistKm / baseDistKm, 1.06);
+      };
+
+      return {
+        pace_1500m: bestPaceMinKm * 0.95, // ~5% faster than 5k pace
+        pace_5k: bestPaceMinKm,
+        pace_10k: riegel(base5kTimeMin, 5, 10) / 10,
+        pace_half_marathon: riegel(base5kTimeMin, 5, 21.0975) / 21.0975,
+        pace_marathon: riegel(base5kTimeMin, 5, 42.195) / 42.195,
+        // Training paces
+        pace_easy: bestPaceMinKm * 1.15, // 15% slower than 5k
+        pace_tempo: riegel(base5kTimeMin, 5, 10) / 10, // ~10k pace
+        pace_threshold: bestPaceMinKm * 1.05, // Between 5k and 10k pace
+        pace_interval_400m: bestPaceMinKm * 0.90, // ~10% faster than 5k
+        pace_interval_800m: bestPaceMinKm * 0.95, // ~5% faster than 5k
+        pace_interval_1km: bestPaceMinKm, // ~5k pace
+        pace_interval_1mile: bestPaceMinKm * 1.02, // slightly slower than 5k
+      };
+    };
+
+    const targetPaces = bestPace ? calculateTargetPaces(bestPace) : null;
+
     // Weekly patterns
     const byWeek = new Map<string, { count: number; distance: number }>();
     runs.forEach((r: any) => {
@@ -144,65 +173,187 @@ serve(async (req) => {
         avg_weekly_frequency: avgWeeklyFrequency,
         avg_weekly_distance_km: avgWeeklyDistanceKm,
       },
+      targetPaces: targetPaces,
     };
 
     let aiPlan: any = null;
 
     if (!haveKey) {
-      console.log("⚠️ OPENAI_API_KEY not set. Using fallback template generation.");
-      // Simple deterministic generator: base/build/peak/taper with naive workouts
+      console.log("⚠️ OPENAI_API_KEY not set. Using enhanced fallback generation.");
+      
+      // Enhanced fallback with better workout distribution
+      const generateEnhancedFallback = () => {
+        const workouts: any[] = [];
+        const longDay = (prefs?.long_run_weekday ?? 6);
+        const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, prefs?.days_per_week ?? 4);
+        
+        for (let w = 1; w <= plan.weeks; w++) {
+          // Periodization phases
+          const phase = w <= plan.weeks * 0.4 ? 'base' : 
+                       w <= plan.weeks * 0.75 ? 'build' : 
+                       w <= plan.weeks * 0.9 ? 'peak' : 'taper';
+          
+          // Is recovery week (every 4th week)
+          const isRecoveryWeek = w % 4 === 0;
+          const volumeMultiplier = isRecoveryWeek ? 0.7 : 1.0;
+          
+          days.forEach((dow, i) => {
+            let workoutType: string;
+            let title: string;
+            let description: string;
+            let distance_km: number | null = null;
+            let duration_min: number | null = null;
+            let target_pace: string | null = null;
+            let hr_zone: number;
+            
+            if (dow === longDay) {
+              // Long run logic
+              workoutType = 'long_run';
+              const baseLongDistance = Math.min(10 + w * 0.8, 22);
+              distance_km = Math.round(baseLongDistance * volumeMultiplier);
+              
+              if (phase === 'build' || phase === 'peak') {
+                title = `Longão ${distance_km}km com bloco em ritmo de prova`;
+                description = `${distance_km}km total. Últimos 6-8km em ritmo de meia maratona (${targetPaces?.pace_half_marathon?.toFixed(2) || '5:30'}/km)`;
+                target_pace = targetPaces?.pace_half_marathon?.toFixed(2) || '5:30';
+              } else {
+                title = `Longão aeróbico ${distance_km}km`;
+                description = `Corrida contínua em ritmo confortável, zona 2`;
+                target_pace = targetPaces?.pace_easy?.toFixed(2) || '6:00';
+              }
+              hr_zone = 2;
+              
+            } else {
+              // Other workout types based on position and phase
+              const workoutIndex = i % 4;
+              
+              if (workoutIndex === 0 && phase !== 'base') {
+                // Interval workouts (more in build/peak phases)
+                workoutType = 'interval';
+                hr_zone = 4;
+                
+                const intervalTypes = [
+                  { name: '6x800m', duration: 30, pace: targetPaces?.pace_interval_800m, desc: 'rec 2min entre tiros' },
+                  { name: '5x1000m', duration: 35, pace: targetPaces?.pace_interval_1km, desc: 'rec 2min30s entre tiros' },
+                  { name: '8x400m', duration: 25, pace: targetPaces?.pace_interval_400m, desc: 'rec 90s entre tiros' },
+                  { name: '4x1600m', duration: 40, pace: targetPaces?.pace_interval_1km, desc: 'rec 3min entre tiros' },
+                ];
+                const interval = intervalTypes[w % intervalTypes.length];
+                
+                title = interval.name;
+                description = `Aquecimento 15min + ${interval.name} em ${interval.pace?.toFixed(2) || '4:30'}/km (${interval.desc}) + desaquecimento 10min`;
+                duration_min = interval.duration;
+                target_pace = interval.pace?.toFixed(2) || '4:30';
+                
+              } else if (workoutIndex === 1 && phase !== 'taper') {
+                // Tempo runs
+                workoutType = 'tempo';
+                hr_zone = 3;
+                const tempoDistance = Math.min(20 + w * 2, 45);
+                duration_min = Math.round(tempoDistance * volumeMultiplier);
+                
+                title = `Tempo run ${duration_min}min`;
+                description = `Aquecimento 15min + ${duration_min}min em ritmo de limiar (${targetPaces?.pace_tempo?.toFixed(2) || '4:50'}/km) + desaquecimento 10min`;
+                target_pace = targetPaces?.pace_tempo?.toFixed(2) || '4:50';
+                
+              } else {
+                // Easy/recovery runs
+                workoutType = w % 7 === 0 ? 'recovery' : 'easy';
+                hr_zone = workoutType === 'recovery' ? 1 : 2;
+                distance_km = Math.round((5 + w * 0.5) * volumeMultiplier);
+                
+                title = workoutType === 'recovery' ? `Recuperativo ${distance_km}km` : `Treino base ${distance_km}km`;
+                description = workoutType === 'recovery' ? 'Corrida muito leve, foco na recuperação' : 'Corrida aeróbica confortável';
+                target_pace = targetPaces?.pace_easy?.toFixed(2) || '5:45';
+              }
+            }
+            
+            workouts.push({
+              week: w,
+              weekday: Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || "saturday",
+              type: workoutType,
+              title,
+              description,
+              distance_km,
+              duration_min,
+              target_hr_zone: hr_zone,
+              target_pace_min_per_km: target_pace,
+              intensity: hr_zone >= 4 ? "high" : hr_zone === 3 ? "moderate" : "low",
+            });
+          });
+        }
+        
+        return workouts;
+      };
+      
       aiPlan = {
         plan_summary: {
           periodization: ["base", "build", "peak", "taper"],
+          notes: "Plano gerado automaticamente com foco em meia maratona"
         },
-        workouts: Array.from({ length: plan.weeks }).flatMap((_, idx) => {
-          const w = idx + 1;
-          const longDay = (prefs?.long_run_weekday ?? 6); // default Saturday
-          const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, prefs?.days_per_week ?? 4);
-          return days.map((dow, i) => ({
-            week: w,
-            weekday: Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || "saturday",
-            type: dow === longDay ? "long_run" : i % 3 === 0 ? "interval" : i % 2 === 0 ? "tempo" : "easy",
-            title: dow === longDay ? `Longão Semana ${w}` : `Treino ${i + 1} Semana ${w}`,
-            description: "Treino gerado automaticamente (fallback)",
-            distance_km: dow === longDay ? 10 + w : 5 + Math.floor(w / 2),
-            duration_min: null,
-            target_hr_zone: dow === longDay ? 2 : i % 3 === 0 ? 4 : 2,
-            target_pace_min_per_km: null,
-            intensity: dow === longDay ? "moderate" : i % 3 === 0 ? "high" : "low",
-          }));
-        }),
+        workouts: generateEnhancedFallback(),
       };
     } else {
-      const system = `Você é um treinador de corrida especializado. Gere um plano semanal detalhado com periodização (base→build→peak→taper) para ${plan.weeks} semanas, respeitando os dias disponíveis do atleta e preferindo o longão no dia configurado. Inclua treinos com tipo, título, descrição, duração ou distância, zona de FC e pace-alvo quando aplicável. Responda SOMENTE em JSON válido.`;
+      const system = `Você é um treinador de corrida especializado em MEIA MARATONA (21km). Crie um plano científico de ${plan.weeks} semanas com:
+
+DISTRIBUIÇÃO OBRIGATÓRIA POR SEMANA (use essas proporções):
+- 60% treinos aeróbicos base (easy/recovery) - ritmo easy/Z1-Z2
+- 25% longões progressivos - começando Z2, terminando últimos 30-40min em ritmo de prova
+- 10% intervalados variados - 400m, 800m, 1000m, 1600m, 2000m em diferentes paces
+- 5% tempo runs - ritmo de limiar/10k por 20-45min
+
+ESPECIFICIDADES PARA 21KM:
+- Pelo menos 3 longões de 16-20km com blocos em ritmo de meia maratona
+- Intervalos médios (1000-2000m) em ritmo de 10k-meia para especificidade
+- Progressões de carga com semanas de descarga a cada 3-4 semanas
+- Treinos de brick: longão + tempo final em ritmo de prova
+
+PACES OBRIGATÓRIOS (use os valores calculados em targetPaces):
+- Easy: pace_easy (recuperação ativa)
+- Tempo: pace_tempo (ritmo de limiar/10k) 
+- Intervalos 400m: pace_interval_400m
+- Intervalos 800m: pace_interval_800m
+- Intervalos 1km+: pace_interval_1km
+- Ritmo de prova 21k: pace_half_marathon
+
+PERIODIZAÇÃO INTELIGENTE:
+- Base (40%): volume aeróbico, técnica, adaptação
+- Build (35%): intensidade específica, longões com blocos
+- Peak (15%): picos de carga, simuladores de prova
+- Taper (10%): redução volume, manutenção intensidade
+
+Responda APENAS JSON válido com a estrutura exata solicitada.`;
 
       const userPrompt = {
         context,
         required_output_schema: {
           plan_summary: {
             periodization: ["base", "build", "peak", "taper"],
-            notes: "string (opcional)",
+            notes: "Plano científico para meia maratona com paces personalizados",
           },
           workouts: [
             {
               week: "1..N",
               weekday: "one of sunday,monday,tuesday,wednesday,thursday,friday,saturday",
-              type: "easy|long_run|interval|tempo|recovery|rest",
-              title: "string",
-              description: "string",
-              distance_km: "number|null",
-              duration_min: "number|null",
+              type: "easy|long_run|interval|tempo|recovery|race_pace_run",
+              title: "string - seja específico (ex: '6x800m em 3:20 + 2min rec')",
+              description: "string - detalhe série, pace, recuperação",
+              distance_km: "number|null - use para easy e long_run",
+              duration_min: "number|null - use para tempo e intervalos",
               target_hr_zone: "1..5|null",
-              target_pace_min_per_km: "string|min/km range|null",
+              target_pace_min_per_km: "string - pace específico do targetPaces (ex: '4:15')",
               intensity: "low|moderate|high",
+              specific_instructions: "detalhes da série, aquecimento, volta à calma"
             },
           ],
-          rules: [
-            "Use apenas dias da semana presentes em preferences.days_of_week",
-            "Garanta que long_run caia em preferences.long_run_weekday quando possível",
-            "Distribua a carga respeitando periodização e objetivo",
-            "Mantenha volume semanal compatível com histórico",
-            "Inclua dias de recuperação e/ou descanso",
+          critical_rules: [
+            "OBRIGATÓRIO: Use EXATAMENTE os paces de context.targetPaces",
+            "MÍNIMO 8 treinos intervalados variados no plano total",
+            "Longões SEMPRE com progressão ou blocos em ritmo específico",
+            "Semanas de descarga: reduzir 30% volume a cada 3-4 semanas",
+            "Últimas 3 semanas: 1 simulador de prova (15-18km com bloco final)",
+            "Variar intervalos: 400m, 800m, 1000m, 1600m, 2000m",
+            "Tempo runs: 20-45min em pace_tempo progressivamente"
           ],
         },
       };
@@ -254,6 +405,22 @@ serve(async (req) => {
       const date = getDateForWeekday(startDate, Number(w.week) || 1, weekdayIdx);
       const distance_meters = typeof w.distance_km === "number" ? Math.round(w.distance_km * 1000) : null;
       const duration_minutes = typeof w.duration_min === "number" ? w.duration_min : null;
+      
+      // Parse target pace from string format (e.g., "4:30" -> 4.5)
+      let target_pace_min_km: number | null = null;
+      if (w.target_pace_min_per_km) {
+        const paceStr = String(w.target_pace_min_per_km);
+        const paceMatch = paceStr.match(/(\d+):(\d+)/);
+        if (paceMatch) {
+          const minutes = parseInt(paceMatch[1]);
+          const seconds = parseInt(paceMatch[2]);
+          target_pace_min_km = minutes + seconds / 60;
+        } else {
+          // Try parsing as decimal
+          const paceNum = parseFloat(paceStr);
+          if (!isNaN(paceNum)) target_pace_min_km = paceNum;
+        }
+      }
 
       return {
         user_id: user.id,
@@ -262,7 +429,7 @@ serve(async (req) => {
         title: String(w.title || `${w.type} run`).slice(0, 120),
         description: w.description || null,
         workout_type: w.type || null,
-        target_pace_min_km: null, // store numeric later if needed
+        target_pace_min_km,
         target_hr_zone: w.target_hr_zone ? String(w.target_hr_zone) : null,
         distance_meters,
         duration_minutes,

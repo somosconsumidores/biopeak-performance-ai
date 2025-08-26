@@ -139,7 +139,9 @@ export function WeeklyPlanView({ plan, workouts }: WeeklyPlanViewProps) {
                   {workout.target_pace_min_km && (
                     <div className="flex items-center space-x-1">
                       <Clock className="h-3 w-3" />
-                      <span>{workout.target_pace_min_km.toFixed(2)} min/km</span>
+                      <span>
+                        {Math.floor(workout.target_pace_min_km)}:{String(Math.round((workout.target_pace_min_km % 1) * 60)).padStart(2, '0')} min/km
+                      </span>
                     </div>
                   )}
                   
