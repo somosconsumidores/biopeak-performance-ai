@@ -100,174 +100,139 @@ serve(async (req) => {
     // ================================
     
     class SafetyCalibrator {
-      private runs: any[];
-      private profile: any;
-      
+      runs: any[];
+      profile: any;
       constructor(runs: any[], profile: any) {
         this.runs = runs;
         this.profile = profile;
       }
-      
-      // Filter valid running data for pace analysis
-      private getValidRunData() {
+
+      public getValidRunData() {
         const now = new Date();
-        const cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // Last 90 days
-        
-        return this.runs.filter((run: any) => {
-          const pace = Number(run.pace_min_per_km);
-          const distance = Number(run.total_distance_meters || 0) / 1000;
-          const duration = Number(run.total_time_minutes || 0);
-          const activityDate = new Date(run.activity_date);
-          
-          // Safety filters: realistic paces and meaningful activities
+        const cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        return (this.runs || []).filter((r: any) => {
+          const pace = Number(r.pace_min_per_km);
+          const dist = Number(r.total_distance_meters || 0) / 1000;
+          const dur = Number(r.total_time_minutes || 0);
+          const date = new Date(r.activity_date);
           return (
-            pace > 0 && pace < 12 && // Pace between 1:00/km and 12:00/km (realistic range)
-            distance >= 2 && distance <= 50 && // Distance between 2km and 50km
-            duration >= 10 && // At least 10 minutes
-            activityDate >= cutoffDate && // Recent data
-            Number.isFinite(pace) &&
-            Number.isFinite(distance) &&
-            Number.isFinite(duration)
+            Number.isFinite(pace) && Number.isFinite(dist) && Number.isFinite(dur) &&
+            pace > 3 && pace < 12 &&
+            dist >= 2 &&
+            dur >= 10 &&
+            date >= cutoffDate
           );
         });
       }
-      
-      // Calculate safe baseline paces using conservative methods
-      private calculateSafeBaselines() {
-        const validRuns = this.getValidRunData();
-        
-        if (validRuns.length < 3) {
-          console.log("⚠️ Insufficient data - using conservative defaults");
-          return this.getConservativeDefaults();
-        }
-        
-        // Sort paces and use median-based approach for stability
-        const paces = validRuns.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
+
+      private calculateBaselines() {
+        const valid = this.getValidRunData();
+        if (!valid.length) return this.getDefaults();
+
+        const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort((a: number, b: number) => a - b);
+        const best = paces[0];
         const median = paces[Math.floor(paces.length / 2)];
-        const best = paces[0]; // Fastest pace
-        const p75 = paces[Math.floor(paces.length * 0.75)]; // 75th percentile (conservative baseline)
-        
-        console.log(`📊 Pace analysis: best=${best.toFixed(2)}, median=${median.toFixed(2)}, p75=${p75.toFixed(2)}`);
-        
-        // Use Riegel formula with conservative baseline (median rather than best)
-        const safeBasePace = median; // Use median for safety
-        const base5kTimeMin = safeBasePace * 5;
-        
-        const riegel = (baseTimeMin: number, baseDistKm: number, targetDistKm: number) => {
-          return baseTimeMin * Math.pow(targetDistKm / baseDistKm, 1.06);
-        };
-        
+        const p75 = paces[Math.floor(paces.length * 0.75)];
+
+        const base5kMin = median * 5;
+        const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
+
+        const pace_10k = riegel(base5kMin, 5, 10) / 10;
+        const pace_half_val = riegel(base5kMin, 5, 21.097) / 21.097;
+        const pace_marathon = riegel(base5kMin, 5, 42.195) / 42.195;
+
         return {
-          pace_5k: safeBasePace,
-          pace_10k: riegel(base5kTimeMin, 5, 10) / 10,
-          pace_half_marathon: riegel(base5kTimeMin, 5, 21.0975) / 21.0975,
-          pace_marathon: riegel(base5kTimeMin, 5, 42.195) / 42.195,
-          // Conservative training paces
-          pace_easy: Math.max(safeBasePace * 1.4, p75), // At least 40% slower or P75
-          pace_tempo: riegel(base5kTimeMin, 5, 10) / 10, // 10k pace for tempo
-          pace_threshold: safeBasePace * 1.15, // 15% slower than 5k
-          pace_interval_400m: Math.max(safeBasePace * 0.97, best), // Not faster than best observed
-          pace_interval_800m: safeBasePace * 1.02, // Slightly slower than 5k
-          pace_interval_1km: safeBasePace * 1.05, // 5% slower than 5k
+          pace_best: best,
+          pace_median: median,
+          pace_p75: p75,
+          pace_5k: median,
+          pace_10k,
+          pace_half: pace_half_val,
+          pace_marathon,
+
+          // Training zones
+          pace_easy: Math.max(median + 1.0, p75),
+          pace_long: Math.max(median + 0.7, p75),
+          pace_tempo: best + 0.35,
+          pace_interval_400m: best - 0.15,
+          pace_interval_800m: best,
+          pace_interval_1km: best + 0.10,
+
+          // Compatibility aliases with existing code
+          pace_half_marathon: pace_half_val,
         };
       }
-      
-      // Conservative defaults when insufficient data
-      private getConservativeDefaults() {
-        const age = this.profile?.birth_date ? 
-          Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 35;
-        
-        // Age-adjusted conservative paces for beginner-intermediate runners
-        const basePace = age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
-        
-        console.log(`⚠️ Using age-adjusted defaults (age: ${age}, base: ${basePace.toFixed(2)}/km)`);
-        
+
+      private getDefaults() {
+        const age = this.profile?.birth_date
+          ? Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
+          : 35;
+        const base = age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
         return {
-          pace_5k: basePace,
-          pace_10k: basePace * 1.08,
-          pace_half_marathon: basePace * 1.15,
-          pace_marathon: basePace * 1.25,
-          pace_easy: basePace * 1.5, // Very conservative for safety
-          pace_tempo: basePace * 1.08, // 10k pace
-          pace_threshold: basePace * 1.05,
-          pace_interval_400m: basePace * 0.98,
-          pace_interval_800m: basePace * 1.02,
-          pace_interval_1km: basePace * 1.05,
+          pace_best: base,
+          pace_median: base,
+          pace_p75: base + 0.5,
+          pace_5k: base,
+          pace_10k: base * 1.08,
+          pace_half: base * 1.15,
+          pace_marathon: base * 1.25,
+          pace_easy: base + 1.0,
+          pace_long: base + 0.7,
+          pace_tempo: base * 0.95,
+          pace_interval_400m: base * 0.9,
+          pace_interval_800m: base * 0.95,
+          pace_interval_1km: base,
+
+          // Compatibility alias
+          pace_half_marathon: base * 1.15,
         };
       }
-      
-      // Apply safety clamps to any pace
+
       public applySafetyClamps(type: string, pace: number, duration?: number): { pace: number; warnings: string[] } {
-        const baselines = this.calculateSafeBaselines();
+        const b = this.calculateBaselines();
+        let safe = pace;
         const warnings: string[] = [];
-        let safePace = pace;
-        
-        // Critical safety rules by workout type
-        switch (type.toLowerCase()) {
-          case 'easy':
-          case 'recovery':
-          case 'base':
-            // Easy runs must be significantly slower than threshold paces
-            const minEasyPace = Math.max(baselines.pace_10k + 0.45, baselines.pace_easy);
-            if (pace < minEasyPace) {
-              safePace = minEasyPace;
-              warnings.push(`⚠️ Easy pace adjusted from ${pace.toFixed(2)} to ${safePace.toFixed(2)} for safety`);
+
+        switch ((type || '').toLowerCase()) {
+          case "easy":
+          case "recovery": {
+            if (safe < b.pace_10k + 0.5) {
+              safe = b.pace_10k + 0.5;
+              warnings.push("Easy ajustado para manter Z2.");
             }
             break;
-            
-          case 'long_run':
-          case 'long':
-            // Long runs must be in aerobic zone (never faster than 10k pace)
-            const minLongPace = Math.max(baselines.pace_10k + 0.30, baselines.pace_easy);
-            if (pace < minLongPace) {
-              safePace = minLongPace;
-              warnings.push(`⚠️ Long run pace adjusted from ${pace.toFixed(2)} to ${safePace.toFixed(2)} for safety`);
+          }
+          case "long_run": {
+            if (safe < b.pace_10k + 0.4) {
+              safe = b.pace_10k + 0.4;
+              warnings.push("Long run ajustado para manter aeróbico.");
             }
             break;
-            
-          case 'tempo':
-          case 'threshold':
-            // Tempo runs should not be faster than 10k pace
-            const minTempoPace = baselines.pace_10k;
-            const maxTempoDuration = 45; // Max 45 minutes for tempo
-            
-            if (pace < minTempoPace) {
-              safePace = minTempoPace;
-              warnings.push(`⚠️ Tempo pace adjusted from ${pace.toFixed(2)} to ${safePace.toFixed(2)} - too fast for sustained effort`);
+          }
+          case "tempo": {
+            if (safe < b.pace_10k) {
+              safe = b.pace_10k;
+              warnings.push("Tempo não pode ser mais rápido que 10k.");
             }
-            
-            if (duration && duration > maxTempoDuration) {
-              warnings.push(`⚠️ Tempo duration ${duration}min exceeds safe limit of ${maxTempoDuration}min`);
+            if (duration && duration > 45) {
+              warnings.push("Tempo >45min não recomendado.");
             }
             break;
-            
-          case 'interval':
-            // Intervals should not be faster than best observed pace
-            const minIntervalPace = baselines.pace_interval_400m;
-            if (pace < minIntervalPace) {
-              safePace = minIntervalPace;
-              warnings.push(`⚠️ Interval pace adjusted from ${pace.toFixed(2)} to ${safePace.toFixed(2)} - exceeds current fitness`);
+          }
+          case "interval": {
+            if (safe < b.pace_best) {
+              safe = b.pace_best;
+              warnings.push("Intervalo não pode ser mais rápido que melhor pace observado.");
             }
             break;
+          }
         }
-        
-        // Universal safety bounds
-        if (safePace < 3.0) {
-          safePace = 3.0;
-          warnings.push(`🚨 CRITICAL: Pace was dangerously fast (<3:00/km), set to minimum safe pace`);
-        }
-        
-        if (safePace > 12.0) {
-          safePace = 8.0;
-          warnings.push(`⚠️ Pace was unrealistically slow (>12:00/km), adjusted to reasonable pace`);
-        }
-        
-        return { pace: safePace, warnings };
+
+        return { pace: safe, warnings };
       }
-      
-      // Get safe target paces for plan generation
+
       public getSafeTargetPaces() {
-        return this.calculateSafeBaselines();
+        return this.calculateBaselines();
       }
     }
     
