@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Send, MessageCircle, Trash2, Volume2, VolumeX } from 'lucide-react';
-import { useAICoachChat } from '@/hooks/useAICoachChat';
+import { useEnhancedAICoachChat } from '@/hooks/useEnhancedAICoachChat';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
 import { toast } from 'sonner';
 
 export const AICoachChat = () => {
-  const { messages, loading, error, sendMessage, clearMessages } = useAICoachChat();
+  const { messages, loading, error, sendMessage, clearMessages } = useEnhancedAICoachChat();
   const { speak, stop, isEnabled, isSpeaking, toggle: toggleTTS } = useEnhancedTTS();
   const [inputMessage, setInputMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);

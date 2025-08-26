@@ -28,8 +28,10 @@ import { RaceDateStep } from './wizard-steps/RaceDateStep';
 import { SummaryStep } from './wizard-steps/SummaryStep';
 
 interface TrainingPlanWizardProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  onComplete?: () => void;
 }
 
 const STEP_TITLES = [
@@ -62,7 +64,12 @@ const STEP_DESCRIPTIONS = [
   'Revise tudo antes de gerar seu plano personalizado'
 ];
 
-export function TrainingPlanWizard({ open, onOpenChange }: TrainingPlanWizardProps) {
+export function TrainingPlanWizard({ 
+  open = true, 
+  onOpenChange, 
+  onClose, 
+  onComplete 
+}: TrainingPlanWizardProps) {
   const {
     currentStep,
     totalSteps,
@@ -97,7 +104,9 @@ export function TrainingPlanWizard({ open, onOpenChange }: TrainingPlanWizardPro
         title: "Plano criado com sucesso! 🎉",
         description: "Seu plano de treino personalizado foi gerado e está sendo processado.",
       });
-      onOpenChange(false);
+      onOpenChange?.(false);
+      onClose?.();
+      onComplete?.();
     } else {
       toast({
         title: "Erro ao criar plano",
@@ -140,7 +149,10 @@ export function TrainingPlanWizard({ open, onOpenChange }: TrainingPlanWizardPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      onOpenChange?.(isOpen);
+      if (!isOpen) onClose?.();
+    }}>
       <DialogContent className="static-dialog w-[95vw] max-w-4xl max-h-[95vh] p-0 overflow-hidden">
         <div className="flex flex-col h-full">
           {/* Header */}

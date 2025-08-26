@@ -35,11 +35,53 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    const { message, conversationHistory = [] } = await req.json();
+    const { message, conversationHistory = [], trainingPlanContext } = await req.json();
 
-    console.log('🤖 AI Coach Chat: Processing message for user:', user.id);
+    console.log('🤖 AI Coach Chat: Processing message for user:', user.id, 'hasTrainingPlan:', !!trainingPlanContext);
 
-    // Fetch user's activity data for context
+    // Fetch user's active training plan if not provided in context
+    let planContext = trainingPlanContext;
+    if (!planContext) {
+      const { data: activePlan } = await supabase
+        .from('training_plans')
+        .select(`
+          *,
+          training_plan_workouts (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (activePlan) {
+        const workouts = activePlan.training_plan_workouts || [];
+        planContext = {
+          plan: {
+            name: activePlan.plan_name,
+            goal: activePlan.goal_type,
+            weeks: activePlan.weeks,
+            startDate: activePlan.start_date,
+            endDate: activePlan.end_date,
+            targetEventDate: activePlan.target_event_date
+          },
+          workouts: workouts.map((w: any) => ({
+            week: w.week_number,
+            day: w.day_of_week,
+            type: w.workout_type,
+            name: w.workout_name,
+            description: w.description,
+            completed: w.is_completed,
+            scheduledDate: w.scheduled_date
+          })),
+          progress: {
+            totalWorkouts: workouts.length,
+            completedWorkouts: workouts.filter((w: any) => w.is_completed).length,
+            completionRate: workouts.length > 0 ? (workouts.filter((w: any) => w.is_completed).length / workouts.length) * 100 : 0
+          }
+        };
+      }
+    }
     const { data: activities, error: activitiesError } = await supabase
       .from('all_activities')
       .select('*')
@@ -107,6 +149,25 @@ serve(async (req) => {
 Usuário: ${profile?.display_name || 'Atleta'}
 Membro desde: ${profile?.created_at ? new Date(profile.created_at).toLocaleDateString('pt-BR') : 'N/A'}
 
+${planContext ? `
+PLANO DE TREINO ATIVO:
+- Nome: ${planContext.plan.name}
+- Objetivo: ${planContext.plan.goal}
+- Duração: ${planContext.plan.weeks} semanas
+- Período: ${planContext.plan.startDate} até ${planContext.plan.endDate}
+${planContext.plan.targetEventDate ? `- Data da Prova: ${planContext.plan.targetEventDate}` : ''}
+
+PROGRESSO DO PLANO:
+- Total de treinos: ${planContext.progress.totalWorkouts}
+- Treinos completos: ${planContext.progress.completedWorkouts}
+- Taxa de conclusão: ${planContext.progress.completionRate.toFixed(1)}%
+
+PRÓXIMOS TREINOS:
+${planContext.workouts.filter((w: any) => !w.completed).slice(0, 3).map((w: any) => 
+  `- Semana ${w.week}, ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][w.day]}: ${w.name} (${w.type})`
+).join('\n')}
+` : ''}
+
 Resumo de Atividades (últimas 50):
 - Total de atividades: ${activitySummary?.totalActivities || 0}
 - Distância total: ${activitySummary?.totalDistance ? (activitySummary.totalDistance / 1000).toFixed(1) + ' km' : 'N/A'}
@@ -140,6 +201,7 @@ SUAS RESPONSABILIDADES:
 3. Identificar padrões e tendências de performance
 4. Sugerir melhorias e ajustes no treino
 5. Responder perguntas sobre performance e treino
+${planContext ? '6. Dar conselhos específicos sobre o plano de treino ativo\n7. Motivar baseado no progresso do plano\n8. Sugerir ajustes no plano quando necessário' : ''}
 
 REGRAS:
 - Sempre use os dados reais do usuário para personalizar respostas
@@ -196,7 +258,8 @@ ESPECIALIDADES:
 
     return new Response(JSON.stringify({ 
       response: aiResponse,
-      userContext: activitySummary 
+      userContext: activitySummary,
+      hasTrainingPlan: !!planContext
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
