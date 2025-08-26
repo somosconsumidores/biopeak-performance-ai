@@ -624,7 +624,7 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
         };
       }
 
-      } else {
+       else {
         try {
           const openAIResult = await openaiRes.json();
           if (openAIResult.choices?.[0]?.message?.content) {
