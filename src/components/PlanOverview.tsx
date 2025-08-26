@@ -156,6 +156,27 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
               </p>
             </div>
           )}
+
+          {(plan.target_time_minutes_min || plan.target_time_minutes_max) && (
+            <div className="md:col-span-2">
+              <h4 className="font-medium mb-2">Tempo Alvo Esperado</h4>
+              <div className="flex items-center space-x-2">
+                {plan.target_time_minutes_min && plan.target_time_minutes_max ? (
+                  <Badge variant="outline" className="text-sm">
+                    {Math.floor(plan.target_time_minutes_min / 60)}h{String(plan.target_time_minutes_min % 60).padStart(2, '0')}min - {Math.floor(plan.target_time_minutes_max / 60)}h{String(plan.target_time_minutes_max % 60).padStart(2, '0')}min
+                  </Badge>
+                ) : plan.target_time_minutes_min ? (
+                  <Badge variant="outline" className="text-sm">
+                    Melhor que {Math.floor(plan.target_time_minutes_min / 60)}h{String(plan.target_time_minutes_min % 60).padStart(2, '0')}min
+                  </Badge>
+                ) : plan.target_time_minutes_max ? (
+                  <Badge variant="outline" className="text-sm">
+                    Até {Math.floor(plan.target_time_minutes_max / 60)}h{String(plan.target_time_minutes_max % 60).padStart(2, '0')}min
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

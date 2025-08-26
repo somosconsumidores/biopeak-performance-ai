@@ -11,6 +11,8 @@ export interface TrainingPlan {
   weeks: number;
   status: string;
   target_event_date?: string;
+  target_time_minutes_min?: number;
+  target_time_minutes_max?: number;
   created_at: string;
 }
 
@@ -41,6 +43,7 @@ interface UseActiveTrainingPlanReturn {
   refreshPlan: () => Promise<void>;
   markWorkoutCompleted: (workoutId: string, activityId?: string, activitySource?: string) => Promise<void>;
   markWorkoutPlanned: (workoutId: string) => Promise<void>;
+  deletePlan: () => Promise<void>;
 }
 
 export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
@@ -145,6 +148,26 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     }
   };
 
+  const deletePlan = async () => {
+    if (!plan) return;
+    
+    try {
+      const { error } = await supabase
+        .from('training_plans')
+        .update({ status: 'deleted' })
+        .eq('id', plan.id);
+
+      if (error) throw error;
+
+      // Clear local state
+      setPlan(null);
+      setWorkouts([]);
+    } catch (err) {
+      console.error('Error deleting plan:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete plan');
+    }
+  };
+
   const refreshPlan = async () => {
     await fetchActivePlan();
   };
@@ -161,5 +184,6 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     refreshPlan,
     markWorkoutCompleted,
     markWorkoutPlanned,
+    deletePlan,
   };
 };

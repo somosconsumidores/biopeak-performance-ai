@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
 import { WeeklyPlanView } from '@/components/WeeklyPlanView';
+import { WeeklyGroupedView } from '@/components/WeeklyGroupedView';
 import { PlanOverview } from '@/components/PlanOverview';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Target, TrendingUp } from 'lucide-react';
+import { Plus, Calendar, Target, TrendingUp, Trash2 } from 'lucide-react';
 import { ScrollReveal } from '@/components/ScrollReveal';
 
 export default function TrainingPlan() {
-  const { plan, workouts, loading, error, refreshPlan } = useActiveTrainingPlan();
+  const { plan, workouts, loading, error, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const [showWizard, setShowWizard] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (loading) {
     return (
@@ -119,21 +121,48 @@ export default function TrainingPlan() {
     <div className="container mx-auto px-4 py-8">
       <ScrollReveal>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{plan.plan_name}</h1>
-          <p className="text-muted-foreground">
-            Plano ativo • {plan.weeks} semanas • Objetivo: {plan.goal_type}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{plan.plan_name}</h1>
+              <p className="text-muted-foreground">
+                Plano ativo • {plan.weeks} semanas • Objetivo: {plan.goal_type}
+              </p>
+            </div>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  await deletePlan();
+                } catch (error) {
+                  console.error('Erro ao deletar plano:', error);
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {isDeleting ? 'Deletando...' : 'Deletar Plano'}
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="upcoming">Próximos Treinos</TabsTrigger>
             <TabsTrigger value="weekly">Plano Semanal</TabsTrigger>
             <TabsTrigger value="progress">Progresso</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
             <PlanOverview plan={plan} workouts={workouts} />
+          </TabsContent>
+
+          <TabsContent value="upcoming">
+            <WeeklyGroupedView workouts={workouts} />
           </TabsContent>
 
           <TabsContent value="weekly">
