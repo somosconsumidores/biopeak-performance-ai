@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       'moving'
     ].join(',');
 
-    const stravaResponse = await fetch(
+    let stravaResponse = await fetch(
       `https://www.strava.com/api/v3/activities/${activity_id}/streams?keys=${streamKeys}&key_by_type=true`,
       {
         headers: {
@@ -88,6 +88,28 @@ Deno.serve(async (req) => {
         },
       }
     );
+
+    // If unauthorized, try a one-time token refresh and retry
+    if (stravaResponse.status === 401) {
+      try {
+        const refreshResp = await supabase.functions.invoke('strava-token-refresh', {
+          body: { user_id: currentUserId },
+        });
+        if (!refreshResp.error && refreshResp.data?.access_token) {
+          stravaAccessToken = refreshResp.data.access_token;
+          stravaResponse = await fetch(
+            `https://www.strava.com/api/v3/activities/${activity_id}/streams?keys=${streamKeys}&key_by_type=true`,
+            {
+              headers: {
+                'Authorization': `Bearer ${stravaAccessToken}`,
+              },
+            }
+          );
+        }
+      } catch (e) {
+        console.warn('Token refresh attempt failed while fetching streams:', e);
+      }
+    }
 
     if (!stravaResponse.ok) {
       const errorText = await stravaResponse.text();
