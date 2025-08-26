@@ -4,6 +4,7 @@ import { useProfile } from './useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { addDays, format } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface TrainingPlanWizardData {
   // Step 1: Goal selection
@@ -201,9 +202,11 @@ export function useTrainingPlanWizard() {
 
       // Create the training plan first (required for preferences foreign key)
       const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
-      const { data: plan, error: planError } = await supabase
+      const planId = uuidv4();
+      const { error: planError } = await supabase
         .from('training_plans')
         .insert({
+          id: planId,
           user_id: user.id,
           plan_name: `Plano ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
           goal_type: wizardData.goal,
@@ -212,11 +215,9 @@ export function useTrainingPlanWizard() {
           weeks: wizardData.planDurationWeeks,
           status: 'draft',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
-        })
-        .select()
-        .single();
+        });
 
-      if (planError || !plan) {
+      if (planError) {
         console.error('Error creating plan:', planError);
         return false;
       }
@@ -230,7 +231,7 @@ export function useTrainingPlanWizard() {
         .from('training_plan_preferences')
         .insert({
           user_id: user.id,
-          plan_id: plan.id,
+          plan_id: planId,
           days_per_week: wizardData.weeklyFrequency,
           days_of_week: daysArray,
           long_run_weekday: longRunIdx,
@@ -244,9 +245,9 @@ export function useTrainingPlanWizard() {
       }
 
       // Trigger Edge Function to generate the detailed plan
-      console.log('Calling generate-training-plan with plan_id:', plan.id);
+      console.log('Calling generate-training-plan with plan_id:', planId);
       const { data: fnResult, error: fnError } = await supabase.functions.invoke('generate-training-plan', {
-        body: { plan_id: plan.id },
+        body: { plan_id: planId },
       });
       
       if (fnError) {
