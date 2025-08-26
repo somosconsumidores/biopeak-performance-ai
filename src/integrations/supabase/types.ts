@@ -3070,6 +3070,7 @@ export type Database = {
       training_plans: {
         Row: {
           created_at: string
+          deleted_at: string | null
           end_date: string | null
           generated_at: string | null
           goal_type: string
@@ -3078,12 +3079,15 @@ export type Database = {
           start_date: string
           status: string
           target_event_date: string | null
+          target_time_minutes_max: number | null
+          target_time_minutes_min: number | null
           updated_at: string
           user_id: string
           weeks: number
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           end_date?: string | null
           generated_at?: string | null
           goal_type: string
@@ -3092,12 +3096,15 @@ export type Database = {
           start_date: string
           status?: string
           target_event_date?: string | null
+          target_time_minutes_max?: number | null
+          target_time_minutes_min?: number | null
           updated_at?: string
           user_id: string
           weeks: number
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           end_date?: string | null
           generated_at?: string | null
           goal_type?: string
@@ -3106,6 +3113,8 @@ export type Database = {
           start_date?: string
           status?: string
           target_event_date?: string | null
+          target_time_minutes_max?: number | null
+          target_time_minutes_min?: number | null
           updated_at?: string
           user_id?: string
           weeks?: number
