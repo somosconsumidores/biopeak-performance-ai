@@ -244,14 +244,27 @@ export function useTrainingPlanWizard() {
       }
 
       // Trigger Edge Function to generate the detailed plan
-      const { error: fnError } = await supabase.functions.invoke('generate-training-plan', {
+      console.log('Calling generate-training-plan with plan_id:', plan.id);
+      const { data: fnResult, error: fnError } = await supabase.functions.invoke('generate-training-plan', {
         body: { plan_id: plan.id },
       });
+      
       if (fnError) {
         console.error('Error invoking generate-training-plan:', fnError);
-        // Even if function fails, the plan exists; return false to show error
+        console.error('Function error details:', {
+          message: fnError.message,
+          context: fnError.context,
+          details: fnError.details
+        });
         return false;
       }
+      
+      if (fnResult && !fnResult.ok) {
+        console.error('Function returned error:', fnResult.error);
+        return false;
+      }
+      
+      console.log('Training plan generated successfully:', fnResult);
 
       return true;
     } catch (error) {
