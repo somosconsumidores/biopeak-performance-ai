@@ -86,14 +86,28 @@ export function useAthleteAnalysis(daysLookback: number = 180): AthleteAnalysisR
         (a.activity_type || "").toLowerCase().includes("run")
       );
 
-      // Compute basic stats
-      const validPaces = runs
-        .map((r) => Number(r.pace_min_per_km))
-        .filter((v) => Number.isFinite(v) && v > 0);
-      const bestPace = validPaces.length ? Math.min(...validPaces) : undefined;
-      const avgPace = validPaces.length
-        ? validPaces.reduce((s, v) => s + v, 0) / validPaces.length
-        : undefined;
+      // Compute sustained pace with distance/time thresholds and anomaly filtering
+      const isPaceValid = (p: number) => Number.isFinite(p) && p >= 2.5 && p <= 12;
+      const runsWithMetrics = runs.map((r) => ({
+        dist: Number(r.total_distance_meters || 0),
+        timeMin: Number(r.total_time_minutes || 0),
+        pace: Number(r.pace_min_per_km),
+      }));
+
+      const candidates5k = runsWithMetrics.filter((r) => r.dist >= 5000 && r.timeMin >= 10 && isPaceValid(r.pace));
+      const candidates3k = runsWithMetrics.filter((r) => r.dist >= 3000 && r.timeMin >= 8 && isPaceValid(r.pace));
+      const candidates1_5k = runsWithMetrics.filter((r) => r.dist >= 1500 && r.timeMin >= 8 && isPaceValid(r.pace));
+      const pickBestPace = (arr: typeof runsWithMetrics) => (arr.length ? Math.min(...arr.map((a) => a.pace)) : undefined);
+
+      const sustainedBestPace =
+        pickBestPace(candidates5k) ?? pickBestPace(candidates3k) ?? pickBestPace(candidates1_5k);
+
+      const validPaces = runsWithMetrics.map((r) => r.pace).filter(isPaceValid);
+      const avgPace = validPaces.length ? validPaces.reduce((s, v) => s + v, 0) / validPaces.length : undefined;
+
+      const top3 = [...validPaces].sort((a, b) => a - b).slice(0, 3);
+      const bestPace =
+        sustainedBestPace ?? (top3.length ? top3[Math.floor((top3.length - 1) / 2)] : undefined);
 
       const hrVals = runs
         .map((r) => Number(r.average_heart_rate))
@@ -164,19 +178,32 @@ export function useAthleteAnalysis(daysLookback: number = 180): AthleteAnalysisR
         setRace({});
       }
 
-      // Athlete level classification
-      const fiveK = base5kTimeSec;
-      let computedLevel: AthleteLevel = "Beginner";
-      if ((avgWeeklyDistanceKm || 0) >= 70 || (fiveK || 999999) < 18 * 60) {
-        computedLevel = "Elite";
-      } else if ((avgWeeklyDistanceKm || 0) >= 40 || (avgWeeklyFrequency || 0) >= 4 || (fiveK || 999999) < 22 * 60) {
-        computedLevel = "Advanced";
-      } else if ((avgWeeklyDistanceKm || 0) >= 15 || (avgWeeklyFrequency || 0) >= 3) {
-        computedLevel = "Intermediate";
-      } else {
-        computedLevel = "Beginner";
+      // Athlete level classification via Edge Function (unsupervised) with fallback
+      try {
+        const { data: levelRes, error: levelErr } = await supabase.functions.invoke(
+          'compute-athlete-level',
+          { body: { user_id: user.id, lookback_days: 56 } }
+        );
+        if (levelErr) throw levelErr;
+        if (levelRes?.level) {
+          setLevel(levelRes.level as AthleteLevel);
+        } else {
+          throw new Error('No level returned');
+        }
+      } catch (_) {
+        const fiveK = base5kTimeSec;
+        let computedLevel: AthleteLevel = "Beginner";
+        if ((avgWeeklyDistanceKm || 0) >= 70 || (fiveK || 999999) < 18 * 60) {
+          computedLevel = "Elite";
+        } else if ((avgWeeklyDistanceKm || 0) >= 40 || (avgWeeklyFrequency || 0) >= 4 || (fiveK || 999999) < 22 * 60) {
+          computedLevel = "Advanced";
+        } else if ((avgWeeklyDistanceKm || 0) >= 15 || (avgWeeklyFrequency || 0) >= 3) {
+          computedLevel = "Intermediate";
+        } else {
+          computedLevel = "Beginner";
+        }
+        setLevel(computedLevel);
       }
-      setLevel(computedLevel);
 
       // Suggested Max HR: Tanaka 208 - 0.7*age, adjusted by observed
       const { data: profile, error: profErr } = await supabase

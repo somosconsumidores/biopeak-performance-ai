@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.build-activity-chart-from-strava-streams]
 verify_jwt = true
+
+[functions.compute-athlete-level]
+verify_jwt = true
