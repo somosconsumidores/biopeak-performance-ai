@@ -130,11 +130,12 @@ serve(async (req) => {
         if (!valid.length) return this.getDefaults();
 
         const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort((a: number, b: number) => a - b);
-        const best = paces[0];
-        const median = paces[Math.floor(paces.length / 2)];
-        const p75 = paces[Math.floor(paces.length * 0.75)];
+        const best = paces[0];                                   // Melhor pace observado
+        const median = paces[Math.floor(paces.length / 2)];      // Mediana
+        const p75 = paces[Math.floor(paces.length * 0.75)];      // Percentil 75 (mais lento)
 
-        const base5kMin = median * 5;
+        // ---- Previsão de provas (usando BEST) ----
+        const base5kMin = best * 5;
         const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
 
         const pace_10k = riegel(base5kMin, 5, 10) / 10;
@@ -142,23 +143,26 @@ serve(async (req) => {
         const pace_marathon = riegel(base5kMin, 5, 42.195) / 42.195;
 
         return {
+          // Estatísticas de referência
           pace_best: best,
           pace_median: median,
           pace_p75: p75,
-          pace_5k: median,
+
+          // Previsão de provas
+          pace_5k: best,
           pace_10k,
           pace_half: pace_half_val,
           pace_marathon,
 
-          // Training zones
+          // Zonas de treino (usando median + p75 para segurança)
           pace_easy: Math.max(median + 1.0, p75),
           pace_long: Math.max(median + 0.7, p75),
-          pace_tempo: best + 0.35,
-          pace_interval_400m: best - 0.15,
+          pace_tempo: best + 0.35,             // ~20-30s mais lento que best
+          pace_interval_400m: best - 0.15,     // ~10s mais rápido que best
           pace_interval_800m: best,
           pace_interval_1km: best + 0.10,
 
-          // Compatibility aliases with existing code
+          // Alias de compatibilidade
           pace_half_marathon: pace_half_val,
         };
       }
@@ -182,8 +186,6 @@ serve(async (req) => {
           pace_interval_400m: base * 0.9,
           pace_interval_800m: base * 0.95,
           pace_interval_1km: base,
-
-          // Compatibility alias
           pace_half_marathon: base * 1.15,
         };
       }
@@ -195,21 +197,19 @@ serve(async (req) => {
 
         switch ((type || '').toLowerCase()) {
           case "easy":
-          case "recovery": {
+          case "recovery":
             if (safe < b.pace_10k + 0.5) {
               safe = b.pace_10k + 0.5;
               warnings.push("Easy ajustado para manter Z2.");
             }
             break;
-          }
-          case "long_run": {
+          case "long_run":
             if (safe < b.pace_10k + 0.4) {
               safe = b.pace_10k + 0.4;
               warnings.push("Long run ajustado para manter aeróbico.");
             }
             break;
-          }
-          case "tempo": {
+          case "tempo":
             if (safe < b.pace_10k) {
               safe = b.pace_10k;
               warnings.push("Tempo não pode ser mais rápido que 10k.");
@@ -218,14 +218,12 @@ serve(async (req) => {
               warnings.push("Tempo >45min não recomendado.");
             }
             break;
-          }
-          case "interval": {
+          case "interval":
             if (safe < b.pace_best) {
               safe = b.pace_best;
               warnings.push("Intervalo não pode ser mais rápido que melhor pace observado.");
             }
             break;
-          }
         }
 
         return { pace: safe, warnings };
