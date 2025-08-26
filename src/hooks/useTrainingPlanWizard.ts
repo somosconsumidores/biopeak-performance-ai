@@ -240,8 +240,8 @@ export function useTrainingPlanWizard() {
         });
 
       if (preferencesError) {
-        console.error('Error creating preferences:', preferencesError);
-        return false;
+        console.error('Error creating preferences (will continue with defaults):', preferencesError);
+        // Do not block plan generation if preferences fail; function uses sensible defaults
       }
 
       // Trigger Edge Function to generate the detailed plan

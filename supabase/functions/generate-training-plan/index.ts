@@ -379,7 +379,90 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
       if (!openaiRes.ok) {
         const txt = await openaiRes.text();
         console.error("OpenAI error:", txt);
-        throw new Error("Failed to generate plan with OpenAI");
+        console.log("⚠️ Falling back to enhanced generator due to OpenAI failure.");
+        const generateFallback = () => {
+          const workouts: any[] = [];
+          const longDay = (prefs?.long_run_weekday ?? 6);
+          const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, (prefs?.days_per_week ?? 4));
+          for (let w = 1; w <= plan.weeks; w++) {
+            const phase = w <= plan.weeks * 0.4 ? 'base' : w <= plan.weeks * 0.75 ? 'build' : w <= plan.weeks * 0.9 ? 'peak' : 'taper';
+            const isRecoveryWeek = w % 4 === 0;
+            const volumeMultiplier = isRecoveryWeek ? 0.7 : 1.0;
+            days.forEach((dow, i) => {
+              let workoutType: string;
+              let title: string;
+              let description: string;
+              let distance_km: number | null = null;
+              let duration_min: number | null = null;
+              let target_pace: string | null = null;
+              let hr_zone: number;
+              if (dow === longDay) {
+                workoutType = 'long_run';
+                const baseLongDistance = Math.min(10 + w * 0.8, 22);
+                distance_km = Math.round(baseLongDistance * volumeMultiplier);
+                if (phase === 'build' || phase === 'peak') {
+                  title = `Longão ${distance_km}km com bloco em ritmo de prova`;
+                  description = `${distance_km}km total. Últimos 6-8km em ritmo de meia maratona (${targetPaces?.pace_half_marathon?.toFixed(2) || '5:30'}/km)`;
+                  target_pace = targetPaces?.pace_half_marathon?.toFixed(2) || '5:30';
+                } else {
+                  title = `Longão aeróbico ${distance_km}km`;
+                  description = `Corrida contínua em ritmo confortável, zona 2`;
+                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '6:00';
+                }
+                hr_zone = 2;
+              } else {
+                const workoutIndex = i % 4;
+                if (workoutIndex === 0 && phase !== 'base') {
+                  workoutType = 'interval';
+                  hr_zone = 4;
+                  const intervalTypes = [
+                    { name: '6x800m', duration: 30, pace: targetPaces?.pace_interval_800m, desc: 'rec 2min entre tiros' },
+                    { name: '5x1000m', duration: 35, pace: targetPaces?.pace_interval_1km, desc: 'rec 2min30s entre tiros' },
+                    { name: '8x400m', duration: 25, pace: targetPaces?.pace_interval_400m, desc: 'rec 90s entre tiros' },
+                    { name: '4x1600m', duration: 40, pace: targetPaces?.pace_interval_1km, desc: 'rec 3min entre tiros' },
+                  ];
+                  const interval = intervalTypes[w % intervalTypes.length];
+                  title = interval.name;
+                  description = `Aquecimento 15min + ${interval.name} em ${interval.pace?.toFixed(2) || '4:30'}/km (${interval.desc}) + desaquecimento 10min`;
+                  duration_min = interval.duration;
+                  target_pace = interval.pace?.toFixed(2) || '4:30';
+                } else if (workoutIndex === 1 && phase !== 'taper') {
+                  workoutType = 'tempo';
+                  hr_zone = 3;
+                  const tempoDistance = Math.min(20 + w * 2, 45);
+                  duration_min = Math.round(tempoDistance * volumeMultiplier);
+                  title = `Tempo run ${duration_min}min`;
+                  description = `Aquecimento 15min + ${duration_min}min em ritmo de limiar (${targetPaces?.pace_tempo?.toFixed(2) || '4:50'}/km) + desaquecimento 10min`;
+                  target_pace = targetPaces?.pace_tempo?.toFixed(2) || '4:50';
+                } else {
+                  workoutType = w % 7 === 0 ? 'recovery' : 'easy';
+                  hr_zone = workoutType === 'recovery' ? 1 : 2;
+                  distance_km = Math.round((5 + w * 0.5) * volumeMultiplier);
+                  title = workoutType === 'recovery' ? `Recuperativo ${distance_km}km` : `Treino base ${distance_km}km`;
+                  description = workoutType === 'recovery' ? 'Corrida muito leve, foco na recuperação' : 'Corrida aeróbica confortável';
+                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '5:45';
+                }
+              }
+              workouts.push({
+                week: w,
+                weekday: Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday',
+                type: workoutType,
+                title,
+                description,
+                distance_km,
+                duration_min,
+                target_hr_zone: hr_zone,
+                target_pace_min_per_km: target_pace,
+                intensity: hr_zone >= 4 ? 'high' : hr_zone === 3 ? 'moderate' : 'low',
+              });
+            });
+          }
+          return workouts;
+        };
+        aiPlan = {
+          plan_summary: { periodization: ['base','build','peak','taper'], notes: 'Plano fallback (OpenAI indisponível)' },
+          workouts: generateFallback(),
+        };
       }
 
       const openaiJson = await openaiRes.json();
@@ -392,7 +475,90 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
         console.log("✅ AI plan parsed");
       } catch (e) {
         console.error("JSON parse error", e);
-        throw new Error("Invalid JSON from OpenAI");
+        console.log("⚠️ Falling back to enhanced generator due to invalid JSON.");
+        const generateFallback = () => {
+          const workouts: any[] = [];
+          const longDay = (prefs?.long_run_weekday ?? 6);
+          const days = (prefs?.days_of_week ?? [1, 3, 5, 6]).slice(0, (prefs?.days_per_week ?? 4));
+          for (let w = 1; w <= plan.weeks; w++) {
+            const phase = w <= plan.weeks * 0.4 ? 'base' : w <= plan.weeks * 0.75 ? 'build' : w <= plan.weeks * 0.9 ? 'peak' : 'taper';
+            const isRecoveryWeek = w % 4 === 0;
+            const volumeMultiplier = isRecoveryWeek ? 0.7 : 1.0;
+            days.forEach((dow, i) => {
+              let workoutType: string;
+              let title: string;
+              let description: string;
+              let distance_km: number | null = null;
+              let duration_min: number | null = null;
+              let target_pace: string | null = null;
+              let hr_zone: number;
+              if (dow === longDay) {
+                workoutType = 'long_run';
+                const baseLongDistance = Math.min(10 + w * 0.8, 22);
+                distance_km = Math.round(baseLongDistance * volumeMultiplier);
+                if (phase === 'build' || phase === 'peak') {
+                  title = `Longão ${distance_km}km com bloco em ritmo de prova`;
+                  description = `${distance_km}km total. Últimos 6-8km em ritmo de meia maratona (${targetPaces?.pace_half_marathon?.toFixed(2) || '5:30'}/km)`;
+                  target_pace = targetPaces?.pace_half_marathon?.toFixed(2) || '5:30';
+                } else {
+                  title = `Longão aeróbico ${distance_km}km`;
+                  description = `Corrida contínua em ritmo confortável, zona 2`;
+                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '6:00';
+                }
+                hr_zone = 2;
+              } else {
+                const workoutIndex = i % 4;
+                if (workoutIndex === 0 && phase !== 'base') {
+                  workoutType = 'interval';
+                  hr_zone = 4;
+                  const intervalTypes = [
+                    { name: '6x800m', duration: 30, pace: targetPaces?.pace_interval_800m, desc: 'rec 2min entre tiros' },
+                    { name: '5x1000m', duration: 35, pace: targetPaces?.pace_interval_1km, desc: 'rec 2min30s entre tiros' },
+                    { name: '8x400m', duration: 25, pace: targetPaces?.pace_interval_400m, desc: 'rec 90s entre tiros' },
+                    { name: '4x1600m', duration: 40, pace: targetPaces?.pace_interval_1km, desc: 'rec 3min entre tiros' },
+                  ];
+                  const interval = intervalTypes[w % intervalTypes.length];
+                  title = interval.name;
+                  description = `Aquecimento 15min + ${interval.name} em ${interval.pace?.toFixed(2) || '4:30'}/km (${interval.desc}) + desaquecimento 10min`;
+                  duration_min = interval.duration;
+                  target_pace = interval.pace?.toFixed(2) || '4:30';
+                } else if (workoutIndex === 1 && phase !== 'taper') {
+                  workoutType = 'tempo';
+                  hr_zone = 3;
+                  const tempoDistance = Math.min(20 + w * 2, 45);
+                  duration_min = Math.round(tempoDistance * volumeMultiplier);
+                  title = `Tempo run ${duration_min}min`;
+                  description = `Aquecimento 15min + ${duration_min}min em ritmo de limiar (${targetPaces?.pace_tempo?.toFixed(2) || '4:50'}/km) + desaquecimento 10min`;
+                  target_pace = targetPaces?.pace_tempo?.toFixed(2) || '4:50';
+                } else {
+                  workoutType = w % 7 === 0 ? 'recovery' : 'easy';
+                  hr_zone = workoutType === 'recovery' ? 1 : 2;
+                  distance_km = Math.round((5 + w * 0.5) * volumeMultiplier);
+                  title = workoutType === 'recovery' ? `Recuperativo ${distance_km}km` : `Treino base ${distance_km}km`;
+                  description = workoutType === 'recovery' ? 'Corrida muito leve, foco na recuperação' : 'Corrida aeróbica confortável';
+                  target_pace = targetPaces?.pace_easy?.toFixed(2) || '5:45';
+                }
+              }
+              workouts.push({
+                week: w,
+                weekday: Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday',
+                type: workoutType,
+                title,
+                description,
+                distance_km,
+                duration_min,
+                target_hr_zone: hr_zone,
+                target_pace_min_per_km: target_pace,
+                intensity: hr_zone >= 4 ? 'high' : hr_zone === 3 ? 'moderate' : 'low',
+              });
+            });
+          }
+          return workouts;
+        };
+        aiPlan = {
+          plan_summary: { periodization: ['base','build','peak','taper'], notes: 'Plano fallback (JSON inválido da OpenAI)' },
+          workouts: generateFallback(),
+        };
       }
     }
 
