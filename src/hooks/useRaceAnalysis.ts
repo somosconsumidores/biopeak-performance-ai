@@ -1,71 +1,83 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useAthleteAnalysis } from "@/hooks/useAthleteAnalysis";
 
 export interface RaceAnalysisResult {
   estimated_time_minutes: number;
   fitness_level: string;
-  readiness_score: number;
   gap_analysis: {
     target_time_minutes: number;
     gap_minutes: number;
     gap_percentage: number;
   };
-  suggestions: Array<{
-    area: string;
-    recommendation: string;
-    priority: 'high' | 'medium' | 'low';
-  }>;
-  focus_areas: string[];
-  realistic_target: string;
 }
 
 export function useRaceAnalysis() {
   const [analyzing, setAnalyzing] = useState(false);
-  const { toast } = useToast();
+  const { level, raceEstimates, loading, refresh } = useAthleteAnalysis();
 
-  const analyzeRaceReadiness = async (raceId: string): Promise<RaceAnalysisResult | null> => {
+  const analyzeRaceReadiness = async (race: { distance_meters: number; target_time_minutes?: number }): Promise<RaceAnalysisResult | null> => {
     setAnalyzing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-race-readiness', {
-        body: { raceId }
-      });
-
-      if (error) {
-        console.error('Race analysis error:', error);
-        
-        // Handle specific error cases
-        if (error.message?.includes('Insufficient running data')) {
-          toast({
-            title: "Dados insuficientes",
-            description: "Você precisa ter pelo menos algumas corridas registradas para análise.",
-            variant: "destructive",
-          });
-          return null;
+      // Refresh athlete analysis data
+      await refresh();
+      
+      // Calculate estimated time based on distance
+      let estimatedTimeMinutes = 0;
+      const distanceKm = race.distance_meters / 1000;
+      
+      if (distanceKm <= 7.5 && raceEstimates.k5) {
+        // Use 5K as base for shorter distances
+        const base5kSeconds = raceEstimates.k5.seconds;
+        estimatedTimeMinutes = (base5kSeconds * distanceKm / 5) / 60;
+      } else if (distanceKm <= 15 && raceEstimates.k10) {
+        // Use 10K for medium distances
+        const base10kSeconds = raceEstimates.k10.seconds;
+        estimatedTimeMinutes = (base10kSeconds * distanceKm / 10) / 60;
+      } else if (distanceKm <= 31 && raceEstimates.k21) {
+        // Use 21K for longer distances
+        const base21kSeconds = raceEstimates.k21.seconds;
+        estimatedTimeMinutes = (base21kSeconds * distanceKm / 21.097) / 60;
+      } else if (raceEstimates.k42) {
+        // Use 42K for very long distances
+        const base42kSeconds = raceEstimates.k42.seconds;
+        estimatedTimeMinutes = (base42kSeconds * distanceKm / 42.195) / 60;
+      } else {
+        // Fallback: use 10K estimate if available
+        if (raceEstimates.k10) {
+          const base10kSeconds = raceEstimates.k10.seconds;
+          estimatedTimeMinutes = (base10kSeconds * distanceKm / 10) / 60;
+        } else {
+          throw new Error('Dados insuficientes para estimativa');
         }
-
-        throw error;
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      // Calculate gap analysis if target time exists
+      let gapAnalysis = {
+        target_time_minutes: 0,
+        gap_minutes: 0,
+        gap_percentage: 0
+      };
+
+      if (race.target_time_minutes) {
+        const gapMinutes = estimatedTimeMinutes - race.target_time_minutes;
+        const gapPercentage = (gapMinutes / race.target_time_minutes) * 100;
+        
+        gapAnalysis = {
+          target_time_minutes: race.target_time_minutes,
+          gap_minutes: gapMinutes,
+          gap_percentage: gapPercentage
+        };
       }
 
-      toast({
-        title: "Análise concluída",
-        description: "Sua análise de prontidão para a prova foi atualizada!",
-      });
-
-      return data as RaceAnalysisResult;
+      return {
+        estimated_time_minutes: estimatedTimeMinutes,
+        fitness_level: level?.toLowerCase() || 'beginner',
+        gap_analysis: gapAnalysis
+      };
 
     } catch (error) {
       console.error('Error analyzing race readiness:', error);
-      toast({
-        title: "Erro na análise",
-        description: "Não foi possível analisar sua prontidão. Tente novamente.",
-        variant: "destructive",
-      });
       return null;
     } finally {
       setAnalyzing(false);

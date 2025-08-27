@@ -33,7 +33,7 @@ export function RaceCard({ race }: RaceCardProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const { deleteRace } = useTargetRaces();
-  const { analyzeRaceReadiness, analyzing, formatTime } = useRaceAnalysis();
+  const { formatTime } = useRaceAnalysis();
 
   const formatDistance = (meters: number) => {
     if (meters >= 1000) {
@@ -73,8 +73,7 @@ export function RaceCard({ race }: RaceCardProps) {
   const isToday = daysUntil === 0;
   const isUpcoming = race.status === 'planned' && !isPast;
 
-  const handleAnalyze = async () => {
-    await analyzeRaceReadiness(race.id);
+  const handleAnalyze = () => {
     setShowAnalysisDialog(true);
   };
 
@@ -121,10 +120,10 @@ export function RaceCard({ race }: RaceCardProps) {
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </DropdownMenuItem>
-                  {isUpcoming && (
-                    <DropdownMenuItem onClick={handleAnalyze} disabled={analyzing}>
+                   {isUpcoming && (
+                    <DropdownMenuItem onClick={handleAnalyze}>
                       <BarChart3 className="h-4 w-4 mr-2" />
-                      {analyzing ? 'Analisando...' : 'Analisar Prontidão'}
+                      Analisar Prontidão
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={handleDelete} className="text-destructive">
@@ -197,10 +196,9 @@ export function RaceCard({ race }: RaceCardProps) {
                   size="sm" 
                   className="flex-1"
                   onClick={handleAnalyze}
-                  disabled={analyzing}
                 >
                   <BarChart3 className="h-4 w-4 mr-1" />
-                  {analyzing ? 'Analisando...' : 'Análise'}
+                  Análise
                 </Button>
               )}
             </div>
