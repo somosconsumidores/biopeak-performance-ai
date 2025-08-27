@@ -35,6 +35,24 @@ function getDateForWeekday(startDate: Date, weekNumber: number, weekdayIdx: numb
   return addDays(base, diff >= 0 ? diff : diff);
 }
 
+function calculateTargetPredictions(historicalStats: any, targetDistanceKm: number, goalTimeMinutes?: number) {
+  // Use historical best pace as baseline
+  const bestPace = historicalStats.bestPace || 6.0;
+  
+  // Predict race time using Riegel formula
+  const baseDistance = 5; // Assume historical pace is ~5k pace
+  const predictedTimeMinutes = (bestPace * baseDistance) * Math.pow(targetDistanceKm / baseDistance, 1.06);
+  const predictedPaceMinPerKm = predictedTimeMinutes / targetDistanceKm;
+  
+  return {
+    race_distance_km: targetDistanceKm,
+    target_time_minutes: goalTimeMinutes || null,
+    predicted_time_minutes: predictedTimeMinutes,
+    predicted_pace_min_per_km: predictedPaceMinPerKm,
+    stretch_goal_time_minutes: goalTimeMinutes ? goalTimeMinutes * 0.95 : predictedTimeMinutes * 0.95
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -72,7 +90,7 @@ serve(async (req) => {
     // Fetch preferences
     const { data: prefs } = await supabase
       .from("training_plan_preferences")
-      .select("days_per_week, days_of_week, long_run_weekday, start_date")
+      .select("days_per_week, days_of_week, long_run_weekday, start_date, goal_target_time_minutes")
       .eq("plan_id", planId)
       .maybeSingle();
 
@@ -510,11 +528,24 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                   plan_summary: {
                     type: "object",
                     additionalProperties: false,
-                    properties: {
-                      periodization: { type: "array", items: { type: "string" } },
-                      notes: { type: "string" }
-                    },
-                    required: ["periodization", "notes"]
+                      properties: {
+                        periodization: { type: "array", items: { type: "string" } },
+                        notes: { type: "string" },
+                        targets: {
+                          type: "object",
+                          additionalProperties: false,
+                          properties: {
+                            race_distance_km: { type: "number" },
+                            target_time_minutes: { type: ["number", "null"] },
+                            predicted_time_minutes: { type: "number" },
+                            predicted_pace_min_per_km: { type: "number" },
+                            stretch_goal_time_minutes: { type: ["number", "null"] }
+                          },
+                          required: ["race_distance_km", "predicted_time_minutes", "predicted_pace_min_per_km"]
+                        },
+                        race_focus: { type: "string" }
+                      },
+                      required: ["periodization", "notes", "targets", "race_focus"]
                   },
                   workouts: {
                     type: "array",
@@ -534,11 +565,11 @@ Responda APENAS JSON válido com a estrutura exata solicitada.`;
                         intensity: { type: ["string","null"] },
                         specific_instructions: { type: ["string","null"] }
                       },
-                      required: ["week","weekday","type","title"]
+                      required: ["week","weekday","type","title","description","distance_km","duration_min","target_hr_zone","target_pace_min_per_km","intensity","specific_instructions"]
                     }
                   }
                 },
-                required: ["workouts"]
+                required: ["plan_summary", "workouts"]
               }
             }
           },

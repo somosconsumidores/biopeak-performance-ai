@@ -49,6 +49,10 @@ export interface TrainingPlanWizardData {
   raceDate?: Date;
   hasRaceDate: boolean;
   
+  // Step 12: Race goal (optional)
+  raceGoal?: string;
+  goalTargetTimeMinutes?: number;
+  
   // Step 12: Summary and generation (no additional data)
 }
 
@@ -126,7 +130,7 @@ export function useTrainingPlanWizard() {
     }
   }, [profile, wizardData.birthDate]);
 
-  const totalSteps = 12;
+  const totalSteps = 13;
 
   const updateWizardData = (updates: Partial<TrainingPlanWizardData>) => {
     setWizardData(prev => ({ ...prev, ...updates }));
@@ -169,6 +173,8 @@ export function useTrainingPlanWizard() {
       case 11:
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
       case 12:
+        return true; // Race goal is optional
+      case 13:
         return true; // Summary step
       default:
         return false;
@@ -237,6 +243,7 @@ export function useTrainingPlanWizard() {
           long_run_weekday: longRunIdx,
           start_asap: false,
           start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+          goal_target_time_minutes: wizardData.goalTargetTimeMinutes,
         });
 
       if (preferencesError) {

@@ -26,6 +26,7 @@ import { StartDateStep } from './wizard-steps/StartDateStep';
 import { PlanDurationStep } from './wizard-steps/PlanDurationStep';
 import { RaceDateStep } from './wizard-steps/RaceDateStep';
 import { SummaryStep } from './wizard-steps/SummaryStep';
+import { RaceGoalStep } from './wizard-steps/RaceGoalStep';
 
 interface TrainingPlanWizardProps {
   open?: boolean;
@@ -141,10 +142,12 @@ export function TrainingPlanWizard({
         return <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 11:
         return <RaceDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
-      case 12:
-        return <SummaryStep wizardData={wizardData} />;
-      default:
-        return null;
+        case 12:
+          return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
+        case 13:
+          return <SummaryStep wizardData={wizardData} />;
+        default:
+          return null;
     }
   };
 

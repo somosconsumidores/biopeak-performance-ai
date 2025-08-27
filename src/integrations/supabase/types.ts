@@ -3073,9 +3073,11 @@ export type Database = {
           deleted_at: string | null
           end_date: string | null
           generated_at: string | null
+          goal_target_time_minutes: number | null
           goal_type: string
           id: string
           plan_name: string | null
+          plan_summary: Json | null
           start_date: string
           status: string
           target_event_date: string | null
@@ -3090,9 +3092,11 @@ export type Database = {
           deleted_at?: string | null
           end_date?: string | null
           generated_at?: string | null
+          goal_target_time_minutes?: number | null
           goal_type: string
           id?: string
           plan_name?: string | null
+          plan_summary?: Json | null
           start_date: string
           status?: string
           target_event_date?: string | null
@@ -3107,9 +3111,11 @@ export type Database = {
           deleted_at?: string | null
           end_date?: string | null
           generated_at?: string | null
+          goal_target_time_minutes?: number | null
           goal_type?: string
           id?: string
           plan_name?: string | null
+          plan_summary?: Json | null
           start_date?: string
           status?: string
           target_event_date?: string | null

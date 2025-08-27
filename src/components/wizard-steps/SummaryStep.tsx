@@ -255,6 +255,30 @@ export function SummaryStep({ wizardData }: SummaryStepProps) {
             </CardContent>
           </Card>
         )}
+
+        {/* Race Goal (if applicable) */}
+        {wizardData.raceGoal && (
+          <Card className="glass-card border-accent/20 bg-gradient-to-r from-accent/5 via-primary/5 to-accent/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Target className="h-4 w-4 text-accent" />
+                Meta da Prova
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-center">
+                <div className="font-medium text-accent text-lg">
+                  {wizardData.raceGoal}
+                </div>
+                {wizardData.goalTargetTimeMinutes && (
+                  <div className="text-sm text-muted-foreground">
+                    Tempo alvo: {Math.floor(wizardData.goalTargetTimeMinutes / 60)}:{(wizardData.goalTargetTimeMinutes % 60).toString().padStart(2, '0')}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Separator />
