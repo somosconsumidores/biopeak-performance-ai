@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,14 @@ import {
   CheckCircle,
   BarChart3,
   Lightbulb,
-  Calendar
+  Calendar,
+  Activity,
+  Heart,
+  Route
 } from "lucide-react";
 import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
 import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
+import { useAthleteStats } from "@/hooks/useAthleteStats";
 
 interface RaceAnalysisDialogProps {
   open: boolean;
@@ -33,6 +38,14 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     getReadinessLevel,
     getFitnessLevelDisplay 
   } = useRaceAnalysis();
+  const { 
+    stats, 
+    loading: statsLoading, 
+    formatPace, 
+    formatDistance, 
+    formatHeartRate, 
+    formatVo2Max 
+  } = useAthleteStats();
 
   useEffect(() => {
     if (open && race) {
@@ -159,7 +172,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
               </CardContent>
             </Card>
 
-            {/* Fitness Level */}
+            {/* Fitness Level with Athlete Stats */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -168,13 +181,75 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-2">
-                    {getFitnessLevelDisplay(analysis.fitness_level)}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-primary mb-2">
+                      {getFitnessLevelDisplay(analysis.fitness_level)}
+                    </div>
+                    <p className="text-muted-foreground">
+                      Baseado no seu histórico de treinos
+                    </p>
                   </div>
-                  <p className="text-muted-foreground">
-                    Baseado no seu histórico de treinos
-                  </p>
+                  
+                  {/* Athlete Stats Grid */}
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      Estatísticas das Últimas 30 Corridas
+                      {stats && stats.totalActivities > 0 && (
+                        <span className="ml-2">({stats.totalActivities} atividades)</span>
+                      )}
+                    </h4>
+                    
+                    {statsLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-pulse text-sm text-muted-foreground">
+                          Carregando estatísticas...
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center justify-center mb-1">
+                            <Clock className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="text-sm font-medium">
+                            {formatPace(stats?.avgPaceMinKm || null)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Pace Médio</div>
+                        </div>
+                        
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center justify-center mb-1">
+                            <Heart className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="text-sm font-medium">
+                            {formatHeartRate(stats?.avgHeartRate || null)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">FC Média</div>
+                        </div>
+                        
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center justify-center mb-1">
+                            <Route className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="text-sm font-medium">
+                            {formatDistance(stats?.avgDistanceKm || null)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Dist. Média</div>
+                        </div>
+                        
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center justify-center mb-1">
+                            <Activity className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="text-sm font-medium">
+                            {formatVo2Max(stats?.avgVo2MaxDaniels || null)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">VO₂ Médio</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -217,7 +292,6 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                 </CardContent>
               </Card>
             )}
-
 
             {/* Actions */}
             <div className="flex justify-end pt-4">
