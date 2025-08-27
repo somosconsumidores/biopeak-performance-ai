@@ -17,13 +17,14 @@ import {
   Activity,
   Heart,
   Route,
-  Bot
+  Bot,
+  RefreshCw
 } from "lucide-react";
 import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
 import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
 import { useAthleteStats } from "@/hooks/useAthleteStats";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface RaceAnalysisDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiCached, setAiCached] = useState(false);
   const { getRaceProgress } = useTargetRaces();
   const { 
     analyzeRaceReadiness, 
@@ -56,6 +58,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
   useEffect(() => {
     if (open && race) {
       loadAnalysis();
+      loadCachedAiAnalysis();
     }
   }, [open, race]);
 
@@ -77,6 +80,30 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     }
   };
 
+  const loadCachedAiAnalysis = async () => {
+    try {
+      // Check for cached AI analysis
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const { data, error } = await supabase
+        .from('race_progress_snapshots')
+        .select('ai_analysis, created_at')
+        .eq('race_id', race.id)
+        .not('ai_analysis', 'is', null)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data?.ai_analysis) {
+        setAiResponse(data.ai_analysis);
+        setAiCached(true);
+        console.log('Loaded cached AI analysis');
+      }
+    } catch (error) {
+      console.error('Error loading cached AI analysis:', error);
+    }
+  };
+
   const runNewAnalysis = async () => {
     setLoading(true);
     const newAnalysis = await analyzeRaceReadiness({
@@ -89,11 +116,16 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     setLoading(false);
   };
 
-  const handleAskAI = async () => {
+  const handleAskAI = async (forceRegenerate = false) => {
     setAiLoading(true);
+    setAiCached(false);
+    
     try {
       const { data, error } = await supabase.functions.invoke('analyze-goal-with-ai', {
-        body: { raceId: race.id }
+        body: { 
+          raceId: race.id,
+          forceRegenerate 
+        }
       });
 
       if (error) {
@@ -102,13 +134,24 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
         toast({
           title: 'Erro',
           description: 'Não foi possível solicitar a análise da IA. Tente novamente.',
+          variant: 'destructive'
         });
       } else {
-        setAiResponse(data.ai_comment || 'Análise não disponível no momento.');
-        toast({
-          title: 'Análise gerada',
-          description: 'Veja o parecer da IA abaixo.',
-        });
+        const response = data.ai_comment || 'Análise não disponível no momento.';
+        setAiResponse(response);
+        setAiCached(data.cached || false);
+        
+        if (data.cached) {
+          toast({
+            title: 'Análise carregada',
+            description: 'Exibindo análise salva dos últimos 7 dias.',
+          });
+        } else {
+          toast({
+            title: 'Nova análise gerada',
+            description: 'Veja o parecer atualizado da IA abaixo.',
+          });
+        }
       }
     } catch (error) {
       console.error('Error in AI analysis:', error);
@@ -116,6 +159,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
       toast({
         title: 'Erro de conexão',
         description: 'Não foi possível conectar com a IA.',
+        variant: 'destructive'
       });
     } finally {
       setAiLoading(false);
@@ -138,24 +182,6 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
   };
 
   const daysUntil = getDaysUntilRace();
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500/10 text-red-700 border-red-200';
-      case 'medium': return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
-      case 'low': return 'bg-green-500/10 text-green-700 border-green-200';
-      default: return 'bg-gray-500/10 text-gray-700 border-gray-200';
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'Alta';
-      case 'medium': return 'Média';
-      case 'low': return 'Baixa';
-      default: return priority;
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -328,25 +354,66 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                       </div>
                     </div>
 
-                    {/* AI Analysis Button */}
-                    <div className="mt-4">
-                      <Button 
-                        onClick={handleAskAI} 
-                        disabled={aiLoading}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
-                      >
-                        {aiLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Analisando...
-                          </>
-                        ) : (
-                          <>
-                            <Bot className="h-4 w-4 mr-2" />
-                            🤖 Peça para a IA analisar meu objetivo
-                          </>
-                        )}
-                      </Button>
+                    {/* AI Analysis Buttons */}
+                    <div className="mt-4 space-y-2">
+                      {!aiResponse ? (
+                        <Button 
+                          onClick={() => handleAskAI(false)} 
+                          disabled={aiLoading}
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                        >
+                          {aiLoading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Analisando...
+                            </>
+                          ) : (
+                            <>
+                              <Bot className="h-4 w-4 mr-2" />
+                              🤖 Peça para a IA analisar meu objetivo
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => handleAskAI(false)} 
+                            disabled={aiLoading}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            {aiLoading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                Analisando...
+                              </>
+                            ) : (
+                              <>
+                                <Bot className="h-4 w-4 mr-2" />
+                                Análise da IA
+                              </>
+                            )}
+                          </Button>
+                          <Button 
+                            onClick={() => handleAskAI(true)} 
+                            disabled={aiLoading}
+                            variant="secondary"
+                            className="flex-1"
+                          >
+                            {aiLoading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                Regenerando...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Regerar análise
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -360,10 +427,15 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                   <CardTitle className="text-lg flex items-center gap-2 text-purple-800">
                     <Bot className="h-5 w-5" />
                     Parecer da IA
+                    {aiCached && (
+                      <Badge variant="secondary" className="text-xs">
+                        Análise salva
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-purple-900 whitespace-pre-wrap">
+                  <div className="text-purple-900 whitespace-pre-line leading-relaxed">
                     {aiResponse}
                   </div>
                 </CardContent>

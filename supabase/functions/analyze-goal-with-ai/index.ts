@@ -8,13 +8,31 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
 
+// Função para limpar markdown e caracteres especiais da resposta da IA
+function cleanAIResponse(text: string): string {
+  return text
+    // Remove markdown headers (## ### etc)
+    .replace(/#{1,6}\s*/g, '')
+    // Remove bold (**text**)
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // Remove italic (*text*)
+    .replace(/\*(.*?)\*/g, '$1')
+    // Remove bullet points com - ou *
+    .replace(/^\s*[-*]\s+/gm, '• ')
+    // Remove múltiplas quebras de linha
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove espaços em excesso
+    .replace(/[ \t]+/g, ' ')
+    // Trim
+    .trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Pequeno hardening para aceitar apenas POST
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -41,8 +59,8 @@ serve(async (req) => {
     }
     console.log('[analyze-goal-with-ai] Authenticated user:', user.id);
 
-    const { raceId } = await req.json();
-    console.log('[analyze-goal-with-ai] Payload:', { raceId });
+    const { raceId, forceRegenerate = false } = await req.json();
+    console.log('[analyze-goal-with-ai] Payload:', { raceId, forceRegenerate });
 
     // Get race details
     const { data: race, error: raceError } = await supabase
@@ -60,6 +78,33 @@ serve(async (req) => {
       });
     }
     console.log('[analyze-goal-with-ai] Race loaded:', { race_name: race.race_name, distance_m: race.distance_meters });
+
+    // Check for cached analysis (last 7 days) unless force regenerate
+    if (!forceRegenerate) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const { data: cachedSnapshot, error: cacheError } = await supabase
+        .from('race_progress_snapshots')
+        .select('*')
+        .eq('race_id', raceId)
+        .eq('user_id', user.id)
+        .not('ai_analysis', 'is', null)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!cacheError && cachedSnapshot?.ai_analysis) {
+        console.log('[analyze-goal-with-ai] Returning cached analysis');
+        return new Response(JSON.stringify({
+          ai_comment: cachedSnapshot.ai_analysis,
+          estimated_time_minutes: cachedSnapshot.estimated_time_minutes,
+          gap_analysis: cachedSnapshot.gap_analysis,
+          cached: true
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
 
     // Get user's activities from last 90 days
     const { data: activities, error: activitiesError } = await supabase
@@ -84,10 +129,11 @@ serve(async (req) => {
     console.log('[analyze-goal-with-ai] Running activities in last 90d:', runningActivities.length);
 
     if (runningActivities.length === 0) {
-      return new Response(JSON.stringify({
+      const errorResponse = {
         error: 'Dados insuficientes para análise',
         ai_comment: 'Você precisa ter pelo menos algumas corridas registradas para que eu possa analisar seu objetivo.'
-      }), {
+      };
+      return new Response(JSON.stringify(errorResponse), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -131,22 +177,16 @@ serve(async (req) => {
       avgWeeklyFrequency, avgWeeklyDistanceKm
     });
 
-    // Riegel estimation
-    const riegel = (t1: number, d1: number, d2: number, exp = 1.06) => t1 * Math.pow(d2 / d1, exp);
-    const raceDistanceKm = race.distance_meters / 1000;
+    // Use the race analysis service to get consistent estimated time
+    // This ensures the AI uses the same calculation as the frontend card
+    const { data: analysisData } = await supabase.functions.invoke('analyze-race-readiness', {
+      body: { 
+        distance_meters: race.distance_meters,
+        target_time_minutes: race.target_time_minutes 
+      }
+    });
 
-    const base5kTimeMin = paceMedian * 5;
-    let estimatedTimeMinutes = 0;
-    if (raceDistanceKm >= 40) {
-      estimatedTimeMinutes = riegel(base5kTimeMin, 5, 42.195);
-    } else if (raceDistanceKm >= 20) {
-      estimatedTimeMinutes = riegel(base5kTimeMin, 5, 21.097);
-    } else if (raceDistanceKm >= 9) {
-      estimatedTimeMinutes = riegel(base5kTimeMin, 5, 10);
-    } else {
-      estimatedTimeMinutes = paceMedian * raceDistanceKm;
-    }
-
+    const estimatedTimeMinutes = analysisData?.estimated_time_minutes || 0;
     const targetTimeMinutes = race.target_time_minutes || estimatedTimeMinutes;
     const timeGapMinutes = estimatedTimeMinutes - targetTimeMinutes;
     const timeGapPercent = (timeGapMinutes / targetTimeMinutes) * 100;
@@ -156,6 +196,8 @@ serve(async (req) => {
       const m = Math.floor(minutes % 60);
       return h > 0 ? `${h}:${m.toString().padStart(2, '0')}h` : `${m}min`;
     };
+
+    const raceDistanceKm = race.distance_meters / 1000;
 
     const prompt = `
 Você é um treinador de corrida experiente. Analise os dados abaixo e escreva um parecer motivador e didático para o atleta:
@@ -180,7 +222,7 @@ HISTÓRICO DO ATLETA (últimas ${runningActivities.length} corridas):
 3. 3 recomendações práticas e específicas de treino
 4. Uma mensagem motivadora para o objetivo
 
-Seja direto, prático e encorajador. Use linguagem acessível.
+Seja direto, prático e encorajador. Use linguagem acessível e evite formatação markdown.
 `;
 
     console.log('[analyze-goal-with-ai] Calling OpenAI gpt-4o-mini...');
@@ -211,8 +253,9 @@ Seja direto, prático e encorajador. Use linguagem acessível.
     }
 
     const aiData = await response.json();
-    const aiComment = aiData.choices?.[0]?.message?.content || 'Não foi possível gerar a análise no momento.';
-    console.log('[analyze-goal-with-ai] OpenAI response received. Length:', aiComment?.length || 0);
+    const rawAiComment = aiData.choices?.[0]?.message?.content || 'Não foi possível gerar a análise no momento.';
+    const cleanedAiComment = cleanAIResponse(rawAiComment);
+    console.log('[analyze-goal-with-ai] OpenAI response received and cleaned. Length:', cleanedAiComment?.length || 0);
 
     // Save to database
     const snapshotPayload = {
@@ -229,7 +272,7 @@ Seja direto, prático e encorajador. Use linguagem acessível.
         distance_km: raceDistanceKm
       },
       training_focus_areas: ['pacing', 'endurance', 'consistency'],
-      ai_analysis: aiComment
+      ai_analysis: cleanedAiComment
     };
 
     const { error: insertError } = await supabase
@@ -243,13 +286,14 @@ Seja direto, prático e encorajador. Use linguagem acessível.
     }
 
     return new Response(JSON.stringify({
-      ai_comment: aiComment,
+      ai_comment: cleanedAiComment,
       estimated_time_minutes: Math.round(estimatedTimeMinutes),
       gap_analysis: {
         target_time_minutes: targetTimeMinutes,
         gap_minutes: timeGapMinutes,
         gap_percentage: timeGapPercent
-      }
+      },
+      cached: false
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
