@@ -9,7 +9,7 @@ import { RaceCard } from "./RaceCard";
 
 export function RaceCalendar() {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const { races, loading } = useTargetRaces();
+  const { races, loading, refetch } = useTargetRaces();
 
   const upcomingRaces = races.filter(race => 
     race.status === 'planned' && new Date(race.race_date) >= new Date()
@@ -89,7 +89,7 @@ export function RaceCalendar() {
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {upcomingRaces.map((race) => (
-                      <RaceCard key={race.id} race={race} />
+                      <RaceCard key={race.id} race={race} onUpdate={refetch} />
                     ))}
                   </div>
                 </div>
@@ -104,7 +104,7 @@ export function RaceCalendar() {
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {completedRaces.map((race) => (
-                      <RaceCard key={race.id} race={race} />
+                      <RaceCard key={race.id} race={race} onUpdate={refetch} />
                     ))}
                   </div>
                 </div>
@@ -117,6 +117,9 @@ export function RaceCalendar() {
       <AddRaceDialog 
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
+        onSuccess={() => {
+          refetch(); // Refresh races list
+        }}
       />
     </div>
   );

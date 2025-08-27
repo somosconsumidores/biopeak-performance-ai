@@ -27,9 +27,10 @@ import { RaceAnalysisDialog } from "./RaceAnalysisDialog";
 
 interface RaceCardProps {
   race: TargetRace;
+  onUpdate?: () => void;
 }
 
-export function RaceCard({ race }: RaceCardProps) {
+export function RaceCard({ race, onUpdate }: RaceCardProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const { deleteRace } = useTargetRaces();
@@ -80,6 +81,7 @@ export function RaceCard({ race }: RaceCardProps) {
   const handleDelete = async () => {
     if (window.confirm('Tem certeza que deseja excluir esta prova?')) {
       await deleteRace(race.id);
+      onUpdate?.(); // Callback to refresh parent data
     }
   };
 
@@ -213,10 +215,11 @@ export function RaceCard({ race }: RaceCardProps) {
         </CardContent>
       </Card>
 
-      <AddRaceDialog 
+      <AddRaceDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         race={race}
+        onSuccess={onUpdate}
       />
 
       <RaceAnalysisDialog 

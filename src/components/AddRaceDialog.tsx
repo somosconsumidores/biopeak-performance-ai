@@ -12,9 +12,10 @@ interface AddRaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   race?: TargetRace;
+  onSuccess?: () => void;
 }
 
-export function AddRaceDialog({ open, onOpenChange, race }: AddRaceDialogProps) {
+export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDialogProps) {
   const { addRace, updateRace } = useTargetRaces();
   const [loading, setLoading] = useState(false);
 
@@ -54,6 +55,7 @@ export function AddRaceDialog({ open, onOpenChange, race }: AddRaceDialogProps) 
         await addRace(raceData);
       }
 
+      onSuccess?.(); // Callback to refresh parent data
       onOpenChange(false);
       // Reset form
       setFormData({
