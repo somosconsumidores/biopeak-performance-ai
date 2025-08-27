@@ -146,6 +146,34 @@ type GoalType =
 
 type Paces = ReturnType<SafetyCalibrator['getSafeTargetPaces']>;
 
+// Normalize goal to internal canonical set
+function normalizeGoal(goalRaw: string): GoalType {
+  const g = (goalRaw || '').toLowerCase().trim();
+  const map: Record<string, GoalType> = {
+    // English -> Portuguese/internal
+    'weight_loss': 'perda_de_peso',
+    'general_fitness': 'condicionamento',
+    'return_to_run': 'retorno',
+    'maintenance': 'manutencao',
+    'improve_times': 'melhorar_tempos',
+    'half_marathon': '21k',
+    'marathon': '42k',
+    '5km': '5k',
+    '10km': '10k',
+    // already canonical values map to themselves
+    'perda_de_peso': 'perda_de_peso',
+    'condicionamento': 'condicionamento',
+    'retorno': 'retorno',
+    'manutencao': 'manutencao',
+    'melhorar_tempos': 'melhorar_tempos',
+    '21k': '21k',
+    '42k': '42k',
+    '5k': '5k',
+    '10k': '10k',
+  };
+  return (map[g] ?? (g as GoalType)) as GoalType;
+}
+
 function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' | 'taper' {
   if (week <= Math.max(1, Math.floor(totalWeeks * 0.4))) return 'base';
   if (week <= Math.max(2, Math.floor(totalWeeks * 0.75))) return 'build';
@@ -176,7 +204,7 @@ function defaultDaysFromPrefs(prefs: any, longDayIdx: number): number[] {
 }
 
 function generatePlan(goalRaw: string, weeks: number, targetPaces: Paces, prefs: any) {
-  const goal = (goalRaw || '').toLowerCase() as GoalType;
+  const goal = normalizeGoal(goalRaw);
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
   const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
 
@@ -374,7 +402,7 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces) {
   // Targets: estimate race time when applicable
   let target_pace_min_km: number | null = null;
   let target_time_minutes: number | null = null;
-  const g = (goal || '').toLowerCase();
+  const g = normalizeGoal(goal || '');
   if (g === '5k') {
     target_pace_min_km = p.pace_5k;
     target_time_minutes = 5 * p.pace_5k;
