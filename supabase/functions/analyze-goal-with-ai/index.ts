@@ -11,19 +11,30 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
 // Função para limpar markdown e caracteres especiais da resposta da IA
 function cleanAIResponse(text: string): string {
   return text
-    // Remove markdown headers (## ### etc)
-    .replace(/#{1,6}\s*/g, '')
-    // Remove bold (**text**)
+    // Remover blocos de código ```...```
+    .replace(/```[\s\S]*?```/g, '')
+    // Remover inline code `...`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remover headers markdown no início da linha
+    .replace(/^#{1,6}\s*/gm, '')
+    // Remover negrito/itálico com **__ ou *_
     .replace(/\*\*(.*?)\*\*/g, '$1')
-    // Remove italic (*text*)
+    .replace(/__(.*?)__/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
-    // Remove bullet points com - ou *
+    .replace(/_(.*?)_/g, '$1')
+    // Converter listas - ou * para •
     .replace(/^\s*[-*]\s+/gm, '• ')
-    // Remove múltiplas quebras de linha
+    // Converter listas numeradas "1. " para •
+    .replace(/^\s*\d+\.\s+/gm, '• ')
+    // Normalizar bullets duplicados
+    .replace(/^[•\s]+/gm, (m) => m.includes('•') ? '• ' : '')
+    // Reduzir múltiplas linhas em no máx 2
     .replace(/\n{3,}/g, '\n\n')
-    // Remove espaços em excesso
+    // Remover espaços em excesso
     .replace(/[ \t]+/g, ' ')
-    // Trim
+    // Aparar espaços extras por linha
+    .replace(/^[ \t]+|[ \t]+$/gm, '')
+    // Trim final
     .trim();
 }
 
@@ -59,8 +70,14 @@ serve(async (req) => {
     }
     console.log('[analyze-goal-with-ai] Authenticated user:', user.id);
 
-    const { raceId, forceRegenerate = false } = await req.json();
-    console.log('[analyze-goal-with-ai] Payload:', { raceId, forceRegenerate });
+    // Agora aceitamos a estimativa oficial do frontend para manter consistência
+    const {
+      raceId,
+      forceRegenerate = false,
+      estimated_time_minutes: estimatedFromClient,
+      target_time_minutes: targetFromClient
+    } = await req.json();
+    console.log('[analyze-goal-with-ai] Payload:', { raceId, forceRegenerate, hasClientEstimate: !!estimatedFromClient });
 
     // Get race details
     const { data: race, error: raceError } = await supabase
@@ -77,7 +94,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    console.log('[analyze-goal-with-ai] Race loaded:', { race_name: race.race_name, distance_m: race.distance_meters });
+    console.log('[analyze-goal-with-ai] Race loaded:', { race_name: race.race_name, distance_meters: race.distance_meters });
 
     // Check for cached analysis (last 7 days) unless force regenerate
     if (!forceRegenerate) {
@@ -106,7 +123,7 @@ serve(async (req) => {
       }
     }
 
-    // Get user's activities from last 90 days
+    // Carrega atividades (mantido para contexto ao prompt)
     const { data: activities, error: activitiesError } = await supabase
       .from('all_activities')
       .select('*')
@@ -118,7 +135,7 @@ serve(async (req) => {
       console.error('[analyze-goal-with-ai] Error loading activities:', activitiesError);
     }
 
-    // Filter running activities
+    // Filtra corridas
     const runningActivities = activities?.filter(a => 
       a.activity_type?.toLowerCase().includes('run') && 
       a.pace_min_per_km && 
@@ -139,13 +156,13 @@ serve(async (req) => {
       });
     }
 
-    // Calculate metrics
+    // Calcula métricas descritivas para o prompt
     const paces = runningActivities.map(a => a.pace_min_per_km).sort((a, b) => a - b);
     const paceBest = paces[0];
     const paceMedian = paces[Math.floor(paces.length / 2)];
     const longestRunKm = Math.max(...runningActivities.map(a => a.total_distance_meters / 1000));
 
-    // Weekly patterns for last 8 weeks
+    // Padrões semanais (8 semanas)
     const weekKey = (d: Date) => {
       const dt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
       const day = dt.getUTCDay() || 7;
@@ -177,19 +194,26 @@ serve(async (req) => {
       avgWeeklyFrequency, avgWeeklyDistanceKm
     });
 
-    // Use the race analysis service to get consistent estimated time
-    // This ensures the AI uses the same calculation as the frontend card
-    const { data: analysisData } = await supabase.functions.invoke('analyze-race-readiness', {
-      body: { 
-        distance_meters: race.distance_meters,
-        target_time_minutes: race.target_time_minutes 
-      }
-    });
+    // Consistência com o card: prioriza estimativa vinda do frontend
+    let estimatedTimeMinutes: number | null = estimatedFromClient ?? null;
 
-    const estimatedTimeMinutes = analysisData?.estimated_time_minutes || 0;
-    const targetTimeMinutes = race.target_time_minutes || estimatedTimeMinutes;
-    const timeGapMinutes = estimatedTimeMinutes - targetTimeMinutes;
-    const timeGapPercent = (timeGapMinutes / targetTimeMinutes) * 100;
+    if (estimatedTimeMinutes == null) {
+      console.log('[analyze-goal-with-ai] No client estimate; invoking analyze-race-readiness as fallback...');
+      const { data: analysisData } = await supabase.functions.invoke('analyze-race-readiness', {
+        body: { 
+          distance_meters: race.distance_meters,
+          target_time_minutes: race.target_time_minutes 
+        }
+      });
+      estimatedTimeMinutes = analysisData?.estimated_time_minutes ?? 0;
+    }
+
+    const targetTimeMinutes = (typeof targetFromClient === 'number' && targetFromClient > 0)
+      ? targetFromClient
+      : (race.target_time_minutes ?? estimatedTimeMinutes ?? 0);
+
+    const timeGapMinutes = (estimatedTimeMinutes ?? 0) - (targetTimeMinutes || 0);
+    const timeGapPercent = targetTimeMinutes ? (timeGapMinutes / targetTimeMinutes) * 100 : 0;
 
     const formatTime = (minutes: number) => {
       const h = Math.floor(minutes / 60);
@@ -205,9 +229,9 @@ Você é um treinador de corrida experiente. Analise os dados abaixo e escreva u
 PROVA ALVO:
 - Nome: ${race.race_name}
 - Distância: ${raceDistanceKm}km
-- Meta do atleta: ${formatTime(targetTimeMinutes)}
-- Estimativa atual: ${formatTime(estimatedTimeMinutes)}
-- Gap: ${timeGapMinutes > 0 ? '+' : ''}${timeGapMinutes.toFixed(1)} min (${timeGapPercent.toFixed(1)}%)
+- Meta do atleta: ${formatTime(targetTimeMinutes || 0)}
+- Estimativa atual (oficial do app): ${formatTime(estimatedTimeMinutes || 0)}
+- Gap: ${timeGapMinutes > 0 ? '+' : ''}${(timeGapMinutes || 0).toFixed(1)} min (${timeGapPercent.toFixed(1)}%)
 
 HISTÓRICO DO ATLETA (últimas ${runningActivities.length} corridas):
 - Pace mediano: ${paceMedian.toFixed(2)} min/km
@@ -222,8 +246,7 @@ HISTÓRICO DO ATLETA (últimas ${runningActivities.length} corridas):
 3. 3 recomendações práticas e específicas de treino
 4. Uma mensagem motivadora para o objetivo
 
-Seja direto, prático e encorajador. Use linguagem acessível e evite formatação markdown.
-`;
+Seja direto, prático e encorajador. Use linguagem acessível e evite formatação markdown. Apenas texto corrido com subtítulos simples e parágrafos.`;
 
     console.log('[analyze-goal-with-ai] Calling OpenAI gpt-4o-mini...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -257,16 +280,16 @@ Seja direto, prático e encorajador. Use linguagem acessível e evite formataç�
     const cleanedAiComment = cleanAIResponse(rawAiComment);
     console.log('[analyze-goal-with-ai] OpenAI response received and cleaned. Length:', cleanedAiComment?.length || 0);
 
-    // Save to database
+    // Save to database (inclui ai_analysis)
     const snapshotPayload = {
       race_id: raceId,
       user_id: user.id,
-      estimated_time_minutes: Math.round(estimatedTimeMinutes),
+      estimated_time_minutes: Math.round(estimatedTimeMinutes || 0),
       fitness_level: avgWeeklyDistanceKm >= 40 ? 'advanced' : avgWeeklyDistanceKm >= 20 ? 'intermediate' : 'beginner',
       readiness_score: Math.min(Math.round((avgWeeklyDistanceKm / 30) * 50 + (avgWeeklyFrequency / 4) * 30 + (paceBest <= 5 ? 20 : 10)), 100),
       gap_analysis: {
-        target_time_minutes: targetTimeMinutes,
-        estimated_time_minutes: Math.round(estimatedTimeMinutes),
+        target_time_minutes: targetTimeMinutes || 0,
+        estimated_time_minutes: Math.round(estimatedTimeMinutes || 0),
         gap_minutes: timeGapMinutes,
         gap_percentage: timeGapPercent,
         distance_km: raceDistanceKm
@@ -287,9 +310,9 @@ Seja direto, prático e encorajador. Use linguagem acessível e evite formataç�
 
     return new Response(JSON.stringify({
       ai_comment: cleanedAiComment,
-      estimated_time_minutes: Math.round(estimatedTimeMinutes),
+      estimated_time_minutes: Math.round(estimatedTimeMinutes || 0),
       gap_analysis: {
-        target_time_minutes: targetTimeMinutes,
+        target_time_minutes: targetTimeMinutes || 0,
         gap_minutes: timeGapMinutes,
         gap_percentage: timeGapPercent
       },

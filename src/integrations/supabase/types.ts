@@ -2270,6 +2270,7 @@ export type Database = {
       }
       race_progress_snapshots: {
         Row: {
+          ai_analysis: string | null
           created_at: string
           estimated_time_minutes: number | null
           fitness_level: string | null
@@ -2283,6 +2284,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_analysis?: string | null
           created_at?: string
           estimated_time_minutes?: number | null
           fitness_level?: string | null
@@ -2296,6 +2298,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_analysis?: string | null
           created_at?: string
           estimated_time_minutes?: number | null
           fitness_level?: string | null

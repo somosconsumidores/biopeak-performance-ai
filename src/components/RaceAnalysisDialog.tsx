@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -86,7 +85,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const { data, error } = await supabase
         .from('race_progress_snapshots')
-        .select('ai_analysis, created_at')
+        .select('ai_analysis, created_at, estimated_time_minutes, gap_analysis')
         .eq('race_id', race.id)
         .not('ai_analysis', 'is', null)
         .gte('created_at', sevenDaysAgo.toISOString())
@@ -121,10 +120,13 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     setAiCached(false);
     
     try {
+      // Envia a estimativa oficial do card para a Edge Function
       const { data, error } = await supabase.functions.invoke('analyze-goal-with-ai', {
         body: { 
           raceId: race.id,
-          forceRegenerate 
+          forceRegenerate,
+          estimated_time_minutes: analysis?.estimated_time_minutes,
+          target_time_minutes: race.target_time_minutes
         }
       });
 
