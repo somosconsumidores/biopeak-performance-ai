@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -83,7 +82,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     setLoading(false);
   };
 
-  const formatDistance = (meters: number) => {
+  const formatRaceDistance = (meters: number) => {
     if (meters >= 1000) {
       return `${(meters / 1000).toFixed(0)}K`;
     }
@@ -146,7 +145,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {formatDistance(race.distance_meters)}
+                      {formatRaceDistance(race.distance_meters)}
                     </div>
                     <p className="text-muted-foreground">Distância</p>
                   </div>
