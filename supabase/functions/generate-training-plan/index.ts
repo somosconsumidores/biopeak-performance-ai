@@ -36,7 +36,35 @@ function getDateForWeekday(
   const base = addDays(startDate, (weekNumber - 1) * 7);
   const baseIdx = base.getUTCDay(); // 0-6 (Sun-Sat)
   const diff = weekdayIdx - baseIdx;
-  return addDays(base, diff >= 0 ? diff : diff);
+  return addDays(base, diff >= 0 ? diff : 7 + diff);
+}
+
+// ================================
+// Helpers
+// ================================
+function parsePaceToMinPerKm(input: unknown): number | null {
+  if (typeof input === 'number' && isFinite(input)) return input;
+  if (typeof input === 'string') {
+    const s = input.trim();
+    const mmss = s.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (mmss) {
+      const mm = parseInt(mmss[1], 10);
+      const ss = parseInt(mmss[2], 10);
+      if (!isNaN(mm) && !isNaN(ss)) return mm + ss / 60;
+    }
+    const n = Number(s.replace(',', '.'));
+    if (isFinite(n)) return n;
+  }
+  return null;
+}
+
+function toWeekNumber(w: unknown): number | null {
+  if (typeof w === 'number' && isFinite(w)) return Math.max(1, Math.floor(w));
+  if (typeof w === 'string') {
+    const m = w.match(/\d+/);
+    if (m) return parseInt(m[0], 10);
+  }
+  return null;
 }
 
 // ================================
@@ -194,9 +222,10 @@ serve(async (req) => {
     const user = userResult?.user;
     if (!user) throw new Error("Invalid auth token");
 
-    const body = await req.json().catch(() => ({}));
-    const planId: string | undefined = body.plan_id;
-    if (!planId) throw new Error("plan_id is required");
+const body = await req.json().catch(() => ({}));
+const planId: string | undefined = body.plan_id;
+if (!planId) throw new Error("plan_id is required");
+console.info('[generate-training-plan] start', { planId, userId: user.id });
 
     const { data: plan } = await supabase
       .from("training_plans")
@@ -248,72 +277,181 @@ serve(async (req) => {
       targetPaces: safeTargetPaces,
     };
 
-    const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
-    let aiPlan: any = null;
+const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
+let usedLLM = false;
+let planSummary: any = null;
+let workoutsParsed: any[] = [];
 
-    if (openAIApiKey) {
-      const system = `Você é um treinador especializado em ${plan.goal_type}. 
-Crie um plano científico de ${plan.weeks} semanas com foco em ${plan.goal_type}.`;
+const startedAt = Date.now();
+let openaiMs = 0;
 
-      const userPrompt = {
-        context,
-        required_output_schema: {
-          plan_summary: {
-            periodization: ["base", "build", "peak", "taper"],
-            notes: "Plano científico com paces personalizados",
-            targets: {
-              type: "object",
-              properties: {
-                target_pace_min_km: { type: "number" },
-                target_time_minutes: { type: "number" },
-              },
-              required: ["target_pace_min_km", "target_time_minutes"],
-            },
+if (!openAIApiKey) {
+  console.error('[generate-training-plan] Missing OPENAI_API_KEY');
+  return new Response(
+    JSON.stringify({ ok: false, error: 'OPENAI_API_KEY not configured' }),
+    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+try {
+  const system = `Você é um treinador especializado em ${plan.goal_type}. \nCrie um plano científico de ${plan.weeks} semanas com foco em ${plan.goal_type}.`;
+  const userPrompt = {
+    context,
+    required_output_schema: {
+      plan_summary: {
+        periodization: ["base", "build", "peak", "taper"],
+        notes: "Plano científico com paces personalizados",
+        targets: {
+          type: "object",
+          properties: {
+            target_pace_min_km: { type: "number" },
+            target_time_minutes: { type: "number" },
           },
-          workouts: [
-            {
-              week: "1..N",
-              weekday:
-                "one of sunday,monday,tuesday,wednesday,thursday,friday,saturday",
-              type: "easy|long_run|interval|tempo|recovery|race_pace_run",
-              title: "string",
-              description: "string",
-              distance_km: "number|null",
-              duration_min: "number|null",
-              target_hr_zone: "1..5|null",
-              target_pace_min_per_km: "string",
-              intensity: "low|moderate|high",
-              specific_instructions: "string",
-            },
-          ],
+          required: ["target_pace_min_km", "target_time_minutes"],
         },
-      };
-
-      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openAIApiKey}`,
-          "Content-Type": "application/json",
+      },
+      workouts: [
+        {
+          week: "1..N",
+          weekday:
+            "one of sunday,monday,tuesday,wednesday,thursday,friday,saturday",
+          type: "easy|long_run|interval|tempo|recovery|race_pace_run",
+          title: "string",
+          description: "string",
+          distance_km: "number|null",
+          duration_min: "number|null",
+          target_hr_zone: "1..5|null",
+          target_pace_min_per_km: "string|number",
+          intensity: "low|moderate|high",
+          specific_instructions: "string",
         },
-        body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: JSON.stringify(userPrompt) },
-          ],
-          response_format: { type: "json_object" },
-          max_completion_tokens: 4000,
-        }),
-      });
+      ],
+    },
+  };
 
-      aiPlan = await openaiRes.json();
-    }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-5-mini-2025-08-07',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: JSON.stringify(userPrompt) },
+      ],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 4000,
+    }),
+  });
+  openaiMs = Date.now() - startedAt;
+  const raw = await res.json();
+  console.info('[generate-training-plan] OpenAI status', { status: res.status });
 
-    return new Response(JSON.stringify({
-      ok: true,
-      plan_id: plan.id,
-      plan: aiPlan,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  const contentStr = raw?.choices?.[0]?.message?.content;
+  if (!contentStr) {
+    console.error('[generate-training-plan] Missing content from OpenAI', { raw });
+    throw new Error('Invalid OpenAI response');
+  }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(contentStr);
+  } catch (e) {
+    console.error('[generate-training-plan] Failed to parse content', { contentStr });
+    throw e;
+  }
+  usedLLM = true;
+  planSummary = parsed?.plan_summary ?? null;
+  workoutsParsed = Array.isArray(parsed?.workouts) ? parsed.workouts : [];
+} catch (e) {
+  console.error('[generate-training-plan] OpenAI error', e);
+  return new Response(
+    JSON.stringify({ ok: false, error: 'Failed to generate plan with OpenAI' }),
+    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// Persist workouts
+const startDateIso = prefs?.start_date || plan?.start_date;
+if (!startDateIso) {
+  console.error('[generate-training-plan] Missing start_date');
+  return new Response(
+    JSON.stringify({ ok: false, error: 'Missing start_date to schedule workouts' }),
+    { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+const startDate = new Date(`${startDateIso}T00:00:00Z`);
+
+const rows = (workoutsParsed || []).map((w: any) => {
+  const weekNumber = toWeekNumber(w.week) ?? 1;
+  const dayIdx = dayToIndex[(w.weekday || '').toLowerCase()] ?? 0;
+  const date = getDateForWeekday(startDate, weekNumber, dayIdx);
+  const pace = parsePaceToMinPerKm(w.target_pace_min_per_km);
+  const desc = [w.description, w.specific_instructions].filter(Boolean).join(' ');
+  return {
+    user_id: plan.user_id,
+    plan_id: plan.id,
+    workout_date: formatDate(date),
+    title: w.title || 'Workout',
+    description: desc || null,
+    workout_type: w.type || null,
+    target_pace_min_km: pace,
+    target_hr_zone: w.target_hr_zone ? String(w.target_hr_zone) : null,
+    distance_meters: typeof w.distance_km === 'number' ? Math.round(w.distance_km * 1000) : null,
+    duration_minutes: typeof w.duration_min === 'number' ? w.duration_min : null,
+    status: 'planned' as const,
+  };
+});
+
+let inserted = 0;
+if (rows.length) {
+  const { error: insErr } = await supabase
+    .from('training_plan_workouts')
+    .insert(rows);
+  if (insErr) {
+    console.error('[generate-training-plan] Insert workouts failed', insErr);
+    return new Response(
+      JSON.stringify({ ok: false, error: 'Failed to save workouts' }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  inserted = rows.length;
+} else {
+  console.warn('[generate-training-plan] No workouts parsed from LLM');
+}
+
+// Update training plan summary and status
+const goalMinutes = planSummary?.targets?.target_time_minutes;
+const { error: updErr } = await supabase
+  .from('training_plans')
+  .update({
+    status: 'active',
+    generated_at: new Date().toISOString(),
+    plan_summary: planSummary || null,
+    goal_target_time_minutes: typeof goalMinutes === 'number' ? goalMinutes : null,
+  })
+  .eq('id', plan.id);
+
+if (updErr) {
+  console.error('[generate-training-plan] Update plan failed', updErr);
+}
+
+const totalMs = Date.now() - startedAt;
+console.info('[generate-training-plan] done', { planId: plan.id, inserted, usedLLM, openaiMs, totalMs });
+
+return new Response(
+  JSON.stringify({
+    ok: true,
+    plan_id: plan.id,
+    inserted_workouts_count: inserted,
+    used_llm: usedLLM,
+    plan_summary: planSummary,
+    debug: { openai_ms: openaiMs, total_ms: totalMs },
+  }),
+  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+);
   } catch (err: any) {
     return new Response(
       JSON.stringify({ ok: false, error: err?.message || "Unknown error" }),
