@@ -69,49 +69,109 @@ serve(async (req) => {
       });
     }
 
-    // Calculate metrics
-    const avgPace = runningActivities
-      .filter(a => a.pace_min_per_km)
-      .reduce((sum, a) => sum + a.pace_min_per_km, 0) / 
-      runningActivities.filter(a => a.pace_min_per_km).length;
+    // Calculate baselines and estimates aligned with training plan logic
+    const riegel = (t1: number, d1: number, d2: number, exp = 1.06) => t1 * Math.pow(d2 / d1, exp);
 
-    const avgDistance = runningActivities
-      .reduce((sum, a) => sum + (a.total_distance_meters || 0), 0) / 
-      runningActivities.length / 1000; // Convert to km
+    const validRuns = (runningActivities || []).filter((r: any) => {
+      const pace = Number(r.pace_min_per_km);
+      const distKm = Number(r.total_distance_meters || 0) / 1000;
+      const durMin = Number(r.total_time_minutes || 0);
+      const date = r.activity_date ? new Date(r.activity_date) : null;
+      return Number.isFinite(pace) && pace > 3 && pace < 12 &&
+             Number.isFinite(distKm) && distKm >= 2 &&
+             Number.isFinite(durMin) && durMin >= 10 &&
+             date !== null;
+    });
 
-    const totalWeeklyDistance = runningActivities
-      .filter(a => new Date(a.activity_date) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-      .reduce((sum, a) => sum + (a.total_distance_meters || 0), 0) / 1000;
+    if (validRuns.length === 0) {
+      return new Response(JSON.stringify({
+        error: 'Insufficient running data for analysis',
+        estimated_time_minutes: null,
+        readiness_score: 0,
+        fitness_level: 'beginner'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    // Estimate race time using Riegel formula
-    const longestRun = Math.max(...runningActivities.map(a => (a.total_distance_meters || 0) / 1000));
-    const raceDistanceKm = race.distance_meters / 1000;
-    
-    // Use Riegel formula: T2 = T1 * (D2/D1)^1.06
-    const estimatedTimeMinutes = longestRun > 0 ? 
-      (longestRun * avgPace) * Math.pow(raceDistanceKm / longestRun, 1.06) : 
-      avgPace * raceDistanceKm * 1.1; // Add 10% safety margin
+    // Baseline paces
+    const paces = validRuns.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
+    const pace_best = paces[0];
+    const pace_median = paces[Math.floor(paces.length / 2)];
 
-    // Determine fitness level and readiness - improved logic
+    // Target distance
+    const raceDistanceKm = (race.distance_meters || 0) / 1000;
+
+    // Use median 5k base and Riegel to derive target paces, then time
+    const base5kTimeMin = pace_median * 5;
+    const pace_10k = riegel(base5kTimeMin, 5, 10) / 10;
+    const pace_21k = riegel(base5kTimeMin, 5, 21.097) / 21.097;
+    const pace_42k = riegel(base5kTimeMin, 5, 42.195) / 42.195;
+
+    let estimatedTimeMinutes = 0;
+    if (raceDistanceKm >= 41) {
+      estimatedTimeMinutes = pace_42k * 42.195;
+    } else if (raceDistanceKm >= 20) {
+      estimatedTimeMinutes = pace_21k * 21.097;
+    } else if (raceDistanceKm >= 9) {
+      estimatedTimeMinutes = pace_10k * 10;
+    } else {
+      // For shorter distances, scale from median pace directly
+      estimatedTimeMinutes = pace_median * raceDistanceKm;
+    }
+
+    // Weekly patterns for last 8 weeks
+    const weekKey = (d: Date) => {
+      const dt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const day = dt.getUTCDay() || 7; // 1..7, Monday=1
+      dt.setUTCDate(dt.getUTCDate() - (day - 1));
+      return dt.toISOString().slice(0, 10);
+    };
+
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const byWeek = new Map<string, { count: number; distanceKm: number }>();
+    validRuns.forEach((r: any) => {
+      const d = new Date(r.activity_date);
+      if (d < cutoff) return;
+      const key = weekKey(d);
+      const prev = byWeek.get(key) || { count: 0, distanceKm: 0 };
+      byWeek.set(key, {
+        count: prev.count + 1,
+        distanceKm: prev.distanceKm + Number(r.total_distance_meters || 0) / 1000,
+      });
+    });
+    const lastWeeks = Array.from(byWeek.entries())
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .slice(0, 8)
+      .map(([, v]) => v);
+
+    const avgWeeklyFrequency = lastWeeks.length ? lastWeeks.reduce((s, v) => s + v.count, 0) / lastWeeks.length : 0;
+    const avgWeeklyDistanceKm = lastWeeks.length ? lastWeeks.reduce((s, v) => s + v.distanceKm, 0) / lastWeeks.length : 0;
+
+    // Fitness level classification aligned with useAthleteAnalysis fallback
     let fitnessLevel = 'beginner';
-    let readinessScore = 0;
-
-    // More nuanced fitness assessment
-    const weeklyVolumeScore = Math.min(totalWeeklyDistance / 30 * 40, 40); // Max 40 points for volume
-    const paceScore = avgPace <= 4.5 ? 40 : avgPace <= 5.5 ? 30 : avgPace <= 6.5 ? 20 : avgPace <= 7.5 ? 10 : 0; // Max 40 points for pace
-    const consistencyScore = runningActivities.length >= 10 ? 20 : runningActivities.length >= 5 ? 10 : 0; // Max 20 points for consistency
-    
-    readinessScore = Math.min(weeklyVolumeScore + paceScore + consistencyScore, 100);
-
-    if (readinessScore >= 80 && totalWeeklyDistance >= 30) {
+    const fiveKsec = base5kTimeMin * 60;
+    if (avgWeeklyDistanceKm >= 70 || fiveKsec < 18 * 60) {
       fitnessLevel = 'elite';
-    } else if (readinessScore >= 60 && totalWeeklyDistance >= 20) {
+    } else if (avgWeeklyDistanceKm >= 40 || avgWeeklyFrequency >= 4 || fiveKsec < 22 * 60) {
       fitnessLevel = 'advanced';
-    } else if (readinessScore >= 40 && totalWeeklyDistance >= 10) {
+    } else if (avgWeeklyDistanceKm >= 15 || avgWeeklyFrequency >= 3) {
       fitnessLevel = 'intermediate';
     } else {
       fitnessLevel = 'beginner';
     }
+
+    // Readiness score (simple, transparent)
+    const weeklyVolumeScore = Math.min((avgWeeklyDistanceKm / 30) * 50, 50);
+    const freqScore = Math.min((avgWeeklyFrequency / 5) * 30, 30);
+    const paceScore = pace_median <= 4.5 ? 20 : pace_median <= 5.5 ? 15 : pace_median <= 6.5 ? 10 : pace_median <= 7.5 ? 5 : 0;
+    const readinessScore = Math.round(Math.min(weeklyVolumeScore + freqScore + paceScore, 100));
+
+    console.log('Race readiness baselines', {
+      pace_best, pace_median, pace_10k, pace_21k, pace_42k, avgWeeklyFrequency, avgWeeklyDistanceKm, fitnessLevel, estimatedTimeMinutes
+    });
 
     // Calculate gap analysis
     const targetTimeMinutes = race.target_time_minutes || estimatedTimeMinutes;
@@ -119,6 +179,7 @@ serve(async (req) => {
     const timeGapPercentage = (timeGapMinutes / targetTimeMinutes) * 100;
 
     // Generate AI-powered improvement suggestions
+    const longestRunKm = Math.max(...validRuns.map((r: any) => Number(r.total_distance_meters || 0) / 1000));
     const prompt = `
     As a professional running coach, analyze this runner's performance data and provide specific improvement suggestions:
 
@@ -127,9 +188,10 @@ serve(async (req) => {
     Time Gap: ${timeGapMinutes > 0 ? '+' : ''}${timeGapMinutes.toFixed(1)} minutes (${timeGapPercentage.toFixed(1)}%)
     
     Current Training:
-    - Weekly Distance: ${totalWeeklyDistance.toFixed(1)}km
-    - Average Pace: ${avgPace.toFixed(1)} min/km
-    - Longest Recent Run: ${longestRun.toFixed(1)}km
+    - Weekly Distance (avg last weeks): ${avgWeeklyDistanceKm.toFixed(1)}km
+    - Weekly Frequency (avg): ${avgWeeklyFrequency.toFixed(1)} sessions
+    - Median Pace: ${pace_median.toFixed(2)} min/km
+    - Longest Recent Run: ${Number.isFinite(longestRunKm) ? longestRunKm.toFixed(1) : 'N/A'}km
     - Fitness Level: ${fitnessLevel}
     
     Days until race: ${Math.ceil((new Date(race.race_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}
