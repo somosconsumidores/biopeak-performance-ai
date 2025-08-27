@@ -23,6 +23,7 @@ import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
 import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
 import { useAthleteStats } from "@/hooks/useAthleteStats";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface RaceAnalysisDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     formatHeartRate, 
     formatVo2Max 
   } = useAthleteStats();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open && race) {
@@ -97,12 +99,24 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
       if (error) {
         console.error('Error calling AI analysis:', error);
         setAiResponse('Erro ao solicitar análise da IA. Tente novamente.');
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível solicitar a análise da IA. Tente novamente.',
+        });
       } else {
         setAiResponse(data.ai_comment || 'Análise não disponível no momento.');
+        toast({
+          title: 'Análise gerada',
+          description: 'Veja o parecer da IA abaixo.',
+        });
       }
     } catch (error) {
       console.error('Error in AI analysis:', error);
       setAiResponse('Erro ao conectar com a IA. Tente novamente.');
+      toast({
+        title: 'Erro de conexão',
+        description: 'Não foi possível conectar com a IA.',
+      });
     } finally {
       setAiLoading(false);
     }

@@ -9,26 +9,40 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Pequeno hardening para aceitar apenas POST
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
+    console.log('[analyze-goal-with-ai] Request received');
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get user ID from auth header
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    
+    console.log('[analyze-goal-with-ai] Authorization header present:', !!authHeader);
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
+      console.warn('[analyze-goal-with-ai] Unauthorized access attempt', { authError });
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+    console.log('[analyze-goal-with-ai] Authenticated user:', user.id);
 
     const { raceId } = await req.json();
+    console.log('[analyze-goal-with-ai] Payload:', { raceId });
 
     // Get race details
     const { data: race, error: raceError } = await supabase
@@ -39,19 +53,25 @@ serve(async (req) => {
       .single();
 
     if (raceError || !race) {
+      console.warn('[analyze-goal-with-ai] Race not found or error', { raceError });
       return new Response(JSON.stringify({ error: 'Race not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+    console.log('[analyze-goal-with-ai] Race loaded:', { race_name: race.race_name, distance_m: race.distance_meters });
 
     // Get user's activities from last 90 days
-    const { data: activities } = await supabase
+    const { data: activities, error: activitiesError } = await supabase
       .from('all_activities')
       .select('*')
       .eq('user_id', user.id)
       .gte('activity_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
       .order('activity_date', { ascending: false });
+
+    if (activitiesError) {
+      console.error('[analyze-goal-with-ai] Error loading activities:', activitiesError);
+    }
 
     // Filter running activities
     const runningActivities = activities?.filter(a => 
@@ -60,6 +80,8 @@ serve(async (req) => {
       a.total_distance_meters && 
       a.total_time_minutes
     ) || [];
+
+    console.log('[analyze-goal-with-ai] Running activities in last 90d:', runningActivities.length);
 
     if (runningActivities.length === 0) {
       return new Response(JSON.stringify({
@@ -75,9 +97,8 @@ serve(async (req) => {
     const paces = runningActivities.map(a => a.pace_min_per_km).sort((a, b) => a - b);
     const paceBest = paces[0];
     const paceMedian = paces[Math.floor(paces.length / 2)];
-    
     const longestRunKm = Math.max(...runningActivities.map(a => a.total_distance_meters / 1000));
-    
+
     // Weekly patterns for last 8 weeks
     const weekKey = (d: Date) => {
       const dt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -88,12 +109,11 @@ serve(async (req) => {
 
     const now = new Date();
     const cutoff = new Date(now.getTime() - 56 * 24 * 60 * 60 * 1000); // 8 weeks
-    const byWeek = new Map();
+    const byWeek = new Map<string, { count: number; distanceKm: number }>();
     
     runningActivities.forEach(a => {
       const activityDate = new Date(a.activity_date);
       if (activityDate < cutoff) return;
-      
       const key = weekKey(activityDate);
       const prev = byWeek.get(key) || { count: 0, distanceKm: 0 };
       byWeek.set(key, {
@@ -106,14 +126,17 @@ serve(async (req) => {
     const avgWeeklyFrequency = lastWeeks.length ? lastWeeks.reduce((s, v) => s + v.count, 0) / lastWeeks.length : 0;
     const avgWeeklyDistanceKm = lastWeeks.length ? lastWeeks.reduce((s, v) => s + v.distanceKm, 0) / lastWeeks.length : 0;
 
-    // Calculate race estimate using Riegel formula
+    console.log('[analyze-goal-with-ai] Metrics:', {
+      paceBest, paceMedian, longestRunKm,
+      avgWeeklyFrequency, avgWeeklyDistanceKm
+    });
+
+    // Riegel estimation
     const riegel = (t1: number, d1: number, d2: number, exp = 1.06) => t1 * Math.pow(d2 / d1, exp);
     const raceDistanceKm = race.distance_meters / 1000;
-    
-    // Use median pace for 5k as baseline
+
     const base5kTimeMin = paceMedian * 5;
     let estimatedTimeMinutes = 0;
-    
     if (raceDistanceKm >= 40) {
       estimatedTimeMinutes = riegel(base5kTimeMin, 5, 42.195);
     } else if (raceDistanceKm >= 20) {
@@ -128,7 +151,6 @@ serve(async (req) => {
     const timeGapMinutes = estimatedTimeMinutes - targetTimeMinutes;
     const timeGapPercent = (timeGapMinutes / targetTimeMinutes) * 100;
 
-    // Create AI prompt
     const formatTime = (minutes: number) => {
       const h = Math.floor(minutes / 60);
       const m = Math.floor(minutes % 60);
@@ -161,7 +183,7 @@ HISTÓRICO DO ATLETA (últimas ${runningActivities.length} corridas):
 Seja direto, prático e encorajador. Use linguagem acessível.
 `;
 
-    // Call OpenAI
+    console.log('[analyze-goal-with-ai] Calling OpenAI gpt-4o-mini...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -179,28 +201,46 @@ Seja direto, prático e encorajador. Use linguagem acessível.
       }),
     });
 
+    if (!response.ok) {
+      const errTxt = await response.text();
+      console.error('[analyze-goal-with-ai] OpenAI API error:', response.status, errTxt);
+      return new Response(JSON.stringify({ error: 'AI service unavailable' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const aiData = await response.json();
     const aiComment = aiData.choices?.[0]?.message?.content || 'Não foi possível gerar a análise no momento.';
+    console.log('[analyze-goal-with-ai] OpenAI response received. Length:', aiComment?.length || 0);
 
     // Save to database
-    await supabase
-      .from('race_progress_snapshots')
-      .insert({
-        race_id: raceId,
-        user_id: user.id,
+    const snapshotPayload = {
+      race_id: raceId,
+      user_id: user.id,
+      estimated_time_minutes: Math.round(estimatedTimeMinutes),
+      fitness_level: avgWeeklyDistanceKm >= 40 ? 'advanced' : avgWeeklyDistanceKm >= 20 ? 'intermediate' : 'beginner',
+      readiness_score: Math.min(Math.round((avgWeeklyDistanceKm / 30) * 50 + (avgWeeklyFrequency / 4) * 30 + (paceBest <= 5 ? 20 : 10)), 100),
+      gap_analysis: {
+        target_time_minutes: targetTimeMinutes,
         estimated_time_minutes: Math.round(estimatedTimeMinutes),
-        fitness_level: avgWeeklyDistanceKm >= 40 ? 'advanced' : avgWeeklyDistanceKm >= 20 ? 'intermediate' : 'beginner',
-        readiness_score: Math.min(Math.round((avgWeeklyDistanceKm / 30) * 50 + (avgWeeklyFrequency / 4) * 30 + (paceBest <= 5 ? 20 : 10)), 100),
-        gap_analysis: {
-          target_time_minutes: targetTimeMinutes,
-          estimated_time_minutes: Math.round(estimatedTimeMinutes),
-          gap_minutes: timeGapMinutes,
-          gap_percentage: timeGapPercent,
-          distance_km: raceDistanceKm
-        },
-        training_focus_areas: ['pacing', 'endurance', 'consistency'],
-        ai_analysis: aiComment
-      });
+        gap_minutes: timeGapMinutes,
+        gap_percentage: timeGapPercent,
+        distance_km: raceDistanceKm
+      },
+      training_focus_areas: ['pacing', 'endurance', 'consistency'],
+      ai_analysis: aiComment
+    };
+
+    const { error: insertError } = await supabase
+      .from('race_progress_snapshots')
+      .insert(snapshotPayload);
+
+    if (insertError) {
+      console.error('[analyze-goal-with-ai] Failed to save snapshot:', insertError);
+    } else {
+      console.log('[analyze-goal-with-ai] Snapshot saved successfully');
+    }
 
     return new Response(JSON.stringify({
       ai_comment: aiComment,
