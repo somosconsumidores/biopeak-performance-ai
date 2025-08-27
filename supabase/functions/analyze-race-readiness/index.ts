@@ -166,48 +166,65 @@ serve(async (req) => {
           { role: 'system', content: 'You are a professional running coach providing detailed training analysis. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 1000
+        max_completion_tokens: 600,
+        response_format: { type: 'json_object' }
       }),
     });
 
     const aiData = await aiResponse.json();
     console.log('AI Response:', JSON.stringify(aiData, null, 2));
     
-    let aiSuggestions = null;
+    let aiSuggestions: any = null;
 
-    try {
-      if (aiData.choices && aiData.choices[0] && aiData.choices[0].message) {
-        aiSuggestions = JSON.parse(aiData.choices[0].message.content);
-      } else {
-        console.error('Invalid AI response structure:', aiData);
+    // Helper to safely extract content
+    const getContent = (d: any) => d?.choices?.[0]?.message?.content;
+
+    let content = getContent(aiData);
+
+    if (typeof content === 'string' && content.trim().length > 0) {
+      try {
+        aiSuggestions = JSON.parse(content);
+      } catch (err) {
+        console.error('Failed to parse AI JSON:', err, 'Content:', content);
       }
-    } catch (error) {
-      console.error('Failed to parse AI response:', error, 'Content:', aiData.choices?.[0]?.message?.content);
+    } else {
+      console.warn('AI response content empty on first attempt. Retrying with compact prompt...');
+      const retryResp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini-2025-08-07',
+          messages: [
+            { role: 'system', content: 'You are a professional running coach providing detailed training analysis. Always respond with valid JSON only.' },
+            { role: 'user', content: prompt + '\nResponda apenas com JSON. Sem texto extra.' }
+          ],
+          max_completion_tokens: 400,
+          response_format: { type: 'json_object' }
+        }),
+      });
+      const retryData = await retryResp.json();
+      console.log('AI Retry Response:', JSON.stringify(retryData, null, 2));
+      content = getContent(retryData);
+      if (typeof content === 'string' && content.trim().length > 0) {
+        try {
+          aiSuggestions = JSON.parse(content);
+        } catch (err) {
+          console.error('Failed to parse AI JSON on retry:', err, 'Content:', content);
+        }
+      }
     }
 
-    // Fallback suggestions if AI fails
-    const fallbackSuggestions = {
-      suggestions: [
-        {
-          area: "Resistência",
-          recommendation: timeGapMinutes > 5 ? 
-            "Aumentar volume semanal gradualmente. Adicionar 1-2 corridas longas por semana." :
-            "Manter volume atual e focar na consistência dos treinos.",
-          priority: "high"
-        },
-        {
-          area: "Velocidade",
-          recommendation: "Incluir treinos intervalados semanais (4x1km ou 8x400m) para melhorar o pace.",
-          priority: "medium"
-        }
-      ],
-      focus_areas: timeGapMinutes > 0 ? ["Resistência", "Pace"] : ["Manutenção", "Tapering"],
-      realistic_target: timeGapMinutes > 10 ? 
-        "Com 8-12 semanas de treinamento consistente, é possível reduzir 3-5 minutos do tempo atual." :
-        "Meta atual é realista. Focar na execução da estratégia de prova."
-    };
+    // If still no AI suggestions, return error (no fallback)
+    if (!aiSuggestions || !Array.isArray(aiSuggestions.suggestions)) {
+      return new Response(JSON.stringify({ error: 'AI_suggestions_unavailable' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    const finalSuggestions = aiSuggestions || fallbackSuggestions;
 
     // Save snapshot to database
     await supabase
@@ -225,8 +242,8 @@ serve(async (req) => {
           gap_percentage: timeGapPercentage,
           distance_km: raceDistanceKm
         },
-        improvement_suggestions: finalSuggestions.suggestions,
-        training_focus_areas: finalSuggestions.focus_areas
+        improvement_suggestions: aiSuggestions.suggestions,
+        training_focus_areas: aiSuggestions.focus_areas
       });
 
     return new Response(JSON.stringify({
@@ -238,9 +255,9 @@ serve(async (req) => {
         gap_minutes: timeGapMinutes,
         gap_percentage: timeGapPercentage
       },
-      suggestions: finalSuggestions.suggestions,
-      focus_areas: finalSuggestions.focus_areas,
-      realistic_target: finalSuggestions.realistic_target
+      suggestions: aiSuggestions.suggestions,
+      focus_areas: aiSuggestions.focus_areas,
+      realistic_target: aiSuggestions.realistic_target
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
