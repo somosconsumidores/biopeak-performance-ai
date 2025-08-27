@@ -3,11 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Utilities
+// ---------------- Utilities ----------------
 const dayToIndex: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -23,74 +22,56 @@ function addDays(date: Date, days: number) {
   d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
-
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
-
-function getDateForWeekday(
-  startDate: Date,
-  weekNumber: number,
-  weekdayIdx: number,
-) {
+function getDateForWeekday(startDate: Date, weekNumber: number, weekdayIdx: number) {
   const base = addDays(startDate, (weekNumber - 1) * 7);
-  const baseIdx = base.getUTCDay(); // 0-6 (Sun-Sat)
+  const baseIdx = base.getUTCDay();
   const diff = weekdayIdx - baseIdx;
+  // Ensure we land within the same training week window
   return addDays(base, diff >= 0 ? diff : 7 + diff);
 }
 
-// ================================
-// Helpers
-// ================================
-function parsePaceToMinPerKm(input: unknown): number | null {
-  if (typeof input === 'number' && isFinite(input)) return input;
-  if (typeof input === 'string') {
-    const s = input.trim();
-    const mmss = s.match(/^(\d{1,2}):(\d{1,2})$/);
-    if (mmss) {
-      const mm = parseInt(mmss[1], 10);
-      const ss = parseInt(mmss[2], 10);
-      if (!isNaN(mm) && !isNaN(ss)) return mm + ss / 60;
-    }
-    const n = Number(s.replace(',', '.'));
-    if (isFinite(n)) return n;
+function toDayIndex(val: unknown, fallback = 6): number {
+  if (typeof val === 'number' && isFinite(val)) {
+    const n = Math.round(val);
+    return Math.min(6, Math.max(0, n));
   }
-  return null;
+  if (typeof val === 'string' && val.trim()) {
+    const key = val.trim().toLowerCase();
+    if (key in dayToIndex) return dayToIndex[key];
+    const num = Number(key);
+    if (isFinite(num)) return toDayIndex(num, fallback);
+  }
+  return fallback;
 }
 
-function toWeekNumber(w: unknown): number | null {
-  if (typeof w === 'number' && isFinite(w)) return Math.max(1, Math.floor(w));
-  if (typeof w === 'string') {
-    const m = w.match(/\d+/);
-    if (m) return parseInt(m[0], 10);
-  }
-  return null;
+function uniqueSorted(nums: number[]) {
+  return Array.from(new Set(nums.filter((n) => n >= 0 && n <= 6))).sort((a, b) => a - b);
 }
 
-// ================================
-// SAFETY CALIBRATOR
-// ================================
+// ---------------- SAFETY CALIBRATOR ----------------
 class SafetyCalibrator {
   runs: any[];
   profile: any;
   constructor(runs: any[], profile: any) {
-    this.runs = runs;
+    this.runs = runs || [];
     this.profile = profile;
   }
 
   getValidRunData() {
     const now = new Date();
-    const cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    return (this.runs || []).filter((r: any) => {
+    const cutoffDate = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
+    return this.runs.filter((r: any) => {
       const pace = Number(r.pace_min_per_km);
       const dist = Number(r.total_distance_meters || 0) / 1000;
       const dur = Number(r.total_time_minutes || 0);
       const date = new Date(r.activity_date);
       return (
-        Number.isFinite(pace) && Number.isFinite(dist) && Number.isFinite(dur) &&
-        pace > 3 && pace < 12 &&
-        dist >= 2 &&
-        dur >= 10 &&
+        Number.isFinite(pace) && pace > 3 && pace < 12 &&
+        Number.isFinite(dist) && dist >= 2 &&
+        Number.isFinite(dur) && dur >= 10 &&
         date >= cutoffDate
       );
     });
@@ -100,16 +81,13 @@ class SafetyCalibrator {
     const valid = this.getValidRunData();
     if (!valid.length) return this.getDefaults();
 
-    const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort(
-      (a: number, b: number) => a - b,
-    );
+    const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
     const best = paces[0];
     const median = paces[Math.floor(paces.length / 2)];
     const p75 = paces[Math.floor(paces.length * 0.75)];
 
-    const base5kMin = best * 5;
-    const riegel = (t1: number, d1: number, d2: number) =>
-      t1 * Math.pow(d2 / d1, 1.06);
+    const base5kMin = median * 5; // use median for robustness
+    const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
 
     const pace_10k = riegel(base5kMin, 5, 10) / 10;
     const pace_half = riegel(base5kMin, 5, 21.097) / 21.097;
@@ -119,26 +97,23 @@ class SafetyCalibrator {
       pace_best: best,
       pace_median: median,
       pace_p75: p75,
-      pace_5k: best,
+      pace_5k: median,
       pace_10k,
       pace_half,
       pace_marathon,
+      // training zones
       pace_easy: Math.max(median + 1.0, p75),
       pace_long: Math.max(median + 0.7, p75),
       pace_tempo: best + 0.35,
       pace_interval_400m: best - 0.15,
       pace_interval_800m: best,
       pace_interval_1km: best + 0.10,
-      pace_half_marathon: pace_half,
     };
   }
 
   getDefaults() {
     const age = this.profile?.birth_date
-      ? Math.floor(
-        (Date.now() - new Date(this.profile.birth_date).getTime()) /
-          (365.25 * 24 * 3600 * 1000),
-      )
+      ? Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
       : 35;
     const base = age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
     return {
@@ -155,47 +130,7 @@ class SafetyCalibrator {
       pace_interval_400m: base * 0.9,
       pace_interval_800m: base * 0.95,
       pace_interval_1km: base,
-      pace_half_marathon: base * 1.15,
     };
-  }
-
-  applySafetyClamps(type: string, pace: number, duration?: number) {
-    const b = this.calculateBaselines();
-    let safe = pace;
-    const warnings: string[] = [];
-
-    switch ((type || "").toLowerCase()) {
-      case "easy":
-      case "recovery":
-        if (safe < b.pace_10k + 0.5) {
-          safe = b.pace_10k + 0.5;
-          warnings.push("Easy ajustado para manter Z2.");
-        }
-        break;
-      case "long_run":
-        if (safe < b.pace_10k + 0.4) {
-          safe = b.pace_10k + 0.4;
-          warnings.push("Long run ajustado para manter aeróbico.");
-        }
-        break;
-      case "tempo":
-        if (safe < b.pace_10k) {
-          safe = b.pace_10k;
-          warnings.push("Tempo não pode ser mais rápido que 10k.");
-        }
-        if (duration && duration > 45) {
-          warnings.push("Tempo >45min não recomendado.");
-        }
-        break;
-      case "interval":
-        if (safe < b.pace_best) {
-          safe = b.pace_best;
-          warnings.push("Intervalo não pode ser mais rápido que melhor pace observado.");
-        }
-        break;
-    }
-
-    return { pace: safe, warnings };
   }
 
   getSafeTargetPaces() {
@@ -203,259 +138,393 @@ class SafetyCalibrator {
   }
 }
 
+// ---------------- PLAN GENERATOR ----------------
+
+type GoalType =
+  | '5k' | '10k' | '21k' | '42k'
+  | 'condicionamento' | 'perda_de_peso' | 'manutencao' | 'retorno' | 'melhorar_tempos';
+
+type Paces = ReturnType<SafetyCalibrator['getSafeTargetPaces']>;
+
+function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' | 'taper' {
+  if (week <= Math.max(1, Math.floor(totalWeeks * 0.4))) return 'base';
+  if (week <= Math.max(2, Math.floor(totalWeeks * 0.75))) return 'build';
+  if (week <= Math.max(3, Math.floor(totalWeeks * 0.9))) return 'peak';
+  return 'taper';
+}
+
+function defaultDaysFromPrefs(prefs: any, longDayIdx: number): number[] {
+  const daysPerWeek: number = Math.min(7, Math.max(2, prefs?.days_per_week ?? 4));
+  const rawDays = Array.isArray(prefs?.days_of_week) ? prefs.days_of_week : null;
+  let indices: number[] = [];
+  if (rawDays) {
+    indices = rawDays.map((d: any) => toDayIndex(d));
+  } else {
+    // sensible defaults: Tue(2), Thu(4), Sat(6), Sun(0)
+    indices = [2, 4, 6, 0];
+  }
+  // Ensure long run day is included
+  if (!indices.includes(longDayIdx)) indices.push(longDayIdx);
+  indices = uniqueSorted(indices).slice(0, daysPerWeek);
+  // Always keep long run if we trimmed
+  if (!indices.includes(longDayIdx)) {
+    indices.pop();
+    indices.push(longDayIdx);
+    indices = uniqueSorted(indices);
+  }
+  return indices;
+}
+
+function generatePlan(goalRaw: string, weeks: number, targetPaces: Paces, prefs: any) {
+  const goal = (goalRaw || '').toLowerCase() as GoalType;
+  const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
+  const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
+
+  const workouts: any[] = [];
+
+  for (let w = 1; w <= weeks; w++) {
+    const phase = getPhase(w, weeks);
+    const isRecovery = w % 4 === 0 && phase !== 'taper';
+    const volumeMultiplier = isRecovery ? 0.7 : 1.0;
+
+    for (const dow of dayIndices) {
+      const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
+      const isLong = dow === longDayIdx;
+      const session = isLong
+        ? generateLongRun(goal, w, phase, volumeMultiplier, targetPaces)
+        : generateSession(goal, w, phase, volumeMultiplier, targetPaces);
+
+      workouts.push({ ...session, week: w, weekday });
+    }
+  }
+
+  return workouts;
+}
+
+function generateLongRun(goal: GoalType, week: number, phase: string, vol: number, p: Paces) {
+  let dist = 10 + week * 0.8;
+  switch (goal) {
+    case '5k': dist = 6 + week * 0.3; break;
+    case '10k': dist = 8 + week * 0.5; break;
+    case '21k': dist = Math.min(22, 12 + week * 1.0); break;
+    case '42k': dist = Math.min(32, 15 + week * 1.5); break;
+    case 'condicionamento': dist = 8 + week * 0.4; break;
+    case 'perda_de_peso': dist = 7 + week * 0.4; break;
+    case 'manutencao': dist = 10 + week * 0.3; break;
+    case 'retorno': dist = Math.min(14, 6 + week * 0.6); break;
+    case 'melhorar_tempos': dist = 12 + week * 0.7; break;
+  }
+
+  dist = Math.max(6, Math.round(dist * vol));
+
+  const baseDesc = (phase === 'build' || phase === 'peak')
+    ? `${dist}km incluindo blocos em ritmo de prova`
+    : `${dist}km contínuos em Z2`;
+
+  const pace = goal === '42k' ? p.pace_marathon
+    : goal === '21k' ? p.pace_half
+    : goal === '10k' ? p.pace_10k
+    : p.pace_long;
+
+  return {
+    type: 'long_run',
+    title: `Longão ${dist}km`,
+    description: baseDesc,
+    distance_km: dist,
+    duration_min: null,
+    target_hr_zone: 2,
+    target_pace_min_per_km: Number(pace.toFixed(2)),
+    intensity: 'moderate',
+  };
+}
+
+function generateSession(goal: GoalType, week: number, phase: string, vol: number, p: Paces) {
+  // Defaults: easy session
+  let type = 'easy';
+  let title = 'Corrida leve';
+  let description = 'Corrida confortável em Z2';
+  let distance_km = Math.round((5 + week * 0.5) * vol);
+  let duration_min: number | null = null;
+  let pace = p.pace_easy;
+  let zone = 2;
+  let intensity = 'low';
+
+  if (goal === '5k') {
+    if (phase !== 'base' && week % 2 === 0) {
+      type = 'interval';
+      title = '8x400m';
+      description = 'Aquecimento + 8x400m ritmo 5k, 90s rec';
+      duration_min = 25;
+      distance_km = null as any;
+      pace = p.pace_interval_400m;
+      zone = 4;
+      intensity = 'high';
+    }
+  } else if (goal === '10k') {
+    if (phase !== 'base' && week % 2 === 0) {
+      type = 'tempo';
+      title = 'Tempo run 30min';
+      description = 'Aquecimento + 30min em ritmo de limiar';
+      duration_min = 30;
+      distance_km = null as any;
+      pace = p.pace_tempo;
+      zone = 3;
+      intensity = 'moderate';
+    }
+  } else if (goal === '21k') {
+    if (phase !== 'taper' && week % 3 === 0) {
+      type = 'interval';
+      title = '5x1000m';
+      description = 'Aquecimento + 5x1km ritmo 10k, rec 2min';
+      duration_min = 35;
+      distance_km = null as any;
+      pace = p.pace_interval_1km;
+      zone = 4;
+      intensity = 'high';
+    }
+  } else if (goal === '42k') {
+    if (phase === 'build' && week % 2 === 0) {
+      type = 'tempo';
+      title = 'Tempo longo 40min';
+      description = 'Aquecimento + 40min ritmo maratona';
+      duration_min = 40;
+      distance_km = null as any;
+      pace = p.pace_marathon;
+      zone = 3;
+      intensity = 'moderate';
+    }
+  } else if (goal === 'condicionamento') {
+    if (week % 3 === 0) {
+      type = 'fartlek';
+      title = 'Fartlek 30min';
+      description = 'Aquecimento + variações 1-2min moderado/leve';
+      duration_min = 30;
+      distance_km = null as any;
+      pace = p.pace_tempo;
+      zone = 3;
+      intensity = 'moderate';
+    }
+  } else if (goal === 'perda_de_peso') {
+    // foco em Z2/Z3 e sessões mais longas
+    if (week % 2 === 1) {
+      type = 'moderate';
+      title = 'Z2-Z3 contínuo';
+      description = '30-45min em Z2 com breves progressões';
+      duration_min = 40;
+      distance_km = null as any;
+      pace = (p.pace_easy + p.pace_tempo) / 2;
+      zone = 2;
+      intensity = 'moderate';
+    }
+  } else if (goal === 'manutencao') {
+    if (week % 3 === 2) {
+      type = 'progressivo';
+      title = 'Progressivo 30min';
+      description = 'Comece em Z2 e termine próximo ao limiar';
+      duration_min = 30;
+      distance_km = null as any;
+      pace = (p.pace_easy + p.pace_tempo) / 2;
+      zone = 3;
+      intensity = 'moderate';
+    }
+  } else if (goal === 'retorno') {
+    // retorno gradual
+    distance_km = Math.max(3, Math.round((3 + week * 0.4) * vol));
+    pace = p.pace_easy + 0.3; // ainda mais conservador
+    zone = 2;
+    intensity = 'low';
+  } else if (goal === 'melhorar_tempos') {
+    if (phase !== 'base' && week % 2 === 1) {
+      type = 'interval';
+      title = '6x800m';
+      description = 'Aquecimento + 6x800m ritmo 5-10k, rec 2min';
+      duration_min = 35;
+      distance_km = null as any;
+      pace = p.pace_interval_800m;
+      zone = 4;
+      intensity = 'high';
+    } else if (phase === 'peak') {
+      type = 'tempo';
+      title = 'Tempo 20min';
+      description = 'Aquecimento + 20min em limiar';
+      duration_min = 20;
+      distance_km = null as any;
+      pace = p.pace_tempo;
+      zone = 3;
+      intensity = 'moderate';
+    }
+  }
+
+  return {
+    type,
+    title,
+    description,
+    distance_km: type === 'easy' ? distance_km : (distance_km ?? null),
+    duration_min: duration_min ?? null,
+    target_hr_zone: zone,
+    target_pace_min_per_km: Number(pace.toFixed(2)),
+    intensity,
+  };
+}
+
+function buildPlanSummary(goal: string, weeks: number, p: Paces) {
+  const phases: Array<'base' | 'build' | 'peak' | 'taper'> = [];
+  for (let w = 1; w <= weeks; w++) phases.push(getPhase(w, weeks));
+
+  // Targets: estimate race time when applicable
+  let target_pace_min_km: number | null = null;
+  let target_time_minutes: number | null = null;
+  const g = (goal || '').toLowerCase();
+  if (g === '5k') {
+    target_pace_min_km = p.pace_5k;
+    target_time_minutes = 5 * p.pace_5k;
+  } else if (g === '10k') {
+    target_pace_min_km = p.pace_10k;
+    target_time_minutes = 10 * p.pace_10k;
+  } else if (g === '21k') {
+    target_pace_min_km = p.pace_half;
+    target_time_minutes = 21.097 * p.pace_half;
+  } else if (g === '42k') {
+    target_pace_min_km = p.pace_marathon;
+    target_time_minutes = 42.195 * p.pace_marathon;
+  } else {
+    target_pace_min_km = p.pace_median;
+    target_time_minutes = null;
+  }
+
+  return {
+    periodization: phases,
+    notes: 'Plano determinístico gerado sem IA com paces personalizados.',
+    targets: {
+      target_pace_min_km: Number((target_pace_min_km ?? p.pace_median).toFixed(2)),
+      target_time_minutes: target_time_minutes ? Math.round(target_time_minutes) : null,
+    },
+  };
+}
+
+// ---------------- EDGE FUNCTION ENTRYPOINT ----------------
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing Authorization header");
+  const startedAt = Date.now();
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing Authorization header');
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: userResult } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
+    const { data: userResult } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     const user = userResult?.user;
-    if (!user) throw new Error("Invalid auth token");
+    if (!user) throw new Error('Invalid auth token');
 
-const body = await req.json().catch(() => ({}));
-const planId: string | undefined = body.plan_id;
-if (!planId) throw new Error("plan_id is required");
-console.info('[generate-training-plan] start', { planId, userId: user.id });
+    const body = await req.json().catch(() => ({}));
+    const planId: string | undefined = body.plan_id;
+    if (!planId) throw new Error('plan_id is required');
 
-    const { data: plan } = await supabase
-      .from("training_plans")
-      .select(
-        "id, user_id, plan_name, goal_type, start_date, end_date, weeks, target_event_date, status",
-      )
-      .eq("id", planId)
+    console.info('[generate-training-plan] start deterministic', { planId, userId: user.id });
+
+    const { data: plan, error: planErr } = await supabase
+      .from('training_plans')
+      .select('id, user_id, plan_name, goal_type, start_date, end_date, weeks, target_event_date, status')
+      .eq('id', planId)
       .maybeSingle();
+    if (planErr) throw planErr;
+    if (!plan) throw new Error('Plan not found');
 
     const { data: prefs } = await supabase
-      .from("training_plan_preferences")
-      .select("days_per_week, days_of_week, long_run_weekday, start_date")
-      .eq("plan_id", planId)
+      .from('training_plan_preferences')
+      .select('days_per_week, days_of_week, long_run_weekday, start_date')
+      .eq('plan_id', planId)
       .maybeSingle();
 
     const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, birth_date, weight_kg, height_cm, gender")
-      .eq("user_id", user.id)
+      .from('profiles')
+      .select('display_name, birth_date, weight_kg, height_cm, gender')
+      .eq('user_id', user.id)
       .maybeSingle();
 
-    // Atividades recentes
+    // Recent activities to calibrate
     const sinceDate = new Date();
     sinceDate.setUTCDate(sinceDate.getUTCDate() - 180);
     const sinceStr = sinceDate.toISOString().slice(0, 10);
 
     const { data: activities } = await supabase
-      .from("all_activities")
-      .select(
-        "activity_date,total_distance_meters,total_time_minutes,pace_min_per_km,average_heart_rate,max_heart_rate,activity_type",
-      )
-      .eq("user_id", user.id)
-      .gte("activity_date", sinceStr)
-      .order("activity_date", { ascending: false });
+      .from('all_activities')
+      .select('activity_date,total_distance_meters,total_time_minutes,pace_min_per_km,average_heart_rate,max_heart_rate,activity_type')
+      .eq('user_id', user.id)
+      .gte('activity_date', sinceStr)
+      .order('activity_date', { ascending: false });
 
-    const runs = (activities || []).filter((a) =>
-      (a.activity_type || "").toLowerCase().includes("run")
-    );
-
+    const runs = (activities || []).filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'));
     const safetyCalibrator = new SafetyCalibrator(runs, profile);
     const safeTargetPaces = safetyCalibrator.getSafeTargetPaces();
 
-    // Build context
-    const context = {
-      userId: user.id,
-      plan,
-      preferences: prefs,
-      profile,
-      targetPaces: safeTargetPaces,
-    };
+    const weeks = Math.max(1, Math.floor(plan.weeks || 4));
+    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs);
 
-const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
-let usedLLM = false;
-let planSummary: any = null;
-let workoutsParsed: any[] = [];
+    const startDateIso = prefs?.start_date || plan?.start_date;
+    if (!startDateIso) throw new Error('Missing start_date to schedule workouts');
+    const startDate = new Date(`${startDateIso}T00:00:00Z`);
 
-const startedAt = Date.now();
-let openaiMs = 0;
+    const rows = (workouts || []).map((w: any) => {
+      const weekdayIdx = dayToIndex[(w.weekday || '').toLowerCase()] ?? 6;
+      const date = getDateForWeekday(startDate, Number(w.week) || 1, weekdayIdx);
+      return {
+        user_id: plan.user_id,
+        plan_id: plan.id,
+        workout_date: formatDate(date),
+        title: w.title || 'Workout',
+        description: w.description || null,
+        workout_type: w.type || null,
+        target_pace_min_km: typeof w.target_pace_min_per_km === 'number' ? w.target_pace_min_per_km : Number.parseFloat(String(w.target_pace_min_per_km)),
+        target_hr_zone: w.target_hr_zone != null ? String(w.target_hr_zone) : null,
+        distance_meters: typeof w.distance_km === 'number' ? Math.round(w.distance_km * 1000) : null,
+        duration_minutes: typeof w.duration_min === 'number' ? Math.round(w.duration_min) : null,
+        status: 'planned' as const,
+      };
+    });
 
-if (!openAIApiKey) {
-  console.error('[generate-training-plan] Missing OPENAI_API_KEY');
-  return new Response(
-    JSON.stringify({ ok: false, error: 'OPENAI_API_KEY not configured' }),
-    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
+    // Replace existing planned workouts for this plan
+    await supabase.from('training_plan_workouts').delete().eq('plan_id', plan.id);
+    let inserted = 0;
+    if (rows.length) {
+      const { error: insErr } = await supabase.from('training_plan_workouts').insert(rows);
+      if (insErr) throw insErr;
+      inserted = rows.length;
+    }
 
-try {
-  const system = `Você é um treinador especializado em ${plan.goal_type}. \nCrie um plano científico de ${plan.weeks} semanas com foco em ${plan.goal_type}.`;
-  const userPrompt = {
-    context,
-    required_output_schema: {
-      plan_summary: {
-        periodization: ["base", "build", "peak", "taper"],
-        notes: "Plano científico com paces personalizados",
-        targets: {
-          type: "object",
-          properties: {
-            target_pace_min_km: { type: "number" },
-            target_time_minutes: { type: "number" },
-          },
-          required: ["target_pace_min_km", "target_time_minutes"],
-        },
-      },
-      workouts: [
-        {
-          week: "1..N",
-          weekday:
-            "one of sunday,monday,tuesday,wednesday,thursday,friday,saturday",
-          type: "easy|long_run|interval|tempo|recovery|race_pace_run",
-          title: "string",
-          description: "string",
-          distance_km: "number|null",
-          duration_min: "number|null",
-          target_hr_zone: "1..5|null",
-          target_pace_min_per_km: "string|number",
-          intensity: "low|moderate|high",
-          specific_instructions: "string",
-        },
-      ],
-    },
-  };
+    // Build and save plan summary and status
+    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces);
+    const goalMinutes = planSummary?.targets?.target_time_minutes ?? null;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-5-mini-2025-08-07',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: JSON.stringify(userPrompt) },
-      ],
-      response_format: { type: 'json_object' },
-      max_completion_tokens: 4000,
-    }),
-  });
-  openaiMs = Date.now() - startedAt;
-  const raw = await res.json();
-  console.info('[generate-training-plan] OpenAI status', { status: res.status });
+    const { error: updErr } = await supabase
+      .from('training_plans')
+      .update({
+        status: 'active',
+        generated_at: new Date().toISOString(),
+        plan_summary: planSummary,
+        goal_target_time_minutes: typeof goalMinutes === 'number' ? goalMinutes : null,
+      })
+      .eq('id', plan.id);
+    if (updErr) throw updErr;
 
-  const contentStr = raw?.choices?.[0]?.message?.content;
-  if (!contentStr) {
-    console.error('[generate-training-plan] Missing content from OpenAI', { raw });
-    throw new Error('Invalid OpenAI response');
-  }
-  let parsed: any;
-  try {
-    parsed = JSON.parse(contentStr);
-  } catch (e) {
-    console.error('[generate-training-plan] Failed to parse content', { contentStr });
-    throw e;
-  }
-  usedLLM = true;
-  planSummary = parsed?.plan_summary ?? null;
-  workoutsParsed = Array.isArray(parsed?.workouts) ? parsed.workouts : [];
-} catch (e) {
-  console.error('[generate-training-plan] OpenAI error', e);
-  return new Response(
-    JSON.stringify({ ok: false, error: 'Failed to generate plan with OpenAI' }),
-    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
+    const totalMs = Date.now() - startedAt;
+    console.info('[generate-training-plan] deterministic done', { planId: plan.id, inserted, totalMs });
 
-// Persist workouts
-const startDateIso = prefs?.start_date || plan?.start_date;
-if (!startDateIso) {
-  console.error('[generate-training-plan] Missing start_date');
-  return new Response(
-    JSON.stringify({ ok: false, error: 'Missing start_date to schedule workouts' }),
-    { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-const startDate = new Date(`${startDateIso}T00:00:00Z`);
-
-const rows = (workoutsParsed || []).map((w: any) => {
-  const weekNumber = toWeekNumber(w.week) ?? 1;
-  const dayIdx = dayToIndex[(w.weekday || '').toLowerCase()] ?? 0;
-  const date = getDateForWeekday(startDate, weekNumber, dayIdx);
-  const pace = parsePaceToMinPerKm(w.target_pace_min_per_km);
-  const desc = [w.description, w.specific_instructions].filter(Boolean).join(' ');
-  return {
-    user_id: plan.user_id,
-    plan_id: plan.id,
-    workout_date: formatDate(date),
-    title: w.title || 'Workout',
-    description: desc || null,
-    workout_type: w.type || null,
-    target_pace_min_km: pace,
-    target_hr_zone: w.target_hr_zone ? String(w.target_hr_zone) : null,
-    distance_meters: typeof w.distance_km === 'number' ? Math.round(w.distance_km * 1000) : null,
-    duration_minutes: typeof w.duration_min === 'number' ? w.duration_min : null,
-    status: 'planned' as const,
-  };
-});
-
-let inserted = 0;
-if (rows.length) {
-  const { error: insErr } = await supabase
-    .from('training_plan_workouts')
-    .insert(rows);
-  if (insErr) {
-    console.error('[generate-training-plan] Insert workouts failed', insErr);
     return new Response(
-      JSON.stringify({ ok: false, error: 'Failed to save workouts' }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ ok: true, plan_id: plan.id, inserted_workouts_count: inserted, used_llm: false, plan_summary: planSummary, debug: { total_ms: totalMs } }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-  }
-  inserted = rows.length;
-} else {
-  console.warn('[generate-training-plan] No workouts parsed from LLM');
-}
-
-// Update training plan summary and status
-const goalMinutes = planSummary?.targets?.target_time_minutes;
-const { error: updErr } = await supabase
-  .from('training_plans')
-  .update({
-    status: 'active',
-    generated_at: new Date().toISOString(),
-    plan_summary: planSummary || null,
-    goal_target_time_minutes: typeof goalMinutes === 'number' ? goalMinutes : null,
-  })
-  .eq('id', plan.id);
-
-if (updErr) {
-  console.error('[generate-training-plan] Update plan failed', updErr);
-}
-
-const totalMs = Date.now() - startedAt;
-console.info('[generate-training-plan] done', { planId: plan.id, inserted, usedLLM, openaiMs, totalMs });
-
-return new Response(
-  JSON.stringify({
-    ok: true,
-    plan_id: plan.id,
-    inserted_workouts_count: inserted,
-    used_llm: usedLLM,
-    plan_summary: planSummary,
-    debug: { openai_ms: openaiMs, total_ms: totalMs },
-  }),
-  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-);
   } catch (err: any) {
+    console.error('[generate-training-plan] error', { message: err?.message, stack: err?.stack });
     return new Response(
-      JSON.stringify({ ok: false, error: err?.message || "Unknown error" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ ok: false, error: err?.message || 'Unknown error' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
