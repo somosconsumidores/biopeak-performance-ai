@@ -151,7 +151,7 @@ const translations: Translations = {
 };
 
 export const useTranslation = () => {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('pt');
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem('biopeak-language') as Language;

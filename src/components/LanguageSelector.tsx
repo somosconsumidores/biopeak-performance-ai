@@ -22,7 +22,7 @@ const languages: LanguageOption[] = [
 ];
 
 export const LanguageSelector = () => {
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>('pt');
 
   useEffect(() => {
     // Check if language is already saved in localStorage
@@ -45,9 +45,9 @@ export const LanguageSelector = () => {
           setSelectedLanguage('pt');
           localStorage.setItem('biopeak-language', 'pt');
         } else {
-          // Default to English for other countries
-          setSelectedLanguage('en');
-          localStorage.setItem('biopeak-language', 'en');
+          // Default to Portuguese for other countries
+          setSelectedLanguage('pt');
+          localStorage.setItem('biopeak-language', 'pt');
         }
       } catch (error) {
         // Fallback: try to detect from browser language
@@ -56,8 +56,8 @@ export const LanguageSelector = () => {
           setSelectedLanguage('pt');
           localStorage.setItem('biopeak-language', 'pt');
         } else {
-          setSelectedLanguage('en');
-          localStorage.setItem('biopeak-language', 'en');
+          setSelectedLanguage('pt');
+          localStorage.setItem('biopeak-language', 'pt');
         }
       }
     };
