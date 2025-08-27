@@ -75,21 +75,6 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
     }
   };
 
-  const formatTimeInput = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}:${mins.toString().padStart(2, '0')}` : mins.toString();
-  };
-
-  const parseTimeInput = (timeStr: string) => {
-    if (!timeStr) return '';
-    
-    if (timeStr.includes(':')) {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return ((hours || 0) * 60 + (minutes || 0)).toString();
-    }
-    return timeStr;
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,22 +149,23 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="target_time">Tempo Alvo (opcional)</Label>
+            <Label htmlFor="target_time">Tempo Alvo em Minutos (opcional)</Label>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <Input
                 id="target_time"
-                placeholder="Ex: 25:00 ou 1:30:00"
-                value={formData.target_time_minutes ? 
-                  formatTimeInput(Number(formData.target_time_minutes)) : ''}
+                type="number"
+                min="1"
+                placeholder="Ex: 180 (para 3 horas)"
+                value={formData.target_time_minutes || ''}
                 onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
-                  target_time_minutes: parseTimeInput(e.target.value)
+                  target_time_minutes: e.target.value
                 }))}
               />
             </div>
             <p className="text-sm text-muted-foreground">
-              Formato: MM:SS ou HH:MM:SS (deixe vazio para estimativa automática)
+              Informe o tempo em minutos totais (ex: 180 para 3 horas, 30 para 30 minutos)
             </p>
           </div>
 
