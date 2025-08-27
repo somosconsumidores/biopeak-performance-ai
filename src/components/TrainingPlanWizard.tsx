@@ -35,35 +35,37 @@ interface TrainingPlanWizardProps {
   onComplete?: () => void;
 }
 
-const STEP_TITLES = [
-  'Qual é seu objetivo?',
-  'Confirme seu nível',
-  'Data de nascimento',
-  'Gênero',
-  'Tempos estimados',
-  'Frequência semanal',
-  'Dias disponíveis',
-  'Dia da corrida longa',
-  'Data de início',
-  'Duração do plano',
-  'Data da prova',
-  'Resumo e geração'
-];
+const STEP_TITLES: Record<number, string> = {
+  1: 'Qual é seu objetivo?',
+  2: 'Confirme seu nível',
+  3: 'Data de nascimento',
+  4: 'Gênero',
+  5: 'Tempos estimados',
+  6: 'Frequência semanal',
+  7: 'Dias disponíveis',
+  8: 'Dia da corrida longa',
+  9: 'Data de início',
+  10: 'Duração do plano',
+  11: 'Data da prova',
+  12: 'Meta da prova',
+  13: 'Resumo e geração'
+};
 
-const STEP_DESCRIPTIONS = [
-  'Escolha o objetivo principal do seu plano de treino',
-  'Validamos automaticamente seu nível baseado no histórico',
-  'Confirme ou atualize sua data de nascimento',
-  'Informação necessária para personalização do plano',
-  'Confirme ou ajuste seus tempos estimados atuais',
-  'Quantos treinos por semana você quer fazer?',
-  'Em quais dias da semana você pode treinar?',
-  'Qual dia prefere para o treino mais longo?',
-  'Quando você gostaria de começar o plano?',
-  'Por quantas semanas você quer treinar?',
-  'Tem alguma prova específica como objetivo?',
-  'Revise tudo antes de gerar seu plano personalizado'
-];
+const STEP_DESCRIPTIONS: Record<number, string> = {
+  1: 'Escolha o objetivo principal do seu plano de treino',
+  2: 'Validamos automaticamente seu nível baseado no histórico',
+  3: 'Confirme ou atualize sua data de nascimento',
+  4: 'Informação necessária para personalização do plano',
+  5: 'Confirme ou ajuste seus tempos estimados atuais',
+  6: 'Quantos treinos por semana você quer fazer?',
+  7: 'Em quais dias da semana você pode treinar?',
+  8: 'Qual dia prefere para o treino mais longo?',
+  9: 'Quando você gostaria de começar o plano?',
+  10: 'Por quantas semanas você quer treinar?',
+  11: 'Tem alguma prova específica como objetivo?',
+  12: 'Defina seu tempo objetivo para a prova',
+  13: 'Revise tudo antes de gerar seu plano personalizado'
+};
 
 export function TrainingPlanWizard({ 
   open = true, 
@@ -81,15 +83,18 @@ export function TrainingPlanWizard({
     previousStep,
     canProceed,
     generateTrainingPlan,
+    stepSequence,
   } = useTrainingPlanWizard();
   
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const progress = (currentStep / totalSteps) * 100;
+  const progress = ((stepSequence.indexOf(currentStep) + 1) / totalSteps) * 100;
+  const currentStepIndex = stepSequence.indexOf(currentStep) + 1;
 
   const handleNext = () => {
-    if (currentStep === totalSteps) {
+    const currentIndex = stepSequence.indexOf(currentStep);
+    if (currentIndex === stepSequence.length - 1) {
       handleFinish();
     } else {
       nextStep();
@@ -169,7 +174,7 @@ export function TrainingPlanWizard({
                   Criar Plano de Treino Personalizado
                 </DialogTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {STEP_DESCRIPTIONS[currentStep - 1]}
+                  {STEP_DESCRIPTIONS[currentStep]}
                 </p>
               </div>
             </div>
@@ -178,7 +183,7 @@ export function TrainingPlanWizard({
             <div className="mt-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-foreground">
-                  Passo {currentStep} de {totalSteps}
+                  Passo {currentStepIndex} de {totalSteps}
                 </span>
                 <span className="text-sm text-muted-foreground">
                   {Math.round(progress)}% completo
@@ -193,7 +198,7 @@ export function TrainingPlanWizard({
             <Card className="glass-card border-0 shadow-none">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-lg font-semibold">
-                  {STEP_TITLES[currentStep - 1]}
+                  {STEP_TITLES[currentStep]}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -208,7 +213,7 @@ export function TrainingPlanWizard({
               <Button
                 variant="outline"
                 onClick={previousStep}
-                disabled={currentStep === 1 || loading || isGenerating}
+                disabled={stepSequence.indexOf(currentStep) === 0 || loading || isGenerating}
                 className="flex items-center gap-2"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -216,7 +221,7 @@ export function TrainingPlanWizard({
               </Button>
 
               <div className="flex items-center gap-2">
-                {currentStep === totalSteps ? (
+                {stepSequence.indexOf(currentStep) === stepSequence.length - 1 ? (
                   <Button
                     onClick={handleFinish}
                     disabled={!canProceed || loading || isGenerating}

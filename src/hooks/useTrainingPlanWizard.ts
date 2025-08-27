@@ -130,21 +130,98 @@ export function useTrainingPlanWizard() {
     }
   }, [profile, wizardData.birthDate]);
 
-  const totalSteps = 13;
+  // Helper functions for conditional flow
+  const isRaceGoal = () => {
+    return ['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal);
+  };
+
+  const shouldShowRaceDate = () => {
+    return isRaceGoal() || wizardData.goal === 'improve_times';
+  };
+
+  const shouldShowRaceGoal = () => {
+    return false; // Never show race goal step - we calculate it automatically
+  };
+
+  // Calculate target time automatically for race goals
+  const calculateTargetTime = () => {
+    if (!isRaceGoal() || !athleteAnalysis.raceEstimates) return undefined;
+    
+    const estimates = athleteAnalysis.raceEstimates;
+    let targetMinutes: number | undefined;
+    
+    switch (wizardData.goal) {
+      case '5k':
+        targetMinutes = estimates.k5?.seconds ? estimates.k5.seconds / 60 : undefined;
+        break;
+      case '10k':
+        targetMinutes = estimates.k10?.seconds ? estimates.k10.seconds / 60 : undefined;
+        break;
+      case 'half_marathon':
+      case '21k':
+        targetMinutes = estimates.k21?.seconds ? estimates.k21.seconds / 60 : undefined;
+        break;
+      case 'marathon':
+      case '42k':
+        targetMinutes = estimates.k42?.seconds ? estimates.k42.seconds / 60 : undefined;
+        break;
+    }
+    
+    // Apply improvement factor based on plan duration and athlete level
+    if (targetMinutes) {
+      const improvementFactor = getImprovementFactor();
+      return Math.round(targetMinutes * (1 - improvementFactor));
+    }
+    
+    return undefined;
+  };
+
+  const getImprovementFactor = () => {
+    const baseImprovement = {
+      'Beginner': 0.15,     // 15% improvement potential
+      'Intermediate': 0.08, // 8% improvement potential
+      'Advanced': 0.05,     // 5% improvement potential
+      'Elite': 0.03,        // 3% improvement potential
+    };
+    
+    const planLengthMultiplier = Math.min(wizardData.planDurationWeeks / 16, 1); // Max improvement at 16+ weeks
+    return baseImprovement[wizardData.athleteLevel] * planLengthMultiplier;
+  };
+
+  // Dynamic step calculation
+  const getStepSequence = () => {
+    const baseSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Core steps 1-10
+    
+    if (shouldShowRaceDate()) {
+      baseSteps.push(11); // Race date step
+    }
+    
+    // Never add step 12 (race goal) as we calculate it automatically
+    
+    baseSteps.push(13); // Summary step (becomes the final step)
+    return baseSteps;
+  };
+
+  const stepSequence = getStepSequence();
+  const totalSteps = stepSequence.length;
 
   const updateWizardData = (updates: Partial<TrainingPlanWizardData>) => {
     setWizardData(prev => ({ ...prev, ...updates }));
   };
 
   const nextStep = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+    const currentIndex = stepSequence.indexOf(currentStep);
+    if (currentIndex < stepSequence.length - 1) {
+      const nextStepNumber = stepSequence[currentIndex + 1];
+      setCurrentStep(nextStepNumber);
     }
   };
 
   const previousStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    const currentIndex = stepSequence.indexOf(currentStep);
+    if (currentIndex > 0) {
+      const previousStepNumber = stepSequence[currentIndex - 1];
+      setCurrentStep(previousStepNumber);
     }
   };
 
@@ -173,7 +250,7 @@ export function useTrainingPlanWizard() {
       case 11:
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
       case 12:
-        return true; // Race goal is optional
+        return true; // Race goal is optional (not used in conditional flow)
       case 13:
         return true; // Summary step
       default:
@@ -233,6 +310,9 @@ export function useTrainingPlanWizard() {
       const daysArray = wizardData.availableDays.map(d => dayIdx[d] ?? 0);
       const longRunIdx = dayIdx[wizardData.longRunDay] ?? 6;
 
+      // Calculate target time for race goals
+      const calculatedTargetTime = calculateTargetTime();
+      
       const { error: preferencesError } = await supabase
         .from('training_plan_preferences')
         .insert({
@@ -243,7 +323,7 @@ export function useTrainingPlanWizard() {
           long_run_weekday: longRunIdx,
           start_asap: false,
           start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
-          goal_target_time_minutes: wizardData.goalTargetTimeMinutes,
+          goal_target_time_minutes: calculatedTargetTime,
         });
 
       if (preferencesError) {
@@ -297,5 +377,10 @@ export function useTrainingPlanWizard() {
     previousStep,
     canProceed: canProceed(),
     generateTrainingPlan,
+    isRaceGoal: isRaceGoal(),
+    shouldShowRaceDate: shouldShowRaceDate(),
+    shouldShowRaceGoal: shouldShowRaceGoal(),
+    calculateTargetTime,
+    stepSequence,
   };
 }

@@ -256,6 +256,29 @@ export function SummaryStep({ wizardData }: SummaryStepProps) {
           </Card>
         )}
 
+        {/* Target Time for Race Goals */}
+        {(['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && (
+          <Card className="glass-card border-accent/20 bg-gradient-to-r from-accent/5 via-primary/5 to-accent/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Target className="h-4 w-4 text-accent" />
+                Meta Calculada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-center">
+                <div className="font-medium text-accent text-lg">
+                  Meta de Tempo Automática
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Calculamos automaticamente um tempo alvo realista baseado no seu histórico e nível atual. 
+                  O objetivo será ajustado considerando o tempo disponível para treinamento.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Race Goal (if applicable) */}
         {wizardData.raceGoal && (
           <Card className="glass-card border-accent/20 bg-gradient-to-r from-accent/5 via-primary/5 to-accent/5">
