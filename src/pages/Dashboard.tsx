@@ -7,6 +7,7 @@ import { CommitmentsCard } from '@/components/CommitmentsCard';
 import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
 import { AchievementSection } from '@/components/AchievementSection';
 import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
+import { RaceCalendar } from '@/components/RaceCalendar';
 
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -208,6 +209,13 @@ export const Dashboard = () => {
           <ScrollReveal delay={80}>
             <div className="mb-6 md:mb-8">
               <TrainingAgendaWidget />
+            </div>
+          </ScrollReveal>
+
+          {/* Race Calendar */}
+          <ScrollReveal delay={90}>
+            <div className="mb-6 md:mb-8">
+              <RaceCalendar />
             </div>
           </ScrollReveal>
 

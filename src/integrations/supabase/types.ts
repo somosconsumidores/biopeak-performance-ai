@@ -2268,6 +2268,56 @@ export type Database = {
         }
         Relationships: []
       }
+      race_progress_snapshots: {
+        Row: {
+          created_at: string
+          estimated_time_minutes: number | null
+          fitness_level: string | null
+          gap_analysis: Json | null
+          id: string
+          improvement_suggestions: Json | null
+          race_id: string
+          readiness_score: number | null
+          snapshot_date: string
+          training_focus_areas: string[] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_time_minutes?: number | null
+          fitness_level?: string | null
+          gap_analysis?: Json | null
+          id?: string
+          improvement_suggestions?: Json | null
+          race_id: string
+          readiness_score?: number | null
+          snapshot_date?: string
+          training_focus_areas?: string[] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_time_minutes?: number | null
+          fitness_level?: string | null
+          gap_analysis?: Json | null
+          id?: string
+          improvement_suggestions?: Json | null
+          race_id?: string
+          readiness_score?: number | null
+          snapshot_date?: string
+          training_focus_areas?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_progress_snapshots_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "user_target_races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       realtime_feedbacks: {
         Row: {
           audio_url: string | null
@@ -3357,6 +3407,51 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_target_races: {
+        Row: {
+          created_at: string
+          distance_meters: number
+          id: string
+          notes: string | null
+          race_date: string
+          race_location: string | null
+          race_name: string
+          race_url: string | null
+          status: string
+          target_time_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance_meters: number
+          id?: string
+          notes?: string | null
+          race_date: string
+          race_location?: string | null
+          race_name: string
+          race_url?: string | null
+          status?: string
+          target_time_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          distance_meters?: number
+          id?: string
+          notes?: string | null
+          race_date?: string
+          race_location?: string | null
+          race_name?: string
+          race_url?: string | null
+          status?: string
+          target_time_minutes?: number | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
