@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -15,11 +16,13 @@ import {
   Calendar,
   Activity,
   Heart,
-  Route
+  Route,
+  Bot
 } from "lucide-react";
 import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
 import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
 import { useAthleteStats } from "@/hooks/useAthleteStats";
+import { supabase } from "@/integrations/supabase/client";
 
 interface RaceAnalysisDialogProps {
   open: boolean;
@@ -30,6 +33,8 @@ interface RaceAnalysisDialogProps {
 export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDialogProps) {
   const [analysis, setAnalysis] = useState<RaceAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const { getRaceProgress } = useTargetRaces();
   const { 
     analyzeRaceReadiness, 
@@ -80,6 +85,27 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
       setAnalysis(newAnalysis);
     }
     setLoading(false);
+  };
+
+  const handleAskAI = async () => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-goal-with-ai', {
+        body: { raceId: race.id }
+      });
+
+      if (error) {
+        console.error('Error calling AI analysis:', error);
+        setAiResponse('Erro ao solicitar análise da IA. Tente novamente.');
+      } else {
+        setAiResponse(data.ai_comment || 'Análise não disponível no momento.');
+      }
+    } catch (error) {
+      console.error('Error in AI analysis:', error);
+      setAiResponse('Erro ao conectar com a IA. Tente novamente.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const formatRaceDistance = (meters: number) => {
@@ -287,6 +313,44 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                         </div>
                       </div>
                     </div>
+
+                    {/* AI Analysis Button */}
+                    <div className="mt-4">
+                      <Button 
+                        onClick={handleAskAI} 
+                        disabled={aiLoading}
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                      >
+                        {aiLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Analisando...
+                          </>
+                        ) : (
+                          <>
+                            <Bot className="h-4 w-4 mr-2" />
+                            🤖 Peça para a IA analisar meu objetivo
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* AI Response Card */}
+            {aiResponse && (
+              <Card className="bg-purple-50 border-purple-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2 text-purple-800">
+                    <Bot className="h-5 w-5" />
+                    Parecer da IA
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-purple-900 whitespace-pre-wrap">
+                    {aiResponse}
                   </div>
                 </CardContent>
               </Card>
