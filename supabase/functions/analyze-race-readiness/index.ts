@@ -92,22 +92,25 @@ serve(async (req) => {
       (longestRun * avgPace) * Math.pow(raceDistanceKm / longestRun, 1.06) : 
       avgPace * raceDistanceKm * 1.1; // Add 10% safety margin
 
-    // Determine fitness level and readiness
+    // Determine fitness level and readiness - improved logic
     let fitnessLevel = 'beginner';
     let readinessScore = 0;
 
-    if (totalWeeklyDistance >= 40 && avgPace <= 5.5) {
+    // More nuanced fitness assessment
+    const weeklyVolumeScore = Math.min(totalWeeklyDistance / 30 * 40, 40); // Max 40 points for volume
+    const paceScore = avgPace <= 4.5 ? 40 : avgPace <= 5.5 ? 30 : avgPace <= 6.5 ? 20 : avgPace <= 7.5 ? 10 : 0; // Max 40 points for pace
+    const consistencyScore = runningActivities.length >= 10 ? 20 : runningActivities.length >= 5 ? 10 : 0; // Max 20 points for consistency
+    
+    readinessScore = Math.min(weeklyVolumeScore + paceScore + consistencyScore, 100);
+
+    if (readinessScore >= 80 && totalWeeklyDistance >= 30) {
       fitnessLevel = 'elite';
-      readinessScore = 85;
-    } else if (totalWeeklyDistance >= 25 && avgPace <= 6.5) {
+    } else if (readinessScore >= 60 && totalWeeklyDistance >= 20) {
       fitnessLevel = 'advanced';
-      readinessScore = 70;
-    } else if (totalWeeklyDistance >= 15 && avgPace <= 7.5) {
+    } else if (readinessScore >= 40 && totalWeeklyDistance >= 10) {
       fitnessLevel = 'intermediate';
-      readinessScore = 55;
     } else {
       fitnessLevel = 'beginner';
-      readinessScore = 30;
     }
 
     // Calculate gap analysis
@@ -158,23 +161,28 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
-          { role: 'system', content: 'You are a professional running coach providing detailed training analysis.' },
+          { role: 'system', content: 'You are a professional running coach providing detailed training analysis. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.7,
-        max_tokens: 1000
+        max_completion_tokens: 1000
       }),
     });
 
     const aiData = await aiResponse.json();
+    console.log('AI Response:', JSON.stringify(aiData, null, 2));
+    
     let aiSuggestions = null;
 
     try {
-      aiSuggestions = JSON.parse(aiData.choices[0].message.content);
+      if (aiData.choices && aiData.choices[0] && aiData.choices[0].message) {
+        aiSuggestions = JSON.parse(aiData.choices[0].message.content);
+      } else {
+        console.error('Invalid AI response structure:', aiData);
+      }
     } catch (error) {
-      console.log('Failed to parse AI response, using fallback');
+      console.error('Failed to parse AI response:', error, 'Content:', aiData.choices?.[0]?.message?.content);
     }
 
     // Fallback suggestions if AI fails
