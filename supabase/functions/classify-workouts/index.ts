@@ -24,21 +24,6 @@ type ActivityRow = {
   detected_workout_type: string | null
 }
 
-type SeriesPoint = {
-  time_s?: number | null
-  distance_m?: number | null
-  hr?: number | null
-  speed_ms?: number | null
-  pace_min_km?: number | null
-}
-
-type SeriesRow = {
-  user_id: string
-  activity_id: string
-  activity_source: string
-  series_data: SeriesPoint[] | null
-}
-
 // New: variation row from variation_analysis
 type VariationRow = {
   user_id: string
@@ -229,26 +214,6 @@ async function fetchUserHistoryPaces(supabase: any, userId: string): Promise<num
   return paces
 }
 
-async function fetchSeriesForUserActivities(supabase: any, userId: string, activityIds: string[]): Promise<Map<string, SeriesRow>> {
-  const map = new Map<string, SeriesRow>()
-  if (!activityIds.length) return map
-
-  const pageSize = 1000
-  for (let i = 0; i < activityIds.length; i += pageSize) {
-    const chunk = activityIds.slice(i, i + pageSize)
-    const { data, error } = await supabase
-      .from('activity_chart_data')
-      .select('user_id,activity_id,activity_source,series_data')
-      .eq('user_id', userId)
-      .in('activity_id', chunk)
-    if (error) throw error
-    for (const row of (data || [])) {
-      map.set(row.activity_id, row as SeriesRow)
-    }
-  }
-  return map
-}
-
 // New: fetch CVs directly from variation_analysis
 async function fetchVariationsForUserActivities(supabase: any, userId: string, activityIds: string[]): Promise<Map<string, VariationRow>> {
   const map = new Map<string, VariationRow>()
@@ -268,20 +233,6 @@ async function fetchVariationsForUserActivities(supabase: any, userId: string, a
     }
   }
   return map
-}
-
-function calcCVsFromSeries(series: SeriesPoint[] | null | undefined): { pace_cv: number | null; hr_cv: number | null } {
-  if (!series || !Array.isArray(series)) return { pace_cv: null, hr_cv: null }
-  const paces = series
-    .map(p => p.pace_min_km)
-    .filter((v): v is number => typeof v === 'number' && isFinite(v) && v > 0)
-  const hrs = series
-    .map(p => p.hr)
-    .filter((v): v is number => typeof v === 'number' && isFinite(v) && v > 0)
-
-  const pace_cv = paces.length >= 10 ? coefficientOfVariation(paces) : null
-  const hr_cv = hrs.length >= 10 ? coefficientOfVariation(hrs) : null
-  return { pace_cv, hr_cv }
 }
 
 Deno.serve(async (req) => {
