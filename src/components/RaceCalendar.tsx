@@ -4,12 +4,18 @@ import { Calendar, Plus, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTargetRaces } from "@/hooks/useTargetRaces";
+import { useAuth } from "@/hooks/useAuth";
 import { AddRaceDialog } from "./AddRaceDialog";
 import { RaceCard } from "./RaceCard";
 
 export function RaceCalendar() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const { races, loading, refetch } = useTargetRaces();
+  const { user } = useAuth();
+
+  // Lista de usuários autorizados para o calendário de provas
+  const authorizedEmails = ['garminteste07@teste.com', 'admin@biopeak.com'];
+  const isAuthorized = user?.email && authorizedEmails.includes(user.email);
 
   const upcomingRaces = races.filter(race => 
     race.status === 'planned' && new Date(race.race_date) >= new Date()
@@ -34,6 +40,36 @@ export function RaceCalendar() {
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-sm text-muted-foreground">Carregando provas...</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Se o usuário não está autorizado, mostra tela de bloqueio
+  if (!isAuthorized) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+            <Calendar className="h-5 w-5" />
+            Calendário de Provas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Feature em desenvolvimento</h3>
+            <p className="text-muted-foreground mb-6 text-sm md:text-base px-4">
+              O calendário de provas estará disponível em breve para todos os usuários
+            </p>
+            <Button 
+              className="w-full max-w-xs"
+              disabled
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Prova
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -112,13 +148,16 @@ export function RaceCalendar() {
         </CardContent>
       </Card>
 
-      <AddRaceDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog}
-        onSuccess={() => {
-          refetch();
-        }}
-      />
+      {/* Dialog só aparece se o usuário está autorizado */}
+      {isAuthorized && (
+        <AddRaceDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
