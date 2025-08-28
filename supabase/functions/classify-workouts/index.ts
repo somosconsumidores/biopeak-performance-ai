@@ -39,6 +39,14 @@ type SeriesRow = {
   series_data: SeriesPoint[] | null
 }
 
+// New: variation row from variation_analysis
+type VariationRow = {
+  user_id: string
+  activity_id: string
+  cv_pace: number | null
+  cv_hr: number | null
+}
+
 function mean(arr: number[]): number | null {
   if (!arr.length) return null
   return arr.reduce((a, b) => a + b, 0) / arr.length
@@ -241,6 +249,27 @@ async function fetchSeriesForUserActivities(supabase: any, userId: string, activ
   return map
 }
 
+// New: fetch CVs directly from variation_analysis
+async function fetchVariationsForUserActivities(supabase: any, userId: string, activityIds: string[]): Promise<Map<string, VariationRow>> {
+  const map = new Map<string, VariationRow>()
+  if (!activityIds.length) return map
+
+  const pageSize = 1000
+  for (let i = 0; i < activityIds.length; i += pageSize) {
+    const chunk = activityIds.slice(i, i + pageSize)
+    const { data, error } = await supabase
+      .from('variation_analysis')
+      .select('user_id,activity_id,cv_pace,cv_hr')
+      .eq('user_id', userId)
+      .in('activity_id', chunk)
+    if (error) throw error
+    for (const row of (data || [])) {
+      map.set(row.activity_id, row as VariationRow)
+    }
+  }
+  return map
+}
+
 function calcCVsFromSeries(series: SeriesPoint[] | null | undefined): { pace_cv: number | null; hr_cv: number | null } {
   if (!series || !Array.isArray(series)) return { pace_cv: null, hr_cv: null }
   const paces = series
@@ -297,9 +326,9 @@ Deno.serve(async (req) => {
       const best_pace = userPaces.length ? Math.min(...userPaces) : null
       const p75_pace = userPaces.length ? percentile(userPaces, 75) : null
 
-      // 3b) Carregar séries para calcular CVs
-      const actIds = acts.map(a => String(a.activity_id)).filter(Boolean)
-      const seriesMap = await fetchSeriesForUserActivities(supabase, userId, actIds)
+// 3b) Carregar CVs de variation_analysis
+const actIds = acts.map(a => String(a.activity_id)).filter(Boolean)
+const variationMap = await fetchVariationsForUserActivities(supabase, userId, actIds)
 
       // 3c) Classificar cada atividade
       for (const a of acts) {
@@ -310,8 +339,10 @@ Deno.serve(async (req) => {
         const avg_hr = safeNumber(a.average_heart_rate)
         const max_hr = safeNumber(a.max_heart_rate)
 
-        const series = seriesMap.get(String(a.activity_id))?.series_data ?? null
-        const { pace_cv, hr_cv } = calcCVsFromSeries(series)
+// Buscar CVs oficiais (cv_pace, cv_hr) da variation_analysis
+const varRow = variationMap.get(String(a.activity_id))
+const pace_cv = varRow?.cv_pace ?? null
+const hr_cv = varRow?.cv_hr ?? null
 
         const type = classify(
           { distance_km, duration_s, avg_pace_min_km, avg_speed_ms, avg_hr, max_hr, pace_cv, hr_cv },
