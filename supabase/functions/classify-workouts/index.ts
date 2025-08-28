@@ -224,7 +224,7 @@ async function fetchVariationsForUserActivities(supabase: any, userId: string, a
     const chunk = activityIds.slice(i, i + pageSize)
     const { data, error } = await supabase
       .from('variation_analysis')
-      .select('user_id,activity_id,cv_pace,cv_hr')
+      .select('user_id,activity_id,cv_pace,cv_hr,pace_cv,heart_rate_cv')
       .eq('user_id', userId)
       .in('activity_id', chunk)
     if (error) throw error
@@ -292,8 +292,8 @@ const variationMap = await fetchVariationsForUserActivities(supabase, userId, ac
 
 // Buscar CVs oficiais (cv_pace, cv_hr) da variation_analysis
 const varRow = variationMap.get(String(a.activity_id))
-const pace_cv = varRow?.cv_pace ?? null
-const hr_cv = varRow?.cv_hr ?? null
+const pace_cv = (varRow?.cv_pace ?? (varRow as any)?.pace_cv) ?? null
+const hr_cv = (varRow?.cv_hr ?? (varRow as any)?.heart_rate_cv) ?? null
 
         const type = classify(
           { distance_km, duration_s, avg_pace_min_km, avg_speed_ms, avg_hr, max_hr, pace_cv, hr_cv },
