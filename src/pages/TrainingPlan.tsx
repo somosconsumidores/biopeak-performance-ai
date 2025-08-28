@@ -9,7 +9,7 @@ import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useAuth } from '@/hooks/useAuth';
 
 const TrainingPlan = () => {
-  const { loading } = useActiveTrainingPlan();
+  const { plan, workouts, loading } = useActiveTrainingPlan();
   const { user } = useAuth();
 
   // Lista de usuários autorizados para o calendário de provas
@@ -43,6 +43,8 @@ const TrainingPlan = () => {
                   <p className="text-sm text-muted-foreground">Carregando plano...</p>
                 </div>
               </div>
+            ) : plan ? (
+              <PlanOverview plan={plan} workouts={workouts} />
             ) : (
               <div className="text-center py-8">
                 <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
