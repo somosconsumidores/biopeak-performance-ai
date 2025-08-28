@@ -161,3 +161,6 @@ verify_jwt = true
 
 [functions.analyze-goal-with-ai]
 verify_jwt = true
+
+[functions.classify-workouts]
+verify_jwt = true
