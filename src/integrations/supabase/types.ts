@@ -496,6 +496,7 @@ export type Database = {
           activity_type: string | null
           average_heart_rate: number | null
           created_at: string
+          detected_workout_type: string | null
           device_name: string | null
           id: string
           max_heart_rate: number | null
@@ -515,6 +516,7 @@ export type Database = {
           activity_type?: string | null
           average_heart_rate?: number | null
           created_at?: string
+          detected_workout_type?: string | null
           device_name?: string | null
           id?: string
           max_heart_rate?: number | null
@@ -534,6 +536,7 @@ export type Database = {
           activity_type?: string | null
           average_heart_rate?: number | null
           created_at?: string
+          detected_workout_type?: string | null
           device_name?: string | null
           id?: string
           max_heart_rate?: number | null

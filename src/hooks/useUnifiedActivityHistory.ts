@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +30,8 @@ export interface UnifiedActivity {
   // Campos específicos do Polar  
   polar_user?: string;
   detailed_sport_info?: string;
+  // Novo campo classificado
+  detected_workout_type?: string | null;
 }
 
 export function useUnifiedActivityHistory(limit?: number) {
@@ -75,7 +78,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       }
 
       // Mapear para o formato UnifiedActivity
-      const unifiedActivities: UnifiedActivity[] = activities.map(activity => ({
+      const unifiedActivities: UnifiedActivity[] = activities.map((activity: any) => ({
         id: activity.id,
         activity_id: activity.activity_id,
         source: mapActivitySource(activity.activity_source),
@@ -95,7 +98,8 @@ export function useUnifiedActivityHistory(limit?: number) {
         average_speed_in_meters_per_second: null,
         max_speed_in_meters_per_second: null,
         steps: null,
-        synced_at: activity.created_at
+        synced_at: activity.created_at,
+        detected_workout_type: activity.detected_workout_type ?? null,
       }));
 
       setActivities(unifiedActivities);
@@ -129,6 +133,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       : activity.device_name === 'Zepp GPX'
       ? 'Zepp GPX'
       : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
+    // Mantém o display como antes
     return `${date} - ${type} ${distance} ${duration} [${sourceLabel}]`.trim();
   };
 
