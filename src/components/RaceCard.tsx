@@ -1,46 +1,40 @@
+
 import { useState } from "react";
+import { Calendar, Clock, MapPin, Target, BarChart3, MoreHorizontal, Edit, Trash } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Target, 
-  TrendingUp, 
-  ExternalLink,
-  MoreVertical,
-  Edit,
-  Trash2,
-  BarChart3
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
-import { useRaceAnalysis } from "@/hooks/useRaceAnalysis";
-import { AddRaceDialog } from "./AddRaceDialog";
 import { RaceAnalysisDialog } from "./RaceAnalysisDialog";
+import { format, parseISO, isPast } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface RaceCardProps {
   race: TargetRace;
-  onUpdate?: () => void;
+  onUpdate: () => void;
 }
 
 export function RaceCard({ race, onUpdate }: RaceCardProps) {
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
-  const { deleteRace } = useTargetRaces();
-  const { formatTime } = useRaceAnalysis();
+  const { deleteRace, updateRace } = useTargetRaces();
 
   const formatDistance = (meters: number) => {
     if (meters >= 1000) {
       return `${(meters / 1000).toFixed(0)}K`;
     }
     return `${meters}m`;
+  };
+
+  const formatTime = (totalMinutes: number) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.floor(totalMinutes % 60);
+    const seconds = Math.floor((totalMinutes % 1) * 60);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const getDaysUntilRace = (raceDate: string) => {
@@ -51,178 +45,103 @@ export function RaceCard({ race, onUpdate }: RaceCardProps) {
     return diffDays;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planned': return 'bg-blue-500/10 text-blue-700 border-blue-200';
-      case 'completed': return 'bg-green-500/10 text-green-700 border-green-200';
-      case 'cancelled': return 'bg-red-500/10 text-red-700 border-red-200';
-      default: return 'bg-gray-500/10 text-gray-700 border-gray-200';
+  const handleDelete = async () => {
+    if (confirm('Tem certeza que deseja remover esta prova?')) {
+      await deleteRace(race.id);
+      onUpdate();
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'planned': return 'Planejada';
-      case 'completed': return 'Concluída';
-      case 'cancelled': return 'Cancelada';
-      default: return status;
-    }
+  const handleStatusChange = async () => {
+    const newStatus = race.status === 'planned' ? 'completed' : 'planned';
+    await updateRace(race.id, { status: newStatus });
+    onUpdate();
   };
 
   const daysUntil = getDaysUntilRace(race.race_date);
-  const isPast = daysUntil < 0;
-  const isToday = daysUntil === 0;
-  const isUpcoming = race.status === 'planned' && !isPast;
-
-  const handleAnalyze = () => {
-    setShowAnalysisDialog(true);
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja excluir esta prova?')) {
-      await deleteRace(race.id);
-      onUpdate?.(); // Callback to refresh parent data
-    }
-  };
+  const isExpired = isPast(parseISO(race.race_date)) && race.status === 'planned';
 
   return (
     <>
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg leading-tight mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base md:text-lg truncate mb-1">
                 {race.race_name}
               </h3>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  {new Date(race.race_date).toLocaleDateString('pt-BR')}
-                </div>
-                <div className="flex items-center gap-1">
-                  <Target className="h-4 w-4" />
-                  {formatDistance(race.distance_meters)}
-                </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <Calendar className="h-4 w-4 flex-shrink-0" />
+                <span>{format(parseISO(race.race_date), "dd/MM/yyyy", { locale: ptBR })}</span>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Badge className={getStatusColor(race.status)}>
-                {getStatusLabel(race.status)}
-              </Badge>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                   {isUpcoming && (
-                    <DropdownMenuItem onClick={handleAnalyze}>
-                      <BarChart3 className="h-4 w-4 mr-2" />
-                      Analisar Prontidão
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background border shadow-md">
+                <DropdownMenuItem onClick={handleStatusChange}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  {race.status === 'planned' ? 'Marcar como realizada' : 'Marcar como planejada'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                  <Trash className="h-4 w-4 mr-2" />
+                  Remover prova
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
-        
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            {/* Time and Location */}
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              {race.target_time_minutes && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>Meta: {formatTime(race.target_time_minutes)}</span>
-                </div>
-              )}
-              
-              {race.race_location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="truncate">{race.race_location}</span>
-                </div>
-              )}
-            </div>
 
-            {/* Days until race */}
-            {isUpcoming && (
-              <div className="text-center">
-                <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                  daysUntil <= 7 
-                    ? 'bg-red-500/10 text-red-700' 
-                    : daysUntil <= 30 
-                    ? 'bg-yellow-500/10 text-yellow-700'
-                    : 'bg-blue-500/10 text-blue-700'
-                }`}>
-                  <TrendingUp className="h-4 w-4" />
-                  {isToday 
-                    ? 'Hoje é o dia!' 
-                    : daysUntil === 1 
-                    ? 'Amanhã' 
-                    : `${daysUntil} dias`
-                  }
-                </div>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="font-medium">{formatDistance(race.distance_meters)}</span>
+            </div>
+            {race.target_time_minutes && (
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="font-medium">{formatTime(race.target_time_minutes)}</span>
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-2">
-              {race.race_url && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => window.open(race.race_url, '_blank')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Site
-                </Button>
-              )}
-              
-              {isUpcoming && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={handleAnalyze}
-                >
-                  <BarChart3 className="h-4 w-4 mr-1" />
-                  Análise
-                </Button>
-              )}
-            </div>
-
-            {/* Notes */}
-            {race.notes && (
-              <div className="text-sm text-muted-foreground border-t pt-3">
-                <p className="line-clamp-2">{race.notes}</p>
+            {race.race_location && (
+              <div className="flex items-center gap-2 col-span-2">
+                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground truncate">{race.race_location}</span>
               </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              <Badge 
+                variant={race.status === 'completed' ? 'default' : isExpired ? 'destructive' : 'secondary'}
+                className="text-xs"
+              >
+                {race.status === 'completed' ? 'Realizada' : 
+                 isExpired ? 'Expirada' : 
+                 `${daysUntil} dias`}
+              </Badge>
+            </div>
+            {race.status === 'planned' && !isExpired && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAnalysisDialog(true)}
+                className="text-xs px-2 py-1 h-auto"
+              >
+                <BarChart3 className="h-3 w-3 mr-1" />
+                Análise
+              </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      <AddRaceDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        race={race}
-        onSuccess={onUpdate}
-      />
-
-      <RaceAnalysisDialog 
+      <RaceAnalysisDialog
         open={showAnalysisDialog}
         onOpenChange={setShowAnalysisDialog}
         race={race}

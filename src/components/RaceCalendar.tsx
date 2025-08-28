@@ -1,8 +1,8 @@
+
 import { useState } from "react";
-import { Calendar, Plus, Clock, MapPin, Target } from "lucide-react";
+import { Calendar, Plus, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useTargetRaces } from "@/hooks/useTargetRaces";
 import { AddRaceDialog } from "./AddRaceDialog";
 import { RaceCard } from "./RaceCard";
@@ -19,21 +19,6 @@ export function RaceCalendar() {
     race.status === 'completed'
   );
 
-  const formatDistance = (meters: number) => {
-    if (meters >= 1000) {
-      return `${(meters / 1000).toFixed(0)}K`;
-    }
-    return `${meters}m`;
-  };
-
-  const getDaysUntilRace = (raceDate: string) => {
-    const today = new Date();
-    const race = new Date(raceDate);
-    const diffTime = race.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
   if (loading) {
     return (
       <Card>
@@ -45,7 +30,10 @@ export function RaceCalendar() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <div className="animate-pulse">Carregando provas...</div>
+            <div className="animate-pulse">
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-sm text-muted-foreground">Carregando provas...</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -53,27 +41,33 @@ export function RaceCalendar() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <Calendar className="h-5 w-5" />
             Calendário de Provas
           </CardTitle>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button 
+            onClick={() => setShowAddDialog(true)}
+            className="w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Nova Prova
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           {races.length === 0 ? (
             <div className="text-center py-8">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">Nenhuma prova registrada</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-6 text-sm md:text-base px-4">
                 Adicione suas provas alvo para receber análises e recomendações personalizadas
               </p>
-              <Button onClick={() => setShowAddDialog(true)}>
+              <Button 
+                onClick={() => setShowAddDialog(true)}
+                className="w-full max-w-xs"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar primeira prova
               </Button>
@@ -83,11 +77,13 @@ export function RaceCalendar() {
               {/* Upcoming Races */}
               {upcomingRaces.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Próximas Provas ({upcomingRaces.length})
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Target className="h-5 w-5 text-primary" />
+                    <h3 className="text-base md:text-lg font-semibold">
+                      Próximas Provas ({upcomingRaces.length})
+                    </h3>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {upcomingRaces.map((race) => (
                       <RaceCard key={race.id} race={race} onUpdate={refetch} />
                     ))}
@@ -98,11 +94,13 @@ export function RaceCalendar() {
               {/* Completed Races */}
               {completedRaces.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Provas Realizadas ({completedRaces.length})
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-base md:text-lg font-semibold">
+                      Provas Realizadas ({completedRaces.length})
+                    </h3>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {completedRaces.map((race) => (
                       <RaceCard key={race.id} race={race} onUpdate={refetch} />
                     ))}
@@ -118,7 +116,7 @@ export function RaceCalendar() {
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
         onSuccess={() => {
-          refetch(); // Refresh races list
+          refetch();
         }}
       />
     </div>
