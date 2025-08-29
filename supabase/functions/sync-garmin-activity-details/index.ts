@@ -525,6 +525,20 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-activity-details] Processing request for user: ${user.id}`);
 
+    // Disabled: stop persisting into garmin_activity_details
+    console.log('[sync-activity-details] Storage of Garmin activity details is disabled; skipping processing');
+    if (syncId) {
+      try {
+        await supabaseClient.rpc('update_sync_status', { sync_id_param: syncId, status_param: 'completed' });
+      } catch (e) {
+        console.warn('[sync-activity-details] Failed to update sync status after disable:', e);
+      }
+    }
+    return new Response(
+      JSON.stringify({ success: true, inserted: 0, message: 'Garmin activity details persistence disabled' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+
     // Get user's Garmin tokens (use webhook token if provided)
     let accessToken: string;
     let tokenData: any = null;

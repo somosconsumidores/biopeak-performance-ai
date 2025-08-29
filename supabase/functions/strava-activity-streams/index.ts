@@ -158,84 +158,26 @@ Deno.serve(async (req) => {
       timePoints.push(timePoint);
     }
 
-    // Delete existing records for this activity first
-    const { error: deleteError } = await supabase
-      .from('strava_activity_details')
-      .delete()
-      .eq('user_id', currentUserId)
-      .eq('strava_activity_id', parseInt(activity_id));
-
-    if (deleteError) {
-      console.error('Error deleting existing records:', deleteError);
-      throw deleteError;
-    }
-
-    // Insert time points in batches to avoid timeouts
-    const BATCH_SIZE = 500;
-    let insertedCount = 0;
-
-    for (let i = 0; i < timePoints.length; i += BATCH_SIZE) {
-      const batch = timePoints.slice(i, i + BATCH_SIZE);
-      console.log(`Inserting batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(timePoints.length / BATCH_SIZE)} with ${batch.length} records`);
-
-      const { error: batchError } = await supabase
-        .from('strava_activity_details')
-        .insert(batch);
-
-      if (batchError) {
-        console.error('Batch insert error:', batchError);
-        const isTimeout = batchError.code === '57014' || (batchError.message && batchError.message.includes('timeout'));
-        if (isTimeout && batch.length > 1) {
-          const retrySize = Math.max(100, Math.floor(BATCH_SIZE / 2));
-          console.log(`Retrying batch with smaller sub-batches of ${retrySize}`);
-          for (let r = 0; r < batch.length; r += retrySize) {
-            const sub = batch.slice(r, r + retrySize);
-            const { error: subErr } = await supabase
-              .from('strava_activity_details')
-              .insert(sub);
-            if (subErr) {
-              console.error('Sub-batch insert error:', subErr);
-              throw subErr;
-            }
-            insertedCount += sub.length;
-          }
-        } else {
-          throw batchError;
-        }
-      } else {
-        insertedCount += batch.length;
-      }
-    }
-
-    console.log(`Successfully saved ${insertedCount} time points to database`);
-    
-    console.log('Successfully saved streams to database');
-    
-    // Trigger activity chart data calculation
+    console.log('Storage of Strava activity details is disabled; skipping DB writes');
+    // Build chart data directly from streams without storing details
     try {
-      await supabase.functions.invoke('calculate-activity-chart-data', {
+      await supabase.functions.invoke('build-activity-chart-from-strava-streams', {
         body: {
           activity_id: String(activity_id),
           user_id: currentUserId,
-          activity_source: 'strava',
+          access_token: stravaAccessToken,
           internal_call: true,
+          full_precision: false
         },
       });
-      console.log('Activity chart data calculated for Strava activity:', activity_id);
-    } catch (e) {
-      console.error('Failed to calculate activity chart data (Strava):', e);
+      console.log('Chart data built without persisting strava_activity_details');
+    } catch (err) {
+      console.warn('Failed to build chart data (non-fatal):', err);
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        data: { inserted: insertedCount },
-        message: 'Activity streams fetched and saved successfully',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify({ success: true, data: { inserted: 0 }, message: 'Streams processed without persisting details' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
