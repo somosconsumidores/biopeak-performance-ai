@@ -455,67 +455,117 @@ Deno.serve(async (req) => {
 const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
 if (insErr) throw insErr;
 
-// Build and upsert GPS coordinates from garmin_activity_details (if available)
-const { data: coordRows, error: coordErr } = await supabase
-  .from('garmin_activity_details')
-  .select('latitude_in_degree, longitude_in_degree')
-  .eq('user_id', userId)
-  .eq('activity_id', activityId)
-  .order('sample_timestamp', { ascending: true })
-  .limit(200000);
-if (coordErr) {
-  console.warn('[process-activity-chart] coord select error', coordErr.message);
+// Build and upsert GPS coordinates prioritizing payload (since garmin_activity_details is deprecated)
+const extractCoordsFromPayload = (p: any): [number, number][] => {
+  const out: [number, number][] = [];
+  const push = (lat: any, lon: any) => {
+    const la = typeof lat === 'number' ? lat : Number(lat);
+    const lo = typeof lon === 'number' ? lon : Number(lon);
+    if (Number.isFinite(la) && Number.isFinite(lo)) out.push([la, lo]);
+  };
+
+  // 1) Direct array of samples
+  if (Array.isArray(p?.samples)) {
+    for (const s of p.samples) push(s?.latitudeInDegree ?? s?.latitude, s?.longitudeInDegree ?? s?.longitude);
+  }
+
+  // 2) activityDetails: [{ summary, samples: [...] }]
+  if (Array.isArray(p?.activityDetails)) {
+    for (const d of p.activityDetails) {
+      if (Array.isArray(d?.samples)) {
+        for (const s of d.samples) push(s?.latitudeInDegree ?? s?.latitude, s?.longitudeInDegree ?? s?.longitude);
+      }
+      // Also support arrays at details level
+      const latArr = d?.latitudeInDegree || d?.latitude;
+      const lonArr = d?.longitudeInDegree || d?.longitude;
+      if (Array.isArray(latArr) && Array.isArray(lonArr)) {
+        const n = Math.min(latArr.length, lonArr.length);
+        for (let i = 0; i < n; i++) push(latArr[i], lonArr[i]);
+      }
+    }
+  }
+
+  // 3) activityDetails as object with arrays
+  const det = p?.activityDetails || p?.details;
+  if (det && !Array.isArray(det) && typeof det === 'object') {
+    const latArr = det?.latitudeInDegree || det?.latitude;
+    const lonArr = det?.longitudeInDegree || det?.longitude;
+    if (Array.isArray(latArr) && Array.isArray(lonArr)) {
+      const n = Math.min(latArr.length, lonArr.length);
+      for (let i = 0; i < n; i++) push(latArr[i], lonArr[i]);
+    }
+  }
+
+  // 4) samples as object of arrays
+  const samplesObj = p?.samples;
+  if (samplesObj && typeof samplesObj === 'object' && !Array.isArray(samplesObj)) {
+    const latArr = samplesObj?.latitudeInDegree || samplesObj?.latitude;
+    const lonArr = samplesObj?.longitudeInDegree || samplesObj?.longitude;
+    if (Array.isArray(latArr) && Array.isArray(lonArr)) {
+      const n = Math.min(latArr.length, lonArr.length);
+      for (let i = 0; i < n; i++) push(latArr[i], lonArr[i]);
+    }
+  }
+
+  return out;
+};
+
+let coords: [number, number][] = extractCoordsFromPayload(payload);
+
+if (!coords || coords.length === 0) {
+  // Fallback to legacy table if payload had no GPS
+  const { data: coordRows, error: coordErr } = await supabase
+    .from('garmin_activity_details')
+    .select('latitude_in_degree, longitude_in_degree')
+    .eq('user_id', userId)
+    .eq('activity_id', activityId)
+    .order('sample_timestamp', { ascending: true })
+    .limit(200000);
+  if (coordErr) console.warn('[process-activity-chart] coord legacy select error', coordErr.message);
+  if (coordRows && coordRows.length > 0) {
+    coords = coordRows
+      .map((r: any) => [r.latitude_in_degree, r.longitude_in_degree] as [number, number])
+      .filter(([la, lo]) => Number.isFinite(la) && Number.isFinite(lo));
+  }
 }
 
-if (coordRows && coordRows.length > 0) {
-  const coords: [number, number][] = coordRows
-    .map((r: any) => {
-      const lat = r.latitude_in_degree;
-      const lon = r.longitude_in_degree;
-      return (typeof lat === 'number' && isFinite(lat) && typeof lon === 'number' && isFinite(lon))
-        ? [lat, lon] as [number, number]
-        : null;
-    })
-    .filter((p: any): p is [number, number] => Array.isArray(p));
-
-  if (coords.length > 0) {
-    const total_points = coords.length;
-    let sampled = coords;
-    if (coords.length > 2000) {
-      const step = Math.ceil(coords.length / 2000);
-      sampled = [];
-      for (let i = 0; i < coords.length; i += step) sampled.push(coords[i]);
-      if (sampled[sampled.length - 1] !== coords[coords.length - 1]) sampled.push(coords[coords.length - 1]);
-    }
-
-    const lats = sampled.map(c => c[0]);
-    const lons = sampled.map(c => c[1]);
-    const bounds: [[number, number],[number, number]] = [
-      [Math.min(...lats), Math.min(...lons)],
-      [Math.max(...lats), Math.max(...lons)]
-    ];
-
-    // Upsert into activity_coordinates
-    await supabase
-      .from('activity_coordinates')
-      .delete()
-      .eq('user_id', userId)
-      .eq('activity_source', 'garmin')
-      .eq('activity_id', activityId);
-
-    const { error: coordInsErr } = await supabase.from('activity_coordinates').insert({
-      user_id: userId,
-      activity_id: activityId,
-      activity_source: 'garmin',
-      coordinates: sampled,
-      total_points,
-      sampled_points: sampled.length,
-      starting_latitude: sampled[0]?.[0] ?? null,
-      starting_longitude: sampled[0]?.[1] ?? null,
-      bounding_box: bounds,
-    });
-    if (coordInsErr) console.warn('[process-activity-chart] coord insert error', coordInsErr.message);
+if (coords && coords.length > 0) {
+  const total_points = coords.length;
+  let coordsSampled = coords;
+  if (coords.length > 2000) {
+    const step = Math.ceil(coords.length / 2000);
+    coordsSampled = [];
+    for (let i = 0; i < coords.length; i += step) coordsSampled.push(coords[i]);
+    if (coordsSampled[coordsSampled.length - 1] !== coords[coords.length - 1]) coordsSampled.push(coords[coords.length - 1]);
   }
+
+  const lats = coordsSampled.map(c => c[0]);
+  const lons = coordsSampled.map(c => c[1]);
+  const bounds: [[number, number],[number, number]] = [
+    [Math.min(...lats), Math.min(...lons)],
+    [Math.max(...lats), Math.max(...lons)]
+  ];
+
+  // Upsert into activity_coordinates
+  await supabase
+    .from('activity_coordinates')
+    .delete()
+    .eq('user_id', userId)
+    .eq('activity_source', 'garmin')
+    .eq('activity_id', activityId);
+
+  const { error: coordInsErr } = await supabase.from('activity_coordinates').insert({
+    user_id: userId,
+    activity_id: activityId,
+    activity_source: 'garmin',
+    coordinates: coordsSampled,
+    total_points,
+    sampled_points: coordsSampled.length,
+    starting_latitude: coordsSampled[0]?.[0] ?? null,
+    starting_longitude: coordsSampled[0]?.[1] ?? null,
+    bounding_box: bounds,
+  });
+  if (coordInsErr) console.warn('[process-activity-chart] coord insert error', coordInsErr.message);
 }
 
 console.info("[process-activity-chart] inserted", { rows: 1, points: sampled.length, userId, activityId });
