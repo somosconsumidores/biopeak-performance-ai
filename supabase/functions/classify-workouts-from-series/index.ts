@@ -135,15 +135,13 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!supabaseUrl || !supabaseAnonKey) {
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || (!serviceKey && !anonKey)) {
       return new Response(JSON.stringify({ success: false, error: "Missing Supabase env vars" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const authHeader = req.headers.get("Authorization");
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader ?? "" } },
-    });
+    const supabase = createClient(supabaseUrl, serviceKey ?? anonKey);
 
     const body = await req.json().catch(() => ({}));
     const user_id: string | null = body?.user_id ?? null;
