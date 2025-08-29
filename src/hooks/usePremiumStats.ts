@@ -236,7 +236,7 @@ function processWeeklyStats(activities: any[]): WeeklyStats {
     return acc;
   }, {} as Record<string, any[]>);
 
-  const volumeData = Object.entries(weeklyGroups).map(([week, activities]) => {
+  const volumeData = Object.entries(weeklyGroups).map(([week, activities]: [string, any[]]) => {
     const totalDistance = activities.reduce((sum, act) => 
       sum + (act.total_distance_meters || 0), 0) / 1000; // Convert to km
     

@@ -23,19 +23,24 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
   const [tokenError, setTokenError] = useState<string>('');
 
   useEffect(() => {
-    // Try to get Mapbox token from edge function first
+    // Try to get Mapbox token from Supabase edge function first
     const getMapboxToken = async () => {
       try {
-        const response = await fetch('/api/get-mapbox-token');
-        if (response.ok) {
-          const { token } = await response.json();
-          if (token) {
-            setMapboxToken(token);
-            return;
-          }
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        
+        if (error) {
+          console.log('Mapbox token not available from Supabase, showing input');
+          setShowTokenInput(true);
+          return;
+        }
+        
+        if (data?.token) {
+          setMapboxToken(data.token);
+          return;
         }
       } catch (error) {
-        console.log('Mapbox token not available from server, showing input');
+        console.log('Error fetching Mapbox token from Supabase:', error);
       }
       setShowTokenInput(true);
     };
