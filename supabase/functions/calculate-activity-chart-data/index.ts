@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       rows = await fetchAllPaged(
         supabase,
         'garmin_activity_details',
-        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, timer_duration_in_seconds, moving_duration_in_seconds',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, timer_duration_in_seconds, moving_duration_in_seconds, latitude_in_degree, longitude_in_degree',
         { user_id: uid, activity_id },
         { column: 'sample_timestamp', ascending: true }
       )
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       rows = await fetchAllPaged(
         supabase,
         'polar_activity_details',
-        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds, latitude_in_degree, longitude_in_degree',
         { user_id: uid, activity_id },
         { column: 'sample_timestamp', ascending: true }
       )
@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       rows = await fetchAllPaged(
         supabase,
         'strava_gpx_activity_details',
-        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, latitude_in_degree, longitude_in_degree',
         { user_id: uid, activity_id },
         { column: 'sample_timestamp', ascending: true }
       )
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       rows = await fetchAllPaged(
         supabase,
         'zepp_gpx_activity_details',
-        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds',
+        'sample_timestamp, total_distance_in_meters, heart_rate, speed_meters_per_second, duration_in_seconds, latitude_in_degree, longitude_in_degree',
         { user_id: uid, activity_id },
         { column: 'sample_timestamp', ascending: true }
       )
@@ -346,6 +346,71 @@ Deno.serve(async (req) => {
         .from('activity_chart_data')
         .insert(payload)
       if (insErr) throw insErr
+    }
+
+    // Build and upsert GPS coordinates when available
+    const coordPairs = rows
+      .map((r: any) => {
+        const lat = r.latitude_in_degree ?? r.latitude ?? null
+        const lon = r.longitude_in_degree ?? r.longitude ?? null
+        return (typeof lat === 'number' && isFinite(lat) && typeof lon === 'number' && isFinite(lon))
+          ? [lat, lon] as [number, number]
+          : null
+      })
+      .filter((p: any): p is [number, number] => Array.isArray(p))
+
+    if (coordPairs.length > 0) {
+      const total_points = coordPairs.length
+      // Downsample coordinates to ~2000 points if needed
+      let sampled = coordPairs
+      if (coordPairs.length > 2000) {
+        const step = Math.ceil(coordPairs.length / 2000)
+        sampled = []
+        for (let i = 0; i < coordPairs.length; i += step) sampled.push(coordPairs[i])
+        if (sampled[sampled.length - 1] !== coordPairs[coordPairs.length - 1]) sampled.push(coordPairs[coordPairs.length - 1])
+      }
+
+      const lats = sampled.map(c => c[0])
+      const lons = sampled.map(c => c[1])
+      const bounds: [[number, number],[number, number]] = [
+        [Math.min(...lats), Math.min(...lons)],
+        [Math.max(...lats), Math.max(...lons)]
+      ]
+
+      // Upsert into activity_coordinates
+      const { data: existingCoord, error: selCoordErr } = await supabase
+        .from('activity_coordinates')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('activity_source', activity_source)
+        .eq('activity_id', activity_id)
+        .maybeSingle()
+      if (selCoordErr) throw selCoordErr
+
+      const coordPayload = {
+        user_id: uid,
+        activity_id,
+        activity_source,
+        coordinates: sampled,
+        total_points,
+        sampled_points: sampled.length,
+        starting_latitude: sampled[0]?.[0] ?? null,
+        starting_longitude: sampled[0]?.[1] ?? null,
+        bounding_box: bounds,
+      }
+
+      if (existingCoord?.id) {
+        const { error: updCoordErr } = await supabase
+          .from('activity_coordinates')
+          .update({ ...coordPayload, updated_at: new Date().toISOString() })
+          .eq('id', existingCoord.id)
+        if (updCoordErr) throw updCoordErr
+      } else {
+        const { error: insCoordErr } = await supabase
+          .from('activity_coordinates')
+          .insert(coordPayload)
+        if (insCoordErr) throw insCoordErr
+      }
     }
 
     return new Response(

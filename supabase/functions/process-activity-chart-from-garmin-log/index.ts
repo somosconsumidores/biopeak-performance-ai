@@ -452,15 +452,78 @@ Deno.serve(async (req) => {
       max_heart_rate: maxHr ? Math.round(maxHr) : null,
     } as any;
 
-    const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
-    if (insErr) throw insErr;
+const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
+if (insErr) throw insErr;
 
-    console.info("[process-activity-chart] inserted", { rows: 1, points: sampled.length, userId, activityId });
+// Build and upsert GPS coordinates from garmin_activity_details (if available)
+const { data: coordRows, error: coordErr } = await supabase
+  .from('garmin_activity_details')
+  .select('latitude_in_degree, longitude_in_degree')
+  .eq('user_id', userId)
+  .eq('activity_id', activityId)
+  .order('sample_timestamp', { ascending: true })
+  .limit(200000);
+if (coordErr) {
+  console.warn('[process-activity-chart] coord select error', coordErr.message);
+}
 
-    return new Response(
-      JSON.stringify({ success: true, inserted: sampled.length, activity_id: activityId, user_id: userId, source: sampleSource }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+if (coordRows && coordRows.length > 0) {
+  const coords: [number, number][] = coordRows
+    .map((r: any) => {
+      const lat = r.latitude_in_degree;
+      const lon = r.longitude_in_degree;
+      return (typeof lat === 'number' && isFinite(lat) && typeof lon === 'number' && isFinite(lon))
+        ? [lat, lon] as [number, number]
+        : null;
+    })
+    .filter((p: any): p is [number, number] => Array.isArray(p));
+
+  if (coords.length > 0) {
+    const total_points = coords.length;
+    let sampled = coords;
+    if (coords.length > 2000) {
+      const step = Math.ceil(coords.length / 2000);
+      sampled = [];
+      for (let i = 0; i < coords.length; i += step) sampled.push(coords[i]);
+      if (sampled[sampled.length - 1] !== coords[coords.length - 1]) sampled.push(coords[coords.length - 1]);
+    }
+
+    const lats = sampled.map(c => c[0]);
+    const lons = sampled.map(c => c[1]);
+    const bounds: [[number, number],[number, number]] = [
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)]
+    ];
+
+    // Upsert into activity_coordinates
+    await supabase
+      .from('activity_coordinates')
+      .delete()
+      .eq('user_id', userId)
+      .eq('activity_source', 'garmin')
+      .eq('activity_id', activityId);
+
+    const { error: coordInsErr } = await supabase.from('activity_coordinates').insert({
+      user_id: userId,
+      activity_id: activityId,
+      activity_source: 'garmin',
+      coordinates: sampled,
+      total_points,
+      sampled_points: sampled.length,
+      starting_latitude: sampled[0]?.[0] ?? null,
+      starting_longitude: sampled[0]?.[1] ?? null,
+      bounding_box: bounds,
+    });
+    if (coordInsErr) console.warn('[process-activity-chart] coord insert error', coordInsErr.message);
+  }
+}
+
+console.info("[process-activity-chart] inserted", { rows: 1, points: sampled.length, userId, activityId });
+
+return new Response(
+  JSON.stringify({ success: true, inserted: sampled.length, activity_id: activityId, user_id: userId, source: sampleSource }),
+  { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+);
   } catch (e: any) {
     console.error("Error in process-activity-chart-from-garmin-log:", e);
     return new Response(
