@@ -4,7 +4,7 @@ import { ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface OvertrainingRisk {
   score: number;
-  level: 'baixo' | 'moderado' | 'alto';
+  level: 'baixo' | 'medio' | 'alto';
   factors: string[];
 }
 
@@ -34,7 +34,7 @@ export const OvertrainingRiskMeter = ({ risk }: OvertrainingRiskMeterProps) => {
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'baixo': return { bg: 'bg-green-500', text: 'text-green-400', icon: CheckCircle };
-      case 'moderado': return { bg: 'bg-yellow-500', text: 'text-yellow-400', icon: AlertTriangle };
+      case 'medio': return { bg: 'bg-yellow-500', text: 'text-yellow-400', icon: AlertTriangle };
       case 'alto': return { bg: 'bg-red-500', text: 'text-red-400', icon: AlertTriangle };
       default: return { bg: 'bg-gray-500', text: 'text-gray-400', icon: ShieldAlert };
     }
@@ -43,7 +43,7 @@ export const OvertrainingRiskMeter = ({ risk }: OvertrainingRiskMeterProps) => {
   const getRiskLabel = (level: string) => {
     switch (level) {
       case 'baixo': return 'Risco Baixo';
-      case 'moderado': return 'Risco Moderado';
+      case 'medio': return 'Risco Médio';
       case 'alto': return 'Risco Alto';
       default: return 'Não avaliado';
     }
@@ -151,7 +151,7 @@ export const OvertrainingRiskMeter = ({ risk }: OvertrainingRiskMeterProps) => {
           <div className="p-3 rounded-lg bg-muted/50 border">
             <div className="text-xs text-muted-foreground">
               {risk.level === 'baixo' && 'Continue com o planejamento atual. Monitore sua recuperação.'}
-              {risk.level === 'moderado' && 'Considere adicionar mais dias de recuperação ou reduzir a intensidade.'}
+              {risk.level === 'medio' && 'Considere adicionar mais dias de recuperação ou reduzir a intensidade.'}
               {risk.level === 'alto' && 'Recomendamos uma semana de recuperação ativa ou descanso completo.'}
             </div>
           </div>
