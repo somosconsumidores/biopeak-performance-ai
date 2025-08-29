@@ -374,14 +374,17 @@ function processHeartRateStats(activities: any[]): HeartRateStats {
   
   // Calculate cardiac efficiency (meters per heartbeat)
   const runningWithHRAndDistance = activitiesWithHR.filter(act => 
-    act.total_distance_meters && act.total_time_minutes
+    act.total_distance_meters && act.total_time_minutes && act.average_heart_rate > 0
   );
   
   let cardiacEfficiency = 0;
   if (runningWithHRAndDistance.length > 0) {
     cardiacEfficiency = runningWithHRAndDistance.reduce((sum, act) => {
+      // total_time_minutes * average_heart_rate (bpm) = total heartbeats
       const totalBeats = act.average_heart_rate * act.total_time_minutes;
-      return sum + (act.total_distance_meters / totalBeats);
+      // meters per heartbeat
+      const efficiency = act.total_distance_meters / totalBeats;
+      return sum + efficiency;
     }, 0) / runningWithHRAndDistance.length;
   }
 
