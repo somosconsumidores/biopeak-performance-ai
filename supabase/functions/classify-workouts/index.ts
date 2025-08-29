@@ -239,6 +239,12 @@ Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
+  // Temporary kill switch: function paused to reduce Disk IO load
+  return new Response(
+    JSON.stringify({ success: false, disabled: true, message: 'classify-workouts temporarily disabled to reduce IO load' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+  )
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
