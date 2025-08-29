@@ -42,6 +42,8 @@ import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
 import { HistogramChart } from '@/components/HistogramChart';
 import { VariationAnalysisCard } from '@/components/VariationAnalysisCard';
 import { DeepAnalysisSection } from '@/components/DeepAnalysisSection';
+import { WorkoutClassificationBadge } from '@/components/WorkoutClassificationBadge';
+import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -80,6 +82,9 @@ export const WorkoutSession = () => {
 
   // Get heart rate zones data - use currentActivity.activity_id
   const { zones: heartRateZones, loading: zonesLoading } = useHeartRateZones(currentActivity?.activity_id || null);
+  
+  // Get workout classification
+  const { classification, loading: classificationLoading } = useWorkoutClassification(currentActivity?.activity_id || null);
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -261,12 +266,18 @@ export const WorkoutSession = () => {
             <Card className="glass-card border-glass-border mb-8">
               <CardHeader>
                 <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                  <CardTitle className="flex items-center space-x-2">
+                  <CardTitle className="flex items-center space-x-2 flex-wrap">
                     <Activity className="h-5 w-5 text-primary" />
                     <span>Resumo do Treino</span>
                     <Badge variant="default">
                       Concluído
                     </Badge>
+                    {classification && (
+                      <WorkoutClassificationBadge 
+                        classification={classification} 
+                        variant="default"
+                      />
+                    )}
                   </CardTitle>
                   <Button
                     variant="outline"
@@ -280,6 +291,16 @@ export const WorkoutSession = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Workout Classification Section */}
+                {classification && (
+                  <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20">
+                    <WorkoutClassificationBadge 
+                      classification={classification} 
+                      variant="detailed"
+                    />
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
                   <div className="text-center">
                     <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
