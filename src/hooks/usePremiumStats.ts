@@ -203,7 +203,55 @@ export const usePremiumStats = () => {
 
   useEffect(() => {
     fetchPremiumStats();
-  }, [fetchPremiumStats]);
+
+    // Set up real-time subscriptions for automatic updates
+    const activitiesChannel = supabase
+      .channel('premium-stats-activities')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'all_activities',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('Activity change detected, refreshing premium stats...');
+          fetchPremiumStats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activity_coordinates',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('GPS coordinates change detected, refreshing premium stats...');
+          fetchPremiumStats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_achievements',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('Achievement change detected, refreshing premium stats...');
+          fetchPremiumStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(activitiesChannel);
+    };
+  }, [fetchPremiumStats, user?.id]);
 
   return {
     weeklyStats,
