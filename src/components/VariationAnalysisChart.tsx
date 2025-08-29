@@ -57,6 +57,13 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
 
   const showAlert = data.paceCV > 0.2 || data.hrCV > 0.2;
 
+  // Transform data to percentages for chart display
+  const chartData = data.weeklyData.map(week => ({
+    ...week,
+    paceCV: week.paceCV * 100,
+    hrCV: week.hrCV * 100
+  }));
+
   return (
     <Card className="glass-card border-glass-border">
       <CardHeader>
@@ -86,7 +93,7 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
 
         <div className="h-48 mb-4">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data.weeklyData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
               <XAxis 
                 dataKey="week" 
@@ -96,8 +103,8 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
               <YAxis 
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                domain={[0, 0.4]}
-                tickFormatter={(value) => value.toFixed(2)}
+                domain={[0, 40]}
+                tickFormatter={(value) => `${value.toFixed(1)}%`}
               />
               <Tooltip 
                 contentStyle={{
@@ -106,7 +113,7 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
                   borderRadius: '8px'
                 }}
                 formatter={(value: any, name: string) => [
-                  value.toFixed(3),
+                  `${value.toFixed(1)}%`,
                   name === 'paceCV' ? 'CV Pace' : 'CV FC'
                 ]}
                 labelFormatter={(label) => `Semana: ${label}`}
@@ -137,14 +144,14 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
               <div className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-muted-foreground">CV Pace</span>
             </div>
-            <div className="font-semibold">{data.paceCV.toFixed(3)}</div>
+            <div className="font-semibold">{(data.paceCV * 100).toFixed(1)}%</div>
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-accent" />
               <span className="text-muted-foreground">CV FC</span>
             </div>
-            <div className="font-semibold">{data.hrCV.toFixed(3)}</div>
+            <div className="font-semibold">{(data.hrCV * 100).toFixed(1)}%</div>
           </div>
         </div>
         
