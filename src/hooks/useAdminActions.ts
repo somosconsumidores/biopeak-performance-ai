@@ -67,33 +67,11 @@ export const useAdminActions = () => {
   };
 
   const reclassifyUnclassifiedWorkouts = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('classify-workouts', {
-        body: { reclassify: true, only_unclassified: true }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Reclassificação de Atividades",
-        description: `Reprocesso concluído: ${data?.processed || 0} atividades processadas, ${data?.updated || 0} atualizadas`,
-      });
-
-      return data;
-    } catch (error) {
-      console.error('Error reclassifying workouts:', error);
-      toast({
-        title: "Erro na Reclassificação",
-        description: "Falha ao reclassificar atividades",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+    toast({
+      title: "Reclassificação desativada",
+      description: "Esta ação foi descontinuada para evitar alto consumo de IO.",
+    });
+    return { success: false, disabled: true } as const;
   };
 
   return {
