@@ -333,8 +333,12 @@ function processPaceStats(activities: any[]): PaceStats {
   // Calculate trend data
   const trendData = runningActivities.slice(-30).map(act => {
     const bestPace = Math.min(...runningActivities.map(a => a.pace_min_per_km));
+    // Parse date string directly without timezone conversion to avoid date shift
+    const dateParts = act.activity_date.split('-');
+    const activityDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+    
     return {
-      date: new Date(act.activity_date).toLocaleDateString('pt-BR'),
+      date: activityDate.toLocaleDateString('pt-BR'),
       pace: act.pace_min_per_km,
       isBest: act.pace_min_per_km === bestPace
     };
