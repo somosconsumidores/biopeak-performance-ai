@@ -120,18 +120,9 @@ export const usePremiumStats = () => {
       const hrData = processHeartRateStats(activities || []);
       setHeartRateStats(hrData);
 
-      // Fetch variation analysis
-      const { data: variationData } = await supabase
-        .from('activity_variation_analysis')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(12);
-
-      if (variationData) {
-        const variationAnalysisData = processVariationAnalysis(variationData);
-        setVariationAnalysis(variationAnalysisData);
-      }
+      // Calculate variation analysis from activities
+      const variationAnalysisData = processVariationAnalysis(activities || []);
+      setVariationAnalysis(variationAnalysisData);
 
       // Process effort distribution
       const effortData = processEffortDistribution(activities || []);
@@ -406,8 +397,8 @@ function processHeartRateStats(activities: any[]): HeartRateStats {
   };
 }
 
-function processVariationAnalysis(data: any[]): VariationAnalysis {
-  if (!Array.isArray(data) || data.length === 0) {
+function processVariationAnalysis(activities: any[]): VariationAnalysis {
+  if (!Array.isArray(activities) || activities.length === 0) {
     return {
       paceCV: 0,
       hrCV: 0,
@@ -416,21 +407,101 @@ function processVariationAnalysis(data: any[]): VariationAnalysis {
     };
   }
   
-  const avgPaceCV = data.reduce((sum: number, item: any) => sum + (item.pace_cv || 0), 0) / data.length;
-  const avgHrCV = data.reduce((sum: number, item: any) => sum + (item.heart_rate_cv || 0), 0) / data.length;
+  // Filter running activities with valid data from last 12 weeks
+  const twelveWeeksAgo = new Date();
+  twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
   
-  const consistency = avgPaceCV < 0.15 && avgHrCV < 0.15 ? 'good' : 
-                    avgPaceCV < 0.25 && avgHrCV < 0.25 ? 'moderate' : 'poor';
+  const runningActivities = activities.filter(act => {
+    const activityDate = new Date(act.activity_date);
+    const isRunning = act.activity_type && act.activity_type.toLowerCase().includes('run');
+    const hasValidPace = act.pace_min_per_km && act.pace_min_per_km > 0;
+    const isRecent = activityDate >= twelveWeeksAgo;
+    
+    return isRunning && hasValidPace && isRecent;
+  });
 
-  const weeklyData = data.slice(0, 12).map((item, index) => ({
-    week: `Sem ${index + 1}`,
-    paceCV: item.pace_cv || 0,
-    hrCV: item.heart_rate_cv || 0
-  }));
+  const hrActivities = activities.filter(act => {
+    const activityDate = new Date(act.activity_date);
+    const hasValidHR = act.average_heart_rate && act.average_heart_rate > 0;
+    const isRecent = activityDate >= twelveWeeksAgo;
+    
+    return hasValidHR && isRecent;
+  });
+
+  // Calculate Pace CV (Coefficient of Variation)
+  let paceCV = 0;
+  if (runningActivities.length >= 3) {
+    const paces = runningActivities.map(act => act.pace_min_per_km);
+    const avgPace = paces.reduce((sum, pace) => sum + pace, 0) / paces.length;
+    const variance = paces.reduce((sum, pace) => sum + Math.pow(pace - avgPace, 2), 0) / paces.length;
+    const stdDev = Math.sqrt(variance);
+    paceCV = stdDev / avgPace; // CV as decimal
+  }
+
+  // Calculate Heart Rate CV
+  let hrCV = 0;
+  if (hrActivities.length >= 3) {
+    const heartRates = hrActivities.map(act => act.average_heart_rate);
+    const avgHR = heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length;
+    const variance = heartRates.reduce((sum, hr) => sum + Math.pow(hr - avgHR, 2), 0) / heartRates.length;
+    const stdDev = Math.sqrt(variance);
+    hrCV = stdDev / avgHR; // CV as decimal
+  }
+
+  // Determine consistency level
+  const consistency = paceCV < 0.10 && hrCV < 0.08 ? 'good' : 
+                     paceCV < 0.15 && hrCV < 0.12 ? 'moderate' : 'poor';
+
+  // Generate weekly data for the last 12 weeks
+  const weeklyData = [];
+  for (let i = 0; i < 12; i++) {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - (i * 7));
+    const weekEnd = new Date();
+    weekEnd.setDate(weekEnd.getDate() - ((i - 1) * 7));
+
+    const weekActivities = activities.filter(act => {
+      const actDate = new Date(act.activity_date);
+      return actDate >= weekStart && actDate < weekEnd;
+    });
+
+    const weekRunning = weekActivities.filter(act => 
+      act.activity_type && act.activity_type.toLowerCase().includes('run') && 
+      act.pace_min_per_km && act.pace_min_per_km > 0
+    );
+
+    const weekHR = weekActivities.filter(act => 
+      act.average_heart_rate && act.average_heart_rate > 0
+    );
+
+    // Calculate weekly CVs
+    let weekPaceCV = 0;
+    let weekHrCV = 0;
+
+    if (weekRunning.length >= 2) {
+      const weekPaces = weekRunning.map(act => act.pace_min_per_km);
+      const weekAvgPace = weekPaces.reduce((sum, pace) => sum + pace, 0) / weekPaces.length;
+      const weekPaceVar = weekPaces.reduce((sum, pace) => sum + Math.pow(pace - weekAvgPace, 2), 0) / weekPaces.length;
+      weekPaceCV = Math.sqrt(weekPaceVar) / weekAvgPace;
+    }
+
+    if (weekHR.length >= 2) {
+      const weekHRs = weekHR.map(act => act.average_heart_rate);
+      const weekAvgHR = weekHRs.reduce((sum, hr) => sum + hr, 0) / weekHRs.length;
+      const weekHRVar = weekHRs.reduce((sum, hr) => sum + Math.pow(hr - weekAvgHR, 2), 0) / weekHRs.length;
+      weekHrCV = Math.sqrt(weekHRVar) / weekAvgHR;
+    }
+
+    weeklyData.unshift({
+      week: `Sem ${12 - i}`,
+      paceCV: weekPaceCV,
+      hrCV: weekHrCV
+    });
+  }
 
   return {
-    paceCV: avgPaceCV,
-    hrCV: avgHrCV,
+    paceCV,
+    hrCV,
     consistency,
     weeklyData
   };
