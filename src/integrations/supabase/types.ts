@@ -3513,6 +3513,36 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_classification: {
+        Row: {
+          activity_id: string
+          created_at: string | null
+          detected_workout_type: string
+          id: string
+          metrics: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string | null
+          detected_workout_type: string
+          id?: string
+          metrics: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string | null
+          detected_workout_type?: string
+          id?: string
+          metrics?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       zepp_activities: {
         Row: {
           activity_date: string | null
