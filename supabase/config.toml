@@ -164,3 +164,6 @@ verify_jwt = true
 
 [functions.classify-workouts]
 verify_jwt = true
+
+[functions.classify-workouts-from-series]
+verify_jwt = true
