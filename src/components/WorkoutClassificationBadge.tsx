@@ -86,11 +86,6 @@ export const WorkoutClassificationBadge: React.FC<WorkoutClassificationBadgeProp
           {getWorkoutTypeIcon(classification.detected_workout_type)}
           <span>{formatWorkoutType(classification.detected_workout_type)}</span>
         </Badge>
-        {classification.metrics && Object.keys(classification.metrics).length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            Confiança: {classification.metrics.confidence ? `${Math.round(classification.metrics.confidence * 100)}%` : 'N/A'}
-          </div>
-        )}
       </div>
     );
   }
