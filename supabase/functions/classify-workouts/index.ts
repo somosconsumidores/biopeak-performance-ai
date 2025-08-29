@@ -251,33 +251,13 @@ Deno.serve(async (req) => {
     const activityId: string | undefined = body.activity_id ? String(body.activity_id) : undefined
     const activitySource: string | undefined = body.activity_source ? String(body.activity_source).toLowerCase() : undefined
 
-    // Prioriza classificar apenas a atividade nova quando informada
+    // Prepare var (kept for type-checking)
     let activities: ActivityRow[] = []
-    if (activityId) {
-      let q = supabase
-        .from('all_activities')
-        .select('id,user_id,activity_id,activity_source,total_distance_meters,total_time_minutes,pace_min_per_km,average_heart_rate,max_heart_rate,detected_workout_type')
-        .eq('activity_id', activityId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-
-      if (userFilter) q = q.eq('user_id', userFilter)
-      if (activitySource) q = q.eq('activity_source', activitySource)
-
-      const { data, error } = await q
-      if (error) throw error
-      activities = data || []
-    } else {
-      // Comportamento anterior: só NULL por padrão (ou reclassify=true)
-      activities = await fetchAllActivities(supabase, { user_id: userFilter, reclassify })
-    }
-
-    if (!activities.length) {
-      return new Response(JSON.stringify({ success: true, processed: 0, message: 'nothing to classify' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    }
+    // PAUSED: stop all processing immediately (temporary kill-switch)
+    return new Response(
+      JSON.stringify({ success: true, processed: 0, message: 'classification paused by admin' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 }
+    )
 
     // 2) Agregar por usuário
     const byUser = new Map<string, ActivityRow[]>()
