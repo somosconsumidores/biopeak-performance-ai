@@ -378,15 +378,7 @@ Deno.serve(async (req) => {
       ]
 
       // Upsert into activity_coordinates
-      const { data: existingCoord, error: selCoordErr } = await supabase
-        .from('activity_coordinates')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('activity_source', activity_source)
-        .eq('activity_id', activity_id)
-        .maybeSingle()
-      if (selCoordErr) throw selCoordErr
-
+      // Upsert into activity_coordinates (handles race conditions and avoids missing columns)
       const coordPayload = {
         user_id: uid,
         activity_id,
@@ -399,18 +391,11 @@ Deno.serve(async (req) => {
         bounding_box: bounds,
       }
 
-      if (existingCoord?.id) {
-        const { error: updCoordErr } = await supabase
-          .from('activity_coordinates')
-          .update({ ...coordPayload, updated_at: new Date().toISOString() })
-          .eq('id', existingCoord.id)
-        if (updCoordErr) throw updCoordErr
-      } else {
-        const { error: insCoordErr } = await supabase
-          .from('activity_coordinates')
-          .insert(coordPayload)
-        if (insCoordErr) throw insCoordErr
-      }
+      const { error: upsertCoordErr } = await supabase
+        .from('activity_coordinates')
+        .upsert(coordPayload, { onConflict: 'user_id,activity_source,activity_id' })
+      if (upsertCoordErr) throw upsertCoordErr
+      
     }
 
     return new Response(
