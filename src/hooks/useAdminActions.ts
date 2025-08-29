@@ -66,18 +66,9 @@ export const useAdminActions = () => {
     }
   };
 
-  const reclassifyUnclassifiedWorkouts = async () => {
-    toast({
-      title: "Reclassificação desativada",
-      description: "Esta ação foi descontinuada para evitar alto consumo de IO.",
-    });
-    return { success: false, disabled: true } as const;
-  };
-
   return {
     renewExpiredTokens,
     backfillActivityCharts,
-    reclassifyUnclassifiedWorkouts,
     loading
   };
 };

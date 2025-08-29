@@ -148,12 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Fallback timer to avoid hanging UI if Supabase is unresponsive
-    const authInitTimeout = setTimeout(() => {
-      console.warn('[Auth] Init timed out. Proceeding without session.');
-      setLoading(false);
-    }, 4000);
-
     // THEN check for existing session with error handling
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
@@ -182,15 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setUser(null);
         setLoading(false);
-      })
-      .finally(() => {
-        clearTimeout(authInitTimeout);
       });
 
-    return () => {
-      clearTimeout(authInitTimeout);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
 

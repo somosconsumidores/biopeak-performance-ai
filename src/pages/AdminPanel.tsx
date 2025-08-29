@@ -48,7 +48,7 @@ interface TopUser {
 }
 
 export const AdminPanel = () => {
-  const { renewExpiredTokens, backfillActivityCharts, reclassifyUnclassifiedWorkouts, loading } = useAdminActions();
+  const { renewExpiredTokens, backfillActivityCharts, loading } = useAdminActions();
   const { toast } = useToast();
   const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
   const [reprocessingGarminDetails, setReprocessingGarminDetails] = useState(false);
@@ -584,22 +584,6 @@ export const AdminPanel = () => {
                   {reprocessingVO2Max ? 'Reprocessando...' : 'Reprocessar VO2Max'}
                 </Button>
 
-                <Button
-                  onClick={async () => {
-                    try {
-                      await reclassifyUnclassifiedWorkouts();
-                      await fetchStats();
-                    } catch (error) {
-                      console.error('Reclassify error:', error);
-                    }
-                  }}
-                  disabled={loading}
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                >
-                  <Activity className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Reclassificando...' : 'Reclassificar "Unclassified"'}
-                </Button>
                 <Button
                   onClick={handleReprocessGarminDetailsErrorsToday}
                   disabled={reprocessingGarminDetails}

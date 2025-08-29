@@ -222,27 +222,15 @@ function ProtectedRoute({
           return;
         }
         
-        try {
-          const isCompleted = await checkOnboardingStatus();
-          console.log('🔍 PROTECTED_ROUTE: Database check result', { isCompleted });
-          setNeedsOnboarding(!isCompleted);
-        } catch (err) {
-          console.error('🔍 PROTECTED_ROUTE: Onboarding check failed', err);
-          // Fail-open to avoid locking the user out when backend is unstable
-          setNeedsOnboarding(false);
-        }
+        const isCompleted = await checkOnboardingStatus();
+        console.log('🔍 PROTECTED_ROUTE: Database check result', { isCompleted });
+        setNeedsOnboarding(!isCompleted);
       }
       setIsCheckingOnboarding(false);
     };
     
     if (user && !loading) {
-      // Timeout fallback to prevent UI from hanging if Supabase is slow
-      const timeoutId = window.setTimeout(() => {
-        console.warn('🔍 PROTECTED_ROUTE: Onboarding check timeout fallback');
-        setIsCheckingOnboarding(false);
-      }, 4000);
-
-      checkStatus().finally(() => clearTimeout(timeoutId));
+      checkStatus();
     } else if (!loading) {
       setIsCheckingOnboarding(false);
     }
