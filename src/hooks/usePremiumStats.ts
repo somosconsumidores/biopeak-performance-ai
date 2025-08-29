@@ -497,8 +497,10 @@ function processGPSData(coordinatesData: any[]): GPSData {
   coordinatesData.forEach(item => {
     if (item.coordinates && Array.isArray(item.coordinates)) {
       item.coordinates.forEach((coord: any) => {
-        if (coord.lat && coord.lng) {
-          allCoordinates.push([coord.lat, coord.lng]);
+        // Coordinates are stored as arrays [lat, lng]
+        if (Array.isArray(coord) && coord.length === 2 && 
+            typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          allCoordinates.push([coord[0], coord[1]]);
           intensity.push(Math.random()); // Mock intensity
         }
       });
