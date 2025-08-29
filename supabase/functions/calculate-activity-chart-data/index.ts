@@ -116,9 +116,23 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Resolve user_id if not provided using details table
+    // Resolve user_id if not provided using multiple fallbacks
     async function resolveUserId(): Promise<string> {
-      if (user_id) return user_id
+      const provided = (user_id && typeof user_id === 'string' && user_id.trim().length > 0) ? user_id.trim() : null
+      if (provided) return provided
+
+      // 1) Try unified all_activities first (covers most sources reliably)
+      {
+        const { data, error } = await supabase
+          .from('all_activities')
+          .select('user_id')
+          .eq('activity_source', activity_source)
+          .eq('activity_id', activity_id)
+          .limit(1)
+        if (!error && data && data.length > 0 && data[0]?.user_id) return data[0].user_id
+      }
+
+      // 2) Try details tables per source
       let query
       switch (activity_source) {
         case 'garmin':
@@ -137,9 +151,22 @@ Deno.serve(async (req) => {
           query = supabase.from('zepp_gpx_activity_details').select('user_id').eq('activity_id', activity_id).limit(1)
           break
       }
-      const { data, error } = await query
-      if (error || !data || data.length === 0) throw new Error('Unable to resolve user_id for activity')
-      return data[0].user_id
+      if (query) {
+        const { data, error } = await query
+        if (!error && data && data.length > 0 && data[0]?.user_id) return data[0].user_id
+      }
+
+      // 3) Try summary tables as a final fallback
+      const summaryLookups: Array<{ table: string; column: string; value: any }> = []
+      if (activity_source === 'garmin') summaryLookups.push({ table: 'garmin_activities', column: 'activity_id', value: activity_id })
+      if (activity_source === 'polar') summaryLookups.push({ table: 'polar_activities', column: 'activity_id', value: activity_id })
+      if (activity_source === 'strava') summaryLookups.push({ table: 'strava_activities', column: 'strava_activity_id', value: Number(activity_id) })
+      for (const s of summaryLookups) {
+        const { data, error } = await supabase.from(s.table).select('user_id').eq(s.column, s.value).limit(1)
+        if (!error && data && data.length > 0 && data[0]?.user_id) return data[0].user_id
+      }
+
+      throw new Error(`Unable to resolve user_id for activity ${activity_source}:${activity_id}`)
     }
 
     const uid = await resolveUserId()
