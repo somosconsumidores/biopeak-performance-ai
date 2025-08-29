@@ -19,6 +19,7 @@ import {
   Bot,
   RefreshCw
 } from "lucide-react";
+import { AIAnalysisTabs } from "@/components/AIAnalysisTabs";
 import { TargetRace, useTargetRaces } from "@/hooks/useTargetRaces";
 import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
 import { useAthleteStats } from "@/hooks/useAthleteStats";
@@ -422,26 +423,12 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
               </Card>
             )}
 
-            {/* AI Response Card */}
+            {/* AI Response with Organized Tabs */}
             {aiResponse && (
-              <Card className="bg-purple-50 border-purple-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2 text-purple-800">
-                    <Bot className="h-5 w-5" />
-                    Parecer da IA
-                    {aiCached && (
-                      <Badge variant="secondary" className="text-xs">
-                        Análise salva
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-purple-900 whitespace-pre-line leading-relaxed">
-                    {aiResponse}
-                  </div>
-                </CardContent>
-              </Card>
+              <AIAnalysisTabs 
+                analysisText={aiResponse}
+                isCached={aiCached}
+              />
             )}
 
             {/* Actions */}
