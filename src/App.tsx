@@ -31,6 +31,7 @@ import { AdminPanel } from "./pages/AdminPanel";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
+import { PremiumStats } from "./pages/PremiumStats";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -169,6 +170,11 @@ function AppRoutes() {
         <Route path="/training-plan" element={
           <ProtectedRoute>
             <TrainingPlan />
+          </ProtectedRoute>
+        } />
+        <Route path="/premium-stats" element={
+          <ProtectedRoute>
+            <PremiumStats />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
