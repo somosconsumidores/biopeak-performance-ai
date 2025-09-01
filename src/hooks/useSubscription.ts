@@ -25,25 +25,51 @@ export const useSubscription = () => {
     try {
       setLoading(true);
       
-      // Get fresh session token
-      const session = await supabase.auth.getSession();
-      if (!session.data.session?.access_token) {
-        console.warn('No valid session token available');
+      // Tenta obter um token válido (refresca se necessário)
+      let token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        token = refreshed?.session?.access_token;
+      }
+
+      if (!token) {
+        console.warn('No valid session token available after refresh');
         setSubscriptionData({ subscribed: false });
         setLoading(false);
         return;
       }
-      
-      // Chamar a função de verificação de assinatura
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${session.data.session.access_token}`,
-        },
-      });
+
+      // Função para invocar a edge function com o token atual
+      const invokeCheck = async (accessToken: string) =>
+        supabase.functions.invoke('check-subscription', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+      // 1ª tentativa
+      let { data, error } = await invokeCheck(token);
+
+      // Se falhar por problema de autenticação, tenta 1 refresh e re-tenta
+      const authErrorMsg = error?.message || '';
+      if (
+        error && (
+          authErrorMsg.includes('Authentication error') ||
+          authErrorMsg.includes('session_id') ||
+          authErrorMsg.toLowerCase().includes('jwt') ||
+          authErrorMsg.toLowerCase().includes('bearer')
+        )
+      ) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        const retryToken = refreshed?.session?.access_token;
+        if (retryToken) {
+          ({ data, error } = await invokeCheck(retryToken));
+        }
+      }
 
       if (error) {
         console.error('Erro ao verificar assinatura:', error);
-        // Try to get cached subscription data from database as fallback
+        // Tenta buscar dados em cache no banco como fallback
         const { data: cachedData } = await supabase
           .from('subscribers')
           .select('*')
