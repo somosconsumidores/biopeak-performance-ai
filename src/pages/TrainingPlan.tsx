@@ -9,10 +9,16 @@ import { PlanOverview } from '@/components/PlanOverview';
 import { PremiumButton } from '@/components/PremiumButton';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 
 const TrainingPlan = () => {
   const { plan, workouts, loading } = useActiveTrainingPlan();
   const { isSubscribed } = useSubscription();
+  const { user } = useAuth();
+
+  // Lista de usuários autorizados para o calendário de provas
+  const authorizedEmails = ['garminteste07@teste.com', 'admin@biopeak.com', 'sandro.leao@biopeak-ai.com'];
+  const isAuthorized = user?.email && authorizedEmails.includes(user.email);
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,8 +72,8 @@ const TrainingPlan = () => {
             </CardContent>
           </Card>
 
-          {/* Race Calendar - Available to all users */}
-          <RaceCalendar />
+          {/* Race Calendar - Only for authorized users */}
+          {isAuthorized && <RaceCalendar />}
           
           {/* Análise - Premium Only */}
           <div className="mt-4">
