@@ -17,10 +17,10 @@ function cleanAIResponse(text: string): string {
     .replace(/`([^`]+)`/g, '$1')
     // Remover headers markdown no início da linha
     .replace(/^#{1,6}\s*/gm, '')
-    // Remover negrito/itálico com **__ ou *_
-    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // Preservar cabeçalhos das seções (PONTOS FORTES, GAPS, etc.), mas remover outros negritos
+    .replace(/\*\*(?!(?:PONTOS?\s+FORTES?|GAPS?\s+A?\s+TRABALHAR|RECOMENDAÇ|MENSAGEM|MOTIVAÇ)[^*]*\*\*)(.*?)\*\*/gi, '$1')
     .replace(/__(.*?)__/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/\*(?!\*)(.*?)\*/g, '$1')
     .replace(/_(.*?)_/g, '$1')
     // Converter listas - ou * para •
     .replace(/^\s*[-*]\s+/gm, '• ')
@@ -240,13 +240,21 @@ HISTÓRICO DO ATLETA (últimas ${runningActivities.length} corridas):
 - Volume semanal médio: ${avgWeeklyDistanceKm.toFixed(1)}km
 - Frequência semanal: ${avgWeeklyFrequency.toFixed(1)} treinos
 
-💡 Escreva um parecer em português brasileiro que inclua:
-1. Uma análise dos pontos fortes do atleta
-2. Os principais gaps que precisam ser trabalhados
-3. 3 recomendações práticas e específicas de treino
-4. Uma mensagem motivadora para o objetivo
+💡 Escreva um parecer em português brasileiro seguindo EXATAMENTE esta estrutura com cabeçalhos:
 
-Seja direto, prático e encorajador. Use linguagem acessível e evite formatação markdown. Apenas texto corrido com subtítulos simples e parágrafos.`;
+**PONTOS FORTES:**
+[Analise os pontos fortes do atleta com base nos dados]
+
+**GAPS A TRABALHAR:**
+[Identifique os principais gaps que precisam ser trabalhados]
+
+**RECOMENDAÇÕES:**
+[Forneça 3 recomendações práticas e específicas de treino]
+
+**MENSAGEM MOTIVADORA:**
+[Uma mensagem motivadora para o objetivo]
+
+Seja direto, prático e encorajador. Use linguagem acessível e evite formatação markdown além dos cabeçalhos em negrito. Use parágrafos bem estruturados.`;
 
     console.log('[analyze-goal-with-ai] Calling OpenAI gpt-4o-mini...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

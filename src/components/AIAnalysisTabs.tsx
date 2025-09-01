@@ -27,12 +27,19 @@ export function AIAnalysisTabs({ analysisText, isCached = false }: AIAnalysisTab
   const [activeTab, setActiveTab] = useState("pontos-fortes");
 
   const parseAnalysis = (text: string): ParsedAnalysis => {
-    // Padrões para identificar as seções no texto da IA
+    // Padrões melhorados para identificar as seções no texto da IA
     const patterns = {
-      pontosFortes: /(?:pontos?\s+fortes?|qualidades?|força|virtudes?)[^:]*:?\s*([^]*?)(?=(?:gaps?|lacunas?|pontos?\s+fracos?|melhorar|recomendaç|sugest|mensagem|motivaç|\n\n|\s{2,}\n)|$)/i,
-      gaps: /(?:gaps?|lacunas?|pontos?\s+fracos?|melhorar|aspectos?\s+a\s+desenvolver)[^:]*:?\s*([^]*?)(?=(?:recomendaç|sugest|treino|mensagem|motivaç|\n\n|\s{2,}\n)|$)/i,
-      recomendacoes: /(?:recomendaç|sugest|treino|plano|estratégi)[^:]*:?\s*([^]*?)(?=(?:mensagem|motivaç|\n\n|\s{2,}\n)|$)/i,
-      mensagem: /(?:mensagem|motivaç|conclusão|final)[^:]*:?\s*([^]*?)$/i
+      // Busca por **PONTOS FORTES:** ou variações
+      pontosFortes: /\*\*\s*(?:pontos?\s+fortes?|qualidades?|força|virtudes?)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:gaps?|lacunas?|pontos?\s+fracos?|melhorar|aspectos?\s+a\s+desenvolver|recomendaç|sugest|treino|plano|estratégi|mensagem|motivaç)|$)/i,
+      
+      // Busca por **GAPS A TRABALHAR:** ou variações
+      gaps: /\*\*\s*(?:gaps?\s+a?\s+trabalhar|lacunas?|pontos?\s+fracos?|melhorar|aspectos?\s+a\s+desenvolver)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:recomendaç|sugest|treino|plano|estratégi|mensagem|motivaç)|$)/i,
+      
+      // Busca por **RECOMENDAÇÕES:** ou variações
+      recomendacoes: /\*\*\s*(?:recomendaç|sugest|treino|plano|estratégi)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:mensagem|motivaç|conclusão|final)|$)/i,
+      
+      // Busca por **MENSAGEM MOTIVADORA:** ou variações
+      mensagem: /\*\*\s*(?:mensagem|motivaç|conclusão|final)\s*[:*]*\*\*\s*([^]*?)$/i
     };
 
     const result: ParsedAnalysis = {};
@@ -41,14 +48,39 @@ export function AIAnalysisTabs({ analysisText, isCached = false }: AIAnalysisTab
     for (const [key, pattern] of Object.entries(patterns)) {
       const match = text.match(pattern);
       if (match && match[1]) {
-        const content = match[1].trim();
-        if (content.length > 20) { // Só considerar se tiver conteúdo substancial
+        let content = match[1].trim();
+        
+        // Remove formatação markdown residual dos cabeçalhos
+        content = content.replace(/^\*\*[^*]+\*\*\s*/g, '');
+        content = content.replace(/\*\*([^*]+)\*\*/g, '$1');
+        
+        if (content.length > 10) { // Só considerar se tiver conteúdo substancial
           result[key as keyof ParsedAnalysis] = content;
         }
       }
     }
 
-    // Se não conseguiu extrair nenhuma seção específica, usar o texto completo
+    // Fallback: se não conseguiu extrair seções específicas, tenta patterns mais flexíveis
+    if (!result.pontosFortes && !result.gaps && !result.recomendacoes && !result.mensagem) {
+      // Tenta dividir por parágrafos se contém palavras-chave
+      const paragraphs = text.split(/\n\s*\n/);
+      
+      for (const paragraph of paragraphs) {
+        const lowerPara = paragraph.toLowerCase();
+        
+        if (!result.pontosFortes && (lowerPara.includes('parabéns') || lowerPara.includes('pontos fortes') || lowerPara.includes('histórico impressionante'))) {
+          result.pontosFortes = paragraph.trim();
+        } else if (!result.gaps && (lowerPara.includes('embora') || lowerPara.includes('gaps') || lowerPara.includes('precisamos abordar'))) {
+          result.gaps = paragraph.trim();
+        } else if (!result.recomendacoes && (lowerPara.includes('aumente') || lowerPara.includes('recomenda') || lowerPara.includes('inclua treinos'))) {
+          result.recomendacoes = paragraph.trim();
+        } else if (!result.mensagem && (lowerPara.includes('motivadora') || lowerPara.includes('acredite') || lowerPara.includes('confie'))) {
+          result.mensagem = paragraph.trim();
+        }
+      }
+    }
+
+    // Se ainda não conseguiu extrair nenhuma seção específica, usar o texto completo
     if (!result.pontosFortes && !result.gaps && !result.recomendacoes && !result.mensagem) {
       result.fullText = text;
     }
