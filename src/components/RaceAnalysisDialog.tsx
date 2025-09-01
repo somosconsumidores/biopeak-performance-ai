@@ -25,6 +25,8 @@ import { useRaceAnalysis, RaceAnalysisResult } from "@/hooks/useRaceAnalysis";
 import { useAthleteStats } from "@/hooks/useAthleteStats";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumButton } from "@/components/PremiumButton";
 
 interface RaceAnalysisDialogProps {
   open: boolean;
@@ -54,6 +56,7 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
     formatVo2Max 
   } = useAthleteStats();
   const { toast } = useToast();
+  const { isSubscribed } = useSubscription();
 
   useEffect(() => {
     if (open && race) {
@@ -357,65 +360,71 @@ export function RaceAnalysisDialog({ open, onOpenChange, race }: RaceAnalysisDia
                       </div>
                     </div>
 
-                    {/* AI Analysis Buttons */}
+                    {/* AI Analysis Buttons - Premium Only */}
                     <div className="mt-4 space-y-2">
-                      {!aiResponse ? (
-                        <Button 
-                          onClick={() => handleAskAI(false)} 
-                          disabled={aiLoading}
-                          className="w-full bg-purple-600 hover:bg-purple-700"
-                        >
-                          {aiLoading ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Analisando...
-                            </>
-                          ) : (
-                            <>
-                              <Bot className="h-4 w-4 mr-2" />
-                              🤖 Peça para a IA analisar meu objetivo
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <div className="flex gap-2">
+                      {isSubscribed ? (
+                        !aiResponse ? (
                           <Button 
                             onClick={() => handleAskAI(false)} 
                             disabled={aiLoading}
-                            variant="outline"
-                            className="flex-1"
+                            className="w-full bg-purple-600 hover:bg-purple-700"
                           >
                             {aiLoading ? (
                               <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                 Analisando...
                               </>
                             ) : (
                               <>
                                 <Bot className="h-4 w-4 mr-2" />
-                                Análise da IA
+                                🤖 Peça para a IA analisar meu objetivo
                               </>
                             )}
                           </Button>
-                          <Button 
-                            onClick={() => handleAskAI(true)} 
-                            disabled={aiLoading}
-                            variant="secondary"
-                            className="flex-1"
-                          >
-                            {aiLoading ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                                Regenerando...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Regerar análise
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => handleAskAI(false)} 
+                              disabled={aiLoading}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              {aiLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                  Analisando...
+                                </>
+                              ) : (
+                                <>
+                                  <Bot className="h-4 w-4 mr-2" />
+                                  Análise da IA
+                                </>
+                              )}
+                            </Button>
+                            <Button 
+                              onClick={() => handleAskAI(true)} 
+                              disabled={aiLoading}
+                              variant="secondary"
+                              className="flex-1"
+                            >
+                              {aiLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                  Regenerando...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Regerar análise
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )
+                      ) : (
+                        <PremiumButton className="w-full">
+                          🤖 Parecer da IA sobre meu objetivo
+                        </PremiumButton>
                       )}
                     </div>
                   </div>
