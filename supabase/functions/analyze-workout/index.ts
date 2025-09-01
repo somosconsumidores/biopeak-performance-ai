@@ -338,7 +338,12 @@ serve(async (req) => {
     }
 
     // 2. Buscar segmentos de 1km (activity_segments)
+    // Variáveis auxiliares para garantir consistência nos segmentos de 1km
     let segmentsData: any[] = [];
+    let bestKmSegmentHumanNumber: number | null = null;
+    let bestKmSegmentRawNumber: number | null = null;
+    let bestKmSegmentPace: number | null = null;
+    let isZeroBasedSegments = false;
     const { data: segments } = await serviceSupabase
       .from('activity_segments')
       .select('segment_number, avg_heart_rate, avg_pace_min_km, duration_seconds, elevation_gain_meters')
@@ -349,6 +354,18 @@ serve(async (req) => {
     if (segments && segments.length > 0) {
       segmentsData = segments;
       console.log(`✅ Segment data found: ${segments.length} segments`);
+
+      // Calcular o melhor segmento de 1km (pace médio mais baixo)
+      const validSegments = segmentsData.filter(s => typeof s.avg_pace_min_km === 'number');
+      if (validSegments.length > 0) {
+        const minRaw = Math.min(...segmentsData.map(s => s.segment_number));
+        isZeroBasedSegments = minRaw === 0;
+        const best = [...validSegments].sort((a, b) => (a.avg_pace_min_km as number) - (b.avg_pace_min_km as number))[0];
+        bestKmSegmentRawNumber = best.segment_number;
+        bestKmSegmentHumanNumber = isZeroBasedSegments ? best.segment_number + 1 : best.segment_number;
+        bestKmSegmentPace = best.avg_pace_min_km as number;
+        console.log(`🏅 Ground-truth best 1km segment: raw=${bestKmSegmentRawNumber}, human=${bestKmSegmentHumanNumber}, pace=${bestKmSegmentPace}`);
+      }
     }
 
     // 3. Buscar análise de variação (activity_variation_analysis)
@@ -559,6 +576,13 @@ serve(async (req) => {
       - Duração: ${bestSegmentsData.segment_duration_seconds}s
       ` : ''}
       
+      ${segmentsData.length > 0 && bestKmSegmentHumanNumber !== null ? `
+      ✅ VERDADE TERRENA (GROUND TRUTH) - Segmentos de 1km:
+      - Indexação exibida ao usuário: baseada em 1 (KM 1, KM 2, ...)
+      - Melhor KM (por pace médio em 1km): KM ${bestKmSegmentHumanNumber} (${(bestKmSegmentPace || 0).toFixed(2)} min/km)
+      - Não contradiga esta informação nos campos segmentAnalysis; utilize exatamente este número de segmento (humano).
+      ` : ''}
+      
       INSTRUÇÕES ESPECIAIS PARA DADOS LIMITADOS:
       ${isLimitedData ? `
       - Analise a CONSISTÊNCIA DO PACE: variação, estabilidade, padrões
@@ -760,6 +784,28 @@ serve(async (req) => {
           }
         }
       };
+    }
+
+    // Pós-processamento para garantir consistência dos segmentos
+    try {
+      if (bestKmSegmentHumanNumber !== null) {
+        (analysis as any).deepAnalysis = (analysis as any).deepAnalysis || {};
+        const deep = (analysis as any).deepAnalysis;
+        deep.segmentAnalysis = deep.segmentAnalysis || { problemSegments: [], bestSegments: [] };
+
+        // Remover entradas problemáticas que marcam o melhor KM como lento
+        if (Array.isArray(deep.segmentAnalysis.problemSegments)) {
+          deep.segmentAnalysis.problemSegments = deep.segmentAnalysis.problemSegments.filter((p: any) => p && p.segmentNumber !== bestKmSegmentHumanNumber);
+        }
+
+        // Substituir melhores segmentos pelo número correto (humano)
+        deep.segmentAnalysis.bestSegments = [
+          { segmentNumber: bestKmSegmentHumanNumber, strength: `Melhor pace de 1km confirmado (KM ${bestKmSegmentHumanNumber})` }
+        ];
+        console.log(`🔧 Consistency fix applied: best KM (human) = ${bestKmSegmentHumanNumber}`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Consistency fix failed:', e);
     }
 
     console.log('🤖 AI Analysis: Successfully completed analysis');
