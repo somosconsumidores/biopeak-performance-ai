@@ -93,7 +93,7 @@ export const PremiumStats = () => {
         <ParticleBackground />
         <Header />
         
-        <div className="pt-20 sm:pt-24 pb-24 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <ScrollReveal>
@@ -149,22 +149,20 @@ export const PremiumStats = () => {
                   </ScrollReveal>
                 )}
 
-                {/* Charts Grid - Melhor visualização mobile */}
-                <div className="space-y-6 lg:space-y-0 lg:grid lg:gap-6 lg:grid-cols-2">
+                {/* Charts Grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
                   {/* Volume Evolution */}
                   {weeklyStats?.volumeData && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <BarChart3 className="h-5 w-5 text-primary" />
                             Evolução do Volume
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-80 sm:h-64">
-                            <VolumeEvolutionChart data={weeklyStats.volumeData} />
-                          </div>
+                        <CardContent>
+                          <VolumeEvolutionChart data={weeklyStats.volumeData} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
@@ -174,16 +172,14 @@ export const PremiumStats = () => {
                   {paceStats?.trendData && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <LineChart className="h-5 w-5 text-primary" />
                             Tendência de Pace
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-80 sm:h-64">
-                            <PaceTrendChart data={paceStats.trendData} />
-                          </div>
+                        <CardContent>
+                          <PaceTrendChart data={paceStats.trendData} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
@@ -193,16 +189,14 @@ export const PremiumStats = () => {
                   {heartRateStats?.zonesData && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <Heart className="h-5 w-5 text-primary" />
                             Zonas de Frequência Cardíaca
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-80 sm:h-64">
-                            <HeartRateZonesChart data={heartRateStats.zonesData} />
-                          </div>
+                        <CardContent>
+                          <HeartRateZonesChart data={heartRateStats.zonesData} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
@@ -212,38 +206,34 @@ export const PremiumStats = () => {
                   {effortDistribution && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <Zap className="h-5 w-5 text-primary" />
                             Distribuição de Esforço
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-80 sm:h-64">
-                            <EffortDistributionChart data={effortDistribution} />
-                          </div>
+                        <CardContent>
+                          <EffortDistributionChart data={effortDistribution} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
                   )}
                 </div>
 
-                {/* Advanced Analytics - Organização mobile-first */}
-                <div className="space-y-6 lg:space-y-0 lg:grid lg:gap-6 lg:grid-cols-3">
+                {/* Advanced Analytics */}
+                <div className="grid gap-6 lg:grid-cols-3">
                   {/* Variation Analysis */}
                   {variationAnalysis && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5 text-primary" />
                             Análise de Variação
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-72 sm:h-64">
-                            <VariationAnalysisChart data={variationAnalysis} />
-                          </div>
+                        <CardContent>
+                          <VariationAnalysisChart data={variationAnalysis} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
@@ -253,16 +243,14 @@ export const PremiumStats = () => {
                   {overtrainingRisk && (
                     <ScrollReveal>
                       <Card className="glass-card border-glass-border">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-primary" />
                             Risco de Overtraining
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="h-72 sm:h-64 flex items-center justify-center">
-                            <OvertrainingRiskMeter risk={overtrainingRisk} />
-                          </div>
+                        <CardContent>
+                          <OvertrainingRiskMeter risk={overtrainingRisk} />
                         </CardContent>
                       </Card>
                     </ScrollReveal>
@@ -271,21 +259,21 @@ export const PremiumStats = () => {
                   {/* Achievements */}
                   <ScrollReveal>
                     <Card className="glass-card border-glass-border">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                           <Trophy className="h-5 w-5 text-primary" />
                           Conquistas Recentes
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                      <CardContent>
+                        <div className="space-y-3">
                           {achievements?.length > 0 ? achievements.slice(0, 5).map((achievement, index) => (
                             <SimpleAchievementBadge 
                               key={index}
                               achievement={achievement}
                             />
                           )) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">
+                            <p className="text-sm text-muted-foreground">
                               Nenhuma conquista recente
                             </p>
                           )}
@@ -295,20 +283,18 @@ export const PremiumStats = () => {
                   </ScrollReveal>
                 </div>
 
-                {/* GPS Heatmap - Altura otimizada para mobile */}
+                {/* GPS Heatmap */}
                 {gpsData && (
                   <ScrollReveal>
                     <Card className="glass-card border-glass-border">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                           <MapPin className="h-5 w-5 text-primary" />
                           Mapa de Calor das Atividades
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="h-80 sm:h-96">
-                          <GPSHeatmap data={gpsData} />
-                        </div>
+                      <CardContent>
+                        <GPSHeatmap data={gpsData} />
                       </CardContent>
                     </Card>
                   </ScrollReveal>
