@@ -28,6 +28,7 @@ import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AdminPanel } from "./pages/AdminPanel";
+import { AdminSubscriptions } from "./pages/AdminSubscriptions";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
@@ -161,6 +162,11 @@ function AppRoutes() {
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminPanel />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/subscriptions" element={
+          <ProtectedRoute>
+            <AdminSubscriptions />
           </ProtectedRoute>
         } />
         <Route path="/sleep-feedbacks" element={

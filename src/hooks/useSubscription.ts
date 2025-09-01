@@ -25,16 +25,40 @@ export const useSubscription = () => {
     try {
       setLoading(true);
       
+      // Get fresh session token
+      const session = await supabase.auth.getSession();
+      if (!session.data.session?.access_token) {
+        console.warn('No valid session token available');
+        setSubscriptionData({ subscribed: false });
+        setLoading(false);
+        return;
+      }
+      
       // Chamar a função de verificação de assinatura
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
-          Authorization: `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`,
+          Authorization: `Bearer ${session.data.session.access_token}`,
         },
       });
 
       if (error) {
         console.error('Erro ao verificar assinatura:', error);
-        setSubscriptionData({ subscribed: false });
+        // Try to get cached subscription data from database as fallback
+        const { data: cachedData } = await supabase
+          .from('subscribers')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (cachedData) {
+          setSubscriptionData({
+            subscribed: cachedData.subscribed,
+            subscription_tier: cachedData.subscription_tier,
+            subscription_end: cachedData.subscription_end
+          });
+        } else {
+          setSubscriptionData({ subscribed: false });
+        }
       } else {
         setSubscriptionData(data);
       }

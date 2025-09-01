@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
+  console.log(`[FORCE-SUBSCRIPTION-CHECK] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -24,38 +24,36 @@ serve(async (req) => {
   );
 
   try {
-    logStep("Function started");
+    const { email } = await req.json();
+    if (!email) throw new Error("Email is required");
+    
+    logStep("Function started", { email });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
-
-    const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token");
+    // Get user from Supabase
+    const { data: users, error } = await supabaseClient.auth.admin.listUsers();
+    if (error) throw error;
     
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    const user = users.users.find(u => u.email === email);
+    if (!user) throw new Error("User not found");
+    
+    logStep("User found", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
-    // First try to find customer by email
+    // Comprehensive customer search
     let customers = await stripe.customers.list({ email: user.email, limit: 10 });
     logStep("Customer search by email", { email: user.email, foundCount: customers.data.length });
     
-    // If no customer found by email, try searching by metadata or other methods
+    // If no customer found, try variations and recent sessions
     if (customers.data.length === 0) {
-      // Try different email variations (lowercase, trim, etc.)
       const emailVariations = [
-        user.email.toLowerCase().trim(),
-        user.email.trim(),
-        user.email.toLowerCase()
+        user.email!.toLowerCase().trim(),
+        user.email!.trim(),
+        user.email!.toLowerCase()
       ];
       
       for (const emailVar of emailVariations) {
@@ -68,53 +66,54 @@ serve(async (req) => {
           }
         }
       }
+      
+      // Check recent checkout sessions
+      if (customers.data.length === 0) {
+        const recentSessions = await stripe.checkout.sessions.list({ limit: 50 });
+        const userSession = recentSessions.data.find(session => 
+          session.customer_email?.toLowerCase() === user.email!.toLowerCase() ||
+          session.metadata?.user_email?.toLowerCase() === user.email!.toLowerCase()
+        );
+        
+        if (userSession && userSession.customer) {
+          logStep("Found customer through recent session", { sessionId: userSession.id, customerId: userSession.customer });
+          const customer = await stripe.customers.retrieve(userSession.customer as string);
+          customers.data = [customer as any];
+        }
+      }
     }
     
-    // If still no customer found, check recent payments and sessions
     if (customers.data.length === 0) {
-      logStep("No customer found by email, checking recent payments");
+      logStep("No customer found anywhere");
+      await supabaseClient.from("subscribers").upsert({
+        email: user.email,
+        user_id: user.id,
+        stripe_customer_id: null,
+        subscribed: false,
+        subscription_type: null,
+        subscription_tier: null,
+        subscription_end: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'email' });
       
-      // Check recent checkout sessions for this user
-      const recentSessions = await stripe.checkout.sessions.list({
-        limit: 20,
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: "No Stripe customer found",
+        subscribed: false 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       });
-      
-      const userSession = recentSessions.data.find(session => 
-        session.customer_email?.toLowerCase() === user.email.toLowerCase() ||
-        session.metadata?.user_email?.toLowerCase() === user.email.toLowerCase()
-      );
-      
-      if (userSession && userSession.customer) {
-        logStep("Found customer through recent session", { sessionId: userSession.id, customerId: userSession.customer });
-        const customer = await stripe.customers.retrieve(userSession.customer as string);
-        customers.data = [customer as any];
-      } else {
-        logStep("No customer found anywhere, updating unsubscribed state");
-        await supabaseClient.from("subscribers").upsert({
-          email: user.email,
-          user_id: user.id,
-          stripe_customer_id: null,
-          subscribed: false,
-          subscription_type: null,
-          subscription_tier: null,
-          subscription_end: null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'email' });
-        return new Response(JSON.stringify({ subscribed: false }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
     }
 
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions (monthly)
+    // Check for active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "active",
-      limit: 1,
+      limit: 10,
     });
     
     let hasActiveSub = subscriptions.data.length > 0;
@@ -129,46 +128,36 @@ serve(async (req) => {
       subscriptionTier = "Premium";
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
     } else {
-      logStep("No active subscriptions, checking for one-time payments");
+      // Check for one-time payments and checkout sessions
+      const [oneTimePayments, checkoutSessions] = await Promise.all([
+        stripe.paymentIntents.list({ customer: customerId, limit: 50 }),
+        stripe.checkout.sessions.list({ customer: customerId, limit: 50 })
+      ]);
       
-      // Check for one-time payments in the last year (annual)
-      const oneTimePayments = await stripe.paymentIntents.list({
-        customer: customerId,
-        limit: 20,
+      logStep("Payment history", { 
+        paymentIntents: oneTimePayments.data.length,
+        checkoutSessions: checkoutSessions.data.length 
       });
-      
-      logStep("Found payment intents", { count: oneTimePayments.data.length });
-      
-      // Check for any successful payment that could be annual
+
+      // Check successful payments in last year
       const successfulPayments = oneTimePayments.data.filter(payment => 
         payment.status === 'succeeded' && 
-        payment.created > (Date.now() / 1000) - (365 * 24 * 60 * 60) && // Within last year
-        payment.amount >= 10000 // At least R$ 100,00 (assuming annual payment is significant)
+        payment.created > (Date.now() / 1000) - (365 * 24 * 60 * 60) &&
+        payment.amount >= 5000 // At least R$ 50,00
       );
       
-      logStep("Successful payments in last year", { 
-        count: successfulPayments.length,
-        payments: successfulPayments.map(p => ({ id: p.id, amount: p.amount, created: p.created }))
-      });
-      
-      // Also check checkout sessions for completed payments
-      const checkoutSessions = await stripe.checkout.sessions.list({
-        customer: customerId,
-        limit: 20,
-      });
-      
+      // Check completed checkout sessions
       const completedSessions = checkoutSessions.data.filter(session =>
         session.payment_status === 'paid' &&
         session.created > (Date.now() / 1000) - (365 * 24 * 60 * 60) &&
-        (session.amount_total ?? 0) >= 10000 // At least R$ 100,00
+        (session.amount_total ?? 0) >= 5000
       );
       
-      logStep("Completed checkout sessions", { 
-        count: completedSessions.data.length,
-        sessions: completedSessions.map(s => ({ id: s.id, amount: s.amount_total, created: s.created }))
+      logStep("Valid payments found", {
+        paymentIntents: successfulPayments.map(p => ({ id: p.id, amount: p.amount, created: new Date(p.created * 1000) })),
+        checkoutSessions: completedSessions.map(s => ({ id: s.id, amount: s.amount_total, created: new Date(s.created * 1000) }))
       });
 
-      // If we found any successful payment or completed session, consider it valid
       const latestPayment = successfulPayments[0];
       const latestSession = completedSessions[0];
       
@@ -180,16 +169,15 @@ serve(async (req) => {
         const paymentDate = latestPayment ? latestPayment.created : latestSession!.created;
         subscriptionEnd = new Date(paymentDate * 1000 + (365 * 24 * 60 * 60 * 1000)).toISOString();
         
-        logStep("Valid annual payment found", { 
+        logStep("Valid payment found", { 
           type: latestPayment ? 'payment_intent' : 'checkout_session',
           id: latestPayment ? latestPayment.id : latestSession!.id,
           endDate: subscriptionEnd 
         });
-      } else {
-        logStep("No valid payments found");
       }
     }
 
+    // Update database
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
       user_id: user.id,
@@ -201,20 +189,28 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
-    logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionType, subscriptionTier });
+    logStep("Updated database", { subscribed: hasActiveSub, subscriptionType, subscriptionTier });
+    
     return new Response(JSON.stringify({
+      success: true,
+      message: "Subscription check completed",
       subscribed: hasActiveSub,
       subscription_type: subscriptionType,
       subscription_tier: subscriptionTier,
-      subscription_end: subscriptionEnd
+      subscription_end: subscriptionEnd,
+      stripe_customer_id: customerId
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    logStep("ERROR", { message: errorMessage });
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: errorMessage 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
