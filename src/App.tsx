@@ -32,6 +32,7 @@ import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
+import { Paywall } from "./pages/Paywall";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -177,6 +178,7 @@ function AppRoutes() {
             <PremiumStats />
           </ProtectedRoute>
         } />
+        <Route path="/paywall" element={<Paywall />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
