@@ -224,49 +224,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[Auth] Attempting logout...');
     
     try {
+      // Force clear localStorage first
+      if (typeof window !== 'undefined') {
+        console.log('[Auth] Clearing localStorage before logout...');
+        // Clear all Supabase auth keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
+            localStorage.removeItem(key);
+            console.log('[Auth] Removed localStorage key:', key);
+          }
+        });
+        localStorage.removeItem(UTM_LOCAL_STORAGE_KEY);
+      }
+      
+      // Clear local state immediately
+      console.log('[Auth] Clearing local auth state...');
+      setSession(null);
+      setUser(null);
+      
+      // Try to sign out from Supabase (but don't wait for it)
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('[Auth] Logout error from Supabase:', error);
-        
-        // If session doesn't exist on server, clear local state anyway
-        if (error.message?.includes('Session not found') || 
-            error.message?.includes('session_not_found') ||
-            error.message?.includes("doesn't exist")) {
-          console.log('[Auth] Session not found on server, clearing local state');
-          
-          // Clear local state manually since server session is already gone
-          setSession(null);
-          setUser(null);
-          
-          // Clear any stored auth data
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('supabase.auth.token');
-            localStorage.removeItem(UTM_LOCAL_STORAGE_KEY);
-          }
-          
-          console.log('[Auth] Local logout completed despite server error');
-          return { error: null }; // Return success since we cleaned up locally
-        }
-        
-        return { error };
+        console.warn('[Auth] Supabase logout error (ignoring):', error);
+        // Don't return error since we've already cleared local state
       }
       
-      console.log('[Auth] Logout successful');
+      console.log('[Auth] Logout completed successfully');
+      
+      // Force page refresh to ensure complete cleanup
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      
       return { error: null };
     } catch (error: any) {
       console.error('[Auth] Unexpected logout error:', error);
       
-      // On any unexpected error, still try to clear local state
+      // Even on error, force clear everything
       setSession(null);
       setUser(null);
       
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('supabase.auth.token');
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
+            localStorage.removeItem(key);
+          }
+        });
         localStorage.removeItem(UTM_LOCAL_STORAGE_KEY);
       }
       
-      return { error };
+      // Force redirect to home on error too
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      
+      return { error: null }; // Return success since we cleaned up
     }
   };
 
