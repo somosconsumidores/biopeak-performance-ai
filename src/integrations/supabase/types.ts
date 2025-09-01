@@ -2866,6 +2866,7 @@ export type Database = {
           subscription_type: string | null
           updated_at: string
           user_id: string | null
+          welcome_email_sent_at: string | null
         }
         Insert: {
           created_at?: string
@@ -2878,6 +2879,7 @@ export type Database = {
           subscription_type?: string | null
           updated_at?: string
           user_id?: string | null
+          welcome_email_sent_at?: string | null
         }
         Update: {
           created_at?: string
@@ -2890,6 +2892,7 @@ export type Database = {
           subscription_type?: string | null
           updated_at?: string
           user_id?: string | null
+          welcome_email_sent_at?: string | null
         }
         Relationships: []
       }
