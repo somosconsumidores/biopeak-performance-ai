@@ -119,36 +119,31 @@ export const AdminPanel = () => {
 
       // Fetch user stats with proper distinct counts
       const [
-        { count: totalUsers, error: usersError },
-        { data: validTokensData, error: validTokensError },
-        { data: activitiesUsersData, error: activitiesUsersError },
+        { data: userStatsData, error: userStatsError },
         { count: totalActivities, error: totalActivitiesError },
         { data: commitmentsData, error: commitmentsError },
         { data: providerData, error: providerError },
         { data: topUsersData, error: topUsersError }
       ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
-        supabase.from('garmin_activities').select('user_id'),
-        supabase.from('garmin_activities').select('*', { count: 'exact', head: true }),
+        supabase.rpc('get_admin_user_stats'),
+        supabase.from('all_activities').select('*', { count: 'exact', head: true }),
         supabase.from('user_commitments').select('user_id'),
         supabase.rpc('get_provider_user_stats'),
         supabase.rpc('get_top_login_users', { limit_count: 10 })
       ]);
 
-      if (usersError || validTokensError || activitiesUsersError || totalActivitiesError || commitmentsError || providerError || topUsersError) {
+      if (userStatsError || totalActivitiesError || commitmentsError || providerError || topUsersError) {
         throw new Error('Erro ao buscar estatísticas dos usuários');
       }
 
       // Calculate unique users from the data
-      const uniqueValidTokenUsers = validTokensData ? new Set(validTokensData.map(item => item.user_id)).size : 0;
-      const uniqueActivityUsers = activitiesUsersData ? new Set(activitiesUsersData.map(item => item.user_id)).size : 0;
       const uniqueCommitmentUsers = commitmentsData ? new Set(commitmentsData.map(item => item.user_id)).size : 0;
-
+      
+      const adminStats = userStatsData?.[0];
       setUserStats({
-        totalUsers: totalUsers || 0,
-        usersWithValidTokens: uniqueValidTokenUsers,
-        usersWithActivities: uniqueActivityUsers,
+        totalUsers: adminStats?.total_users || 0,
+        usersWithValidTokens: adminStats?.users_with_valid_token || 0,
+        usersWithActivities: adminStats?.users_with_activities || 0,
         totalActivities: totalActivities || 0,
         usersWithCommitments: uniqueCommitmentUsers
       });

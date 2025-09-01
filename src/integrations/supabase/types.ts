@@ -4046,6 +4046,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_admin_user_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_users: number
+          users_with_activities: number
+          users_with_valid_token: number
+        }[]
+      }
       get_app_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
