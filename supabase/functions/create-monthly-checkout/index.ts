@@ -36,12 +36,17 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
+    const monthlyPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY_ID");
+    if (!monthlyPriceId) {
+      throw new Error("STRIPE_PRICE_MONTHLY_ID is not configured");
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: "price_1S2bgxRJLR9j6vpwa271JfRq", // Monthly price ID
+          price: monthlyPriceId,
           quantity: 1,
         },
       ],

@@ -36,16 +36,21 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
+    const annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID");
+    if (!annualPriceId) {
+      throw new Error("STRIPE_PRICE_ANNUAL_ID is not configured");
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: "price_1S2cTZRJLR9j6vpw8Xpux5Mf", // Annual price ID
+          price: annualPriceId,
           quantity: 1,
         },
       ],
-      mode: "payment",
+      mode: "subscription",
       success_url: `${origin}/paywall?success=true`,
       cancel_url: `${origin}/paywall?canceled=true`,
       allow_promotion_codes: true,
