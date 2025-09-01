@@ -58,6 +58,7 @@ export const Header = () => {
 
   const navigation = [
     { name: t('dashboard'), href: '/dashboard' },
+    { name: 'Painel Estatístico', href: '/premium-stats' },
     { name: t('workouts'), href: '/workouts' },
     { name: t('insights'), href: '/insights' },
     { name: 'Calendário de Provas', href: '/training-plan' },
@@ -70,11 +71,8 @@ export const Header = () => {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
+          <Link to="/" className="flex items-center">
             <img src={`${currentLogo}?v=${Date.now()}`} alt="BioPeak" className="h-8 w-8 sm:h-10 sm:w-10" />
-            <span className="text-xl sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              BioPeak
-            </span>
           </Link>
 
           {/* Desktop Navigation */}

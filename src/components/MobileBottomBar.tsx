@@ -18,6 +18,7 @@ const MobileBottomBar: React.FC = () => {
 
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Início' },
+    { path: '/premium-stats', icon: BarChart, label: 'Estatísticas' },
     { path: '/workouts', icon: BarChart, label: 'Treinos' },
     { path: '/training-plan', icon: Calendar, label: 'Calendário' },
     { path: '/insights', icon: Brain, label: 'Insights' },
