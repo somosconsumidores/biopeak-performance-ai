@@ -120,6 +120,7 @@ export const Insights = () => {
             </div>
           </ScrollReveal>
         </div>
+        </div>
       </div>
     </ProtectedRoute>
   );

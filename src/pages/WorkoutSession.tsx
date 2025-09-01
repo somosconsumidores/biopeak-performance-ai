@@ -472,7 +472,7 @@ export const WorkoutSession = () => {
               </CardHeader>
               <CardContent>
                 {isSubscribed ? (
-                  <DeepAnalysisSection activityId={currentActivity.activity_id} />
+                  <DeepAnalysisSection activity={currentActivity as UnifiedActivity} />
                 ) : (
                   <div className="text-center py-8">
                     <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

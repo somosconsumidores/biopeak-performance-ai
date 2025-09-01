@@ -70,6 +70,7 @@ export const PremiumStats = () => {
             </div>
           </ScrollReveal>
         </div>
+        </div>
       </div>
     </ProtectedRoute>
   );
