@@ -14,7 +14,7 @@ export function RaceCalendar() {
   const { user } = useAuth();
 
   // Lista de usuários autorizados para o calendário de provas
-  const authorizedEmails = ['garminteste07@teste.com', 'admin@biopeak.com'];
+  const authorizedEmails = ['garminteste07@teste.com', 'admin@biopeak.com', 'sandro.leao@biopeak-ai.com'];
   const isAuthorized = user?.email && authorizedEmails.includes(user.email);
 
   const upcomingRaces = races.filter(race => 
