@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
 import AchievementBadge from '@/components/AchievementBadge';
 // Logo imports
 const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
@@ -17,6 +18,7 @@ export const Header = () => {
   const { user, signOut } = useAuth();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { toast } = useToast();
 
   // Get current logo based on theme
   const getEffectiveTheme = () => {
@@ -29,7 +31,29 @@ export const Header = () => {
   const currentLogo = getEffectiveTheme() === 'light' ? bioPeakLogoLight : bioPeakLogoDark;
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      const { error } = await signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        toast({
+          title: 'Erro ao sair',
+          description: 'Ocorreu um erro ao fazer logout. Tente novamente.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Logout realizado',
+          description: 'Você saiu da sua conta com sucesso.',
+        });
+      }
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      toast({
+        title: 'Erro ao sair',
+        description: 'Ocorreu um erro inesperado. Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const navigation = [
