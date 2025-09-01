@@ -18,13 +18,15 @@ import {
   Clock,
   RefreshCw,
   Lock,
-  Construction,
-  Sparkles
+  Crown,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface DeepAnalysisSectionProps {
   activity: UnifiedActivity;
@@ -81,12 +83,14 @@ interface DeepAnalysisData {
 export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubscribed, loading: subscriptionLoading, subscriptionTier } = useSubscription();
   const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  // Check if user has access to deep analysis
-  const hasAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';
+  // Check if user has access to deep analysis - available for all paid subscribers
+  const hasAccess = isSubscribed;
+  const isLoading = subscriptionLoading;
 
   const generateDeepAnalysis = async () => {
     if (!activity) return;
@@ -123,7 +127,7 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
   };
 
   const generatePremiumReport = async () => {
-    if (!activity || user?.email !== 'admin@biopeak.com') return;
+    if (!activity || !isSubscribed) return;
 
     setGeneratingReport(true);
     try {
@@ -175,101 +179,166 @@ export const DeepAnalysisSection = ({ activity }: DeepAnalysisSectionProps) => {
               <Brain className="h-5 w-5 text-primary" />
               <span>Análise IA Profunda</span>
             </CardTitle>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                onClick={generateDeepAnalysis}
-                disabled={loading}
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2"
-              >
-                {loading ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Microscope className="h-4 w-4" />
-                )}
-                <span>{loading ? 'Analisando...' : 'Gerar Análise'}</span>
-              </Button>
-              
-              {user?.email === 'admin@biopeak.com' && (
+            {hasAccess && (
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
-                  onClick={generatePremiumReport}
-                  disabled={generatingReport}
-                  variant="default"
+                  onClick={generateDeepAnalysis}
+                  disabled={loading}
+                  variant="outline"
                   size="sm"
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 glass-card border-primary/30 hover:bg-primary/10"
                 >
-                  {generatingReport ? (
+                  {loading ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
-                    <FileText className="h-4 w-4" />
+                    <Microscope className="h-4 w-4" />
                   )}
-                  <span>{generatingReport ? 'Gerando...' : 'Relatório Premium'}</span>
+                  <span>{loading ? 'Analisando...' : 'Gerar Análise'}</span>
                 </Button>
-              )}
-            </div>
+                
+                {subscriptionTier && (
+                  <Button
+                    onClick={generatePremiumReport}
+                    disabled={generatingReport}
+                    variant="default"
+                    size="sm"
+                    className="flex items-center space-x-2 bg-gradient-primary hover:opacity-90"
+                  >
+                    {generatingReport ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    <span>{generatingReport ? 'Gerando...' : 'Relatório Premium'}</span>
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         
         <CardContent>
-          {!hasAccess ? (
-            <div className="text-center py-12 space-y-6">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="p-4 rounded-full bg-primary/10">
-                  <Construction className="h-12 w-12 text-primary" />
-                </div>
-                <Lock className="h-8 w-8 text-muted-foreground" />
-              </div>
-              
-              <div className="space-y-3">
-                <h2 className="text-2xl font-bold">Feature em desenvolvimento</h2>
-                <p className="text-lg text-muted-foreground max-w-md mx-auto">
-                  Aguarde novidades!
-                </p>
-              </div>
-              
-              <div className="pt-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm text-primary font-medium">
-                    Funcionalidade exclusiva em breve
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : !deepAnalysis ? (
-            <div className="text-center py-8 space-y-4">
+          {isLoading ? (
+            <div className="text-center py-12 space-y-4">
               <div className="flex justify-center">
                 <div className="p-4 rounded-full bg-primary/10">
-                  <Brain className="h-12 w-12 text-primary" />
+                  <RefreshCw className="h-12 w-12 text-primary animate-spin" />
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold">Análise Profunda com IA</h3>
-                <p className="text-muted-foreground max-w-md mx-auto text-sm">
-                  Gere uma análise completa usando dados de histograma, segmentos de 1km, 
-                  análise de variação e insights técnicos avançados.
+                <h3 className="text-lg font-semibold">Verificando acesso...</h3>
+                <p className="text-muted-foreground text-sm">
+                  Aguarde enquanto verificamos sua assinatura.
                 </p>
               </div>
-              <div className="flex flex-wrap justify-center gap-2 mt-4">
-                <Badge variant="secondary" className="text-xs">
-                  <BarChart3 className="h-3 w-3 mr-1" />
-                  Histograma de Consistência
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  <Target className="h-3 w-3 mr-1" />
-                  Segmentos Problemáticos
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  Análise de Variação
-                </Badge>
-                {user?.email === 'admin@biopeak.com' && (
-                  <Badge variant="secondary" className="text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Relatório Premium PDF
-                  </Badge>
-                )}
+            </div>
+          ) : !hasAccess ? (
+            <div className="text-center py-12 space-y-6">
+              <div className="relative">
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <div className="p-4 rounded-full bg-gradient-primary/20 border border-primary/30">
+                    <Brain className="h-12 w-12 text-primary" />
+                  </div>
+                  <div className="absolute -top-2 -right-2">
+                    <Crown className="h-8 w-8 text-yellow-500" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold gradient-text">Análise IA Profunda Premium</h2>
+                <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                  Desbloqueie insights avançados com análise de consistência, segmentos problemáticos, 
+                  variação de performance e relatórios premium personalizados.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex flex-wrap justify-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-primary/10 border border-primary/20">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-primary font-medium">
+                      Análise de Consistência
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-primary/10 border border-primary/20">
+                    <Target className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-primary font-medium">
+                      Segmentos Detalhados
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-primary/10 border border-primary/20">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-primary font-medium">
+                      Relatório Premium
+                    </span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="bg-gradient-primary hover:opacity-90 text-white px-8 py-3 text-lg font-semibold"
+                  onClick={() => window.location.href = '/paywall'}
+                >
+                  <Crown className="h-5 w-5 mr-2" />
+                  Upgrade para Premium
+                </Button>
+              </div>
+            </div>
+          ) : !deepAnalysis ? (
+            <div className="text-center py-8 space-y-6">
+              <div className="relative">
+                <div className="flex justify-center">
+                  <div className="p-4 rounded-full bg-gradient-primary/20 border border-primary/30">
+                    <Brain className="h-12 w-12 text-primary" />
+                  </div>
+                </div>
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
+                  <div className="flex items-center gap-1 px-2 py-1 bg-gradient-primary rounded-full text-xs text-white font-medium">
+                    <Crown className="h-3 w-3" />
+                    <span>Premium</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-xl font-bold gradient-text">Análise IA Profunda</h3>
+                <p className="text-muted-foreground max-w-lg mx-auto text-sm leading-relaxed">
+                  Gere uma análise completa e personalizada do seu treino usando IA avançada. 
+                  Descubra padrões ocultos, identifique áreas de melhoria e receba insights técnicos detalhados.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto">
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="text-xs font-medium text-center">
+                    Consistência de Dados
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <Target className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="text-xs font-medium text-center">
+                    Segmentos Críticos
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="text-xs font-medium text-center">
+                    Análise de Variação
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <FileText className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="text-xs font-medium text-center">
+                    Relatório Completo
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Clique em "Gerar Análise" para começar sua análise personalizada
+                </p>
               </div>
             </div>
           ) : (
