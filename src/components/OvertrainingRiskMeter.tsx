@@ -133,7 +133,7 @@ export const OvertrainingRiskMeter = ({ risk }: OvertrainingRiskMeterProps) => {
           </div>
 
           {/* Risk Factors */}
-          {risk.factors.length > 0 && (
+          {risk.factors && risk.factors.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-muted-foreground">Fatores de Risco:</h4>
               <div className="space-y-1">
