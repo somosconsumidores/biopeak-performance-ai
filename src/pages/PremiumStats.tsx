@@ -44,32 +44,269 @@ const PREMIUM_ALLOWED_EMAILS = [
 ];
 
 export const PremiumStats = () => {
+  const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const { 
+    weeklyStats, 
+    paceStats, 
+    heartRateStats, 
+    variationAnalysis, 
+    effortDistribution, 
+    overtrainingRisk, 
+    achievements, 
+    gpsData, 
+    loading, 
+    error, 
+    refreshInsights 
+  } = usePremiumStats();
+
+  if (subscriptionLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Verificando assinatura...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSubscribed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Acesso Premium Necessário</h2>
+          <p className="text-muted-foreground mb-4">
+            Este conteúdo é exclusivo para assinantes premium.
+          </p>
+          <Button onClick={() => window.location.href = '/paywall'}>
+            Assinar Agora
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background relative overflow-hidden">
-      <ParticleBackground />
-      <Header />
-      
-      <div className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="container mx-auto max-w-7xl">
-          {/* Header */}
-          <ScrollReveal>
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-6 w-6 text-gradient-primary" />
-                <Badge className="bg-gradient-primary text-white border-0 px-3 py-1">
-                  Premium
-                </Badge>
+        <ParticleBackground />
+        <Header />
+        
+        <div className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="container mx-auto max-w-7xl">
+            {/* Header */}
+            <ScrollReveal>
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  <Badge className="bg-gradient-primary text-white border-0 px-3 py-1">
+                    Premium
+                  </Badge>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                  Painel <span className="bg-gradient-primary bg-clip-text text-transparent">Estatístico</span>
+                </h1>
+                <p className="text-muted-foreground">
+                  Análises avançadas e insights exclusivos para otimizar sua performance
+                </p>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                Painel <span className="bg-gradient-primary bg-clip-text text-transparent">Estatístico</span>
-              </h1>
-              <p className="text-muted-foreground">
-                Análises avançadas e insights exclusivos para otimizar sua performance
-              </p>
-            </div>
-          </ScrollReveal>
-        </div>
+            </ScrollReveal>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground">Carregando estatísticas premium...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <Alert className="mb-8">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Erro ao carregar estatísticas: {error}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refreshInsights}
+                    className="ml-4"
+                  >
+                    Tentar Novamente
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-8">
+                {/* Stats Cards */}
+                {weeklyStats && paceStats && heartRateStats && (
+                  <ScrollReveal>
+                    <PremiumStatsCards 
+                      weeklyDistance={weeklyStats.averageDistance}
+                      averagePace={paceStats.averagePace}
+                      averageHeartRate={heartRateStats.averageHR}
+                      cardiacEfficiency={heartRateStats.cardiacEfficiency}
+                    />
+                  </ScrollReveal>
+                )}
+
+                {/* Charts Grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Volume Evolution */}
+                  {weeklyStats?.volumeData && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                            Evolução do Volume
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <VolumeEvolutionChart data={weeklyStats.volumeData} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+
+                  {/* Pace Trend */}
+                  {paceStats?.trendData && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <LineChart className="h-5 w-5 text-primary" />
+                            Tendência de Pace
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <PaceTrendChart data={paceStats.trendData} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+
+                  {/* Heart Rate Zones */}
+                  {heartRateStats?.zonesData && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Heart className="h-5 w-5 text-primary" />
+                            Zonas de Frequência Cardíaca
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <HeartRateZonesChart data={heartRateStats.zonesData} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+
+                  {/* Effort Distribution */}
+                  {effortDistribution && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Zap className="h-5 w-5 text-primary" />
+                            Distribuição de Esforço
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <EffortDistributionChart data={effortDistribution} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+                </div>
+
+                {/* Advanced Analytics */}
+                <div className="grid gap-6 lg:grid-cols-3">
+                  {/* Variation Analysis */}
+                  {variationAnalysis && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-primary" />
+                            Análise de Variação
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <VariationAnalysisChart data={variationAnalysis} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+
+                  {/* Overtraining Risk */}
+                  {overtrainingRisk && (
+                    <ScrollReveal>
+                      <Card className="glass-card border-glass-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-primary" />
+                            Risco de Overtraining
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <OvertrainingRiskMeter risk={overtrainingRisk} />
+                        </CardContent>
+                      </Card>
+                    </ScrollReveal>
+                  )}
+
+                  {/* Achievements */}
+                  <ScrollReveal>
+                    <Card className="glass-card border-glass-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-primary" />
+                          Conquistas Recentes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {achievements?.length > 0 ? achievements.slice(0, 5).map((achievement, index) => (
+                            <SimpleAchievementBadge 
+                              key={index}
+                              achievement={achievement}
+                            />
+                          )) : (
+                            <p className="text-sm text-muted-foreground">
+                              Nenhuma conquista recente
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </ScrollReveal>
+                </div>
+
+                {/* GPS Heatmap */}
+                {gpsData && (
+                  <ScrollReveal>
+                    <Card className="glass-card border-glass-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MapPin className="h-5 w-5 text-primary" />
+                          Mapa de Calor das Atividades
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <GPSHeatmap data={gpsData} />
+                      </CardContent>
+                    </Card>
+                  </ScrollReveal>
+                )}
+
+                {/* AI Insights */}
+                <ScrollReveal>
+                  <PremiumAIInsights onRefresh={refreshInsights} />
+                </ScrollReveal>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </ProtectedRoute>
