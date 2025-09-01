@@ -125,15 +125,15 @@ export const Paywall = () => {
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="font-semibold">Anual</span>
                     <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                      ECONOMIZE 52%
+                      ECONOMIZE 93%
                     </Badge>
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-lg font-bold">R$ 19,90</span>
+                    <span className="text-lg font-bold">R$ 12,90</span>
                     <span className="text-sm text-muted-foreground">/mês</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    Cobrado R$ 238,80 anualmente
+                    Cobrado R$ 154,80 anualmente
                   </span>
                 </div>
                 <div className={`w-4 h-4 rounded-full border-2 ${
@@ -163,7 +163,7 @@ export const Paywall = () => {
                     <span className="font-semibold">Mensal</span>
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-lg font-bold">R$ 39,90</span>
+                    <span className="text-lg font-bold">R$ 190,90</span>
                     <span className="text-sm text-muted-foreground">/mês</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
