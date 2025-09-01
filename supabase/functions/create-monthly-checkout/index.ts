@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+console.log("Monthly checkout function loaded with price ID: price_1S2bBfI6QbtlS9WtcfOeD7UL");
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,11 +20,15 @@ serve(async (req) => {
   );
 
   try {
+    console.log("Processing monthly checkout request...");
+    
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
+
+    console.log(`Creating checkout for user: ${user.email}`);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
@@ -32,16 +38,22 @@ serve(async (req) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
+      console.log(`Found existing customer: ${customerId}`);
+    } else {
+      console.log("No existing customer found, will create new one");
     }
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
+    const monthlyPriceId = "price_1S2bBfI6QbtlS9WtcfOeD7UL";
+    
+    console.log(`Using monthly price ID: ${monthlyPriceId}`);
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: "price_1S2bBfI6QbtlS9WtcfOeD7UL", // Monthly price ID
+          price: monthlyPriceId,
           quantity: 1,
         },
       ],
@@ -52,6 +64,8 @@ serve(async (req) => {
       billing_address_collection: 'required',
     });
 
+    console.log(`Checkout session created successfully: ${session.id}`);
+    
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
