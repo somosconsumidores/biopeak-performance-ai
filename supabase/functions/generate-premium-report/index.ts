@@ -59,9 +59,19 @@ serve(async (req) => {
       throw new Error('Invalid authorization');
     }
 
-    // Check if user is admin (only admin@biopeak.com can generate premium reports)
-    if (user.email !== 'admin@biopeak.com') {
-      throw new Error('Premium reports are only available for admin users');
+    // Check subscription status: allow any active subscriber
+    const { data: subscriber, error: subscriberError } = await supabase
+      .from('subscribers')
+      .select('subscribed, subscription_tier')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (subscriberError) {
+      console.error('❌ Subscriber query error:', subscriberError);
+    }
+
+    if (!subscriber?.subscribed) {
+      throw new Error('Premium reports require an active subscription');
     }
 
     // Get comprehensive workout analysis
