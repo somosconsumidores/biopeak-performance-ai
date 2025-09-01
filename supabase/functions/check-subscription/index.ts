@@ -247,6 +247,65 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in check-subscription", { message: errorMessage });
+    
+    // Don't zero out subscription on authentication/technical errors
+    // These are likely temporary issues that shouldn't affect subscription status
+    const isAuthError = errorMessage.includes('Authentication error') || 
+                       errorMessage.includes('Session from session_id claim') ||
+                       errorMessage.includes('invalid authorization') ||
+                       errorMessage.includes('User not authenticated');
+    
+    const isNetworkError = errorMessage.includes('network') || 
+                          errorMessage.includes('timeout') ||
+                          errorMessage.includes('connection');
+    
+    if (isAuthError || isNetworkError) {
+      logStep("Temporary error detected, preserving subscription state", { errorType: isAuthError ? 'auth' : 'network' });
+      
+      // Try to return cached subscription data without updating database
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (authHeader) {
+          const token = authHeader.replace("Bearer ", "");
+          const { data: userData } = await supabaseClient.auth.getUser(token);
+          if (userData.user) {
+            const { data: cachedSub } = await supabaseClient
+              .from('subscribers')
+              .select('*')
+              .eq('user_id', userData.user.id)
+              .maybeSingle();
+            
+            if (cachedSub) {
+              logStep("Returning cached subscription data during temporary error");
+              return new Response(JSON.stringify({
+                subscribed: cachedSub.subscribed,
+                subscription_type: cachedSub.subscription_type,
+                subscription_tier: cachedSub.subscription_tier,
+                subscription_end: cachedSub.subscription_end,
+                cached: true // Indicate this is cached data
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              });
+            }
+          }
+        }
+      } catch (cacheError) {
+        logStep("Failed to retrieve cached data", { error: cacheError.message });
+      }
+      
+      // If can't get cached data, return unsubscribed but don't update database
+      return new Response(JSON.stringify({ 
+        subscribed: false, 
+        error: "Temporary error - subscription status may be outdated",
+        temporary: true 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    
+    // For other errors, return error response but don't update database
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
