@@ -66,29 +66,45 @@ const handler = async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bem-vindo ao BioPeak ${planName}</title>
+          <title>Bem-vindo ao Plano Pro de BioPeak</title>
         </head>
         <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;">
-          <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 6px 24px rgba(2,6,23,.08);overflow:hidden">
-            <div style="background:#0ea5e9;padding:20px;text-align:center">
-              <img src="https://static.wixstatic.com/media/a025ad_8cbd13ffdb864246be31faddecf48b30~mv2.png" alt="BioPeak Premium" style="display:block;max-width:280px;width:280px;height:auto;margin:0 auto;border-radius:6px" />
+          <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;box-shadow:0 6px 24px rgba(2,6,23,.08);overflow:hidden">
+            <div style="background:linear-gradient(135deg,#7B61FF,#4FD1C5);padding:20px 24px;text-align:left;position:relative">
+              <img src="https://biopeak-ai.com/icon-512x512.png" alt="Logo BioPeak" style="display:block;width:40px;height:40px;border-radius:8px" />
             </div>
+
+            <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80" alt="Atleta correndo com elementos de dados ao fundo" style="display:block;width:100%;max-height:240px;object-fit:cover" />
+
             <div style="padding:32px 24px">
-              <h1 style="margin:0 0 8px 0;font-size:24px;line-height:1.2;color:#0f172a">👏 Assinatura ativada!</h1>
-              <p style="margin:0 0 16px 0;color:#334155;font-size:16px;line-height:1.6">
-                Seja bem-vindo(a) ao <strong>BioPeak ${planName}</strong>. A partir de agora você tem acesso às análises profundas com IA, recomendações personalizadas e insights avançados para acelerar sua evolução.
+              <h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.3;color:#1A1A1A">🎉 Bem-vindo ao Plano Pro de BioPeak</h1>
+              <p style="margin:0 0 16px 0;color:#334155;font-size:16px;line-height:1.7">
+                👋 Olá atleta,<br/>
+                Parabéns! Agora você faz parte do <strong>BioPeak ${planName}</strong>.
+                A partir de hoje, você terá acesso a recursos avançados que vão transformar sua performance esportiva com a força da inteligência artificial:
               </p>
 
-              <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0">
-                <p style="margin:0;color:#0f172a;font-weight:600">Detalhes da assinatura</p>
-                <ul style="margin:8px 0 0 18px;color:#475569;padding:0;font-size:14px;line-height:1.6">
+              <ul style="margin:0 0 16px 20px;color:#1F2937;padding:0;font-size:15px;line-height:1.8">
+                <li>✅ <strong>Análises de IA Completas</strong> – treinos individualizados, análise de sono e insights personalizados.</li>
+                <li>✅ <strong>BioPeak Fitness Score</strong> – métricas exclusivas que acompanham sua evolução e risco de overtraining.</li>
+                <li>✅ <strong>Calendário de Provas</strong> – IA aplicada para otimizar sua preparação para objetivos e competições.</li>
+                <li>✅ <strong>Painel Estatístico Avançado</strong> – visualização detalhada de todas as suas estatísticas.</li>
+                <li>✅ <strong>Monitoramento de Overtraining</strong> – alertas inteligentes para prevenir lesões e otimizar sua recuperação.</li>
+                <li>✅ <strong>Insights de Performance</strong> – recomendações personalizadas para atingir seus objetivos mais rápido.</li>
+              </ul>
+
+              <p style="margin:0 0 20px 0;color:#111827;font-weight:600">🚀 Você está pronto para treinar de forma mais inteligente do que nunca!</p>
+
+              <div style="text-align:center;margin:28px 0 8px">
+                <a href="https://biopeak-ai.com/dashboard" style="display:inline-block;background:#7B61FF;color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700">Acessar meu Painel</a>
+              </div>
+
+              <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px;margin:20px 0">
+                <p style="margin:0 0 6px 0;color:#0f172a;font-weight:700">Detalhes da assinatura</p>
+                <ul style="margin:0 0 0 18px;color:#475569;padding:0;font-size:14px;line-height:1.6">
                   <li>Plano: <strong>${planName}</strong></li>
                   ${endDateStr ? `<li>Renovação/expira em: <strong>${endDateStr}</strong></li>` : ''}
                 </ul>
-              </div>
-
-              <div style="text-align:center;margin:24px 0 12px">
-                <a href="https://biopeak-ai.com/app" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Explorar recursos Premium</a>
               </div>
 
               <p style="margin:12px 0 0;color:#64748b;font-size:14px;line-height:1.6;text-align:center">
@@ -112,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "BioPeak <noreply@biopeak-ai.com>",
       to: [email],
-      subject: "🎉 Assinatura ativa: bem-vindo(a) ao BioPeak Premium",
+      subject: "🎉 Bem-vindo ao Plano Pro de BioPeak – sua jornada inteligente de performance começa agora!",
       html,
     });
 
