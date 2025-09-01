@@ -27,62 +27,86 @@ export function AIAnalysisTabs({ analysisText, isCached = false }: AIAnalysisTab
   const [activeTab, setActiveTab] = useState("pontos-fortes");
 
   const parseAnalysis = (text: string): ParsedAnalysis => {
-    // Padrões melhorados para identificar as seções no texto da IA
-    const patterns = {
-      // Busca por **PONTOS FORTES:** ou variações
-      pontosFortes: /\*\*\s*(?:pontos?\s+fortes?|qualidades?|força|virtudes?)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:gaps?|lacunas?|pontos?\s+fracos?|melhorar|aspectos?\s+a\s+desenvolver|recomendaç|sugest|treino|plano|estratégi|mensagem|motivaç)|$)/i,
-      
-      // Busca por **GAPS A TRABALHAR:** ou variações
-      gaps: /\*\*\s*(?:gaps?\s+a?\s+trabalhar|lacunas?|pontos?\s+fracos?|melhorar|aspectos?\s+a\s+desenvolver)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:recomendaç|sugest|treino|plano|estratégi|mensagem|motivaç)|$)/i,
-      
-      // Busca por **RECOMENDAÇÕES:** ou variações
-      recomendacoes: /\*\*\s*(?:recomendaç|sugest|treino|plano|estratégi)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:mensagem|motivaç|conclusão|final)|$)/i,
-      
-      // Busca por **MENSAGEM MOTIVADORA:** ou variações
-      mensagem: /\*\*\s*(?:mensagem|motivaç|conclusão|final)\s*[:*]*\*\*\s*([^]*?)$/i
-    };
-
+    console.log('Parsing AI analysis text:', text.substring(0, 200) + '...');
+    
     const result: ParsedAnalysis = {};
     
-    // Tentar extrair cada seção
-    for (const [key, pattern] of Object.entries(patterns)) {
+    // Primeiro, tenta extrair seções com cabeçalhos em negrito
+    const boldHeaderPatterns = [
+      { key: 'pontosFortes', pattern: /\*\*\s*(?:PONTOS?\s+FORTES?|QUALIDADES?|FORÇA|VIRTUDES?)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:GAPS?|LACUNAS?|RECOMENDAÇ|MENSAGEM|MOTIVAÇ|$))/i },
+      { key: 'gaps', pattern: /\*\*\s*(?:GAPS?\s+A?\s+TRABALHAR|LACUNAS?|PONTOS?\s+FRACOS?|ASPECTOS?\s+A\s+DESENVOLVER)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:RECOMENDAÇ|SUGEST|TREINO|PLANO|MENSAGEM|MOTIVAÇ|$))/i },
+      { key: 'recomendacoes', pattern: /\*\*\s*(?:RECOMENDAÇ|SUGEST|TREINO|PLANO|ESTRATÉGI)\s*[:*]*\*\*\s*([^]*?)(?=\*\*\s*(?:MENSAGEM|MOTIVAÇ|CONCLUSÃO|FINAL|$))/i },
+      { key: 'mensagem', pattern: /\*\*\s*(?:MENSAGEM|MOTIVAÇ|CONCLUSÃO|FINAL)\s*(?:MOTIVADORA)?\s*[:*]*\*\*\s*([^]*?)$/i }
+    ];
+
+    for (const { key, pattern } of boldHeaderPatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         let content = match[1].trim();
-        
-        // Remove formatação markdown residual dos cabeçalhos
-        content = content.replace(/^\*\*[^*]+\*\*\s*/g, '');
+        // Remove formatação markdown residual
         content = content.replace(/\*\*([^*]+)\*\*/g, '$1');
-        
-        if (content.length > 10) { // Só considerar se tiver conteúdo substancial
+        if (content.length > 10) {
           result[key as keyof ParsedAnalysis] = content;
+          console.log(`Found section ${key}:`, content.substring(0, 50) + '...');
         }
       }
     }
 
-    // Fallback: se não conseguiu extrair seções específicas, tenta patterns mais flexíveis
-    if (!result.pontosFortes && !result.gaps && !result.recomendacoes && !result.mensagem) {
-      // Tenta dividir por parágrafos se contém palavras-chave
-      const paragraphs = text.split(/\n\s*\n/);
+    // Se não encontrou seções com cabeçalhos em negrito, tenta uma abordagem mais flexível
+    if (Object.keys(result).length === 0) {
+      console.log('No bold headers found, trying flexible parsing...');
       
-      for (const paragraph of paragraphs) {
-        const lowerPara = paragraph.toLowerCase();
+      // Divide por parágrafos duplos
+      const sections = text.split(/\n\s*\n+/);
+      
+      for (let i = 0; i < sections.length; i++) {
+        const section = sections[i].trim();
+        const lowerSection = section.toLowerCase();
         
-        if (!result.pontosFortes && (lowerPara.includes('parabéns') || lowerPara.includes('pontos fortes') || lowerPara.includes('histórico impressionante'))) {
-          result.pontosFortes = paragraph.trim();
-        } else if (!result.gaps && (lowerPara.includes('embora') || lowerPara.includes('gaps') || lowerPara.includes('precisamos abordar'))) {
-          result.gaps = paragraph.trim();
-        } else if (!result.recomendacoes && (lowerPara.includes('aumente') || lowerPara.includes('recomenda') || lowerPara.includes('inclua treinos'))) {
-          result.recomendacoes = paragraph.trim();
-        } else if (!result.mensagem && (lowerPara.includes('motivadora') || lowerPara.includes('acredite') || lowerPara.includes('confie'))) {
-          result.mensagem = paragraph.trim();
+        // Identifica seções por palavras-chave características
+        if (!result.pontosFortes && (
+          lowerSection.includes('parabéns') || 
+          lowerSection.includes('histórico impressionante') ||
+          lowerSection.includes('você tem um') ||
+          lowerSection.includes('boa marca') ||
+          lowerSection.includes('resistência e velocidade')
+        )) {
+          result.pontosFortes = section;
+          console.log('Found pontosFortes by keywords');
+        } else if (!result.gaps && (
+          lowerSection.includes('embora') || 
+          lowerSection.includes('gaps que precisam') ||
+          lowerSection.includes('principal deles') ||
+          lowerSection.includes('precisamos abordar')
+        )) {
+          result.gaps = section;
+          console.log('Found gaps by keywords');
+        } else if (!result.recomendacoes && (
+          lowerSection.includes('aumente gradualmente') ||
+          lowerSection.includes('inclua treinos') ||
+          lowerSection.includes('trabalhe na recuperação') ||
+          lowerSection.includes('•') && lowerSection.length > 100
+        )) {
+          result.recomendacoes = section;
+          console.log('Found recomendacoes by keywords');
+        } else if (!result.mensagem && (
+          lowerSection.includes('acredite') ||
+          lowerSection.includes('confie') ||
+          lowerSection.includes('disciplina') ||
+          (i === sections.length - 1 && section.length > 50) // última seção como fallback
+        )) {
+          result.mensagem = section;
+          console.log('Found mensagem by keywords or position');
         }
       }
     }
 
-    // Se ainda não conseguiu extrair nenhuma seção específica, usar o texto completo
-    if (!result.pontosFortes && !result.gaps && !result.recomendacoes && !result.mensagem) {
+    // Se ainda não conseguiu extrair seções, usar texto completo
+    if (Object.keys(result).length === 0) {
+      console.log('Using full text as fallback');
       result.fullText = text;
+    } else {
+      console.log('Successfully parsed sections:', Object.keys(result));
     }
 
     return result;
