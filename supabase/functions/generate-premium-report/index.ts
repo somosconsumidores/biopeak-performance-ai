@@ -5,6 +5,7 @@ import { handleError } from '../_shared/error-handler.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,16 +52,30 @@ serve(async (req) => {
   return await handleError('generate-premium-report', async () => {
     console.log('📊 Premium Report: Starting generation for activity:', activityId);
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create user client for auth and a service client for privileged operations
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+    
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Get user info using the user client
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     if (authError || !user) {
       console.error('❌ Auth error:', authError);
       throw new Error('Invalid authorization');
     }
 
     // Check subscription status: allow any active subscriber
-    const { data: subscriber, error: subscriberError } = await supabase
+    const { data: subscriber, error: subscriberError } = await serviceSupabase
       .from('subscribers')
       .select('subscribed, subscription_tier')
       .eq('user_id', user.id)
@@ -74,8 +89,8 @@ serve(async (req) => {
       throw new Error('Premium reports require an active subscription');
     }
 
-    // Get comprehensive workout analysis
-    const analysisResult = await supabase.functions.invoke('analyze-workout', {
+    // Get comprehensive workout analysis using user client with token
+    const analysisResult = await userSupabase.functions.invoke('analyze-workout', {
       body: { activityId }
     });
 
@@ -85,12 +100,12 @@ serve(async (req) => {
 
     const workoutAnalysis = analysisResult.data?.analysis;
 
-    // Get activity data from multiple sources
+    // Get activity data from multiple sources using service client
     let activityData: any = null;
     let activitySource = '';
 
     // Try Garmin first
-    const { data: garminActivity } = await supabase
+    const { data: garminActivity } = await serviceSupabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
@@ -102,7 +117,7 @@ serve(async (req) => {
       activitySource = 'garmin';
     } else {
       // Try Strava
-      const { data: stravaActivity } = await supabase
+      const { data: stravaActivity } = await serviceSupabase
         .from('strava_activities')
         .select('*')
         .eq('user_id', user.id)
@@ -114,7 +129,7 @@ serve(async (req) => {
         activitySource = 'strava';
       } else {
         // Try GPX activities
-        const { data: gpxActivity } = await supabase
+        const { data: gpxActivity } = await serviceSupabase
           .from('strava_gpx_activities')
           .select('*')
           .eq('user_id', user.id)
@@ -126,7 +141,7 @@ serve(async (req) => {
           activitySource = 'gpx';
         } else {
           // Try Zepp activities
-          const { data: zeppActivity } = await supabase
+          const { data: zeppActivity } = await serviceSupabase
             .from('zepp_gpx_activities')
             .select('*')
             .eq('user_id', user.id)
@@ -146,28 +161,28 @@ serve(async (req) => {
     }
 
     // Get additional data for comprehensive report
-    const { data: histogramData } = await supabase
+    const { data: histogramData } = await serviceSupabase
       .from('activity_chart_data')
       .select('series_data, data_points_count, avg_heart_rate, avg_pace_min_km')
       .eq('activity_id', activityId)
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const { data: segmentsData } = await supabase
+    const { data: segmentsData } = await serviceSupabase
       .from('activity_segments')
       .select('*')
       .eq('activity_id', activityId)
       .eq('user_id', user.id)
       .order('segment_number');
 
-    const { data: variationData } = await supabase
+    const { data: variationData } = await serviceSupabase
       .from('activity_variation_analysis')
       .select('*')
       .eq('activity_id', activityId)
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const { data: bestSegments } = await supabase
+    const { data: bestSegments } = await serviceSupabase
       .from('activity_best_segments')
       .select('*')
       .eq('activity_id', activityId)

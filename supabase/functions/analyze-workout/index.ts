@@ -6,6 +6,7 @@ import { handleError } from '../_shared/error-handler.ts';
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,10 +95,24 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log('✅ Supabase client created');
+    // Create user client for auth and a service client for privileged operations
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+    
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('✅ Supabase clients created');
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Get user info using the user client
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     if (authError || !user) {
       console.error('❌ Auth error:', authError);
       throw new Error('Invalid authorization');
@@ -110,7 +125,7 @@ serve(async (req) => {
     let activitySource = '';
     
     // Try Garmin first
-    const { data: garminActivity } = await supabase
+    const { data: garminActivity } = await serviceSupabase
       .from('garmin_activities')
       .select('*')
       .eq('user_id', user.id)
@@ -123,7 +138,7 @@ serve(async (req) => {
       console.log('🔍 Found Garmin activity for analysis');
     } else {
       // Try Strava if Garmin not found
-      const { data: stravaActivity } = await supabase
+      const { data: stravaActivity } = await serviceSupabase
         .from('strava_activities')
         .select('*')
         .eq('user_id', user.id)
@@ -149,7 +164,7 @@ serve(async (req) => {
       } else {
         // Try Polar if Strava not found
         // First by internal UUID
-        let { data: polarActivity } = await supabase
+        let { data: polarActivity } = await serviceSupabase
           .from('polar_activities')
           .select('*')
           .eq('user_id', user.id)
@@ -158,7 +173,7 @@ serve(async (req) => {
         
         // If not found, try by external activity_id
         if (!polarActivity) {
-          const byExternal = await supabase
+          const byExternal = await serviceSupabase
             .from('polar_activities')
             .select('*')
             .eq('user_id', user.id)
@@ -189,7 +204,7 @@ serve(async (req) => {
           console.log('🔍 Found Polar activity for analysis');
         } else {
           // Try GPX imported activities
-          const { data: gpxActivity } = await supabase
+          const { data: gpxActivity } = await serviceSupabase
             .from('strava_gpx_activities')
             .select('*')
             .eq('user_id', user.id)
@@ -214,7 +229,7 @@ serve(async (req) => {
             console.log('🔍 Found GPX activity for analysis');
           } else {
             // Try Zepp GPX activities
-            const { data: zeppActivity } = await supabase
+            const { data: zeppActivity } = await serviceSupabase
               .from('zepp_gpx_activities')
               .select('*')
               .eq('user_id', user.id)
@@ -250,7 +265,7 @@ serve(async (req) => {
     // Get detailed workout data (Garmin or GPX)
     let activityDetails: any[] = [];
     if (activitySource === 'garmin') {
-      const { data: details, error: detailsError } = await supabase
+      const { data: details, error: detailsError } = await serviceSupabase
         .from('garmin_activity_details')
         .select('activity_name, heart_rate, speed_meters_per_second, elevation_in_meters, power_in_watts, sample_timestamp')
         .eq('user_id', user.id)
@@ -264,7 +279,7 @@ serve(async (req) => {
         activityDetails = details || [];
       }
     } else if (activitySource === 'gpx') {
-      const { data: details, error: detailsError } = await supabase
+      const { data: details, error: detailsError } = await serviceSupabase
         .from('strava_gpx_activity_details')
         .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
         .eq('activity_id', activityId)
@@ -276,7 +291,7 @@ serve(async (req) => {
         activityDetails = details || [];
       }
     } else if (activitySource === 'zepp_gpx') {
-      const { data: details, error: detailsError } = await supabase
+      const { data: details, error: detailsError } = await serviceSupabase
         .from('zepp_gpx_activity_details')
         .select('heart_rate, speed_meters_per_second, elevation_in_meters, sample_timestamp, total_distance_in_meters')
         .eq('activity_id', activityId)
@@ -293,7 +308,7 @@ serve(async (req) => {
     console.log(`📊 Activity source: ${activitySource}, detailed data points: ${activityDetails.length}`);
 
     // Get user profile for context
-    const { data: profile } = await supabase
+    const { data: profile } = await serviceSupabase
       .from('profiles')
       .select('birth_date, weight_kg, height_cm')
       .eq('user_id', user.id)
@@ -304,7 +319,7 @@ serve(async (req) => {
 
     // 1. Buscar dados de histograma (activity_chart_data)
     let histogramData: any = null;
-    const { data: chartData } = await supabase
+    const { data: chartData } = await serviceSupabase
       .from('activity_chart_data')
       .select('series_data, data_points_count, avg_heart_rate, avg_pace_min_km, activity_source')
       .eq('activity_id', activityId)
@@ -324,7 +339,7 @@ serve(async (req) => {
 
     // 2. Buscar segmentos de 1km (activity_segments)
     let segmentsData: any[] = [];
-    const { data: segments } = await supabase
+    const { data: segments } = await serviceSupabase
       .from('activity_segments')
       .select('segment_number, avg_heart_rate, avg_pace_min_km, duration_seconds, elevation_gain_meters')
       .eq('activity_id', activityId)
@@ -338,7 +353,7 @@ serve(async (req) => {
 
     // 3. Buscar análise de variação (activity_variation_analysis)
     let variationData: any = null;
-    const { data: variation } = await supabase
+    const { data: variation } = await serviceSupabase
       .from('activity_variation_analysis')
       .select('heart_rate_cv, pace_cv, heart_rate_cv_category, pace_cv_category, diagnosis, has_valid_data, data_points')
       .eq('activity_id', activityId)
@@ -352,7 +367,7 @@ serve(async (req) => {
 
     // 4. Buscar melhores segmentos (activity_best_segments)
     let bestSegmentsData: any = null;
-    const { data: bestSegments } = await supabase
+    const { data: bestSegments } = await serviceSupabase
       .from('activity_best_segments')
       .select('best_1km_pace_min_km, segment_start_distance_meters, segment_end_distance_meters, segment_duration_seconds')
       .eq('activity_id', activityId)
