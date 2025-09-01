@@ -22,7 +22,8 @@ import {
   Calendar,
   AlertCircle,
   ChevronDown,
-  Share2
+  Share2,
+  Sparkles
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
@@ -44,6 +45,8 @@ import { VariationAnalysisCard } from '@/components/VariationAnalysisCard';
 import { DeepAnalysisSection } from '@/components/DeepAnalysisSection';
 import { WorkoutClassificationBadge } from '@/components/WorkoutClassificationBadge';
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PremiumButton } from '@/components/PremiumButton';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -54,6 +57,7 @@ export const WorkoutSession = () => {
     searchParams.get('activityId')
   );
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const { isSubscribed } = useSubscription();
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
   const { activities, loading: historyLoading, error: historyError, getActivityById, formatActivityDisplay } = useUnifiedActivityHistory();
@@ -429,27 +433,61 @@ export const WorkoutSession = () => {
             </div>
           </ScrollReveal>
 
-          {/* AI Analysis */}
+          {/* AI Insights */}
           <ScrollReveal delay={200}>
-            <div className="mb-8 mt-8">
-              <ActivitySourceInfo 
-                activity={currentActivity as UnifiedActivity} 
-                feature="performance_analysis" 
-              />
-              <AIInsightsCard activityId={currentActivity.activity_id} />
-            </div>
+            <Card className="glass-card border-glass-border mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  <span>Análise Inteligente</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isSubscribed ? (
+                  <AIInsightsCard activityId={currentActivity.activity_id} />
+                ) : (
+                  <div className="text-center py-8">
+                    <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-medium mb-4">Análise com IA Premium</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Obtenha insights detalhados sobre sua performance com nossa análise de IA avançada
+                    </p>
+                    <PremiumButton>
+                      Analisar com IA
+                    </PremiumButton>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </ScrollReveal>
 
-          {/* Deep Analysis Section - Only for authorized users */}
-          {(user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com') && (
-            <div className="mb-8 mt-8">
-              <ActivitySourceInfo 
-                activity={currentActivity as UnifiedActivity} 
-                feature="performance_analysis" 
-              />
-              <DeepAnalysisSection activity={currentActivity as UnifiedActivity} />
-            </div>
-          )}
+          {/* Deep Analysis Section */}
+          <ScrollReveal delay={250}>
+            <Card className="glass-card border-glass-border mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  <span>Análise IA Profunda</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isSubscribed ? (
+                  <DeepAnalysisSection activityId={currentActivity.activity_id} />
+                ) : (
+                  <div className="text-center py-8">
+                    <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-medium mb-4">Análise Profunda com IA</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Acesse análises avançadas de frequência cardíaca, zonas de treino e recomendações personalizadas
+                    </p>
+                    <PremiumButton>
+                      Gerar Análise
+                    </PremiumButton>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </ScrollReveal>
 
           {/* Heart Rate Zones */}
           <div className="grid lg:grid-cols-2 gap-8 mb-8">

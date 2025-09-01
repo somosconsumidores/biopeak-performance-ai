@@ -21,6 +21,9 @@ import { useScreenSize } from '@/hooks/use-mobile';
 import { useAchievementSystem } from '@/hooks/useAchievementSystem';
 import { SleepAnalysisDialog } from '@/components/SleepAnalysisDialog';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PremiumBlur } from '@/components/PremiumBlur';
+import { PremiumButton } from '@/components/PremiumButton';
 
 import { 
   Activity, 
@@ -84,6 +87,7 @@ export const Dashboard = () => {
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
   const { t } = useTranslation();
+  const { isSubscribed } = useSubscription();
 
   // Verificar conquistas quando o dashboard carrega
   useEffect(() => {
@@ -383,9 +387,18 @@ export const Dashboard = () => {
           {/* Dynamic Section Content */}
           <ScrollReveal delay={140}>
             <div className="mb-6 md:mb-8">
-              {activeSection === 'fitness-score' && <BioPeakFitnessCard />}
+              {activeSection === 'fitness-score' && (
+                isSubscribed ? (
+                  <BioPeakFitnessCard />
+                ) : (
+                  <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
+                    <BioPeakFitnessCard />
+                  </PremiumBlur>
+                )
+              )}
               
               {activeSection === 'overtraining-risk' && overtrainingRisk && (
+                isSubscribed ? (
                 <Card className="glass-card border-glass-border">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
@@ -483,9 +496,34 @@ export const Dashboard = () => {
                     </div>
                   </CardContent>
                 </Card>
+                ) : (
+                  <PremiumBlur message="Análise de risco de overtraining é um recurso premium">
+                    <Card className="glass-card border-glass-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <ShieldAlert className="h-5 w-5 text-primary" />
+                          <span>Análise de Risco de Overtraining</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div className="text-center space-y-4">
+                            <div className="relative w-32 h-32 mx-auto">
+                              <div className="w-32 h-32 rounded-full bg-muted/20 flex items-center justify-center">
+                                <span className="text-2xl font-bold">--</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            <div className="h-20 bg-muted/20 rounded"></div>
+                            <div className="h-16 bg-muted/20 rounded"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </PremiumBlur>
+                )
               )}
-
-              {activeSection === 'commitments' && <CommitmentsCard />}
               
               {activeSection === 'achievements' && <AchievementSection maxItems={6} />}
             </div>
@@ -716,17 +754,23 @@ export const Dashboard = () => {
                        <Moon className="w-4 h-4 text-primary" />
                        <h3 className="text-lg font-semibold">Análise do Sono</h3>
                      </div>
-                     {(() => {
-                       const analysisData = getSleepAnalysisData();
-                       return analysisData ? (
-                         <div className={isMobile ? 'w-full mt-2' : ''}>
-                           <SleepAnalysisDialog 
-                             sleepData={analysisData.sleepData}
-                             overtrainingData={analysisData.overtrainingData}
-                           />
-                         </div>
-                       ) : null;
-                     })()}
+                      {(() => {
+                        const analysisData = getSleepAnalysisData();
+                        return analysisData ? (
+                          <div className={isMobile ? 'w-full mt-2' : ''}>
+                            {isSubscribed ? (
+                              <SleepAnalysisDialog 
+                                sleepData={analysisData.sleepData}
+                                overtrainingData={analysisData.overtrainingData}
+                              />
+                            ) : (
+                              <PremiumButton>
+                                Analisar Sono com IA
+                              </PremiumButton>
+                            )}
+                          </div>
+                        ) : null;
+                      })()}
                    </div>
                  </CardHeader>
                 <CardContent>

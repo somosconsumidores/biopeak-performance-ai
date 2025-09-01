@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/Header';
 import { RaceCalendar } from '@/components/RaceCalendar';
 import { PlanOverview } from '@/components/PlanOverview';
+import { PremiumButton } from '@/components/PremiumButton';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const TrainingPlan = () => {
   const { plan, workouts, loading } = useActiveTrainingPlan();
   const { user } = useAuth();
+  const { isSubscribed } = useSubscription();
 
   // Lista de usuários autorizados para o calendário de provas
   const authorizedEmails = ['garminteste07@teste.com', 'admin@biopeak.com', 'sandro.leao@biopeak-ai.com'];
@@ -71,7 +74,39 @@ const TrainingPlan = () => {
 
           {/* Race Calendar - Only for authorized users */}
           {isAuthorized ? (
-            <RaceCalendar />
+            <>
+              <RaceCalendar />
+              {/* Análise - Premium Only */}
+              <div className="mt-4">
+                {plan && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                        <Target className="h-5 w-5" />
+                        Análise de Progresso
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-6">
+                        {isSubscribed ? (
+                          <Button className="w-full max-w-xs">
+                            <Target className="h-4 w-4 mr-2" />
+                            Análise
+                          </Button>
+                        ) : (
+                          <PremiumButton>
+                            Análise
+                          </PremiumButton>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Análise detalhada do seu progresso nos objetivos
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </>
           ) : (
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
