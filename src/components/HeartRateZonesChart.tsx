@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Heart } from 'lucide-react';
 
 interface ZonesData {
   week: string;
@@ -18,19 +16,9 @@ interface HeartRateZonesChartProps {
 export const HeartRateZonesChart = ({ data = [] }: HeartRateZonesChartProps) => {
   if (!data.length) {
     return (
-      <Card className="glass-card border-glass-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Heart className="h-5 w-5 text-primary" />
-            Zonas de Frequência Cardíaca
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            Dados insuficientes para gerar o gráfico
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+        Dados insuficientes para gerar o gráfico
+      </div>
     );
   }
 
@@ -43,60 +31,36 @@ export const HeartRateZonesChart = ({ data = [] }: HeartRateZonesChartProps) => 
   };
 
   return (
-    <Card className="glass-card border-glass-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Heart className="h-5 w-5 text-primary" />
-          Distribuição das Zonas de FC
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-              <XAxis 
-                dataKey="week" 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-              />
-              <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-                formatter={(value: any, name: string) => [
-                  `${value.toFixed(1)}%`,
-                  name.replace('zone', 'Zona ')
-                ]}
-                labelFormatter={(label) => `Semana: ${label}`}
-              />
-              <Bar dataKey="zone1" stackId="zones" fill={zoneColors.zone1} name="zone1" />
-              <Bar dataKey="zone2" stackId="zones" fill={zoneColors.zone2} name="zone2" />
-              <Bar dataKey="zone3" stackId="zones" fill={zoneColors.zone3} name="zone3" />
-              <Bar dataKey="zone4" stackId="zones" fill={zoneColors.zone4} name="zone4" />
-              <Bar dataKey="zone5" stackId="zones" fill={zoneColors.zone5} name="zone5" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-4 grid grid-cols-5 gap-2 text-xs">
-          {Object.entries(zoneColors).map(([zone, color], index) => (
-            <div key={zone} className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-muted-foreground">Z{index + 1}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-2 text-xs text-muted-foreground text-center">
-          Z1: Recuperação | Z2: Aeróbico | Z3: Aeróbico | Z4: Limiar | Z5: VO₂ Max
-        </div>
-      </CardContent>
-    </Card>
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+        <XAxis 
+          dataKey="week" 
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis 
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+        />
+        <Tooltip 
+          contentStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+            fontSize: '12px'
+          }}
+        />
+        <Bar dataKey="zone1" stackId="zones" fill={zoneColors.zone1} name="Zona 1" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="zone2" stackId="zones" fill={zoneColors.zone2} name="Zona 2" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="zone3" stackId="zones" fill={zoneColors.zone3} name="Zona 3" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="zone4" stackId="zones" fill={zoneColors.zone4} name="Zona 4" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="zone5" stackId="zones" fill={zoneColors.zone5} name="Zona 5" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 };

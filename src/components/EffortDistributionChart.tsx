@@ -1,7 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity } from 'lucide-react';
 
 interface EffortDistribution {
   startEffort: number;
@@ -17,19 +15,9 @@ interface EffortDistributionChartProps {
 export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) => {
   if (!data) {
     return (
-      <Card className="glass-card border-glass-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            Distribuição de Esforço
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            Dados insuficientes para análise
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+        Dados insuficientes para análise
+      </div>
     );
   }
 
@@ -71,77 +59,77 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
   const patternInfo = getPatternInfo(data.pattern);
 
   return (
-    <Card className="glass-card border-glass-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          Distribuição de Esforço
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Padrão de Esforço</span>
-            <Badge className={`${patternInfo.color} text-white border-0`}>
-              {patternInfo.label}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {patternInfo.description}
-          </p>
+    <div className="space-y-4">
+      {/* Pattern Info */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-muted-foreground">Padrão de Esforço</span>
+          <Badge className={`${patternInfo.color} text-white border-0`}>
+            {patternInfo.label}
+          </Badge>
         </div>
+        <p className="text-xs text-muted-foreground">
+          {patternInfo.description}
+        </p>
+      </div>
 
-        <div className="h-48 mb-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-              <XAxis 
-                dataKey="phase" 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-              />
-              <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                domain={[60, 100]}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-                formatter={(value: any) => [`${value.toFixed(1)}%`, 'Esforço']}
-                labelFormatter={(label) => `Fase: ${label}`}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="effort" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 5 }}
-                activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Chart */}
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+            <XAxis 
+              dataKey="phase" 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              domain={[60, 100]}
+              tickFormatter={(value) => `${value}%`}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}
+              formatter={(value: any) => [`${value.toFixed(1)}%`, 'Esforço']}
+              labelFormatter={(label) => `Fase: ${label}`}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="effort" 
+              stroke="hsl(var(--primary))" 
+              strokeWidth={3}
+              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 5 }}
+              activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div className="text-center">
-            <div className="font-semibold text-lg">{data.startEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Início</div>
-          </div>
-          <div className="text-center">
-            <div className="font-semibold text-lg">{data.middleEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Meio</div>
-          </div>
-          <div className="text-center">
-            <div className="font-semibold text-lg">{data.endEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Fim</div>
-          </div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="text-center">
+          <div className="font-semibold text-lg">{data.startEffort.toFixed(1)}%</div>
+          <div className="text-muted-foreground text-xs">Início</div>
         </div>
-      </CardContent>
-    </Card>
+        <div className="text-center">
+          <div className="font-semibold text-lg">{data.middleEffort.toFixed(1)}%</div>
+          <div className="text-muted-foreground text-xs">Meio</div>
+        </div>
+        <div className="text-center">
+          <div className="font-semibold text-lg">{data.endEffort.toFixed(1)}%</div>
+          <div className="text-muted-foreground text-xs">Fim</div>
+        </div>
+      </div>
+    </div>
   );
 };
