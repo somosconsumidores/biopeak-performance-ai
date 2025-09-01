@@ -221,8 +221,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    console.log('[Auth] Attempting logout...');
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('[Auth] Logout error from Supabase:', error);
+        
+        // If session doesn't exist on server, clear local state anyway
+        if (error.message?.includes('Session not found') || 
+            error.message?.includes('session_not_found') ||
+            error.message?.includes("doesn't exist")) {
+          console.log('[Auth] Session not found on server, clearing local state');
+          
+          // Clear local state manually since server session is already gone
+          setSession(null);
+          setUser(null);
+          
+          // Clear any stored auth data
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem(UTM_LOCAL_STORAGE_KEY);
+          }
+          
+          console.log('[Auth] Local logout completed despite server error');
+          return { error: null }; // Return success since we cleaned up locally
+        }
+        
+        return { error };
+      }
+      
+      console.log('[Auth] Logout successful');
+      return { error: null };
+    } catch (error: any) {
+      console.error('[Auth] Unexpected logout error:', error);
+      
+      // On any unexpected error, still try to clear local state
+      setSession(null);
+      setUser(null);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem(UTM_LOCAL_STORAGE_KEY);
+      }
+      
+      return { error };
+    }
   };
 
   const resetPassword = async (email: string) => {
