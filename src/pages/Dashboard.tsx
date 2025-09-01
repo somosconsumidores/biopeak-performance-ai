@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
@@ -22,6 +22,7 @@ import { useAchievementSystem } from '@/hooks/useAchievementSystem';
 import { SleepAnalysisDialog } from '@/components/SleepAnalysisDialog';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
 import { PremiumBlur } from '@/components/PremiumBlur';
 import { PremiumButton } from '@/components/PremiumButton';
 
@@ -50,6 +51,8 @@ import {
 } from 'lucide-react';
 
 export const Dashboard = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
   const [filters, setFilters] = useState({ period: '30d', activityType: 'all' });
   const [activeSection, setActiveSection] = useState('fitness-score');
   const { 
@@ -95,6 +98,23 @@ export const Dashboard = () => {
       checkAchievements();
     }
   }, [user, checkAchievements]);
+
+  // Handle successful subscription
+  useEffect(() => {
+    const subscriptionSuccess = searchParams.get('subscription');
+    if (subscriptionSuccess === 'success') {
+      toast({
+        title: "🎉 Assinatura Ativada!",
+        description: "Bem-vindo ao BioPeak Premium! Todas as funcionalidades foram liberadas.",
+      });
+      // Remove the parameter from URL
+      setSearchParams((prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete('subscription');
+        return newParams;
+      });
+    }
+  }, [searchParams, setSearchParams, toast]);
 
   // Get sleep and overtraining data for AI analysis
   const getSleepAnalysisData = () => {

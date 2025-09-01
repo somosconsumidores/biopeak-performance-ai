@@ -1,18 +1,46 @@
 import React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Crown, Check, X, BarChart3, Brain, Calendar, Activity, Target, TrendingUp, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export const Paywall = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const { refreshSubscription } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [loading, setLoading] = useState(false);
+
+  // Handle successful payment redirect
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (success) {
+      // Refresh subscription status and redirect to dashboard
+      refreshSubscription().then(() => {
+        toast({
+          title: "Pagamento confirmado!",
+          description: "Sua assinatura foi ativada com sucesso. Redirecionando...",
+        });
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 2000);
+      });
+    } else if (canceled) {
+      toast({
+        title: "Pagamento cancelado",
+        description: "Você pode tentar novamente quando quiser.",
+        variant: "destructive"
+      });
+    }
+  }, [searchParams, refreshSubscription, navigate, toast]);
 
   const handleClose = () => {
     navigate(-1);

@@ -52,7 +52,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/paywall?success=true`,
+      success_url: `${origin}/dashboard?subscription=success`,
       cancel_url: `${origin}/paywall?canceled=true`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',

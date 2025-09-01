@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useSubscription } from '@/hooks/useSubscription';
 import { AchievementSection } from '@/components/AchievementSection';
 import { 
   Settings, 
@@ -25,13 +26,15 @@ import {
   Award,
   Clock,
   Flame,
-  Loader
+  Loader,
+  Crown
 } from 'lucide-react';
 
 export const Profile = () => {
   const navigate = useNavigate();
   const { profile, loading: profileLoading, age } = useProfile();
   const { onboardingData } = useOnboarding();
+  const { isSubscribed, subscriptionTier, subscriptionEnd, loading: subscriptionLoading } = useSubscription();
   const { 
     stats, 
     personalBests, 
@@ -41,7 +44,7 @@ export const Profile = () => {
     formatPace 
   } = useProfileStats();
 
-  const isLoading = profileLoading || statsLoading;
+  const isLoading = profileLoading || statsLoading || subscriptionLoading;
 
   // Calcular nível de performance baseado nas atividades
   const calculatePerformanceLevel = () => {
@@ -139,6 +142,44 @@ export const Profile = () => {
       
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
+          {/* Subscription Status */}
+          {isSubscribed && (
+            <ScrollReveal>
+              <Card className="glass-card border-glass-border mb-8 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 rounded-full bg-primary/20">
+                        <Crown className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold flex items-center space-x-2">
+                          <span>Plano {subscriptionTier || 'Premium'}</span>
+                          <Badge className="bg-primary text-primary-foreground">ATIVO</Badge>
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {subscriptionEnd ? (
+                            `Válido até ${new Date(subscriptionEnd).toLocaleDateString('pt-BR')}`
+                          ) : (
+                            'Assinatura ativa'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate('/premium-stats')}
+                      className="border-primary/50 hover:bg-primary/10"
+                    >
+                      Ver Benefícios
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          )}
+
           {/* Profile Header */}
           <ScrollReveal>
             <Card className="glass-card border-glass-border mb-8">
