@@ -49,6 +49,7 @@ serve(async (req) => {
     logStep("Customer search by email", { email: user.email, foundCount: customers.data.length });
     
     // If no customer found, try variations and recent sessions
+    // If no customer found, try variations + sessions + search API + active subs scan
     if (customers.data.length === 0) {
       const emailVariations = [
         user.email!.toLowerCase().trim(),
@@ -58,7 +59,7 @@ serve(async (req) => {
       
       for (const emailVar of emailVariations) {
         if (emailVar !== user.email) {
-          const altCustomers = await stripe.customers.list({ email: emailVar, limit: 5 });
+          const altCustomers = await stripe.customers.list({ email: emailVar, limit: 10 });
           if (altCustomers.data.length > 0) {
             customers = altCustomers;
             logStep("Found customer with email variation", { originalEmail: user.email, foundEmail: emailVar });
@@ -69,16 +70,49 @@ serve(async (req) => {
       
       // Check recent checkout sessions
       if (customers.data.length === 0) {
-        const recentSessions = await stripe.checkout.sessions.list({ limit: 50 });
+        const recentSessions = await stripe.checkout.sessions.list({ limit: 100 });
         const userSession = recentSessions.data.find(session => 
           session.customer_email?.toLowerCase() === user.email!.toLowerCase() ||
           session.metadata?.user_email?.toLowerCase() === user.email!.toLowerCase()
         );
-        
         if (userSession && userSession.customer) {
           logStep("Found customer through recent session", { sessionId: userSession.id, customerId: userSession.customer });
           const customer = await stripe.customers.retrieve(userSession.customer as string);
           customers.data = [customer as any];
+        }
+      }
+
+      // Stripe Search API
+      if (customers.data.length === 0 && (stripe as any).customers?.search) {
+        try {
+          const searchRes = await (stripe as any).customers.search({
+            query: `email:'${user.email!.replace(/'/g, "\\'")}'`,
+            limit: 10,
+          });
+          if (searchRes.data?.length) {
+            customers.data = [searchRes.data[0]];
+            logStep("Found customer via Stripe Search API", { customerId: customers.data[0].id });
+          }
+        } catch (_e) {
+          logStep("Stripe Search API not available or failed");
+        }
+      }
+
+      // Scan active subscriptions
+      if (customers.data.length === 0) {
+        const activeSubs = await stripe.subscriptions.list({
+          status: "active",
+          limit: 100,
+          expand: ["data.customer"],
+        });
+        const matched = activeSubs.data.find((sub: any) => {
+          const c = sub.customer as any;
+          return c?.email?.toLowerCase?.() === user.email!.toLowerCase();
+        });
+        if (matched) {
+          const cust = matched.customer as any;
+          customers.data = [cust];
+          logStep("Found customer by scanning active subscriptions", { customerId: cust.id, subscriptionId: matched.id });
         }
       }
     }

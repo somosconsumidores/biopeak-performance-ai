@@ -70,25 +70,58 @@ serve(async (req) => {
       }
     }
     
-    // If still no customer found, check recent payments and sessions
+    // If still no customer found, broaden search (sessions, search API, active subs)
     if (customers.data.length === 0) {
-      logStep("No customer found by email, checking recent payments");
-      
-      // Check recent checkout sessions for this user
-      const recentSessions = await stripe.checkout.sessions.list({
-        limit: 20,
-      });
-      
-      const userSession = recentSessions.data.find(session => 
-        session.customer_email?.toLowerCase() === user.email.toLowerCase() ||
-        session.metadata?.user_email?.toLowerCase() === user.email.toLowerCase()
+      logStep("No customer found by email, performing broader search");
+
+      // 1) Recent checkout sessions (larger window)
+      const recentSessions = await stripe.checkout.sessions.list({ limit: 100 });
+      const userSession = recentSessions.data.find((session) =>
+        (session.customer_email?.toLowerCase() === user.email.toLowerCase()) ||
+        (session.metadata?.user_email?.toLowerCase() === user.email.toLowerCase())
       );
-      
-      if (userSession && userSession.customer) {
+
+      if (userSession?.customer) {
         logStep("Found customer through recent session", { sessionId: userSession.id, customerId: userSession.customer });
         const customer = await stripe.customers.retrieve(userSession.customer as string);
         customers.data = [customer as any];
-      } else {
+      }
+
+      // 2) Stripe Search API for customers by email
+      if (customers.data.length === 0 && (stripe as any).customers?.search) {
+        try {
+          const searchRes = await (stripe as any).customers.search({
+            query: `email:'${user.email.replace(/'/g, "\\'")}'`,
+            limit: 10,
+          });
+          if (searchRes.data?.length) {
+            customers.data = [searchRes.data[0]];
+            logStep("Found customer via Stripe Search API", { customerId: customers.data[0].id });
+          }
+        } catch (e) {
+          logStep("Stripe Search API not available or failed");
+        }
+      }
+
+      // 3) Scan active subscriptions and match by customer email
+      if (customers.data.length === 0) {
+        const activeSubs = await stripe.subscriptions.list({
+          status: "active",
+          limit: 100,
+          expand: ["data.customer"],
+        });
+        const matched = activeSubs.data.find((sub: any) => {
+          const c = sub.customer as any;
+          return c?.email?.toLowerCase?.() === user.email.toLowerCase();
+        });
+        if (matched) {
+          const cust = matched.customer as any;
+          customers.data = [cust];
+          logStep("Found customer by scanning active subscriptions", { customerId: cust.id, subscriptionId: matched.id });
+        }
+      }
+
+      if (customers.data.length === 0) {
         logStep("No customer found anywhere, updating unsubscribed state");
         await supabaseClient.from("subscribers").upsert({
           email: user.email,
@@ -164,7 +197,7 @@ serve(async (req) => {
       );
       
       logStep("Completed checkout sessions", { 
-        count: completedSessions.data.length,
+        count: completedSessions.length,
         sessions: completedSessions.map(s => ({ id: s.id, amount: s.amount_total, created: s.created }))
       });
 
