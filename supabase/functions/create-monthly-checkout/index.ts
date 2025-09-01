@@ -37,6 +37,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
     const monthlyPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY_ID");
+    console.log("[CHECKOUT] Using monthly price", monthlyPriceId);
     if (!monthlyPriceId) {
       throw new Error("STRIPE_PRICE_MONTHLY_ID is not configured");
     }

@@ -37,6 +37,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
     const annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID");
+    console.log("[CHECKOUT] Using annual price", annualPriceId);
     if (!annualPriceId) {
       throw new Error("STRIPE_PRICE_ANNUAL_ID is not configured");
     }
