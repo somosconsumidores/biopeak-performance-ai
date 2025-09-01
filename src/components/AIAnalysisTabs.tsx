@@ -114,8 +114,84 @@ export function AIAnalysisTabs({ analysisText, isCached = false }: AIAnalysisTab
 
   const parsedAnalysis = parseAnalysis(analysisText);
 
-  // Se não conseguiu parsear em seções, mostrar texto completo
+  // Se não conseguiu parsear em seções, mostrar texto completo formatado
   if (parsedAnalysis.fullText) {
+    const formatTextWithHighlights = (text: string) => {
+      // Divide o texto em seções baseado nos cabeçalhos
+      const sections = text.split(/(?=(?:Principais gaps|Recomendações práticas|Mensagem motivadora))/i);
+      
+      return sections.map((section, index) => {
+        const trimmedSection = section.trim();
+        if (!trimmedSection) return null;
+        
+        // Verifica se é uma seção especial
+        if (trimmedSection.toLowerCase().includes('principais gaps')) {
+          return (
+            <div key={index} className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <h3 className="text-lg font-bold text-purple-800">Principais gaps a serem trabalhados</h3>
+              </div>
+              <div className="text-purple-900 leading-relaxed pl-7">
+                {trimmedSection.replace(/principais gaps a serem trabalhados/i, '').trim()}
+              </div>
+            </div>
+          );
+        }
+        
+        if (trimmedSection.toLowerCase().includes('recomendações práticas')) {
+          return (
+            <div key={index} className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-bold text-purple-800">Recomendações práticas de treino</h3>
+              </div>
+              <div className="text-purple-900 leading-relaxed pl-7">
+                {trimmedSection.replace(/recomendações práticas de treino/i, '').trim()}
+              </div>
+            </div>
+          );
+        }
+        
+        if (trimmedSection.toLowerCase().includes('mensagem motivadora')) {
+          return (
+            <div key={index} className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Heart className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-bold text-purple-800">Mensagem motivadora</h3>
+              </div>
+              <div className="text-purple-900 leading-relaxed pl-7">
+                {trimmedSection.replace(/mensagem motivadora/i, '').trim()}
+              </div>
+            </div>
+          );
+        }
+        
+        // Para outras seções (como Pontos Fortes), mantém formatação padrão mas com destaque se for o início
+        if (index === 0 || trimmedSection.toLowerCase().includes('pontos fortes')) {
+          return (
+            <div key={index} className="mb-6">
+              {trimmedSection.toLowerCase().includes('pontos fortes') && (
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <h3 className="text-lg font-bold text-purple-800">Pontos Fortes</h3>
+                </div>
+              )}
+              <div className="text-purple-900 leading-relaxed pl-7">
+                {trimmedSection.replace(/pontos fortes/i, '').trim()}
+              </div>
+            </div>
+          );
+        }
+        
+        return (
+          <div key={index} className="mb-4 text-purple-900 leading-relaxed">
+            {trimmedSection}
+          </div>
+        );
+      }).filter(Boolean);
+    };
+
     return (
       <Card className="bg-purple-50 border-purple-200">
         <CardHeader className="pb-3">
@@ -130,8 +206,8 @@ export function AIAnalysisTabs({ analysisText, isCached = false }: AIAnalysisTab
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-purple-900 whitespace-pre-line leading-relaxed">
-            {parsedAnalysis.fullText}
+          <div className="space-y-4">
+            {formatTextWithHighlights(parsedAnalysis.fullText)}
           </div>
         </CardContent>
       </Card>
