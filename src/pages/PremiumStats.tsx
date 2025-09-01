@@ -38,7 +38,8 @@ import { GPSHeatmap } from '@/components/GPSHeatmap';
 
 const PREMIUM_ALLOWED_EMAILS = [
   'admin@biopeak.com',
-  'garminteste07@teste.com'
+  'garminteste07@teste.com',
+  'sandro.leao@biopeak-ai.com'
 ];
 
 export const PremiumStats = () => {
