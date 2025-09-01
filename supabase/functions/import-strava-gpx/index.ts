@@ -261,6 +261,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           activity_source: 'strava_gpx',
           internal_call: true,
+          full_precision: true, // Preserve all data points for GPX imports
         },
       });
     } catch (e) {
