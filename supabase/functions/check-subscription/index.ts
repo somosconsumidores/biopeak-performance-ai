@@ -122,17 +122,49 @@ serve(async (req) => {
       }
 
       if (customers.data.length === 0) {
+        // Antes de marcar como não assinante, tente preservar estado em cache ativo
+        const { data: cachedSub } = await supabaseClient
+          .from('subscribers')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const isCachedActive = !!(cachedSub?.subscribed && cachedSub?.subscription_end && new Date(cachedSub.subscription_end) > new Date());
+
+        if (isCachedActive) {
+          logStep("No customer found, but cached active subscription exists; returning cached and skipping DB update", {
+            subscription_end: cachedSub.subscription_end,
+          });
+          return new Response(
+            JSON.stringify({
+              subscribed: true,
+              subscription_type: cachedSub.subscription_type,
+              subscription_tier: cachedSub.subscription_tier,
+              subscription_end: cachedSub.subscription_end,
+              cached: true,
+              note: 'Stripe lookup returned no customer; using cached status',
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            }
+          );
+        }
+
         logStep("No customer found anywhere, updating unsubscribed state");
-        await supabaseClient.from("subscribers").upsert({
-          email: user.email,
-          user_id: user.id,
-          stripe_customer_id: null,
-          subscribed: false,
-          subscription_type: null,
-          subscription_tier: null,
-          subscription_end: null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'email' });
+        await supabaseClient.from("subscribers").upsert(
+          {
+            email: user.email,
+            user_id: user.id,
+            stripe_customer_id: null,
+            subscribed: false,
+            subscription_type: null,
+            subscription_tier: null,
+            subscription_end: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'email' }
+        );
         return new Response(JSON.stringify({ subscribed: false }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
