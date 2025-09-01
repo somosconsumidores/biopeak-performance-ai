@@ -3,20 +3,55 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Check, X, BarChart3, Brain, Calendar, Activity, Target, TrendingUp } from 'lucide-react';
+import { Crown, Check, X, BarChart3, Brain, Calendar, Activity, Target, TrendingUp, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const Paywall = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [loading, setLoading] = useState(false);
 
   const handleClose = () => {
     navigate(-1);
   };
 
-  const handleStartNow = () => {
-    console.log('Iniciando plano:', selectedPlan);
-    // TODO: Integração com Stripe
+  const handleStartNow = async () => {
+    try {
+      setLoading(true);
+      
+      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
+      
+      const { data, error } = await supabase.functions.invoke(functionName);
+      
+      if (error) {
+        console.error('Error creating checkout:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível processar o pagamento. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível processar o pagamento. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const benefits = [
@@ -186,9 +221,17 @@ export const Paywall = () => {
           {/* CTA Button */}
           <Button 
             onClick={handleStartNow}
+            disabled={loading}
             className="w-full btn-primary text-base font-semibold py-3 h-12"
           >
-            Começar Agora
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              'Começar Agora'
+            )}
           </Button>
 
           {/* Footer Text */}
