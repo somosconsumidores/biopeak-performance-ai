@@ -344,6 +344,7 @@ serve(async (req) => {
     let bestKmSegmentRawNumber: number | null = null;
     let bestKmSegmentPace: number | null = null;
     let isZeroBasedSegments = false;
+    let problemKmSegments: Array<{ human: number; pace: number; pct: number } > = [];
     const { data: segments } = await serviceSupabase
       .from('activity_segments')
       .select('segment_number, avg_heart_rate, avg_pace_min_km, duration_seconds, elevation_gain_meters')
@@ -365,6 +366,32 @@ serve(async (req) => {
         bestKmSegmentHumanNumber = isZeroBasedSegments ? best.segment_number + 1 : best.segment_number;
         bestKmSegmentPace = best.avg_pace_min_km as number;
         console.log(`🏅 Ground-truth best 1km segment: raw=${bestKmSegmentRawNumber}, human=${bestKmSegmentHumanNumber}, pace=${bestKmSegmentPace}`);
+
+        // Baseline pela mediana do pace de 1km e detecção de segmentos problemáticos (>=10% mais lentos)
+        const paces = [...validSegments]
+          .map(s => s.avg_pace_min_km as number)
+          .filter(p => typeof p === 'number')
+          .sort((a,b) => a-b);
+        if (paces.length >= 3) {
+          const mid = Math.floor(paces.length / 2);
+          const median = paces.length % 2 === 0 ? (paces[mid - 1] + paces[mid]) / 2 : paces[mid];
+          const threshold = median * 1.10; // 10% mais lento que a mediana
+          const problems = validSegments
+            .filter(s => (s.avg_pace_min_km as number) >= threshold)
+            .map(s => {
+              const human = isZeroBasedSegments ? s.segment_number + 1 : s.segment_number;
+              const pace = s.avg_pace_min_km as number;
+              const pct = ((pace / median) - 1) * 100;
+              return { human, pace, pct };
+            })
+            // não marcar como problemático o próprio melhor KM
+            .filter(p => p.human !== bestKmSegmentHumanNumber)
+            // ordenar pelo maior desvio
+            .sort((a,b) => b.pct - a.pct)
+            .slice(0, 3);
+          problemKmSegments = problems;
+          console.log('⚠️ Problem KM candidates (median baseline):', problemKmSegments);
+        }
       }
     }
 
@@ -581,6 +608,7 @@ serve(async (req) => {
       - Indexação exibida ao usuário: baseada em 1 (KM 1, KM 2, ...)
       - Melhor KM (por pace médio em 1km): KM ${bestKmSegmentHumanNumber} (${(bestKmSegmentPace || 0).toFixed(2)} min/km)
       - Não contradiga esta informação nos campos segmentAnalysis; utilize exatamente este número de segmento (humano).
+      ${problemKmSegments.length > 0 ? `\n      ⚠️ Segmentos potencialmente problemáticos (comparados à mediana dos 1km):\n      ${problemKmSegments.map(p => `- KM ${p.human}: ${p.pace.toFixed(2)} min/km (+${p.pct.toFixed(1)}%)`).join('\n')}` : ''}
       ` : ''}
       
       INSTRUÇÕES ESPECIAIS PARA DADOS LIMITADOS:
@@ -788,11 +816,11 @@ serve(async (req) => {
 
     // Pós-processamento para garantir consistência dos segmentos
     try {
-      if (bestKmSegmentHumanNumber !== null) {
-        (analysis as any).deepAnalysis = (analysis as any).deepAnalysis || {};
-        const deep = (analysis as any).deepAnalysis;
-        deep.segmentAnalysis = deep.segmentAnalysis || { problemSegments: [], bestSegments: [] };
+      (analysis as any).deepAnalysis = (analysis as any).deepAnalysis || {};
+      const deep = (analysis as any).deepAnalysis;
+      deep.segmentAnalysis = deep.segmentAnalysis || { problemSegments: [], bestSegments: [] };
 
+      if (bestKmSegmentHumanNumber !== null) {
         // Remover entradas problemáticas que marcam o melhor KM como lento
         if (Array.isArray(deep.segmentAnalysis.problemSegments)) {
           deep.segmentAnalysis.problemSegments = deep.segmentAnalysis.problemSegments.filter((p: any) => p && p.segmentNumber !== bestKmSegmentHumanNumber);
@@ -803,6 +831,16 @@ serve(async (req) => {
           { segmentNumber: bestKmSegmentHumanNumber, strength: `Melhor pace de 1km confirmado (KM ${bestKmSegmentHumanNumber})` }
         ];
         console.log(`🔧 Consistency fix applied: best KM (human) = ${bestKmSegmentHumanNumber}`);
+      }
+
+      // Definir segmentos problemáticos determinísticos (>=10% mais lentos que a mediana)
+      if (problemKmSegments && problemKmSegments.length > 0) {
+        deep.segmentAnalysis.problemSegments = problemKmSegments.map(p => ({
+          segmentNumber: p.human,
+          issue: `Pace ${p.pct.toFixed(1)}% mais lento que a mediana de 1km`,
+          recommendation: 'Ajustar ritmo; buscar transições mais suaves entre KMs'
+        }));
+        console.log('🔧 Problem segments set from ground truth:', deep.segmentAnalysis.problemSegments);
       }
     } catch (e) {
       console.warn('⚠️ Consistency fix failed:', e);
