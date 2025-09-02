@@ -100,7 +100,8 @@ export const SalesLandingPage = () => {
     { number: "10K+", label: "Treinos Analisados" },
     { number: "2.5K+", label: "Atletas Ativos" },
     { number: "98%", label: "Satisfação" },
-    { number: "45%", label: "Melhora Média" }
+    { number: "45%", label: "Melhora Média" },
+    { number: "+600", label: "Horas Economizadas" }
   ];
 
   return (
