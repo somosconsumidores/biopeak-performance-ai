@@ -49,7 +49,8 @@ export const Paywall = () => {
   }, [searchParams, refreshSubscription, navigate, toast]);
 
   const handleClose = () => {
-    navigate(-1);
+    // Navegar para o dashboard se o usuário já tem conta ou para home se não tem
+    navigate('/dashboard');
   };
 
   const handleStartNow = async () => {
@@ -266,6 +267,15 @@ export const Paywall = () => {
             ) : (
               'Começar Agora'
             )}
+          </Button>
+
+          {/* Secondary Action - Skip for now */}
+          <Button 
+            variant="ghost"
+            onClick={handleClose}
+            className="w-full text-sm text-muted-foreground hover:text-foreground"
+          >
+            Talvez mais tarde
           </Button>
 
           {/* Footer Text */}
