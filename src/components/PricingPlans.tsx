@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   CheckCircle, 
   Crown, 
@@ -25,6 +26,7 @@ export const PricingPlans = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const freePlanFeatures = [
     {
       icon: Activity,
@@ -72,6 +74,13 @@ export const PricingPlans = () => {
   ];
 
   const handleCheckout = async () => {
+    // Verificar se o usuário está autenticado
+    if (!user) {
+      // Redirecionar para auth com parâmetro do plano selecionado
+      navigate(`/auth?plan=${selectedPlan}`);
+      return;
+    }
+
     try {
       setLoading(true);
       

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,15 +26,22 @@ export function Auth() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (user) {
-      // Check if user is new (just signed up) by checking if they have a profile
-      // For now, we'll redirect all authenticated users to sync page
-      // This could be enhanced to check if it's their first login
-      navigate('/sync');
+      // Verificar se há um plano selecionado nos parâmetros
+      const selectedPlan = searchParams.get('plan');
+      
+      if (selectedPlan && (selectedPlan === 'monthly' || selectedPlan === 'annual')) {
+        // Redirecionar para paywall com o plano pré-selecionado
+        navigate(`/paywall?plan=${selectedPlan}`);
+      } else {
+        // Comportamento padrão - redirecionar para sync
+        navigate('/sync');
+      }
     }
-  }, [user, navigate]);
+  }, [user, navigate, searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

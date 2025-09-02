@@ -21,6 +21,12 @@ export const Paywall = () => {
   useEffect(() => {
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
+    const planParam = searchParams.get('plan');
+    
+    // Pré-selecionar o plano se vier dos parâmetros
+    if (planParam && (planParam === 'monthly' || planParam === 'annual')) {
+      setSelectedPlan(planParam);
+    }
     
     if (success) {
       // Refresh subscription status and redirect to dashboard
