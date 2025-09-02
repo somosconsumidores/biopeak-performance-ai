@@ -97,11 +97,10 @@ export const SalesLandingPage = () => {
   ];
 
   const stats = [
-    { number: "10K+", label: "Treinos Analisados" },
-    { number: "2.5K+", label: "Atletas Ativos" },
-    { number: "98%", label: "Satisfação" },
-    { number: "45%", label: "Melhora Média" },
-    { number: "+600", label: "Horas Economizadas" }
+    { number: "+ 32K", label: "Treinos Analisados" },
+    { number: "+ 600", label: "Atletas Ativos" },
+    { number: "+2.5K", label: "Insights Fornecidos" },
+    { number: "+ 1K", label: "Metas Atribuídas" }
   ];
 
   return (
