@@ -27,9 +27,8 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem(storageKey) as Theme;
-    // Always default to light theme for new users or if no valid theme is saved
-    return savedTheme && ["dark", "light", "system"].includes(savedTheme) ? savedTheme : defaultTheme;
+    // Always default to light theme - force light mode as default
+    return "light";
   })
 
   useEffect(() => {
