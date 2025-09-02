@@ -18,9 +18,18 @@ import {
   Activity,
   BarChart3,
   Smartphone,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 export const SalesLandingPage = () => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -101,6 +110,29 @@ export const SalesLandingPage = () => {
     { number: "+ 600", label: "Atletas Ativos" },
     { number: "+2.5K", label: "Insights Fornecidos" },
     { number: "+ 1K", label: "Metas Atribuídas" }
+  ];
+
+  const whyBioPeakSlides = [
+    {
+      image: "/lovable-uploads/overtraining-risk.png",
+      title: "Risco de Overtraining",
+      description: "Monitore sinais de fadiga excessiva e previna lesões antes que aconteçam. Nossa IA analisa variabilidade da frequência cardíaca, qualidade do sono e percepção de esforço para alertar quando você precisa de mais recuperação."
+    },
+    {
+      image: "/lovable-uploads/fitness-score.png",
+      title: "BioPeak Fitness Score",
+      description: "Uma métrica única que consolida todos os seus dados de treino em um score compreensível. Acompanhe sua evolução de forma global e entenda como cada treino contribui para seu desenvolvimento atlético."
+    },
+    {
+      image: "/lovable-uploads/race-calendar.png",
+      title: "Calendário de Provas + IA Avançada",
+      description: "Planeje suas provas e deixe nossa IA criar a periodização perfeita. Analise sua preparação em tempo real, ajuste cargas de treino e chegue no dia da prova no seu melhor momento de forma."
+    },
+    {
+      image: "/lovable-uploads/performance-insights.png",
+      title: "Insights sobre Performance Geral",
+      description: "Descubra padrões ocultos nos seus dados que só uma IA avançada pode identificar. Receba recomendações personalizadas sobre ritmo, zonas de treino e estratégias para maximizar seus resultados."
+    }
   ];
 
   return (
@@ -220,6 +252,57 @@ export const SalesLandingPage = () => {
               </ScrollReveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Why BioPeak Section */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Por que BioPeak?
+              </h2>
+              <p className="text-lg text-muted-foreground mb-2">
+                Treine mais inteligente do que nunca
+              </p>
+              <p className="text-lg text-muted-foreground">
+                Mais dados. Mais Inteligência. Mais performance
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={200}>
+            <div className="max-w-6xl mx-auto">
+              <Carousel className="w-full">
+                <CarouselContent>
+                  {whyBioPeakSlides.map((slide, index) => (
+                    <CarouselItem key={index}>
+                      <div className="grid lg:grid-cols-2 gap-8 items-center">
+                        <div className="order-2 lg:order-1">
+                          <img
+                            src={slide.image}
+                            alt={slide.title}
+                            className="w-full rounded-lg shadow-lg"
+                          />
+                        </div>
+                        <div className="order-1 lg:order-2 space-y-6">
+                          <h3 className="text-2xl md:text-3xl font-bold text-primary">
+                            {slide.title}
+                          </h3>
+                          <p className="text-lg text-muted-foreground leading-relaxed">
+                            {slide.description}
+                          </p>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-4" />
+                <CarouselNext className="right-4" />
+              </Carousel>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
