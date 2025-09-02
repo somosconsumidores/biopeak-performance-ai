@@ -77,8 +77,9 @@ export const AdminSubscriptions = () => {
           .limit(20),
         supabase
           .from('subscribers')
-          .select('user_id', { head: true, count: 'exact' })
-          .not('stripe_customer_id', 'is', null),
+          .select('user_id', { count: 'exact' })
+          .not('stripe_customer_id', 'is', null)
+          .neq('stripe_customer_id', ''),
       ]);
 
       if (listRes.error) throw listRes.error;
