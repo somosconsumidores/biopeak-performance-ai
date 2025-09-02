@@ -31,11 +31,20 @@ export function Auth() {
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
+      const selectedPlan = searchParams.get('plan');
+      console.log('🔍 AUTH: Verificando parâmetros', { 
+        user: !!user, 
+        selectedPlan, 
+        searchParams: Object.fromEntries(searchParams.entries()),
+        url: window.location.href 
+      });
+      
       if (user) {
-        // Verificar se há um plano selecionado nos parâmetros
-        const selectedPlan = searchParams.get('plan');
+        console.log('🔍 AUTH: Usuário autenticado, verificando plano', { selectedPlan });
         
         if (selectedPlan && (selectedPlan === 'monthly' || selectedPlan === 'annual')) {
+          console.log('🔍 AUTH: Plano detectado, marcando onboarding como completo e redirecionando');
+          
           // Marcar onboarding como completo automaticamente para usuários vindos do plano
           try {
             await supabase
@@ -54,10 +63,12 @@ export function Auth() {
           }
           
           // Redirecionar para paywall com o plano pré-selecionado
+          console.log('🔍 AUTH: Redirecionando para paywall com plano:', selectedPlan);
           navigate(`/paywall?plan=${selectedPlan}`);
           return; // Importante: sair da função para não executar o else
         }
         
+        console.log('🔍 AUTH: Nenhum plano detectado, redirecionando para sync');
         // Comportamento padrão - redirecionar para sync apenas se não há plano
         navigate('/sync');
       }
