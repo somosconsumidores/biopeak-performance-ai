@@ -16,7 +16,8 @@ import {
   Users,
   Shield,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Star
 } from 'lucide-react';
 import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -80,6 +81,30 @@ export const LandingPage = () => {
     'Insights de recuperação muscular',
     'Otimização de zonas de treino',
     'Previsão de picos de performance'
+  ];
+
+  const testimonials = [
+    {
+      name: "Carlos Mendes",
+      role: "Triatleta Amador",
+      image: "/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png",
+      content: "O BioPeak transformou minha forma de treinar. As análises de IA me ajudaram a melhorar meu pace em 30 segundos em apenas 2 meses.",
+      rating: 5
+    },
+    {
+      name: "Ana Silva",
+      role: "Corredora de Rua",
+      image: "/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png",
+      content: "Finalmente encontrei uma plataforma que entende minhas necessidades. Os insights são incríveis e me mantêm motivada.",
+      rating: 5
+    },
+    {
+      name: "Roberto Santos",
+      role: "Maratonista",
+      image: "/lovable-uploads/9db8aa58-3e45-4e91-81a9-1e132feb4593.png",
+      content: "A análise de recuperação do BioPeak é fantástica. Consegui evitar lesões e melhorar consistentemente.",
+      rating: 5
+    }
   ];
 
   // Format number for display
@@ -253,6 +278,102 @@ export const LandingPage = () => {
 
       {/* Pricing Plans Section */}
       <PricingPlans />
+
+      {/* Testimonials Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="container mx-auto">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                O que nossos atletas dizem
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Milhares de corredores já transformaram sua performance com o BioPeak
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <ScrollReveal key={index} delay={index * 100}>
+                <Card className="glass-card h-full">
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground mb-4 italic">
+                      "{testimonial.content}"
+                    </p>
+                    <div className="flex items-center">
+                      <img 
+                        src={testimonial.image} 
+                        alt={testimonial.name}
+                        className="w-10 h-10 rounded-full mr-3"
+                      />
+                      <div>
+                        <div className="font-semibold">{testimonial.name}</div>
+                        <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto max-w-4xl">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Perguntas Frequentes
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Tudo que você precisa saber sobre o BioPeak
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="space-y-6">
+            {[
+              {
+                q: "Como funciona a análise de IA?",
+                a: "Nossa IA analisa seus dados de treino (frequência cardíaca, pace, distância) e compara com milhares de outros atletas para fornecer insights personalizados sobre sua performance e sugestões de melhoria."
+              },
+              {
+                q: "Quais dispositivos são compatíveis?",
+                a: "O BioPeak sincroniza automaticamente com Garmin, Polar e Strava. Também suportamos importação manual de arquivos GPX de qualquer dispositivo."
+              },
+              {
+                q: "Posso cancelar a qualquer momento?",
+                a: "Sim, você pode cancelar sua assinatura a qualquer momento. Não há contratos ou taxas de cancelamento."
+              },
+              {
+                q: "Os dados ficam seguros?",
+                a: "Absolutamente. Usamos criptografia de nível bancário e seguimos as melhores práticas de segurança. Seus dados nunca são compartilhados com terceiros."
+              },
+              {
+                q: "Funciona offline?",
+                a: "Sim, o app móvel funciona offline para registrar treinos. Os dados são sincronizados quando você volta a ter conexão."
+              }
+            ].map((faq, index) => (
+              <ScrollReveal key={index} delay={index * 50}>
+                <Card className="glass-card">
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-3">{faq.q}</h3>
+                    <p className="text-muted-foreground">{faq.a}</p>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
