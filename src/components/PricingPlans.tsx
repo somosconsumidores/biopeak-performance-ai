@@ -4,9 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 import { 
   CheckCircle, 
   Crown, 
@@ -17,16 +14,12 @@ import {
   Target,
   TrendingUp,
   HeartHandshake,
-  Zap,
-  Loader2
+  Zap
 } from 'lucide-react';
 
 export const PricingPlans = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user } = useAuth();
   const freePlanFeatures = [
     {
       icon: Activity,
@@ -74,46 +67,9 @@ export const PricingPlans = () => {
   ];
 
   const handleCheckout = async () => {
-    // Verificar se o usuário está autenticado
-    if (!user) {
-      // Redirecionar para auth com parâmetro do plano selecionado
-      navigate(`/auth?plan=${selectedPlan}`);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
-      
-      const { data, error } = await supabase.functions.invoke(functionName);
-      
-      if (error) {
-        console.error('Error creating checkout:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível processar o pagamento. Tente novamente.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível processar o pagamento. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Direcionar todos os usuários para o paywall com o plano selecionado
+    // O ProtectedRoute do paywall vai garantir que o usuário esteja autenticado
+    navigate(`/paywall?plan=${selectedPlan}`);
   };
 
   return (
@@ -269,16 +225,8 @@ export const PricingPlans = () => {
                     size="lg" 
                     className="w-full bg-gradient-primary hover:opacity-90 text-white border-0"
                     onClick={handleCheckout}
-                    disabled={loading}
                   >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processando...
-                      </>
-                    ) : (
-                      'Assinar BioPeak Pro'
-                    )}
+                    Assinar BioPeak Pro
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mt-2">
                     Cancele a qualquer momento
