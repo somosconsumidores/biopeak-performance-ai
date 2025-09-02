@@ -26,9 +26,25 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    // Get Stripe secret key from Supabase secrets (primary) or env (fallback)
+    let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    let keySource = "secrets";
+    
+    if (!stripeKey) {
+      stripeKey = Deno.env.get("STRIPE_SECRET_KEY_FALLBACK") || "";
+      keySource = "env-fallback";
+    }
+    
+    if (!stripeKey) {
+      throw new Error("STRIPE_SECRET_KEY not configured in Supabase secrets or environment");
+    }
+
+    // Detect Stripe mode (test/live) from key prefix
+    const isLiveMode = stripeKey.startsWith("sk_live_");
+    const isTestMode = stripeKey.startsWith("sk_test_");
+    const stripeMode = isLiveMode ? "live" : isTestMode ? "test" : "unknown";
+    
+    logStep("Stripe key verified", { mode: stripeMode, source: keySource });
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");

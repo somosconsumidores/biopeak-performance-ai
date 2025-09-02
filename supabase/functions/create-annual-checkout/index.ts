@@ -29,7 +29,27 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    // Get Stripe secret key from Supabase secrets (primary) or env (fallback)
+    let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    let keySource = "secrets";
+    
+    if (!stripeKey) {
+      stripeKey = Deno.env.get("STRIPE_SECRET_KEY_FALLBACK") || "";
+      keySource = "env-fallback";
+    }
+    
+    if (!stripeKey) {
+      throw new Error("STRIPE_SECRET_KEY not configured in Supabase secrets or environment");
+    }
+
+    // Detect Stripe mode (test/live) from key prefix
+    const isLiveMode = stripeKey.startsWith("sk_live_");
+    const isTestMode = stripeKey.startsWith("sk_test_");
+    const stripeMode = isLiveMode ? "live" : isTestMode ? "test" : "unknown";
+    
+    console.log(`[CHECKOUT] Stripe key mode: ${stripeMode} (source: ${keySource})`);
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
     });
 
@@ -41,41 +61,77 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    // Resolve annual price ID from DB (app_settings) with fallback to env
+    // Get annual price ID with environment-aware fallback
     let annualPriceId: string = "";
     let priceSource = "env";
+    
     try {
-      const { data: setting, error: settingError } = await supabaseService
+      // Try environment-specific price ID first
+      const envSpecificKey = `stripe_price_annual_id_${stripeMode}`;
+      const { data: envSetting, error: envError } = await supabaseService
         .from("app_settings")
         .select("setting_value")
-        .eq("setting_key", "stripe_price_annual_id")
+        .eq("setting_key", envSpecificKey)
         .maybeSingle();
-      if (settingError) {
-        console.warn("[CHECKOUT] app_settings fetch error:", settingError.message);
-      }
-      if (setting?.setting_value) {
-        annualPriceId = setting.setting_value;
-        priceSource = "db";
+      
+      if (!envError && envSetting?.setting_value) {
+        annualPriceId = envSetting.setting_value;
+        priceSource = `db-${stripeMode}`;
+      } else {
+        // Fallback to generic price ID
+        const { data: setting, error: settingError } = await supabaseService
+          .from("app_settings")
+          .select("setting_value")
+          .eq("setting_key", "stripe_price_annual_id")
+          .maybeSingle();
+        
+        if (!settingError && setting?.setting_value) {
+          annualPriceId = setting.setting_value;
+          priceSource = "db-generic";
+        }
       }
     } catch (e) {
       console.warn("[CHECKOUT] Failed to read price from app_settings:", e);
     }
 
+    // Environment variable fallbacks
     if (!annualPriceId) {
-      annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID") || "";
-      priceSource = "env";
+      const envSpecificPriceId = Deno.env.get(`STRIPE_PRICE_ANNUAL_ID_${stripeMode.toUpperCase()}`);
+      if (envSpecificPriceId) {
+        annualPriceId = envSpecificPriceId;
+        priceSource = `env-${stripeMode}`;
+      } else {
+        annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID") || "";
+        priceSource = "env-generic";
+      }
     }
 
-    console.log("[CHECKOUT] Using annual price (" + priceSource + "):", annualPriceId);
+    console.log(`[CHECKOUT] Using annual price (${priceSource}): ${annualPriceId}`);
+    
     if (!annualPriceId) {
-      throw new Error("Annual price ID is not configured (checked DB and STRIPE_PRICE_ANNUAL_ID)");
+      throw new Error(`Annual price ID not configured for ${stripeMode} mode. Please set stripe_price_annual_id_${stripeMode} in app_settings.`);
+    }
+
+    // Validate price ID before creating checkout session
+    try {
+      await stripe.prices.retrieve(annualPriceId);
+      console.log(`[CHECKOUT] Price ID validation successful: ${annualPriceId}`);
+    } catch (priceError: any) {
+      console.error(`[CHECKOUT] Price validation failed for ${annualPriceId}:`, priceError.message);
+      
+      if (priceError.code === 'resource_missing') {
+        const oppositeMode = stripeMode === 'live' ? 'test' : 'live';
+        throw new Error(`Price ID ${annualPriceId} not found in ${stripeMode} mode. Check if you're using a ${oppositeMode} price ID with a ${stripeMode} key.`);
+      }
+      
+      throw new Error(`Invalid price ID: ${priceError.message}`);
     }
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: annualPriceId,
+      price: annualPriceId,
           quantity: 1,
         },
       ],
