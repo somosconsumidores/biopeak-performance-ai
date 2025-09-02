@@ -14,19 +14,17 @@ export const Paywall = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(() => {
+    // Inicializar baseado no parâmetro da URL apenas uma vez
+    const planParam = new URLSearchParams(window.location.search).get('plan');
+    return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
+  });
   const [loading, setLoading] = useState(false);
 
   // Handle successful payment redirect
   useEffect(() => {
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
-    const planParam = searchParams.get('plan');
-    
-    // Pré-selecionar o plano se vier dos parâmetros
-    if (planParam && (planParam === 'monthly' || planParam === 'annual')) {
-      setSelectedPlan(planParam);
-    }
     
     if (success) {
       // Refresh subscription status and redirect to dashboard
