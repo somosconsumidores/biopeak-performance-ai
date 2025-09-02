@@ -2368,6 +2368,36 @@ export type Database = {
           },
         ]
       }
+      sent_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          metadata: Json | null
+          sent_at: string
+          template_key: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          template_key: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          template_key?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       sleep_feedback_analysis: {
         Row: {
           analysis_text: string

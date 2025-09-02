@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -40,6 +41,46 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, user_id, subscription_tier, subscription_end } = payload;
 
+    // Initialize Supabase client with service role to check/insert idempotency record
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const templateKey = "subscriber-welcome";
+
+    // Check if email was already sent (idempotency guard)
+    const { data: existingSend, error: checkError } = await supabaseClient
+      .from('sent_emails')
+      .select('id, sent_at')
+      .eq('email', email)
+      .eq('template_key', templateKey)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found, which is okay
+      console.error("Error checking sent_emails:", checkError);
+      throw new Error(`Database check failed: ${checkError.message}`);
+    }
+
+    if (existingSend) {
+      console.log("Email already sent - skipping duplicate:", {
+        email,
+        template_key: templateKey,
+        previous_send: existingSend.sent_at,
+        source: "subscriber-welcome-email@v1-idempotent"
+      });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        skipped: true, 
+        reason: "Email already sent",
+        previous_send: existingSend.sent_at 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const endDateStr = (() => {
       try {
         return subscription_end ? new Date(subscription_end).toLocaleDateString("pt-BR") : null;
@@ -55,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
       subscription_end,
       endDateStr,
       ts: new Date().toISOString(),
-      source: "subscriber-welcome-email@v1"
+      source: "subscriber-welcome-email@v1-idempotent"
     });
 
     const planName = subscription_tier || "Premium";
@@ -137,6 +178,24 @@ const handler = async (req: Request): Promise<Response> => {
     const ok = !!emailResponse.data?.id;
     if (!ok) {
       throw new Error(`Falha ao enviar email: ${emailResponse.error?.message || "sem id retornado"}`);
+    }
+
+    // Record successful send in idempotency table
+    const { error: recordError } = await supabaseClient
+      .from('sent_emails')
+      .insert({
+        email,
+        template_key: templateKey,
+        user_id,
+        metadata: {
+          subscription_tier,
+          subscription_end,
+          resend_email_id: emailResponse.data.id
+        }
+      });
+
+    if (recordError) {
+      console.warn("Failed to record sent email (but email was sent):", recordError);
     }
 
     return new Response(JSON.stringify({ success: true, emailId: emailResponse.data.id }), {
