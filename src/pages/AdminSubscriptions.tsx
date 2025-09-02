@@ -126,6 +126,19 @@ export const AdminSubscriptions = () => {
       <div className="max-w-6xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold">Administração de Assinaturas</h1>
         
+        {/* Stats */}
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-2">Assinantes Ativos</h2>
+          <div className="text-3xl font-bold flex items-center gap-2">
+            {loadingSubscribers ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              activeSubscribersCount ?? 0
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Usuários únicos com stripe_customer_id definido</p>
+        </Card>
+
         {/* Force Subscription Check */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Verificar Assinatura Manualmente</h2>
