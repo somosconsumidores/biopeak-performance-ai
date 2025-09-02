@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   CheckCircle, 
   Crown, 
@@ -14,10 +16,15 @@ import {
   Target,
   TrendingUp,
   HeartHandshake,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 
 export const PricingPlans = () => {
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const freePlanFeatures = [
     {
       icon: Activity,
@@ -63,6 +70,42 @@ export const PricingPlans = () => {
       description: "Análise de sua preparação para as provas agendadas"
     }
   ];
+
+  const handleCheckout = async () => {
+    try {
+      setLoading(true);
+      
+      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
+      
+      const { data, error } = await supabase.functions.invoke(functionName);
+      
+      if (error) {
+        console.error('Error creating checkout:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível processar o pagamento. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível processar o pagamento. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background via-muted/5 to-background">
@@ -143,9 +186,46 @@ export const PricingPlans = () => {
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold mb-2">BioPeak Pro</h3>
+                
+                {/* Toggle between Annual and Monthly */}
+                <div className="flex items-center justify-center bg-muted/20 rounded-full p-1 mb-4 max-w-[280px] mx-auto">
+                  <button
+                    onClick={() => setSelectedPlan('annual')}
+                    className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedPlan === 'annual'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Anual
+                    {selectedPlan === 'annual' && (
+                      <Badge className="absolute -top-2 -right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 border-0">
+                        Economize 35%
+                      </Badge>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setSelectedPlan('monthly')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedPlan === 'monthly'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                </div>
+
                 <div className="mb-4">
-                  <span className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">R$ 29</span>
+                  <span className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                    R$ {selectedPlan === 'annual' ? '12,90' : '19,90'}
+                  </span>
                   <span className="text-muted-foreground">/mês</span>
+                  {selectedPlan === 'annual' && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Cobrado R$ 154,80 anualmente
+                    </div>
+                  )}
                 </div>
                 <p className="text-muted-foreground">
                   Análises avançadas com inteligência artificial
@@ -179,11 +259,17 @@ export const PricingPlans = () => {
                   <Button 
                     size="lg" 
                     className="w-full bg-gradient-primary hover:opacity-90 text-white border-0"
-                    asChild
+                    onClick={handleCheckout}
+                    disabled={loading}
                   >
-                    <Link to="/auth">
-                      Começar Teste Grátis
-                    </Link>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      'Assinar BioPeak Pro'
+                    )}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mt-2">
                     Cancele a qualquer momento
