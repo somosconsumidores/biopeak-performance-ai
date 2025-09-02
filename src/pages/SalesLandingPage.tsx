@@ -196,7 +196,7 @@ export const SalesLandingPage = () => {
           <ScrollReveal delay={400}>
             <div className="relative max-w-6xl mx-auto">
               <img 
-                src="/lovable-uploads/dbc8de3b-f74d-4398-9281-a7cd9b65eda2.png" 
+                src="/lovable-uploads/6fe6946d-555d-47a6-aa79-34df299ee2a8.png" 
                 alt="BioPeak App - Análise Inteligente de Performance para Corrida" 
                 className="w-full"
               />
