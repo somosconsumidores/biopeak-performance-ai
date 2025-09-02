@@ -67,9 +67,9 @@ export const PricingPlans = () => {
   ];
 
   const handleCheckout = async () => {
-    // Direcionar todos os usuários para o paywall com o plano selecionado
-    // O ProtectedRoute do paywall vai garantir que o usuário esteja autenticado
-    navigate(`/paywall?plan=${selectedPlan}`);
+    // Redirecionar para auth com parâmetro do plano selecionado
+    // Depois o auth vai redirecionar para paywall
+    navigate(`/auth?plan=${selectedPlan}`);
   };
 
   return (
