@@ -21,6 +21,7 @@ import {
 import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
+import { PricingPlans } from '@/components/PricingPlans';
 
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
@@ -249,6 +250,9 @@ export const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Pricing Plans Section */}
+      <PricingPlans />
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
