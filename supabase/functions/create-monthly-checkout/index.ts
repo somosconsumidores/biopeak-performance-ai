@@ -16,6 +16,12 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
+  // Service role client for secure server-side reads/writes (bypass RLS)
+  const supabaseService = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
 
   try {
     const authHeader = req.headers.get("Authorization")!;
@@ -36,10 +42,34 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    const monthlyPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY_ID");
-    console.log("[CHECKOUT] Using monthly price", monthlyPriceId);
+    // Resolve monthly price ID from DB (app_settings) with fallback to env
+    let monthlyPriceId: string = "";
+    let priceSource = "env";
+    try {
+      const { data: setting, error: settingError } = await supabaseService
+        .from("app_settings")
+        .select("setting_value")
+        .eq("setting_key", "stripe_price_monthly_id")
+        .maybeSingle();
+      if (settingError) {
+        console.warn("[CHECKOUT] app_settings fetch error:", settingError.message);
+      }
+      if (setting?.setting_value) {
+        monthlyPriceId = setting.setting_value;
+        priceSource = "db";
+      }
+    } catch (e) {
+      console.warn("[CHECKOUT] Failed to read price from app_settings:", e);
+    }
+
     if (!monthlyPriceId) {
-      throw new Error("STRIPE_PRICE_MONTHLY_ID is not configured");
+      monthlyPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY_ID") || "";
+      priceSource = "env";
+    }
+
+    console.log("[CHECKOUT] Using monthly price (" + priceSource + "):", monthlyPriceId);
+    if (!monthlyPriceId) {
+      throw new Error("Monthly price ID is not configured (checked DB and STRIPE_PRICE_MONTHLY_ID)");
     }
 
     const session = await stripe.checkout.sessions.create({
