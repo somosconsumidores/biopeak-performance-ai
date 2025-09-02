@@ -183,7 +183,7 @@ export const SalesLandingPage = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                onClick={() => setVideoModalOpen(true)}
+                onClick={() => window.open('https://video.wixstatic.com/video/a025ad_37605819401f4233b39d36a53b392514/720p/mp4/file.mp4', '_blank')}
                 className="min-w-[180px]"
               >
                 <Play className="mr-2 h-5 w-5" />
