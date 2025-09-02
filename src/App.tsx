@@ -285,9 +285,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     </div>;
   }
   
+  // Se estiver na página de auth e houver parâmetro de plano, deixar a página processar
+  const currentPath = window.location.pathname;
+  const hasPlaneParam = window.location.search.includes('plan=');
+  
+  if (user && currentPath === '/auth' && hasPlaneParam) {
+    console.log('🔍 PUBLIC_ROUTE: Permitindo processamento do auth com parâmetro de plano');
+    return <>{children}</>;
+  }
+  
   // If user is authenticated, always redirect to dashboard
   // Don't check onboarding here as it can cause redirect loops
   if (user) {
+    console.log('🔍 PUBLIC_ROUTE: Redirecionando usuário autenticado para dashboard');
     return <Navigate to="/dashboard" replace />;
   }
   
