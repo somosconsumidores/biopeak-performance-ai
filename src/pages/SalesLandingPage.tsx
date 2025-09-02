@@ -166,7 +166,7 @@ export const SalesLandingPage = () => {
               <img 
                 src="/lovable-uploads/dbc8de3b-f74d-4398-9281-a7cd9b65eda2.png" 
                 alt="BioPeak App - Análise Inteligente de Performance para Corrida" 
-                className="w-full shadow-glow"
+                className="w-full"
               />
             </div>
           </ScrollReveal>
