@@ -55,10 +55,11 @@ export function Auth() {
           
           // Redirecionar para paywall com o plano pré-selecionado
           navigate(`/paywall?plan=${selectedPlan}`);
-        } else {
-          // Comportamento padrão - redirecionar para sync
-          navigate('/sync');
+          return; // Importante: sair da função para não executar o else
         }
+        
+        // Comportamento padrão - redirecionar para sync apenas se não há plano
+        navigate('/sync');
       }
     };
 
