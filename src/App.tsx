@@ -12,6 +12,7 @@ import { useSurveyPopup } from "./hooks/useSurveyPopup";
 import { useState, useEffect } from "react";
 
 import { LandingPage } from "./pages/LandingPage";
+import { SalesLandingPage } from "./pages/SalesLandingPage";
 import { Dashboard } from "./pages/Dashboard";
 import { WorkoutSession } from "./pages/WorkoutSession";
 import { WorkoutComparison } from "./pages/WorkoutComparison";
@@ -90,6 +91,11 @@ function AppRoutes() {
         <Route path="/auth" element={
           <PublicRoute>
             <Auth />
+          </PublicRoute>
+        } />
+        <Route path="/landingpage" element={
+          <PublicRoute>
+            <SalesLandingPage />
           </PublicRoute>
         } />
         <Route path="/reset-password" element={<ResetPassword />} />
