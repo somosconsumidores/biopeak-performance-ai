@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ export const AdminSubscriptions = () => {
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [loadingSubscribers, setLoadingSubscribers] = useState(false);
   const { toast } = useToast();
+  const [activeSubscribersCount, setActiveSubscribersCount] = useState<number | null>(null);
 
   const forceSubscriptionCheck = async () => {
     if (!email.trim()) {
@@ -68,14 +69,23 @@ export const AdminSubscriptions = () => {
   const loadSubscribers = async () => {
     setLoadingSubscribers(true);
     try {
-      const { data, error } = await supabase
-        .from('subscribers')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(20);
+      const [listRes, countRes] = await Promise.all([
+        supabase
+          .from('subscribers')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('subscribers')
+          .select('user_id', { head: true, count: 'exact' })
+          .not('stripe_customer_id', 'is', null),
+      ]);
 
-      if (error) throw error;
-      setSubscribers(data || []);
+      if (listRes.error) throw listRes.error;
+      if (countRes.error) throw countRes.error;
+
+      setSubscribers(listRes.data || []);
+      setActiveSubscribersCount(countRes.count ?? 0);
     } catch (error) {
       console.error('Erro ao carregar assinantes:', error);
       toast({
@@ -87,6 +97,10 @@ export const AdminSubscriptions = () => {
       setLoadingSubscribers(false);
     }
   };
+
+  useEffect(() => {
+    loadSubscribers();
+  }, []);
 
   if (roleLoading) {
     return (
