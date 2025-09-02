@@ -114,22 +114,22 @@ export const SalesLandingPage = () => {
 
   const whyBioPeakSlides = [
     {
-      image: "/lovable-uploads/overtraining-risk.png",
+      image: "/lovable-uploads/fd514276-aa01-465a-954c-580e5641de95.png",
       title: "Risco de Overtraining",
       description: "Monitore sinais de fadiga excessiva e previna lesões antes que aconteçam. Nossa IA analisa variabilidade da frequência cardíaca, qualidade do sono e percepção de esforço para alertar quando você precisa de mais recuperação."
     },
     {
-      image: "/lovable-uploads/fitness-score.png",
+      image: "/lovable-uploads/617223a4-cfde-4217-9adf-12facb3501aa.png",
       title: "BioPeak Fitness Score",
       description: "Uma métrica única que consolida todos os seus dados de treino em um score compreensível. Acompanhe sua evolução de forma global e entenda como cada treino contribui para seu desenvolvimento atlético."
     },
     {
-      image: "/lovable-uploads/race-calendar.png",
+      image: "/lovable-uploads/01d672b4-2333-4e3e-b726-36dfe80c93d3.png",
       title: "Calendário de Provas + IA Avançada",
       description: "Planeje suas provas e deixe nossa IA criar a periodização perfeita. Analise sua preparação em tempo real, ajuste cargas de treino e chegue no dia da prova no seu melhor momento de forma."
     },
     {
-      image: "/lovable-uploads/performance-insights.png",
+      image: "/lovable-uploads/38a689f7-74f6-4a67-aa7c-b06d82048f9c.png",
       title: "Insights sobre Performance Geral",
       description: "Descubra padrões ocultos nos seus dados que só uma IA avançada pode identificar. Receba recomendações personalizadas sobre ritmo, zonas de treino e estratégias para maximizar seus resultados."
     }
