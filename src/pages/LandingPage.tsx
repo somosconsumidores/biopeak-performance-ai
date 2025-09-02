@@ -178,7 +178,7 @@ export const LandingPage = () => {
                       className="w-full h-full rounded-lg"
                       controls
                       autoPlay
-                      src="https://video.wixstatic.com/video/a025ad_6886c1403efa47e4b2a36a4ba2d58ead/720p/mp4/file.mp4"
+                      src="https://video.wixstatic.com/video/a025ad_37605819401f4233b39d36a53b392514/720p/mp4/file.mp4"
                     >
                       Seu navegador não suporta vídeos HTML5.
                     </video>
