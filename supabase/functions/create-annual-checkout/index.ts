@@ -16,7 +16,12 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
-
+  // Service role client for secure server-side reads/writes (bypass RLS)
+  const supabaseService = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
   try {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -36,12 +41,35 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    const annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID");
-    console.log("[CHECKOUT] Using annual price", annualPriceId);
-    if (!annualPriceId) {
-      throw new Error("STRIPE_PRICE_ANNUAL_ID is not configured");
+    // Resolve annual price ID from DB (app_settings) with fallback to env
+    let annualPriceId: string = "";
+    let priceSource = "env";
+    try {
+      const { data: setting, error: settingError } = await supabaseService
+        .from("app_settings")
+        .select("setting_value")
+        .eq("setting_key", "stripe_price_annual_id")
+        .maybeSingle();
+      if (settingError) {
+        console.warn("[CHECKOUT] app_settings fetch error:", settingError.message);
+      }
+      if (setting?.setting_value) {
+        annualPriceId = setting.setting_value;
+        priceSource = "db";
+      }
+    } catch (e) {
+      console.warn("[CHECKOUT] Failed to read price from app_settings:", e);
     }
 
+    if (!annualPriceId) {
+      annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID") || "";
+      priceSource = "env";
+    }
+
+    console.log("[CHECKOUT] Using annual price (" + priceSource + "):", annualPriceId);
+    if (!annualPriceId) {
+      throw new Error("Annual price ID is not configured (checked DB and STRIPE_PRICE_ANNUAL_ID)");
+    }
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
