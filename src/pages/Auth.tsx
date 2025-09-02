@@ -11,6 +11,7 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Mail, Lock, User } from 'lucide-react';
 
 export function Auth() {
@@ -29,18 +30,39 @@ export function Auth() {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (user) {
-      // Verificar se há um plano selecionado nos parâmetros
-      const selectedPlan = searchParams.get('plan');
-      
-      if (selectedPlan && (selectedPlan === 'monthly' || selectedPlan === 'annual')) {
-        // Redirecionar para paywall com o plano pré-selecionado
-        navigate(`/paywall?plan=${selectedPlan}`);
-      } else {
-        // Comportamento padrão - redirecionar para sync
-        navigate('/sync');
+    const handleAuthRedirect = async () => {
+      if (user) {
+        // Verificar se há um plano selecionado nos parâmetros
+        const selectedPlan = searchParams.get('plan');
+        
+        if (selectedPlan && (selectedPlan === 'monthly' || selectedPlan === 'annual')) {
+          // Marcar onboarding como completo automaticamente para usuários vindos do plano
+          try {
+            await supabase
+              .from('profiles')
+              .upsert({ 
+                user_id: user.id,
+                onboarding_completed: true,
+                updated_at: new Date().toISOString()
+              }, { 
+                onConflict: 'user_id' 
+              });
+            
+            console.log('✅ Onboarding marcado como completo para usuário vindo do plano');
+          } catch (error) {
+            console.error('Erro ao marcar onboarding como completo:', error);
+          }
+          
+          // Redirecionar para paywall com o plano pré-selecionado
+          navigate(`/paywall?plan=${selectedPlan}`);
+        } else {
+          // Comportamento padrão - redirecionar para sync
+          navigate('/sync');
+        }
       }
-    }
+    };
+
+    handleAuthRedirect();
   }, [user, navigate, searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
