@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
               <img src="https://biopeak-ai.com/icon-512x512.png" alt="Logo BioPeak" style="display:block;width:40px;height:40px;border-radius:8px" />
             </div>
 
-            <img src="https://static.wixstatic.com/media/a025ad_6cd49319a57444b2a618c04e023f870c~mv2.png" alt="Atleta correndo com elementos de dados ao fundo" style="display:block;width:100%;max-height:240px;object-fit:cover" />
+            <img src="https://static.wixstatic.com/media/a025ad_5f2e8cd7074244e1bc0cb65b7d0c1a9f~mv2.png" alt="Atleta correndo com elementos de dados ao fundo" style="display:block;width:100%;max-height:240px;object-fit:cover" />
 
             <div style="padding:32px 24px">
               <h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.3;color:#1A1A1A">🎉 Bem-vindo ao Plano Pro de BioPeak</h1>
