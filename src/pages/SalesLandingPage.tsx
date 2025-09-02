@@ -163,13 +163,11 @@ export const SalesLandingPage = () => {
           {/* Hero Image/Mockup */}
           <ScrollReveal delay={400}>
             <div className="relative max-w-4xl mx-auto">
-              <div className="glass-card p-8 rounded-2xl">
-                <img 
-                  src="/lovable-uploads/dbc8de3b-f74d-4398-9281-a7cd9b65eda2.png" 
-                  alt="BioPeak App - Análise Inteligente de Performance para Corrida" 
-                  className="w-full rounded-lg shadow-glow"
-                />
-              </div>
+              <img 
+                src="/lovable-uploads/dbc8de3b-f74d-4398-9281-a7cd9b65eda2.png" 
+                alt="BioPeak App - Análise Inteligente de Performance para Corrida" 
+                className="w-full rounded-lg shadow-glow"
+              />
             </div>
           </ScrollReveal>
         </div>
