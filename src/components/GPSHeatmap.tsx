@@ -94,7 +94,7 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
             id: 'activities-heatmap',
             type: 'heatmap',
             source: 'activities',
-            maxzoom: 15,
+            maxzoom: 20,
             paint: {
               'heatmap-weight': [
                 'interpolate',
@@ -108,7 +108,8 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
                 ['linear'],
                 ['zoom'],
                 0, 1,
-                15, 3
+                15, 3,
+                20, 1
               ],
               'heatmap-color': [
                 'interpolate',
@@ -126,15 +127,57 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
                 ['linear'],
                 ['zoom'],
                 0, 2,
-                15, 20
+                10, 15,
+                15, 25,
+                20, 30
               ],
               'heatmap-opacity': [
                 'interpolate',
                 ['linear'],
                 ['zoom'],
                 7, 1,
-                15, 0.8
+                13, 0.8,
+                15, 0.5,
+                18, 0.3,
+                20, 0.1
               ]
+            }
+          });
+
+          // Add circle layer for high zoom levels
+          map.current.addLayer({
+            id: 'activities-points',
+            type: 'circle',
+            source: 'activities',
+            minzoom: 13,
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                13, 3,
+                16, 5,
+                20, 8
+              ],
+              'circle-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'intensity'],
+                0, '#3b82f6',
+                0.5, '#f59e0b',
+                1, '#ef4444'
+              ],
+              'circle-opacity': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                13, 0,
+                15, 0.7,
+                20, 0.9
+              ],
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-opacity': 0.8
             }
           });
 
