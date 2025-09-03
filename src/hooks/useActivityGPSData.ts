@@ -14,7 +14,6 @@ export const useActivityGPSData = (activityId: string | null) => {
 
   useEffect(() => {
     if (!activityId) {
-      console.log('🔍 GPS DATA FETCH: No activityId provided');
       setGpsData(null);
       return;
     }
@@ -24,68 +23,27 @@ export const useActivityGPSData = (activityId: string | null) => {
       setError(null);
       
       try {
-        console.log('🔍 GPS DATA FETCH: Starting for activity ID:', activityId);
-        
-        // First, get the actual activity_id from all_activities table
-        const { data: activityData, error: activityError } = await supabase
-          .from('all_activities')
-          .select('activity_id, activity_source')
-          .eq('id', activityId)
-          .maybeSingle();
-
-        console.log('🔍 GPS DATA FETCH: Activity data:', activityData, 'Error:', activityError);
-
-        if (activityError) {
-          console.error('🔍 GPS DATA FETCH: Error fetching activity data:', activityError);
-          throw activityError;
-        }
-
-        if (!activityData?.activity_id) {
-          console.log('🔍 GPS DATA FETCH: No activity_id found for UUID:', activityId);
-          setGpsData(null);
-          return;
-        }
-
-        console.log('🔍 GPS DATA FETCH: Looking for coordinates with activity_id:', activityData.activity_id, 'from source:', activityData.activity_source);
-
-        // Now fetch GPS coordinates using the real activity_id
+        // Fetch GPS coordinates for specific activity
         const { data: coordinatesData, error: fetchError } = await supabase
           .from('activity_coordinates')
           .select('coordinates, starting_latitude, starting_longitude')
-          .eq('activity_id', activityData.activity_id)
+          .eq('activity_id', activityId)
           .not('coordinates', 'is', null)
-          .maybeSingle();
-
-        console.log('🔍 GPS DATA FETCH: Coordinates query result:', {
-          found: !!coordinatesData,
-          hasCoordinates: coordinatesData?.coordinates ? Array.isArray(coordinatesData.coordinates) : false,
-          coordinatesLength: coordinatesData?.coordinates ? coordinatesData.coordinates.length : 0,
-          error: fetchError
-        });
+          .single();
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') {
             // No GPS data found for this activity
-            console.log('🔍 GPS DATA FETCH: No GPS coordinates found in database');
             setGpsData(null);
           } else {
-            console.error('🔍 GPS DATA FETCH: Error fetching coordinates:', fetchError);
             throw fetchError;
           }
           return;
         }
 
-        if (coordinatesData && coordinatesData.coordinates) {
-          console.log('🔍 GPS DATA FETCH: Processing coordinates data');
+        if (coordinatesData) {
           const processedData = processGPSData([coordinatesData]);
-          console.log('🔍 GPS DATA FETCH: Processed data:', {
-            coordinatesCount: processedData.coordinates.length,
-            hasBounds: !!processedData.bounds
-          });
           setGpsData(processedData);
-        } else {
-          console.log('🔍 GPS DATA FETCH: No coordinates data to process');
-          setGpsData(null);
         }
 
       } catch (err: any) {
