@@ -3534,6 +3534,39 @@ export type Database = {
         }
         Relationships: []
       }
+      users_gas_model: {
+        Row: {
+          calendar_date: string
+          created_at: string
+          fatigue: number
+          fitness: number
+          id: string
+          performance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_date: string
+          created_at?: string
+          fatigue: number
+          fitness: number
+          id?: string
+          performance: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_date?: string
+          created_at?: string
+          fatigue?: number
+          fitness?: number
+          id?: string
+          performance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       variation_analysis: {
         Row: {
           activity_id: string
