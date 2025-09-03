@@ -23,6 +23,8 @@ export const useActivityGPSData = (activityId: string | null) => {
       setError(null);
       
       try {
+        console.log('🔍 GPS DATA FETCH: Starting for activity ID:', activityId);
+        
         // First, get the actual activity_id from all_activities table
         const { data: activityData, error: activityError } = await supabase
           .from('all_activities')
@@ -30,11 +32,14 @@ export const useActivityGPSData = (activityId: string | null) => {
           .eq('id', activityId)
           .single();
 
+        console.log('🔍 GPS DATA FETCH: Activity data:', activityData, 'Error:', activityError);
+
         if (activityError) {
           throw activityError;
         }
 
         if (!activityData?.activity_id) {
+          console.log('🔍 GPS DATA FETCH: No activity_id found');
           setGpsData(null);
           return;
         }
@@ -45,7 +50,9 @@ export const useActivityGPSData = (activityId: string | null) => {
           .select('coordinates, starting_latitude, starting_longitude')
           .eq('activity_id', activityData.activity_id)
           .not('coordinates', 'is', null)
-          .single();
+          .maybeSingle();
+
+        console.log('🔍 GPS DATA FETCH: Coordinates data:', coordinatesData ? 'Found' : 'Not found', 'Error:', fetchError);
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') {
