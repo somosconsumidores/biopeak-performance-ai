@@ -66,9 +66,45 @@ export const useAdminActions = () => {
     }
   };
 
+  const backfillGasModel = async (limit: number = 10) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-gas-model', {
+        body: { 
+          limit,
+          offset: 0,
+          concurrency: 2,
+          only_missing_today: true
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Backfill GAS Model",
+        description: `Processamento concluído: ${data?.users_scanned || 0} usuários escaneados, ${data?.users_updated || 0} atualizados, ${data?.errors || 0} erros`,
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error in backfill GAS model:', error);
+      toast({
+        title: "Erro no Backfill",
+        description: "Falha ao processar modelo GAS",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     renewExpiredTokens,
     backfillActivityCharts,
+    backfillGasModel,
     loading
   };
 };

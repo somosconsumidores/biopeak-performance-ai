@@ -48,7 +48,7 @@ interface TopUser {
 }
 
 export const AdminPanel = () => {
-  const { renewExpiredTokens, backfillActivityCharts, loading } = useAdminActions();
+  const { renewExpiredTokens, backfillActivityCharts, backfillGasModel, loading } = useAdminActions();
   const { toast } = useToast();
   const [reprocessingVO2Max, setReprocessingVO2Max] = useState(false);
   const [reprocessingGarminDetails, setReprocessingGarminDetails] = useState(false);
@@ -703,6 +703,53 @@ export const AdminPanel = () => {
                     </>
                   )}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* GAS Model Backfill */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Backfill Modelo GAS
+              </CardTitle>
+              <CardDescription>
+                Processar modelo GAS (Fitness/Fadiga/Performance) para usuários
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Processar 10 Usuários</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Calcula e atualiza o modelo GAS para até 10 usuários com atividades recentes.
+                  </p>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        await backfillGasModel(10);
+                        await fetchStats();
+                      } catch (error) {
+                        console.error('GAS backfill error:', error);
+                      }
+                    }}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="h-4 w-4 mr-2" />
+                        Processar 10 Usuários (GAS Model)
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
