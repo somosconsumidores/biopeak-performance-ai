@@ -25,39 +25,65 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
   useEffect(() => {
     // Try to get Mapbox token from Supabase edge function first
     const getMapboxToken = async () => {
+      console.log('🔍 MAPBOX TOKEN: Starting to fetch token from Supabase edge function');
       try {
         const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         
+        console.log('🔍 MAPBOX TOKEN: Edge function response:', { data: !!data, error });
+        
         if (error) {
-          console.log('Mapbox token not available from Supabase, showing input');
+          console.log('🔍 MAPBOX TOKEN: Error from edge function, showing token input');
           setShowTokenInput(true);
+          setTokenError('Token não configurado no servidor');
           return;
         }
         
         if (data?.token) {
+          console.log('🔍 MAPBOX TOKEN: Token received successfully');
           setMapboxToken(data.token);
           return;
         }
+        
+        console.log('🔍 MAPBOX TOKEN: No token in response');
       } catch (error) {
-        console.log('Error fetching Mapbox token from Supabase:', error);
+        console.error('🔍 MAPBOX TOKEN: Error fetching token:', error);
       }
+      
+      console.log('🔍 MAPBOX TOKEN: Fallback to manual input');
       setShowTokenInput(true);
+      setTokenError('Configure seu token Mapbox');
     };
 
     getMapboxToken();
   }, []);
 
   useEffect(() => {
-    if (!mapboxToken || !mapContainer.current || !data?.coordinates.length) return;
+    if (!mapboxToken || !mapContainer.current || !data?.coordinates.length) {
+      console.log('🔍 MAPBOX MAP: Skipping map initialization:', {
+        hasToken: !!mapboxToken,
+        hasContainer: !!mapContainer.current,
+        hasData: !!data?.coordinates.length,
+        coordinatesCount: data?.coordinates?.length || 0
+      });
+      return;
+    }
+
+    console.log('🔍 MAPBOX MAP: Starting map initialization with data:', {
+      coordinatesCount: data.coordinates.length,
+      bounds: data.bounds
+    });
 
     const initializeMap = async () => {
       try {
+        console.log('🔍 MAPBOX MAP: Importing mapbox-gl');
         // Dynamically import mapbox-gl
         const mapboxgl = await import('mapbox-gl');
         
+        console.log('🔍 MAPBOX MAP: Setting access token');
         mapboxgl.default.accessToken = mapboxToken;
 
+        console.log('🔍 MAPBOX MAP: Creating new map');
         // Initialize map
         map.current = new mapboxgl.default.Map({
           container: mapContainer.current!,
@@ -71,6 +97,7 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
         });
 
         map.current.on('load', () => {
+          console.log('🔍 MAPBOX MAP: Map loaded, adding sources and layers');
           // Add heatmap layer
           map.current.addSource('activities', {
             type: 'geojson',
@@ -88,6 +115,8 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
               }))
             }
           });
+
+          console.log('🔍 MAPBOX MAP: Added data source');
 
           // Add heatmap layer
           map.current.addLayer({
@@ -144,6 +173,8 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
             }
           });
 
+          console.log('🔍 MAPBOX MAP: Added heatmap layer');
+
           // Add circle layer for high zoom levels
           map.current.addLayer({
             id: 'activities-points',
@@ -181,6 +212,8 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
             }
           });
 
+          console.log('🔍 MAPBOX MAP: Added circle layer');
+
           // Fit map to bounds with padding
           const bounds = new mapboxgl.default.LngLatBounds(
             [data.bounds[0][1], data.bounds[0][0]], // sw
@@ -190,10 +223,12 @@ export const GPSHeatmap = ({ data }: GPSHeatmapProps) => {
           map.current.fitBounds(bounds, {
             padding: 20
           });
+
+          console.log('🔍 MAPBOX MAP: Map fully initialized and fitted to bounds');
         });
 
       } catch (error) {
-        console.error('Error initializing map:', error);
+        console.error('🔍 MAPBOX MAP: Error initializing map:', error);
         setTokenError('Erro ao carregar o mapa. Verifique se o token do Mapbox está correto.');
       }
     };
