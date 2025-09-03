@@ -47,6 +47,8 @@ import { WorkoutClassificationBadge } from '@/components/WorkoutClassificationBa
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PremiumButton } from '@/components/PremiumButton';
+import { useActivityGPSData } from '@/hooks/useActivityGPSData';
+import { GPSHeatmap } from '@/components/GPSHeatmap';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -89,6 +91,9 @@ export const WorkoutSession = () => {
   
   // Get workout classification
   const { classification, loading: classificationLoading } = useWorkoutClassification(currentActivity?.activity_id || null);
+
+  // Get GPS data for heatmap
+  const { gpsData, loading: gpsLoading } = useActivityGPSData(currentActivity?.activity_id || null);
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -337,6 +342,30 @@ export const WorkoutSession = () => {
                     <div className="text-xs sm:text-sm text-muted-foreground">Elevação</div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+
+          {/* GPS Heatmap */}
+          <ScrollReveal delay={130}>
+            <Card className="glass-card border-glass-border mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  <span>Mapa de Calor da Atividade</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {gpsLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Carregando dados GPS...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <GPSHeatmap data={gpsData} />
+                )}
               </CardContent>
             </Card>
           </ScrollReveal>
