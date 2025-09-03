@@ -67,10 +67,16 @@ function processGPSData(coordinatesData: any[]): GPSData {
   coordinatesData.forEach(item => {
     if (item.coordinates && Array.isArray(item.coordinates)) {
       item.coordinates.forEach((coord: any) => {
-        // Coordinates are stored as arrays [lat, lng]
+        // Handle both array format [lat, lng] (Garmin) and object format {lat, lon} (Strava)
         if (Array.isArray(coord) && coord.length === 2 && 
             typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          // Garmin format: [lat, lng]
           allCoordinates.push([coord[0], coord[1]]);
+          intensity.push(Math.random()); // Mock intensity - could be based on pace/HR
+        } else if (coord && typeof coord === 'object' && 
+                   typeof coord.lat === 'number' && typeof coord.lon === 'number') {
+          // Strava format: {lat, lon}
+          allCoordinates.push([coord.lat, coord.lon]);
           intensity.push(Math.random()); // Mock intensity - could be based on pace/HR
         }
       });
