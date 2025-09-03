@@ -120,27 +120,15 @@ Deno.serve(async (req) => {
       await Promise.all(
         slice.map(async (uid) => {
           try {
-            // Chama a função de cálculo (usa service role para acessar RLS com segurança)
-            const resp = await fetch(
-              `${SUPABASE_URL}/functions/v1/calculate-gas-model`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-                },
-                body: JSON.stringify({ user_id: uid, date: todayStr, days_lookback }),
-              }
-            );
-
-            if (!resp.ok) {
-              const txt = await resp.text().catch(() => resp.statusText);
+            // Chama a função de cálculo usando Supabase client (sem fetch direto)
+            const { data: result, error: invErr } = await admin.functions.invoke('calculate-gas-model', {
+              body: { user_id: uid, date: todayStr, days_lookback },
+            });
+            if (invErr || !result) {
               usersFailed += 1;
-              errors.push({ user_id: uid, error: `HTTP ${resp.status}: ${txt}` });
+              errors.push({ user_id: uid, error: invErr?.message || 'Invocation failed' });
               return;
             }
-
-            const result = await resp.json().catch(() => null);
             const fitness = result?.fitness;
             const fatigue = result?.fatigue;
             const performance = result?.performance;
