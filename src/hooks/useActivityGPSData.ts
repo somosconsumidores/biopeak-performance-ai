@@ -23,11 +23,27 @@ export const useActivityGPSData = (activityId: string | null) => {
       setError(null);
       
       try {
-        // Fetch GPS coordinates for specific activity
+        // First, get the actual activity_id from all_activities table
+        const { data: activityData, error: activityError } = await supabase
+          .from('all_activities')
+          .select('activity_id, activity_source')
+          .eq('id', activityId)
+          .single();
+
+        if (activityError) {
+          throw activityError;
+        }
+
+        if (!activityData?.activity_id) {
+          setGpsData(null);
+          return;
+        }
+
+        // Now fetch GPS coordinates using the real activity_id
         const { data: coordinatesData, error: fetchError } = await supabase
           .from('activity_coordinates')
           .select('coordinates, starting_latitude, starting_longitude')
-          .eq('activity_id', activityId)
+          .eq('activity_id', activityData.activity_id)
           .not('coordinates', 'is', null)
           .single();
 
