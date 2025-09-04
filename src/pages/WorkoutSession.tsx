@@ -47,8 +47,8 @@ import { WorkoutClassificationBadge } from '@/components/WorkoutClassificationBa
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PremiumButton } from '@/components/PremiumButton';
-import { useActivityGPSData } from '@/hooks/useActivityGPSData';
-import { GPSHeatmap } from '@/components/GPSHeatmap';
+import { useActivityPaceData } from '@/hooks/useActivityPaceData';
+import { PaceHeatmap } from '@/components/PaceHeatmap';
 import { WorkoutAIAnalysisDialog } from '@/components/WorkoutAIAnalysisDialog';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
@@ -94,8 +94,8 @@ export const WorkoutSession = () => {
   // Get workout classification
   const { classification, loading: classificationLoading } = useWorkoutClassification(currentActivity?.activity_id || null);
 
-  // Get GPS data for heatmap
-  const { gpsData, loading: gpsLoading } = useActivityGPSData(currentActivity?.activity_id || null);
+  // Get pace data for heatmap
+  const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null);
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -354,24 +354,30 @@ export const WorkoutSession = () => {
           </ScrollReveal>
 
           {/* GPS Heatmap */}
-          <ScrollReveal delay={130}>
+          <ScrollReveal>
             <Card className="glass-card border-glass-border mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <span>Mapa de Calor da Atividade</span>
+                  <Zap className="h-5 w-5 text-primary" />
+                  <span>Mapa de Pace da Atividade</span>
                 </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualize seu ritmo ao longo da rota. Verde = mais rápido, Vermelho = mais lento
+                </p>
               </CardHeader>
               <CardContent>
-                {gpsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
+                {paceLoading ? (
+                  <div className="h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p className="text-muted-foreground">Carregando dados GPS...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                      <p className="text-muted-foreground">Carregando dados de pace...</p>
                     </div>
                   </div>
                 ) : (
-                  <GPSHeatmap data={gpsData} />
+                  <PaceHeatmap 
+                    data={paceData} 
+                    activityTitle={getActivityType(currentActivity?.activity_type) || 'Atividade'}
+                  />
                 )}
               </CardContent>
             </Card>
