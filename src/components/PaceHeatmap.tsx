@@ -62,53 +62,60 @@ export const PaceHeatmap = ({ data, activityTitle }: PaceHeatmapProps) => {
     getMapboxToken();
   }, []);
 
-  // Generate pace legend based on data
+  // Generate pace legend based on percentile data
   useEffect(() => {
     if (!data?.length) return;
 
     const paces = data.map(p => p.pace_min_per_km).filter(p => p > 0).sort((a, b) => a - b);
     if (paces.length === 0) return;
 
-    const minPace = paces[0];
-    const maxPace = paces[paces.length - 1];
-    const range = maxPace - minPace;
+    // Calculate percentile thresholds
+    const getPercentile = (percentile: number) => {
+      const index = Math.ceil((percentile / 100) * paces.length) - 1;
+      return paces[Math.max(0, Math.min(index, paces.length - 1))];
+    };
 
-    // Create 5 pace zones
+    const p10 = getPercentile(10);  // 10th percentile
+    const p36 = getPercentile(36);  // 36th percentile  
+    const p65 = getPercentile(65);  // 65th percentile
+    const p89 = getPercentile(89);  // 89th percentile
+
+    // Create 5 pace zones based on percentiles
     const legendItems: PaceLegendItem[] = [
       {
-        range: `${minPace.toFixed(1)} - ${(minPace + range * 0.2).toFixed(1)}`,
-        color: '#22c55e', // green - fastest
-        minPace: minPace,
-        maxPace: minPace + range * 0.2,
-        description: 'Ritmo muito rápido'
+        range: `${paces[0].toFixed(1)} - ${p10.toFixed(1)}`,
+        color: '#22c55e', // green - fastest (0-10th percentile)
+        minPace: paces[0],
+        maxPace: p10,
+        description: 'Ritmo muito rápido (10% mais rápido)'
       },
       {
-        range: `${(minPace + range * 0.2).toFixed(1)} - ${(minPace + range * 0.4).toFixed(1)}`,
-        color: '#84cc16', // lime - fast
-        minPace: minPace + range * 0.2,
-        maxPace: minPace + range * 0.4,
-        description: 'Ritmo rápido'
+        range: `${p10.toFixed(1)} - ${p36.toFixed(1)}`,
+        color: '#84cc16', // lime - fast (10-36th percentile)
+        minPace: p10,
+        maxPace: p36,
+        description: 'Ritmo rápido (11-36%)'
       },
       {
-        range: `${(minPace + range * 0.4).toFixed(1)} - ${(minPace + range * 0.6).toFixed(1)}`,
-        color: '#eab308', // yellow - moderate
-        minPace: minPace + range * 0.4,
-        maxPace: minPace + range * 0.6,
-        description: 'Ritmo moderado'
+        range: `${p36.toFixed(1)} - ${p65.toFixed(1)}`,
+        color: '#eab308', // yellow - moderate (36-65th percentile)
+        minPace: p36,
+        maxPace: p65,
+        description: 'Ritmo moderado (37-65%)'
       },
       {
-        range: `${(minPace + range * 0.6).toFixed(1)} - ${(minPace + range * 0.8).toFixed(1)}`,
-        color: '#f97316', // orange - slow
-        minPace: minPace + range * 0.6,
-        maxPace: minPace + range * 0.8,
-        description: 'Ritmo lento'
+        range: `${p65.toFixed(1)} - ${p89.toFixed(1)}`,
+        color: '#f97316', // orange - slow (65-89th percentile)
+        minPace: p65,
+        maxPace: p89,
+        description: 'Ritmo lento (66-89%)'
       },
       {
-        range: `${(minPace + range * 0.8).toFixed(1)} - ${maxPace.toFixed(1)}`,
-        color: '#ef4444', // red - slowest
-        minPace: minPace + range * 0.8,
-        maxPace: maxPace,
-        description: 'Ritmo muito lento'
+        range: `${p89.toFixed(1)} - ${paces[paces.length - 1].toFixed(1)}`,
+        color: '#ef4444', // red - slowest (89-100th percentile)
+        minPace: p89,
+        maxPace: paces[paces.length - 1],
+        description: 'Ritmo muito lento (10% mais lento)'
       }
     ];
 
