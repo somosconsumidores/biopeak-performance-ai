@@ -1,7 +1,6 @@
 
-import { SharePaceHeatmap } from './SharePaceHeatmap';
-import { Clock, Route, Activity, Heart } from 'lucide-react';
-import { useActivityPaceData } from '@/hooks/useActivityPaceData';
+import { Zap, Gauge, Heart, TrendingUp } from 'lucide-react';
+import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -22,7 +21,7 @@ interface WorkoutShareImageProps {
 export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
-  const { paceData } = useActivityPaceData(activityId);
+  const { metrics, loading } = usePerformanceMetrics(activityId);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -86,44 +85,150 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Map container com overlays de Pace e FC */}
+      {/* Performance Cards Container */}
       <div 
-        className="absolute overflow-hidden rounded-3xl"
+        className="absolute"
         style={{ 
           top: '350px',
           left: '90px', 
           width: '900px',
-          height: '600px',
-          background: 'rgba(255,255,255,0.95)',
+          height: '600px'
         }}
       >
-        {/* Map */}
-        {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
-          <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            <SharePaceHeatmap 
-              data={paceData}
-            />
-            
-            {/* Pace Médio Overlay */}
+        {metrics && !loading ? (
+          <div className="grid grid-cols-2 gap-8 h-full">
+            {/* Eficiência */}
             <div 
-              className="absolute top-6 left-6 text-white font-bold text-4xl"
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+              className="rounded-3xl p-8 flex flex-col justify-between"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(249, 115, 22, 0.2))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
             >
-              Pace Médio
+              <div className="flex items-center justify-between mb-6">
+                <div 
+                  className="p-4 rounded-2xl"
+                  style={{ backgroundColor: 'rgba(251, 191, 36, 0.3)' }}
+                >
+                  <Zap className="h-12 w-12 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-5xl font-bold text-white">
+                    {metrics.efficiency.distancePerMinute != null 
+                      ? `${metrics.efficiency.distancePerMinute.toFixed(2)}`
+                      : '--'}
+                  </div>
+                  <div className="text-2xl font-medium text-white/80">km/min</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-white mb-2">Eficiência</h3>
+                <p className="text-xl text-white/80 line-clamp-3">{metrics.efficiency.comment}</p>
+              </div>
             </div>
-            
-            {/* FC Média Overlay */}
+
+            {/* Ritmo & Velocidade */}
             <div 
-              className="absolute top-6 right-6 text-white font-bold text-4xl"
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+              className="rounded-3xl p-8 flex flex-col justify-between"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
             >
-              FC Média
+              <div className="flex items-center justify-between mb-6">
+                <div 
+                  className="p-4 rounded-2xl"
+                  style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)' }}
+                >
+                  <Gauge className="h-12 w-12 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-5xl font-bold text-white">
+                    {metrics.pace.averageSpeedKmh != null
+                      ? `${metrics.pace.averageSpeedKmh.toFixed(1)}`
+                      : '--'}
+                  </div>
+                  <div className="text-2xl font-medium text-white/80">km/h</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-white mb-2">Ritmo & Velocidade</h3>
+                <p className="text-xl text-white/80 line-clamp-3">{metrics.pace.comment}</p>
+              </div>
+            </div>
+
+            {/* Frequência Cardíaca */}
+            <div 
+              className="rounded-3xl p-8 flex flex-col justify-between"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.2), rgba(236, 72, 153, 0.2))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div 
+                  className="p-4 rounded-2xl"
+                  style={{ backgroundColor: 'rgba(248, 113, 113, 0.3)' }}
+                >
+                  <Heart className="h-12 w-12 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-5xl font-bold text-white">
+                    {metrics.heartRate.averageHr != null
+                      ? `${Math.round(metrics.heartRate.averageHr)}`
+                      : '--'}
+                  </div>
+                  <div className="text-2xl font-medium text-white/80">bpm</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-white mb-2">Frequência Cardíaca</h3>
+                <p className="text-xl text-white/80 line-clamp-3">{metrics.heartRate.comment}</p>
+              </div>
+            </div>
+
+            {/* Distribuição do Esforço */}
+            <div 
+              className="rounded-3xl p-8 flex flex-col justify-between"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(168, 85, 247, 0.2))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div 
+                  className="p-4 rounded-2xl"
+                  style={{ backgroundColor: 'rgba(34, 197, 94, 0.3)' }}
+                >
+                  <TrendingUp className="h-12 w-12 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-5xl font-bold text-white">
+                    {metrics.effortDistribution.middle != null
+                      ? `${Math.round(metrics.effortDistribution.middle)}`
+                      : '--'}
+                  </div>
+                  <div className="text-2xl font-medium text-white/80">médio</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-white mb-2">Distribuição do Esforço</h3>
+                <p className="text-xl text-white/80 line-clamp-3">{metrics.effortDistribution.comment}</p>
+              </div>
             </div>
           </div>
-        )}
-        {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
-          <div className="w-full h-full flex items-center justify-center text-gray-500 text-6xl">
-            Mapa não disponível
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div 
+              className="text-white font-bold text-4xl text-center"
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              {loading ? 'Carregando métricas...' : 'Métricas não disponíveis'}
+            </div>
           </div>
         )}
       </div>
