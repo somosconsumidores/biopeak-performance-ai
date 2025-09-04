@@ -188,10 +188,10 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       {/* Classificação da atividade */}
       <div className="absolute bottom-280 left-0 right-0 text-center">
         <div 
-          className="text-white font-black text-5xl"
+          className="text-white font-black text-9xl"
           style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
         >
-          {workoutData.activity_type || 'Atividade'}
+          {formatWorkoutType(classification?.detected_workout_type)}
         </div>
       </div>
     </div>
