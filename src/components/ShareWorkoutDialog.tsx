@@ -42,6 +42,7 @@ interface ShareWorkoutDialogProps {
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
   
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
@@ -60,11 +61,27 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
   // Share handlers with image generation
   const handleImageShare = async (platform: string) => {
+    if (!mapLoaded && paceData?.length) {
+      toast({
+        title: "Aguarde",
+        description: "O mapa ainda está carregando. Tente novamente em alguns segundos.",
+        variant: "default",
+      });
+      return;
+    }
+
     setShareAnimationActive(true);
     setIsGeneratingImage(true);
     
     try {
-      await shareWorkoutImage(platform, workoutData);
+      await shareWorkoutImage(platform, {
+        ...workoutData,
+        id: activityId,
+        coordinates: paceData?.map(p => ({
+          latitude: p.coordinates[0],
+          longitude: p.coordinates[1]
+        })) || []
+      });
     } finally {
       setShareAnimationActive(false);
       setIsGeneratingImage(false);
@@ -116,14 +133,17 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <WorkoutShareImage workoutData={{
-              ...workoutData,
-              id: activityId,
-              coordinates: paceData?.map(p => ({
-                latitude: p.coordinates[0],
-                longitude: p.coordinates[1]
-              })) || []
-            }} />
+            <WorkoutShareImage 
+              workoutData={{
+                ...workoutData,
+                id: activityId,
+                coordinates: paceData?.map(p => ({
+                  latitude: p.coordinates[0],
+                  longitude: p.coordinates[1]
+                })) || []
+              }}
+              onMapLoaded={() => setMapLoaded(true)}
+            />
           </div>
 
           {/* Social Media Buttons */}

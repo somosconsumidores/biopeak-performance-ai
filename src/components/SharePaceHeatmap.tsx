@@ -9,9 +9,10 @@ interface PacePoint {
 
 interface SharePaceHeatmapProps {
   data?: PacePoint[] | null;
+  onMapLoaded?: () => void;
 }
 
-export const SharePaceHeatmap = ({ data }: SharePaceHeatmapProps) => {
+export const SharePaceHeatmap = ({ data, onMapLoaded }: SharePaceHeatmapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -87,7 +88,9 @@ export const SharePaceHeatmap = ({ data }: SharePaceHeatmapProps) => {
           ],
           zoom: 13,
           pitch: 0,
-          interactive: false // Disable interaction for sharing
+          interactive: false, // Disable interaction for sharing
+          preserveDrawingBuffer: true, // Important for canvas capture
+          antialias: false // Disable for better capture compatibility
         });
 
         map.current.on('load', () => {
@@ -243,6 +246,11 @@ export const SharePaceHeatmap = ({ data }: SharePaceHeatmapProps) => {
           map.current.fitBounds(mapBounds, {
             padding: 50
           });
+
+          // Notify that map is fully loaded
+          setTimeout(() => {
+            onMapLoaded?.();
+          }, 1000);
         });
 
       } catch (error) {

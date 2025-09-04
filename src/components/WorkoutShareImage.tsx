@@ -3,6 +3,7 @@ import { SharePaceHeatmap } from './SharePaceHeatmap';
 import { Clock, Route, Activity, Heart } from 'lucide-react';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
+import { useState, useCallback } from 'react';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -18,13 +19,20 @@ interface WorkoutShareImageProps {
     start_time_in_seconds: number | null;
     coordinates?: Array<{ latitude: number; longitude: number }>;
   };
+  onMapLoaded?: () => void;
 }
 
-export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
+export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImageProps) => {
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
   const { classification } = useWorkoutClassification(activityId);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  const handleMapLoaded = useCallback(() => {
+    setMapLoaded(true);
+    onMapLoaded?.();
+  }, [onMapLoaded]);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -101,6 +109,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             <SharePaceHeatmap 
               data={paceData}
+              onMapLoaded={handleMapLoaded}
             />
           </div>
         )}

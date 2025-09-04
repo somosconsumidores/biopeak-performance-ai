@@ -16,14 +16,36 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
-      // Aguardar um pouco mais para garantir que o mapa carregue completamente
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Aguardar mais tempo para garantir que o mapa WebGL carregue completamente
+      await new Promise(resolve => setTimeout(resolve, 4000));
       
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
-        scale: 1, // Ajustado para o tamanho do Instagram Stories
+        scale: 1,
         useCORS: true,
         allowTaint: true,
+        foreignObjectRendering: true,
+        ignoreElements: (element) => {
+          // Don't ignore canvas elements - we want to capture them
+          return false;
+        },
+        onclone: (clonedDoc, element) => {
+          // Ensure canvas elements are properly handled
+          const canvases = element.querySelectorAll('canvas');
+          canvases.forEach((canvas, index) => {
+            const clonedCanvas = clonedDoc.querySelectorAll('canvas')[index];
+            if (clonedCanvas && canvas) {
+              const ctx = clonedCanvas.getContext('2d');
+              if (ctx) {
+                try {
+                  ctx.drawImage(canvas, 0, 0);
+                } catch (e) {
+                  console.log('Canvas copy failed, using fallback');
+                }
+              }
+            }
+          });
+        },
         width: 1080,
         height: 1920,
         scrollX: 0,
