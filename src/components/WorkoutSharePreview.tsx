@@ -100,10 +100,10 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
   return (
     <div className="relative overflow-hidden">
       {/* Background with animated gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/20 animate-pulse" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-green-500/5 to-blue-600/20 animate-pulse" />
       
       {/* Main preview card */}
-      <div className="relative glass-card border-glass-border p-6 rounded-2xl overflow-hidden">
+      <div className="relative bg-white/95 border border-gray-200 p-6 rounded-2xl overflow-hidden shadow-lg">
         {/* Background Video */}
         <video
           autoPlay
@@ -117,7 +117,7 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         </video>
         
         {/* Overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-[2px] z-10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/60 to-white/80 backdrop-blur-[2px] z-10" />
         
         {/* Content layer */}
         <div className="relative z-20">
@@ -136,15 +136,15 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
               {getActivityEmoji(workoutData.activity_type)}
             </div>
             <div>
-              <h3 className="text-xl font-bold text-foreground">
+              <h3 className="text-xl font-bold text-gray-900">
                 {getActivityType(workoutData.activity_type)}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-gray-600">
                 Treino completado com sucesso
               </p>
             </div>
           </div>
-          <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
+          <Badge variant="default" className="bg-green-500/20 text-green-600 border-green-500/30">
             <Activity className="h-3 w-3 mr-1" />
             Concluído
           </Badge>
@@ -154,32 +154,32 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
-            <div className="text-sm sm:text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-gray-900">
               {formatDuration(workoutData.duration_in_seconds)}
             </div>
-            <div className="text-xs text-muted-foreground">Duração</div>
+            <div className="text-xs text-gray-600">Duração</div>
           </div>
           
           <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
-            <div className="text-sm sm:text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-gray-900">
               {formatDistance(workoutData.distance_in_meters)}
             </div>
-            <div className="text-xs text-muted-foreground">Distância</div>
+            <div className="text-xs text-gray-600">Distância</div>
           </div>
           
           <div className="text-center space-y-1 sm:space-y-2">
             <div className="flex justify-center">
-              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
-            <div className="text-sm sm:text-lg font-bold text-foreground">
+            <div className="text-sm sm:text-lg font-bold text-gray-900">
               {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
             </div>
-            <div className="text-xs text-muted-foreground">Pace</div>
+            <div className="text-xs text-gray-600">Pace</div>
           </div>
         </div>
 
@@ -192,7 +192,7 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
             <div className="text-xs sm:text-sm font-semibold text-orange-400">
               {workoutData.active_kilocalories || '--'}
             </div>
-            <div className="text-xs text-muted-foreground">kcal</div>
+            <div className="text-xs text-gray-600">kcal</div>
           </div>
           
           <div className="text-center space-y-1">
@@ -202,7 +202,7 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
             <div className="text-xs sm:text-sm font-semibold text-red-400">
               {workoutData.average_heart_rate_in_beats_per_minute || '--'}
             </div>
-            <div className="text-xs text-muted-foreground">bpm</div>
+            <div className="text-xs text-gray-600">bpm</div>
           </div>
           
           <div className="text-center space-y-1">
@@ -212,23 +212,23 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
             <div className="text-xs sm:text-sm font-semibold text-blue-400">
               {formatElevation(workoutData.total_elevation_gain_in_meters)}
             </div>
-            <div className="text-xs text-muted-foreground">elevação</div>
+            <div className="text-xs text-gray-600">elevação</div>
           </div>
         </div>
 
         {/* Mapa de Calor do Pace */}
-        <div className="mt-6 pt-4 border-t border-glass-border">
-          <h4 className="text-sm font-semibold text-center mb-3 text-foreground">
+        <div className="mt-6 pt-4 border-t border-gray-300">
+          <h4 className="text-sm font-semibold text-center mb-3 text-gray-900">
             Mapa de Calor do Pace
           </h4>
-          <div className="h-48 rounded-lg overflow-hidden border border-glass-border bg-muted/20">
+          <div className="h-48 rounded-lg overflow-hidden border border-gray-300 bg-gray-50">
             {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData ? (
               <PaceHeatmap 
                 data={paceData}
                 activityTitle={getActivityType(workoutData.activity_type)}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+              <div className="w-full h-full flex items-center justify-center text-gray-600 text-sm">
                 {!workoutData.id ? 'ID da atividade não disponível' :
                  !workoutData.coordinates || workoutData.coordinates.length === 0 ? 'Coordenadas GPS não disponíveis' :
                  !paceData ? 'Dados de pace não carregados' :
@@ -239,16 +239,16 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         </div>
 
         {/* Performance tagline */}
-        <div className="mt-6 pt-4 border-t border-glass-border text-center">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-6 pt-4 border-t border-gray-300 text-center">
+          <p className="text-xs text-gray-600">
             ✨ Análise inteligente de performance
           </p>
         </div>
 
         {/* Floating particles effect */}
-        <div className="absolute top-4 right-4 w-2 h-2 bg-primary/40 rounded-full animate-ping" />
-        <div className="absolute bottom-4 left-4 w-1 h-1 bg-accent/40 rounded-full animate-pulse" />
-        <div className="absolute top-1/2 right-8 w-1.5 h-1.5 bg-primary/30 rounded-full animate-bounce" />
+        <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500/40 rounded-full animate-ping" />
+        <div className="absolute bottom-4 left-4 w-1 h-1 bg-green-500/40 rounded-full animate-pulse" />
+        <div className="absolute top-1/2 right-8 w-1.5 h-1.5 bg-blue-600/30 rounded-full animate-bounce" />
         </div>
       </div>
     </div>

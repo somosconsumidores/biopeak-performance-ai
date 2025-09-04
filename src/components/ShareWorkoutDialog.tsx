@@ -77,21 +77,23 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="static-dialog w-[95vw] max-w-2xl max-h-[95vh] p-0 overflow-y-auto">
+      <DialogContent className="light static-dialog w-[100vw] sm:w-[95vw] max-w-2xl h-[100vh] sm:max-h-[95vh] p-0 overflow-y-auto fixed inset-0 sm:inset-auto">
+        {/* Force light theme wrapper */}
+        <div className="light bg-white text-gray-900 min-h-full">
         {/* Animated Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-green-500/20 animate-pulse" />
         
         {/* Header */}
-        <DialogHeader className="relative p-4 sm:p-6 pb-2 sm:pb-4 sticky top-0 bg-background/80 backdrop-blur-sm z-50">
+        <DialogHeader className="relative p-4 sm:p-6 pb-2 sm:pb-4 sticky top-0 bg-white/90 backdrop-blur-sm z-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <DialogTitle className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
               ✨ Compartilhe sua Conquista
             </DialogTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
-              className="hover:bg-muted/20 flex-shrink-0"
+              className="hover:bg-gray-100 flex-shrink-0 text-gray-600"
             >
               <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
@@ -126,8 +128,8 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Social Media Buttons */}
           <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-base sm:text-lg font-semibold text-center">Compartilhar Imagem do Treino</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground text-center">
+            <h3 className="text-base sm:text-lg font-semibold text-center text-gray-900">Compartilhar Imagem do Treino</h3>
+            <p className="text-xs sm:text-sm text-gray-600 text-center">
               Gere uma imagem personalizada com suas métricas para compartilhar
             </p>
             
@@ -202,11 +204,11 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
               variant="outline"
               onClick={() => handleImageShare('download')}
               disabled={isGeneratingImage}
-              className="glass-card border-glass-border hover:bg-glass-bg-hover group text-sm"
+              className="bg-white border border-gray-300 hover:bg-gray-50 group text-sm text-gray-900"
             >
               {isGeneratingImage ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
                   Gerando...
                 </>
               ) : (
@@ -221,15 +223,17 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Loading Message */}
           {shareAnimationActive && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-lg z-40">
-              <div className="glass-card border-glass-border p-4 sm:p-6 text-center animate-scale-in">
-                <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-primary animate-pulse" />
-                <p className="font-semibold text-sm sm:text-base">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-lg z-40">
+              <div className="bg-white/95 border border-gray-200 p-4 sm:p-6 text-center animate-scale-in rounded-lg shadow-lg">
+                <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-blue-600 animate-pulse" />
+                <p className="font-semibold text-sm sm:text-base text-gray-900">
                   {isGeneratingImage ? 'Gerando imagem...' : 'Processando...'}
                 </p>
               </div>
             </div>
           )}
+        </div>
+        {/* Close light theme wrapper */}
         </div>
       </DialogContent>
     </Dialog>

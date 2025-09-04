@@ -74,15 +74,19 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)'
       }}
     >
       {/* Header with logo and activity type */}
       <div className="absolute top-12 left-0 right-0 text-center px-16">
-        <div className="text-white font-bold text-7xl mb-4">
-          BioPeak
+        <div className="mb-8">
+          <img 
+            src="/lovable-uploads/b1bd9b87-afb9-479a-ab3c-563049af276a.png" 
+            alt="BioPeak Logo" 
+            className="w-48 h-48 mx-auto object-contain filter drop-shadow-lg"
+          />
         </div>
-        <div className="text-white/90 font-semibold text-5xl">
+        <div className="text-gray-600 font-semibold text-5xl">
           {workoutData.activity_type || 'Treino'}
         </div>
       </div>
@@ -95,7 +99,8 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
         height: '800px',
         borderRadius: '24px',
         overflow: 'hidden',
-        background: '#1e293b'
+        background: '#f1f5f9',
+        border: '2px solid #e2e8f0'
       }}>
         {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
           <div style={{ width: '100%', height: '100%' }}>
@@ -106,7 +111,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
           </div>
         )}
         {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
-          <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white/60 text-4xl">
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500 text-4xl">
             Mapa não disponível
           </div>
         )}
@@ -116,53 +121,53 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       <div className="absolute bottom-0 left-0 right-0 px-16 pb-16">
         <div className="grid grid-cols-2 gap-8">
           {/* Tempo */}
-          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+          <div className="text-center bg-white/80 backdrop-blur-sm rounded-3xl py-8 px-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-center mb-3">
-              <Clock className="w-10 h-10 text-blue-400 mr-3" />
+              <Clock className="w-10 h-10 text-blue-600 mr-3" />
             </div>
-            <div className="text-white font-bold text-6xl mb-2">
+            <div className="text-gray-900 font-bold text-6xl mb-2">
               {formatDuration(workoutData.duration_in_seconds)}
             </div>
-            <div className="text-white/80 font-medium text-3xl">
+            <div className="text-gray-600 font-medium text-3xl">
               Tempo
             </div>
           </div>
 
           {/* Distância */}
-          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+          <div className="text-center bg-white/80 backdrop-blur-sm rounded-3xl py-8 px-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-center mb-3">
-              <Route className="w-10 h-10 text-green-400 mr-3" />
+              <Route className="w-10 h-10 text-green-600 mr-3" />
             </div>
-            <div className="text-white font-bold text-6xl mb-2">
+            <div className="text-gray-900 font-bold text-6xl mb-2">
               {formatDistance(workoutData.distance_in_meters)}
             </div>
-            <div className="text-white/80 font-medium text-3xl">
+            <div className="text-gray-600 font-medium text-3xl">
               Distância
             </div>
           </div>
 
           {/* Pace Médio */}
-          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+          <div className="text-center bg-white/80 backdrop-blur-sm rounded-3xl py-8 px-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-center mb-3">
-              <Activity className="w-10 h-10 text-orange-400 mr-3" />
+              <Activity className="w-10 h-10 text-orange-600 mr-3" />
             </div>
-            <div className="text-white font-bold text-6xl mb-2">
+            <div className="text-gray-900 font-bold text-6xl mb-2">
               {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
             </div>
-            <div className="text-white/80 font-medium text-3xl">
+            <div className="text-gray-600 font-medium text-3xl">
               Pace Médio
             </div>
           </div>
 
           {/* FC Média */}
-          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+          <div className="text-center bg-white/80 backdrop-blur-sm rounded-3xl py-8 px-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-center mb-3">
-              <Heart className="w-10 h-10 text-red-400 mr-3" />
+              <Heart className="w-10 h-10 text-red-600 mr-3" />
             </div>
-            <div className="text-white font-bold text-6xl mb-2">
+            <div className="text-gray-900 font-bold text-6xl mb-2">
               {formatHeartRate(workoutData.average_heart_rate_in_beats_per_minute)}
             </div>
-            <div className="text-white/80 font-medium text-3xl">
+            <div className="text-gray-600 font-medium text-3xl">
               FC Média
             </div>
           </div>
@@ -170,7 +175,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
 
         {/* Footer */}
         <div className="text-center mt-8">
-          <div className="text-white/60 font-medium text-3xl">
+          <div className="text-gray-600 font-medium text-3xl">
             📱 Acompanhe seus treinos no BioPeak
           </div>
         </div>
