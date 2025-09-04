@@ -16,8 +16,8 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
-      // Aguardar mais tempo para garantir que o mapa WebGL carregue completamente
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      // Aguardar tempo para garantir que o mapa carregue completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',

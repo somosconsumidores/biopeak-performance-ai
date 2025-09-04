@@ -1,9 +1,9 @@
 
-import { SharePaceHeatmap } from './SharePaceHeatmap';
+import { PaceHeatmap } from './PaceHeatmap';
 import { Clock, Route, Activity, Heart } from 'lucide-react';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -19,20 +19,24 @@ interface WorkoutShareImageProps {
     start_time_in_seconds: number | null;
     coordinates?: Array<{ latitude: number; longitude: number }>;
   };
-  onMapLoaded?: () => void;
 }
 
-export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImageProps) => {
+export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
   const { classification } = useWorkoutClassification(activityId);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  const handleMapLoaded = useCallback(() => {
-    setMapLoaded(true);
-    onMapLoaded?.();
-  }, [onMapLoaded]);
+  // Notify map is loaded after a delay to ensure rendering
+  useEffect(() => {
+    if (paceData && workoutData.coordinates?.length) {
+      const timer = setTimeout(() => {
+        setMapLoaded(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [paceData, workoutData.coordinates]);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -64,7 +68,7 @@ export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImag
   };
 
   const formatWorkoutType = (type: string | null) => {
-    if (!type) return workoutData.activity_type || 'Atividade';
+    if (!type) return 'Atividade';
     
     const typeMap: { [key: string]: string } = {
       'long_run': 'Long Run',
@@ -75,9 +79,9 @@ export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImag
       'fartlek': 'Fartlek',
       'hill_training': 'Hill Training',
       'race': 'Race',
-      'running': 'Run',
+      'running': 'Corrida',
       'cycling': 'Bike',
-      'swimming': 'Swim'
+      'swimming': 'Natação'
     };
     
     return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
@@ -107,9 +111,9 @@ export const WorkoutShareImage = ({ workoutData, onMapLoaded }: WorkoutShareImag
         {/* Map */}
         {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            <SharePaceHeatmap 
+            <PaceHeatmap 
               data={paceData}
-              onMapLoaded={handleMapLoaded}
+              activityTitle={formatWorkoutType(workoutData.activity_type)}
             />
           </div>
         )}
