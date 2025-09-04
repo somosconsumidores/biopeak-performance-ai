@@ -457,13 +457,6 @@ export const PaceHeatmap = ({ data, activityTitle }: PaceHeatmapProps) => {
           className="h-96 rounded-lg border overflow-hidden bg-muted/20"
         />
         
-        {/* Interactive hint */}
-        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Navigation className="h-3 w-3" />
-            <span>Clique nos pontos para ver detalhes</span>
-          </div>
-        </div>
       </div>
 
       {/* Legend */}
