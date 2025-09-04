@@ -296,14 +296,14 @@ export const WorkoutSession = () => {
                 {/* Action Buttons - Stack on mobile, row on desktop */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
-                    variant="outline"
+                    variant="conversion"
                     size="sm"
                     onClick={() => setAiAnalysisDialogOpen(true)}
-                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:flex-1"
+                    className="touch-manipulation min-h-[44px] px-4 w-full sm:flex-1"
                   >
-                    <Sparkles className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    <Sparkles className="h-4 w-4 mr-2 transition-transform" />
                     <span className="text-sm sm:text-base">Análise com IA</span>
-                    <Crown className="h-3 w-3 ml-2 text-yellow-500" />
+                    <Crown className="h-3 w-3 ml-2 text-white/90" />
                   </Button>
                   <Button
                     variant="outline"
