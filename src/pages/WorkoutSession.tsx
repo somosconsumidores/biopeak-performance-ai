@@ -317,16 +317,6 @@ export const WorkoutSession = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Workout Classification Section */}
-                {classification && (
-                  <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20">
-                    <WorkoutClassificationBadge 
-                      classification={classification} 
-                      variant="detailed"
-                    />
-                  </div>
-                )}
-                
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
                   <div className="text-center">
                     <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
