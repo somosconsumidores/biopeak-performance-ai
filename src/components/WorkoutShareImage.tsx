@@ -103,22 +103,6 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
             <SharePaceHeatmap 
               data={paceData}
             />
-            
-            {/* Pace Médio Overlay */}
-            <div 
-              className="absolute top-6 left-6 text-white font-bold text-4xl"
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
-            >
-              Pace Médio
-            </div>
-            
-            {/* FC Média Overlay */}
-            <div 
-              className="absolute top-6 right-6 text-white font-bold text-4xl"
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
-            >
-              FC Média
-            </div>
           </div>
         )}
         {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
