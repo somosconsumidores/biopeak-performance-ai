@@ -21,6 +21,15 @@ interface WorkoutShareImageProps {
 export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   const { paceData } = useActivityPaceData(workoutData.id || '');
   
+  // Debug log
+  console.log('🔍 WORKOUT SHARE IMAGE:', {
+    workoutId: workoutData.id,
+    hasCoordinates: workoutData.coordinates && workoutData.coordinates.length > 0,
+    hasPaceData: !!paceData,
+    coordinatesLength: workoutData.coordinates?.length || 0,
+    paceDataLength: paceData?.length || 0
+  });
+  
   // Helper functions
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '--:--';

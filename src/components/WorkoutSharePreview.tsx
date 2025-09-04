@@ -1,4 +1,6 @@
 import { Badge } from '@/components/ui/badge';
+import { PaceHeatmap } from './PaceHeatmap';
+import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { 
   Clock, 
   MapPin, 
@@ -11,6 +13,7 @@ import {
 
 interface WorkoutSharePreviewProps {
   workoutData: {
+    id?: string;
     activity_type: string | null;
     duration_in_seconds: number | null;
     distance_in_meters: number | null;
@@ -19,10 +22,22 @@ interface WorkoutSharePreviewProps {
     average_heart_rate_in_beats_per_minute: number | null;
     total_elevation_gain_in_meters: number | null;
     start_time_in_seconds: number | null;
+    coordinates?: Array<{ latitude: number; longitude: number }>;
   };
 }
 
 export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) => {
+  const { paceData } = useActivityPaceData(workoutData.id || '');
+  
+  // Debug log
+  console.log('🔍 WORKOUT SHARE PREVIEW:', {
+    workoutId: workoutData.id,
+    hasCoordinates: workoutData.coordinates && workoutData.coordinates.length > 0,
+    hasPaceData: !!paceData,
+    coordinatesLength: workoutData.coordinates?.length || 0,
+    paceDataLength: paceData?.length || 0
+  });
+  
   // Helper functions
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '--';
@@ -199,6 +214,21 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
             <div className="text-xs text-muted-foreground">elevação</div>
           </div>
         </div>
+
+        {/* Mapa de Calor do Pace */}
+        {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
+          <div className="mt-6 pt-4 border-t border-glass-border">
+            <h4 className="text-sm font-semibold text-center mb-3 text-foreground">
+              Mapa de Calor do Pace
+            </h4>
+            <div className="h-48 rounded-lg overflow-hidden border border-glass-border bg-muted/20">
+              <PaceHeatmap 
+                data={paceData}
+                activityTitle={getActivityType(workoutData.activity_type)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Performance tagline */}
         <div className="mt-6 pt-4 border-t border-glass-border text-center">
