@@ -90,13 +90,5 @@ export const WorkoutClassificationBadge: React.FC<WorkoutClassificationBadgeProp
     );
   }
 
-  return (
-    <Badge 
-      variant={getWorkoutTypeColor(classification.detected_workout_type)}
-      className="flex items-center space-x-1.5 px-2 py-1 text-xs font-medium"
-    >
-      {getWorkoutTypeIcon(classification.detected_workout_type)}
-      <span>{formatWorkoutType(classification.detected_workout_type)}</span>
-    </Badge>
-  );
+  return null;
 };
