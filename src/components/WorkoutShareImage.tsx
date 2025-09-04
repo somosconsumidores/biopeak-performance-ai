@@ -2,7 +2,6 @@
 import { SharePaceHeatmap } from './SharePaceHeatmap';
 import { Clock, Route, Activity, Heart } from 'lucide-react';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
-import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -24,7 +23,6 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
-  const { classification } = useWorkoutClassification(activityId);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -55,8 +53,10 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
     return `${Math.round(bpm)} bpm`;
   };
 
-  const formatWorkoutType = (type: string | null) => {
-    if (!type) return workoutData.activity_type || 'Atividade';
+  const formatWorkoutType = () => {
+    // Priorizar activity_type da tabela all_activities
+    const type = workoutData.activity_type;
+    if (!type) return 'Atividade';
     
     const typeMap: { [key: string]: string } = {
       'long_run': 'Long Run',
@@ -67,9 +67,9 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       'fartlek': 'Fartlek',
       'hill_training': 'Hill Training',
       'race': 'Race',
-      'running': 'Run',
-      'cycling': 'Bike',
-      'swimming': 'Swim'
+      'running': 'Corrida',
+      'cycling': 'Ciclismo',
+      'swimming': 'Natação'
     };
     
     return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
@@ -188,10 +188,10 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       {/* Classificação da atividade */}
       <div className="absolute bottom-280 left-0 right-0 text-center">
         <div 
-          className="text-white font-black text-9xl"
+          className="text-white font-black text-6xl"
           style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
         >
-          {formatWorkoutType(classification?.detected_workout_type)}
+          {formatWorkoutType()}
         </div>
       </div>
     </div>
