@@ -585,41 +585,6 @@ export const WorkoutSession = () => {
             </ScrollReveal>
           </div>
 
-
-          {/* Recovery Feedback */}
-          <ScrollReveal delay={700}>
-            <Card className="glass-card border-glass-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span>Feedback de Recuperação</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-400 mb-2">18-24h</div>
-                    <div className="text-sm text-muted-foreground">Tempo de Recuperação</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-400 mb-2">7-8h</div>
-                    <div className="text-sm text-muted-foreground">Sono Recomendado</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-400 mb-2">2.5L</div>
-                    <div className="text-sm text-muted-foreground">Hidratação Hoje</div>
-                  </div>
-                </div>
-                <div className="mt-6 p-4 bg-muted/10 rounded-lg">
-                  <p className="text-sm text-center">
-                    <span className="font-medium text-primary">Dica da IA:</span> Baseado na intensidade 
-                    deste treino, evite exercícios de alta intensidade pelos próximos 2 dias. 
-                    Foque em recuperação ativa com caminhadas leves.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </ScrollReveal>
         </div>
       </div>
 
