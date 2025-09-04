@@ -123,16 +123,11 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         <div className="relative z-20">
         {/* Logo Header */}
         <div className="flex justify-center mb-6">
-          <div className="flex items-center space-x-3 bg-gradient-to-r from-primary/10 to-accent/10 backdrop-blur-sm rounded-full px-4 py-2 border border-glass-border">
-            <img 
-              src="/lovable-uploads/a86de37b-65f7-4f6c-bf8b-80abd070a45e.png" 
-              alt="Logo" 
-              className="w-10 h-10 object-contain filter brightness-110 drop-shadow-lg"
-            />
-            <span className="text-lg font-bold bg-gradient-primary bg-clip-text text-transparent">
-              BioPeak
-            </span>
-          </div>
+          <img 
+            src="/lovable-uploads/b1bd9b87-afb9-479a-ab3c-563049af276a.png" 
+            alt="BioPeak Logo" 
+            className="w-32 h-32 object-contain filter drop-shadow-2xl"
+          />
         </div>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
