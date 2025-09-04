@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { SharePaceHeatmap } from './SharePaceHeatmap';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 
