@@ -81,7 +81,7 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundImage: 'url(/lovable-uploads/7bfb3157-f3f5-4190-bd97-ecd792dd786f.png)',
+        backgroundImage: 'url(/lovable-uploads/1ed6389b-5b8a-4bb6-906e-0b0878d361f2.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
