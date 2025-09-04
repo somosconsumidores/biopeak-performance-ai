@@ -23,7 +23,8 @@ import {
   AlertCircle,
   ChevronDown,
   Share2,
-  Sparkles
+  Sparkles,
+  Crown
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
@@ -299,6 +300,7 @@ export const WorkoutSession = () => {
                     >
                       <Sparkles className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
                       <span>Análise de seu treino com IA</span>
+                      <Crown className="h-3 w-3 ml-2 text-yellow-500" />
                     </Button>
                     <Button
                       variant="outline"

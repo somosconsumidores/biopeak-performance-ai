@@ -20,9 +20,13 @@ import {
   Target,
   AlertCircle,
   Sparkles,
-  Activity
+  Activity,
+  Crown,
+  Lock
 } from 'lucide-react';
 import { useWorkoutComparison, type ActivityComparison } from '@/hooks/useWorkoutComparison';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useNavigate } from 'react-router-dom';
 
 interface WorkoutAIAnalysisDialogProps {
   open: boolean;
@@ -36,12 +40,14 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
   activityId
 }) => {
   const { comparison, loading, error, analyzeWorkout } = useWorkoutComparison();
+  const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (open && activityId && !comparison && !loading) {
+    if (open && activityId && !comparison && !loading && !subscriptionLoading && isSubscribed) {
       analyzeWorkout(activityId);
     }
-  }, [open, activityId, comparison, loading, analyzeWorkout]);
+  }, [open, activityId, comparison, loading, subscriptionLoading, isSubscribed, analyzeWorkout]);
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return '--';
@@ -136,7 +142,69 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </DialogTitle>
         </DialogHeader>
 
-        {loading && (
+        {subscriptionLoading && (
+          <div className="py-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Verificando sua assinatura...</p>
+          </div>
+        )}
+
+        {!subscriptionLoading && !isSubscribed && (
+          <Card className="glass-card border-glass-border">
+            <CardContent className="py-12 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <Crown className="h-16 w-16 text-yellow-500" />
+                  <Lock className="h-6 w-6 text-muted-foreground absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
+                </div>
+              </div>
+              
+              <h3 className="text-2xl font-bold mb-3">Funcionalidade Premium</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                A análise de treino com IA é uma funcionalidade exclusiva para assinantes. 
+                Obtenha insights personalizados, comparações históricas e recomendações inteligentes para seus treinos.
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-center space-x-2 text-sm">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <span>Análise de performance com IA</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2 text-sm">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  <span>Comparações com histórico dos últimos 30 dias</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2 text-sm">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span>Recomendações personalizadas de treino</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2 text-sm">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span>Orientações de recovery inteligentes</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  onClick={() => navigate('/paywall')}
+                  className="min-w-[140px]"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Assinar Agora
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="min-w-[140px]"
+                >
+                  Fechar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!subscriptionLoading && isSubscribed && loading && (
           <div className="py-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Analisando seu treino com IA...</p>
@@ -146,7 +214,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </div>
         )}
 
-        {error && (
+        {!subscriptionLoading && isSubscribed && error && (
           <Card className="glass-card border-glass-border">
             <CardContent className="py-8 text-center">
               <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -162,7 +230,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </Card>
         )}
 
-        {comparison && (
+        {!subscriptionLoading && isSubscribed && comparison && (
           <div className="space-y-6">
             {/* Activity Overview */}
             <Card className="glass-card border-glass-border">
