@@ -9,9 +9,10 @@ interface PacePoint {
 
 interface SharePaceHeatmapProps {
   data?: PacePoint[] | null;
+  onMapReady?: () => void;
 }
 
-export const SharePaceHeatmap = ({ data }: SharePaceHeatmapProps) => {
+export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -243,6 +244,14 @@ export const SharePaceHeatmap = ({ data }: SharePaceHeatmapProps) => {
           map.current.fitBounds(mapBounds, {
             padding: 50
           });
+        });
+
+        // Notify when map is ready for capture
+        map.current.on('idle', () => {
+          if (onMapReady) {
+            // Small delay to ensure everything is fully rendered
+            setTimeout(() => onMapReady(), 500);
+          }
         });
 
       } catch (error) {

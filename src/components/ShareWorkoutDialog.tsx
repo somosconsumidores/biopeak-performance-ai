@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ interface ShareWorkoutDialogProps {
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
+  const { previewRef, shareWorkoutImage, onMapReady, resetMapReady } = useWorkoutImageShare();
   
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
@@ -59,6 +59,13 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   });
 
   // Share handlers with image generation
+  // Reset map ready state when dialog opens
+  useEffect(() => {
+    if (open) {
+      resetMapReady();
+    }
+  }, [open, resetMapReady]);
+
   const handleImageShare = async (platform: string) => {
     setShareAnimationActive(true);
     setIsGeneratingImage(true);
@@ -116,14 +123,17 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <WorkoutShareImage workoutData={{
-              ...workoutData,
-              id: activityId,
-              coordinates: paceData?.map(p => ({
-                latitude: p.coordinates[0],
-                longitude: p.coordinates[1]
-              })) || []
-            }} />
+            <WorkoutShareImage 
+              workoutData={{
+                ...workoutData,
+                id: activityId,
+                coordinates: paceData?.map(p => ({
+                  latitude: p.coordinates[0],
+                  longitude: p.coordinates[1]
+                })) || []
+              }} 
+              onMapReady={onMapReady}
+            />
           </div>
 
           {/* Social Media Buttons */}

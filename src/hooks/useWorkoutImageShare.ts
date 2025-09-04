@@ -4,6 +4,7 @@ import { toast } from '@/hooks/use-toast';
 
 export const useWorkoutImageShare = () => {
   const previewRef = useRef<HTMLDivElement>(null);
+  const mapReadyRef = useRef<boolean>(false);
 
   const generateWorkoutImage = useCallback(async (workoutData: any): Promise<Blob | null> => {
     if (!previewRef.current) {
@@ -16,8 +17,28 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
-      // Aguardar um pouco mais para garantir que o mapa carregue completamente
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Aguardar o mapa ficar pronto ou timeout de segurança
+      const mapReadyPromise = new Promise<void>((resolve) => {
+        if (mapReadyRef.current) {
+          resolve();
+          return;
+        }
+        
+        const checkMap = () => {
+          if (mapReadyRef.current) {
+            resolve();
+          } else {
+            setTimeout(checkMap, 100);
+          }
+        };
+        checkMap();
+      });
+
+      // Aguardar o mapa com timeout de segurança de 8 segundos
+      await Promise.race([
+        mapReadyPromise,
+        new Promise(resolve => setTimeout(resolve, 8000))
+      ]);
       
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
@@ -134,10 +155,20 @@ export const useWorkoutImageShare = () => {
     return names[platform] || platform;
   };
 
+  const onMapReady = useCallback(() => {
+    mapReadyRef.current = true;
+  }, []);
+
+  const resetMapReady = useCallback(() => {
+    mapReadyRef.current = false;
+  }, []);
+
   return {
     previewRef,
     generateWorkoutImage,
     shareWorkoutImage,
     downloadImage,
+    onMapReady,
+    resetMapReady,
   };
 };
