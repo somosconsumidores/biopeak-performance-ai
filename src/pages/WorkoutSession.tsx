@@ -49,6 +49,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { PremiumButton } from '@/components/PremiumButton';
 import { useActivityGPSData } from '@/hooks/useActivityGPSData';
 import { GPSHeatmap } from '@/components/GPSHeatmap';
+import { WorkoutAIAnalysisDialog } from '@/components/WorkoutAIAnalysisDialog';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -59,6 +60,7 @@ export const WorkoutSession = () => {
     searchParams.get('activityId')
   );
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [aiAnalysisDialogOpen, setAiAnalysisDialogOpen] = useState(false);
   const { isSubscribed } = useSubscription();
   
   const { activity: latestActivity, loading: latestLoading, error: latestError } = useLatestActivity();
@@ -288,15 +290,26 @@ export const WorkoutSession = () => {
                       />
                     )}
                   </CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShareDialogOpen(true)}
-                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
-                  >
-                    <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                    <span>Compartilhar</span>
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAiAnalysisDialogOpen(true)}
+                      className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
+                    >
+                      <Sparkles className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                      <span>Análise de seu treino com IA</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShareDialogOpen(true)}
+                      className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
+                    >
+                      <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                      <span>Compartilhar</span>
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -645,6 +658,13 @@ export const WorkoutSession = () => {
           workoutData={currentActivity}
         />
       )}
+
+      {/* AI Analysis Dialog */}
+      <WorkoutAIAnalysisDialog
+        open={aiAnalysisDialogOpen}
+        onOpenChange={setAiAnalysisDialogOpen}
+        activityId={currentActivity?.activity_id || null}
+      />
     </div>
   );
 };
