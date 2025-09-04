@@ -1,6 +1,11 @@
 
+import { PaceHeatmap } from './PaceHeatmap';
+import { Clock, Route, Activity, Heart } from 'lucide-react';
+import { useActivityPaceData } from '@/hooks/useActivityPaceData';
+
 interface WorkoutShareImageProps {
   workoutData: {
+    id?: string;
     activity_type: string | null;
     duration_in_seconds: number | null;
     distance_in_meters: number | null;
@@ -14,6 +19,8 @@ interface WorkoutShareImageProps {
 }
 
 export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
+  const { paceData } = useActivityPaceData(workoutData.id || '');
+  
   // Helper functions
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '--:--';
@@ -53,92 +60,105 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundImage: `url(/lovable-uploads/b051729a-f04a-4a81-90ae-9226e729fdd2.png)`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
       }}
     >
-      {/* Activity Name */}
-      <div className="absolute" style={{ 
-        top: '30%',
-        left: '50%', 
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center'
-      }}>
-        <div className="text-white font-bold text-6xl">
+      {/* Header with logo and activity type */}
+      <div className="absolute top-12 left-0 right-0 text-center px-16">
+        <div className="text-white font-bold text-7xl mb-4">
+          BioPeak
+        </div>
+        <div className="text-white/90 font-semibold text-5xl">
           {workoutData.activity_type || 'Treino'}
         </div>
       </div>
 
-      {/* Heart Rate - Central position over the ECG graph */}
+      {/* Map container - takes up most of the middle space */}
       <div className="absolute" style={{ 
-        top: '48%', 
-        left: '50%', 
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center'
+        top: '280px',
+        left: '60px', 
+        width: '960px',
+        height: '800px',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        background: '#1e293b'
       }}>
-        <div className="text-white font-bold text-8xl mb-2">
-          {workoutData.average_heart_rate_in_beats_per_minute || '--'}
-        </div>
-        <div className="text-white/90 font-semibold text-3xl">
-          bpm
-        </div>
+        {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
+          <div style={{ width: '100%', height: '100%' }}>
+            <PaceHeatmap 
+              data={paceData}
+              activityTitle={workoutData.activity_type || 'Atividade'}
+            />
+          </div>
+        )}
+        {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
+          <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white/60 text-4xl">
+            Mapa não disponível
+          </div>
+        )}
       </div>
 
-      {/* Top Left - Distance */}
-      <div className="absolute" style={{ 
-        top: '65%', 
-        left: '15%',
-        textAlign: 'center'
-      }}>
-        <div className="text-white font-bold text-5xl mb-1">
-          {formatDistance(workoutData.distance_in_meters)}
-        </div>
-        <div className="text-white/80 font-medium text-xl">
-          Distância
-        </div>
-      </div>
+      {/* Metrics Grid - Bottom section */}
+      <div className="absolute bottom-0 left-0 right-0 px-16 pb-16">
+        <div className="grid grid-cols-2 gap-8">
+          {/* Tempo */}
+          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+            <div className="flex items-center justify-center mb-3">
+              <Clock className="w-10 h-10 text-blue-400 mr-3" />
+            </div>
+            <div className="text-white font-bold text-6xl mb-2">
+              {formatDuration(workoutData.duration_in_seconds)}
+            </div>
+            <div className="text-white/80 font-medium text-3xl">
+              Tempo
+            </div>
+          </div>
 
-      {/* Top Right - Average Pace */}
-      <div className="absolute" style={{ 
-        top: '65%', 
-        right: '15%',
-        textAlign: 'center'
-      }}>
-        <div className="text-white font-bold text-5xl mb-1">
-          {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
-        </div>
-        <div className="text-white/80 font-medium text-xl">
-          Ritmo Médio
-        </div>
-      </div>
+          {/* Distância */}
+          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+            <div className="flex items-center justify-center mb-3">
+              <Route className="w-10 h-10 text-green-400 mr-3" />
+            </div>
+            <div className="text-white font-bold text-6xl mb-2">
+              {formatDistance(workoutData.distance_in_meters)}
+            </div>
+            <div className="text-white/80 font-medium text-3xl">
+              Distância
+            </div>
+          </div>
 
-      {/* Bottom Left - Calories */}
-      <div className="absolute" style={{ 
-        bottom: '20%', 
-        left: '15%',
-        textAlign: 'center'
-      }}>
-        <div className="text-white font-bold text-5xl mb-1">
-          {workoutData.active_kilocalories || '--'}
-        </div>
-        <div className="text-white/80 font-medium text-xl">
-          Calorias
-        </div>
-      </div>
+          {/* Pace Médio */}
+          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+            <div className="flex items-center justify-center mb-3">
+              <Activity className="w-10 h-10 text-orange-400 mr-3" />
+            </div>
+            <div className="text-white font-bold text-6xl mb-2">
+              {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
+            </div>
+            <div className="text-white/80 font-medium text-3xl">
+              Pace Médio
+            </div>
+          </div>
 
-      {/* Bottom Right - Total Time */}
-      <div className="absolute" style={{ 
-        bottom: '20%', 
-        right: '15%',
-        textAlign: 'center'
-      }}>
-        <div className="text-white font-bold text-5xl mb-1">
-          {formatDuration(workoutData.duration_in_seconds)}
+          {/* FC Média */}
+          <div className="text-center bg-black/30 backdrop-blur-sm rounded-3xl py-8 px-6">
+            <div className="flex items-center justify-center mb-3">
+              <Heart className="w-10 h-10 text-red-400 mr-3" />
+            </div>
+            <div className="text-white font-bold text-6xl mb-2">
+              {formatHeartRate(workoutData.average_heart_rate_in_beats_per_minute)}
+            </div>
+            <div className="text-white/80 font-medium text-3xl">
+              FC Média
+            </div>
+          </div>
         </div>
-        <div className="text-white/80 font-medium text-xl">
-          Tempo Total
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <div className="text-white/60 font-medium text-3xl">
+            📱 Acompanhe seus treinos no BioPeak
+          </div>
         </div>
       </div>
     </div>

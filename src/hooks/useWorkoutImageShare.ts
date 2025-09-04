@@ -16,8 +16,8 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
-      // Aguardar um pouco para garantir que o componente esteja totalmente renderizado
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Aguardar um pouco mais para garantir que o mapa carregue completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
@@ -61,9 +61,15 @@ export const useWorkoutImageShare = () => {
     const distance = workoutData.distance_in_meters 
       ? `${(workoutData.distance_in_meters / 1000).toFixed(1)}km` 
       : '--';
+    const pace = workoutData.average_pace_in_minutes_per_kilometer
+      ? `${Math.floor(workoutData.average_pace_in_minutes_per_kilometer)}:${String(Math.round((workoutData.average_pace_in_minutes_per_kilometer % 1) * 60)).padStart(2, '0')}/km`
+      : '--';
+    const heartRate = workoutData.average_heart_rate_in_beats_per_minute
+      ? `${Math.round(workoutData.average_heart_rate_in_beats_per_minute)} bpm`
+      : '';
 
     const shareText = `🏃‍♂️ Acabei de completar uma ${activity}!
-⏱️ ${duration} | 📍 ${distance}
+⏱️ ${duration} | 📍 ${distance} | 🏃 ${pace}${heartRate ? ` | ❤️ ${heartRate}` : ''}
 💪 Acompanhe meus treinos no BioPeak!
 #BioPeak #Fitness #Treino`;
 
