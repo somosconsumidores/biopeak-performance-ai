@@ -147,9 +147,9 @@ export const Onboarding = () => {
     
     const success = await saveOnboardingData(onboardingData);
     if (success) {
-      console.log('🔍 ONBOARDING_PAGE: Save successful, navigating to /sync');
+      console.log('🔍 ONBOARDING_PAGE: Save successful, navigating to /paywall');
       // Use window.location to force navigation and bypass React Router
-      window.location.href = '/sync';
+      window.location.href = '/paywall';
     } else {
       console.log('🔍 ONBOARDING_PAGE: Save failed');
     }

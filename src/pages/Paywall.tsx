@@ -47,8 +47,8 @@ export const Paywall = () => {
   }, [searchParams, refreshSubscription, navigate, toast]);
 
   const handleClose = () => {
-    // Navegar para o dashboard se o usuário já tem conta ou para home se não tem
-    navigate('/dashboard');
+    // Navegar para /sync após fechar o paywall
+    navigate('/sync');
   };
 
   const handleStartNow = async () => {
