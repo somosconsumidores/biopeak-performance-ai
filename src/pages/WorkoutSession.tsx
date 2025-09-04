@@ -275,42 +275,45 @@ export const WorkoutSession = () => {
           {/* Workout Summary */}
           <ScrollReveal delay={100}>
             <Card className="glass-card border-glass-border mb-8">
-              <CardHeader>
-                <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                  <CardTitle className="flex items-center space-x-2 flex-wrap">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <span>Resumo do Treino</span>
-                    <Badge variant="default">
-                      Concluído
-                    </Badge>
-                    {classification && (
-                      <WorkoutClassificationBadge 
-                        classification={classification} 
-                        variant="default"
-                      />
-                    )}
-                  </CardTitle>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAiAnalysisDialogOpen(true)}
-                      className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
-                    >
-                      <Sparkles className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                      <span>Análise de seu treino com IA</span>
-                      <Crown className="h-3 w-3 ml-2 text-yellow-500" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShareDialogOpen(true)}
-                      className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:w-auto"
-                    >
-                      <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                      <span>Compartilhar</span>
-                    </Button>
+              <CardHeader className="space-y-4">
+                {/* Title Section */}
+                <div className="flex items-center space-x-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <CardTitle>Resumo do Treino</CardTitle>
+                  <Badge variant="default">Concluído</Badge>
+                </div>
+
+                {/* Classification Badge - Full width on mobile */}
+                {classification && (
+                  <div className="w-full">
+                    <WorkoutClassificationBadge 
+                      classification={classification} 
+                      variant="default"
+                    />
                   </div>
+                )}
+
+                {/* Action Buttons - Stack on mobile, row on desktop */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAiAnalysisDialogOpen(true)}
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:flex-1"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm sm:text-base">Análise com IA</span>
+                    <Crown className="h-3 w-3 ml-2 text-yellow-500" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShareDialogOpen(true)}
+                    className="glass-card border-glass-border hover:bg-glass-bg-hover group touch-manipulation min-h-[44px] px-4 w-full sm:flex-1"
+                  >
+                    <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm sm:text-base">Compartilhar</span>
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
