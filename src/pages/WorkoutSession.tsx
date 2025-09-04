@@ -599,7 +599,9 @@ export const WorkoutSession = () => {
           onOpenChange={setShareDialogOpen}
           workoutData={{
             ...currentActivity,
-            id: currentActivity.id || currentActivity.activity_id || '',
+            // CRITICAL: Use URL activity ID if available to ensure correct data fetching
+            id: new URLSearchParams(window.location.search).get('activityId') || currentActivity.id || currentActivity.activity_id || '',
+            activity_id: currentActivity.activity_id || new URLSearchParams(window.location.search).get('activityId')
           }}
         />
       )}

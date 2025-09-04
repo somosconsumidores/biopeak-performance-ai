@@ -14,6 +14,7 @@ import {
 interface WorkoutSharePreviewProps {
   workoutData: {
     id?: string;
+    activity_id?: string;
     activity_type: string | null;
     duration_in_seconds: number | null;
     distance_in_meters: number | null;
@@ -27,14 +28,14 @@ interface WorkoutSharePreviewProps {
 }
 
 export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) => {
-  // Usar activity_id como fallback se id não existir
-  const activityId = workoutData.id || (workoutData as any).activity_id || '';
+  // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
+  const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
   
   // Debug log
   console.log('🔍 WORKOUT SHARE PREVIEW:', {
     workoutId: workoutData.id,
-    activityId: (workoutData as any).activity_id,
+    activityId: workoutData.activity_id,
     finalId: activityId,
     hasCoordinates: workoutData.coordinates && workoutData.coordinates.length > 0,
     hasPaceData: !!paceData,

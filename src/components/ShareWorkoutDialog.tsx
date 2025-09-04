@@ -44,14 +44,14 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
   
-  // Usar activity_id como fallback se id não existir
-  const activityId = workoutData.id || (workoutData as any).activity_id || '';
+  // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
+  const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
 
   // Debug log
   console.log('🔍 SHARE WORKOUT DIALOG:', {
     workoutId: workoutData.id,
-    activityId: (workoutData as any).activity_id, 
+    activityId: workoutData.activity_id, 
     finalId: activityId,
     hasPaceData: !!paceData,
     paceDataLength: paceData?.length || 0,
