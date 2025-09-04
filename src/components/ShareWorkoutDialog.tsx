@@ -18,6 +18,7 @@ import { SocialShareButton } from './SocialShareButton';
 import { WorkoutSharePreview } from './WorkoutSharePreview';
 import { WorkoutShareImage } from './WorkoutShareImage';
 import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
+import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { toast } from '@/hooks/use-toast';
 
 interface ShareWorkoutDialogProps {
@@ -41,6 +42,14 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
+  const { paceData } = useActivityPaceData(workoutData.id);
+
+  // Debug log
+  console.log('🔍 SHARE WORKOUT DIALOG:', {
+    workoutId: workoutData.id,
+    hasPaceData: !!paceData,
+    paceDataLength: paceData?.length || 0
+  });
 
   // Share handlers with image generation
   const handleImageShare = async (platform: string) => {
@@ -86,12 +95,24 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
         <div className="relative p-4 sm:p-6 pt-2 sm:pt-0 space-y-4 sm:space-y-6 pb-6">
           {/* Workout Preview para visualização */}
           <div className="mb-6">
-            <WorkoutSharePreview workoutData={workoutData} />
+            <WorkoutSharePreview workoutData={{
+              ...workoutData,
+              coordinates: paceData?.map(p => ({
+                latitude: p.coordinates[0],
+                longitude: p.coordinates[1]
+              })) || []
+            }} />
           </div>
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <WorkoutShareImage workoutData={workoutData} />
+            <WorkoutShareImage workoutData={{
+              ...workoutData,
+              coordinates: paceData?.map(p => ({
+                latitude: p.coordinates[0],
+                longitude: p.coordinates[1]
+              })) || []
+            }} />
           </div>
 
           {/* Social Media Buttons */}

@@ -80,7 +80,9 @@ export const WorkoutSession = () => {
     activitiesCount: activities.length,
     historyLoading,
     historyError,
-    hasCurrentActivity: !!currentActivity
+    hasCurrentActivity: !!currentActivity,
+    currentActivityId: currentActivity?.id,
+    selectedActivityId
   });
   
   // Simplify loading logic - only show loading if we don't have any data AND at least one hook is loading
@@ -592,7 +594,10 @@ export const WorkoutSession = () => {
         <ShareWorkoutDialog
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}
-          workoutData={currentActivity}
+          workoutData={{
+            ...currentActivity,
+            id: currentActivity.id || currentActivity.activity_id || '',
+          }}
         />
       )}
 
