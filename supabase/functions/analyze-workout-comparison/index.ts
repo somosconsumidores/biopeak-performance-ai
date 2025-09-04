@@ -221,14 +221,23 @@ serve(async (req) => {
       
       const validDurations = activities.filter(a => a.total_time_minutes).map(a => a.total_time_minutes);
       const validDistances = activities.filter(a => a.total_distance_meters).map(a => a.total_distance_meters);
-      const validPaces = activities.filter(a => a.pace_min_per_km).map(a => a.pace_min_per_km);
       const validHeartRates = activities.filter(a => a.average_heart_rate).map(a => a.average_heart_rate);
+      
+      // Para pace médio: somar todos os tempos e dividir pela soma de todas as distâncias
+      const activitiesWithTimeAndDistance = activities.filter(a => a.total_time_minutes && a.total_distance_meters && a.total_distance_meters > 0);
+      let avgPace = null;
+      
+      if (activitiesWithTimeAndDistance.length > 0) {
+        const totalTimeMinutes = activitiesWithTimeAndDistance.reduce((sum, a) => sum + a.total_time_minutes, 0);
+        const totalDistanceMeters = activitiesWithTimeAndDistance.reduce((sum, a) => sum + a.total_distance_meters, 0);
+        avgPace = totalTimeMinutes / (totalDistanceMeters / 1000); // min/km
+      }
       
       return {
         totalActivities: activities.length,
         avgDuration: validDurations.length ? validDurations.reduce((a, b) => a + b, 0) / validDurations.length : null,
         avgDistance: validDistances.length ? validDistances.reduce((a, b) => a + b, 0) / validDistances.length : null,
-        avgPace: validPaces.length ? validPaces.reduce((a, b) => a + b, 0) / validPaces.length : null,
+        avgPace: avgPace,
         avgHeartRate: validHeartRates.length ? validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length : null,
       };
     };
