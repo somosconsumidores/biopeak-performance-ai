@@ -1,9 +1,8 @@
 
-import { PaceHeatmap } from './PaceHeatmap';
+import { SharePaceHeatmap } from './SharePaceHeatmap';
 import { Clock, Route, Activity, Heart } from 'lucide-react';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
-import { useState, useEffect } from 'react';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -26,17 +25,6 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
   const { classification } = useWorkoutClassification(activityId);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  // Notify map is loaded after a delay to ensure rendering
-  useEffect(() => {
-    if (paceData && workoutData.coordinates?.length) {
-      const timer = setTimeout(() => {
-        setMapLoaded(true);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [paceData, workoutData.coordinates]);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -68,7 +56,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   };
 
   const formatWorkoutType = (type: string | null) => {
-    if (!type) return 'Atividade';
+    if (!type) return workoutData.activity_type || 'Atividade';
     
     const typeMap: { [key: string]: string } = {
       'long_run': 'Long Run',
@@ -79,9 +67,9 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       'fartlek': 'Fartlek',
       'hill_training': 'Hill Training',
       'race': 'Race',
-      'running': 'Corrida',
+      'running': 'Run',
       'cycling': 'Bike',
-      'swimming': 'Natação'
+      'swimming': 'Swim'
     };
     
     return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
@@ -106,15 +94,31 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
           left: '90px', 
           width: '900px',
           height: '600px',
+          background: 'rgba(255,255,255,0.95)',
         }}
       >
         {/* Map */}
         {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            <PaceHeatmap 
+            <SharePaceHeatmap 
               data={paceData}
-              activityTitle={formatWorkoutType(workoutData.activity_type)}
             />
+            
+            {/* Pace Médio Overlay */}
+            <div 
+              className="absolute top-6 left-6 text-white font-bold text-4xl"
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              Pace Médio
+            </div>
+            
+            {/* FC Média Overlay */}
+            <div 
+              className="absolute top-6 right-6 text-white font-bold text-4xl"
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              FC Média
+            </div>
           </div>
         )}
         {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
@@ -184,10 +188,10 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       {/* Classificação da atividade */}
       <div className="absolute bottom-280 left-0 right-0 text-center">
         <div 
-          className="text-white font-black text-6xl"
+          className="text-white font-black text-9xl"
           style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
         >
-          {formatWorkoutType(workoutData.activity_type)}
+          {formatWorkoutType(classification?.detected_workout_type)}
         </div>
       </div>
     </div>

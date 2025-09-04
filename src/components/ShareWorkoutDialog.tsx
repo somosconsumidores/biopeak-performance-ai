@@ -64,14 +64,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
     setIsGeneratingImage(true);
     
     try {
-      await shareWorkoutImage(platform, {
-        ...workoutData,
-        id: activityId,
-        coordinates: paceData?.map(p => ({
-          latitude: p.coordinates[0],
-          longitude: p.coordinates[1]
-        })) || []
-      });
+      await shareWorkoutImage(platform, workoutData);
     } finally {
       setShareAnimationActive(false);
       setIsGeneratingImage(false);
@@ -123,16 +116,14 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <WorkoutShareImage 
-              workoutData={{
-                ...workoutData,
-                id: activityId,
-                coordinates: paceData?.map(p => ({
-                  latitude: p.coordinates[0],
-                  longitude: p.coordinates[1]
-                })) || []
-              }}
-            />
+            <WorkoutShareImage workoutData={{
+              ...workoutData,
+              id: activityId,
+              coordinates: paceData?.map(p => ({
+                latitude: p.coordinates[0],
+                longitude: p.coordinates[1]
+              })) || []
+            }} />
           </div>
 
           {/* Social Media Buttons */}
