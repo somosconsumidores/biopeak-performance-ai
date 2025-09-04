@@ -37,7 +37,6 @@ import { HeartRatePaceChart } from '@/components/HeartRatePaceChart';
 import { StravaPaceChart } from '@/components/StravaPaceChart';
 import { ActivitySegmentChart1km } from '@/components/ActivitySegmentChart1km';
 import { useHeartRateZones } from '@/hooks/useHeartRateZones';
-import { AIInsightsCard } from '@/components/AIInsightsCard';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { PerformanceIndicators } from '@/components/PerformanceIndicators';
 import { ActivitySourceInfo } from '@/components/ActivitySourceInfo';
@@ -475,34 +474,6 @@ export const WorkoutSession = () => {
               />
               <VariationAnalysisCard activity={currentActivity as UnifiedActivity} />
             </div>
-          </ScrollReveal>
-
-          {/* AI Insights */}
-          <ScrollReveal delay={200}>
-            <Card className="glass-card border-glass-border mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Brain className="h-5 w-5 text-primary" />
-                  <span>Análise Inteligente</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isSubscribed ? (
-                  <AIInsightsCard activityId={currentActivity.activity_id} />
-                ) : (
-                  <div className="text-center py-8">
-                    <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-medium mb-4">Análise com IA Premium</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Obtenha insights detalhados sobre sua performance com nossa análise de IA avançada
-                    </p>
-                    <PremiumButton>
-                      Analisar com IA
-                    </PremiumButton>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </ScrollReveal>
 
           {/* Deep Analysis Section */}
