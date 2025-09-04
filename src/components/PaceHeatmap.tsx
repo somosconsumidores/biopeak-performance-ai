@@ -28,6 +28,12 @@ interface PaceLegendItem {
 }
 
 export const PaceHeatmap = ({ data, activityTitle }: PaceHeatmapProps) => {
+  console.log('🔍 PACE_HEATMAP_RENDER:', {
+    hasData: !!data,
+    dataLength: data?.length || 0,
+    activityTitle,
+    firstDataPoint: data?.[0] || null
+  });
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');

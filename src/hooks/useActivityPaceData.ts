@@ -21,6 +21,18 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('🔍 USE_ACTIVITY_PACE_DATA:', {
+    activityId,
+    hasChartData: !!chartData,
+    chartDataLength: chartData?.length || 0,
+    chartLoading,
+    chartError,
+    hasPaceData: !!paceData,
+    paceDataLength: paceData?.length || 0,
+    hasGpsData: !!gpsData,
+    gpsDataLength: gpsData?.length || 0
+  });
+
   // Fetch GPS coordinates data
   useEffect(() => {
     if (!activityId) {
@@ -29,6 +41,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
     }
 
     const fetchGPSData = async () => {
+      console.log('🔍 FETCHING GPS DATA FOR:', activityId);
       try {
         const { supabase } = await import('@/integrations/supabase/client');
         const { data: coordinatesData, error: fetchError } = await supabase
@@ -37,6 +50,12 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
           .eq('activity_id', activityId)
           .not('coordinates', 'is', null)
           .single();
+
+        console.log('🔍 GPS DATA RESULT:', {
+          coordinatesData,
+          fetchError,
+          hasCoordinates: !!coordinatesData?.coordinates
+        });
 
         if (fetchError) {
           if (fetchError.code !== 'PGRST116') {
@@ -47,6 +66,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
         }
 
         if (coordinatesData?.coordinates && Array.isArray(coordinatesData.coordinates)) {
+          console.log('🔍 GPS COORDINATES COUNT:', coordinatesData.coordinates.length);
           setGpsData(coordinatesData.coordinates);
         } else {
           setGpsData([]);

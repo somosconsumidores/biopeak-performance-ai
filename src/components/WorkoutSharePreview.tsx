@@ -216,19 +216,26 @@ export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) =
         </div>
 
         {/* Mapa de Calor do Pace */}
-        {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
-          <div className="mt-6 pt-4 border-t border-glass-border">
-            <h4 className="text-sm font-semibold text-center mb-3 text-foreground">
-              Mapa de Calor do Pace
-            </h4>
-            <div className="h-48 rounded-lg overflow-hidden border border-glass-border bg-muted/20">
+        <div className="mt-6 pt-4 border-t border-glass-border">
+          <h4 className="text-sm font-semibold text-center mb-3 text-foreground">
+            Mapa de Calor do Pace
+          </h4>
+          <div className="h-48 rounded-lg overflow-hidden border border-glass-border bg-muted/20">
+            {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData ? (
               <PaceHeatmap 
                 data={paceData}
                 activityTitle={getActivityType(workoutData.activity_type)}
               />
-            </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                {!workoutData.id ? 'ID da atividade não disponível' :
+                 !workoutData.coordinates || workoutData.coordinates.length === 0 ? 'Coordenadas GPS não disponíveis' :
+                 !paceData ? 'Dados de pace não carregados' :
+                 'Mapa não disponível'}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Performance tagline */}
         <div className="mt-6 pt-4 border-t border-glass-border text-center">

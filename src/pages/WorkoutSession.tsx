@@ -82,7 +82,9 @@ export const WorkoutSession = () => {
     historyError,
     hasCurrentActivity: !!currentActivity,
     currentActivityId: currentActivity?.id,
-    selectedActivityId
+    currentActivityActivityId: currentActivity?.activity_id,
+    selectedActivityId,
+    currentActivityFull: currentActivity
   });
   
   // Simplify loading logic - only show loading if we don't have any data AND at least one hook is loading
