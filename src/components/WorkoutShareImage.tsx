@@ -2,6 +2,7 @@
 import { SharePaceHeatmap } from './SharePaceHeatmap';
 import { Clock, Route, Activity, Heart } from 'lucide-react';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
+import { useWorkoutClassification } from '@/hooks/useWorkoutClassification';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -23,6 +24,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
   // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData } = useActivityPaceData(activityId);
+  const { classification } = useWorkoutClassification(activityId);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -53,125 +55,143 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
     return `${Math.round(bpm)} bpm`;
   };
 
+  const formatWorkoutType = (type: string | null) => {
+    if (!type) return workoutData.activity_type || 'Atividade';
+    
+    const typeMap: { [key: string]: string } = {
+      'long_run': 'Long Run',
+      'tempo_run': 'Tempo Run', 
+      'interval_training': 'Interval',
+      'easy_run': 'Easy Run',
+      'recovery_run': 'Recovery',
+      'fartlek': 'Fartlek',
+      'hill_training': 'Hill Training',
+      'race': 'Race',
+      'running': 'Run',
+      'cycling': 'Bike',
+      'swimming': 'Swim'
+    };
+    
+    return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   return (
     <div 
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundImage: 'url(/lovable-uploads/97a6bd45-68b7-4454-a48a-f2a63b0f6b58.png)',
+        backgroundImage: 'url(/lovable-uploads/b3b2a555-f9d4-487d-a8ba-1384fb446ca6.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Logo no topo central */}
-      <div className="absolute top-20 left-0 right-0 text-center">
-        <img 
-          src="/lovable-uploads/b1bd9b87-afb9-479a-ab3c-563049af276a.png" 
-          alt="BioPeak Logo" 
-          className="w-80 h-80 mx-auto object-contain filter drop-shadow-2xl"
-        />
-      </div>
-
-      {/* Map container - centralizado abaixo da logo */}
+      {/* Map container com overlays de Pace e FC */}
       <div 
-        className="absolute overflow-hidden rounded-2xl"
+        className="absolute overflow-hidden rounded-3xl"
         style={{ 
-          top: '450px',
+          top: '350px',
           left: '90px', 
           width: '900px',
           height: '600px',
-          background: 'rgba(0,0,0,0.1)',
-          backdropFilter: 'blur(10px)'
+          background: 'rgba(255,255,255,0.95)',
         }}
       >
+        {/* Map */}
         {workoutData.coordinates && workoutData.coordinates.length > 0 && workoutData.id && paceData && (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             <SharePaceHeatmap 
               data={paceData}
             />
+            
+            {/* Pace Médio Overlay */}
+            <div 
+              className="absolute top-6 left-6 text-white font-bold text-4xl"
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              Pace Médio
+            </div>
+            
+            {/* FC Média Overlay */}
+            <div 
+              className="absolute top-6 right-6 text-white font-bold text-4xl"
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              FC Média
+            </div>
           </div>
         )}
         {(!workoutData.coordinates || workoutData.coordinates.length === 0 || !workoutData.id || !paceData) && (
-          <div className="w-full h-full flex items-center justify-center text-white text-6xl">
+          <div className="w-full h-full flex items-center justify-center text-gray-500 text-6xl">
             Mapa não disponível
           </div>
         )}
       </div>
 
-      {/* Stats em texto branco - posicionadas na parte inferior */}
-      <div className="absolute bottom-200 left-0 right-0 px-20">
-        <div className="grid grid-cols-2 gap-8 text-white">
+      {/* Stats em grid 2x2 */}
+      <div className="absolute" style={{ top: '1020px', left: '90px', width: '900px' }}>
+        <div className="grid grid-cols-2 gap-12 text-white">
           {/* Tempo */}
           <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Clock className="w-16 h-16 text-white" />
-            </div>
             <div 
-              className="font-black text-8xl mb-2"
+              className="font-black text-7xl mb-2"
               style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
             >
               {formatDuration(workoutData.duration_in_seconds)}
             </div>
-            <div className="font-semibold text-5xl opacity-90">
+            <div className="font-semibold text-4xl opacity-90">
               Tempo
             </div>
           </div>
 
           {/* Distância */}
           <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Route className="w-16 h-16 text-white" />
-            </div>
             <div 
-              className="font-black text-8xl mb-2"
+              className="font-black text-7xl mb-2"
               style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
             >
               {formatDistance(workoutData.distance_in_meters)}
             </div>
-            <div className="font-semibold text-5xl opacity-90">
+            <div className="font-semibold text-4xl opacity-90">
               Distância
             </div>
           </div>
 
-          {/* Pace Médio */}
+          {/* Ritmo Médio */}
           <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Activity className="w-16 h-16 text-white" />
-            </div>
             <div 
-              className="font-black text-8xl mb-2"
+              className="font-black text-7xl mb-2"
               style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
             >
               {formatPace(workoutData.average_pace_in_minutes_per_kilometer)}
             </div>
-            <div className="font-semibold text-5xl opacity-90">
-              Pace Médio
+            <div className="font-semibold text-4xl opacity-90">
+              Ritmo Médio
             </div>
           </div>
 
-          {/* FC Média */}
+          {/* Calorias */}
           <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Heart className="w-16 h-16 text-white" />
-            </div>
             <div 
-              className="font-black text-8xl mb-2"
+              className="font-black text-7xl mb-2"
               style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
             >
-              {formatHeartRate(workoutData.average_heart_rate_in_beats_per_minute)}
+              {workoutData.active_kilocalories ? Math.round(workoutData.active_kilocalories) : '--'}
             </div>
-            <div className="font-semibold text-5xl opacity-90">
-              FC Média
+            <div className="font-semibold text-4xl opacity-90">
+              Calorias
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="absolute bottom-8 left-0 right-0 text-center">
-        <div className="text-white font-semibold text-5xl opacity-90">
-          📱 Acompanhe seus treinos no BioPeak
+      {/* Classificação da atividade */}
+      <div className="absolute bottom-280 left-0 right-0 text-center">
+        <div 
+          className="text-white font-black text-9xl"
+          style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
+        >
+          {formatWorkoutType(classification?.detected_workout_type)}
         </div>
       </div>
     </div>
