@@ -94,7 +94,6 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
           left: '90px', 
           width: '900px',
           height: '600px',
-          background: 'rgba(255,255,255,0.95)',
         }}
       >
         {/* Map */}
@@ -172,7 +171,7 @@ export const WorkoutShareImage = ({ workoutData }: WorkoutShareImageProps) => {
       {/* Classificação da atividade */}
       <div className="absolute bottom-280 left-0 right-0 text-center">
         <div 
-          className="text-white font-black text-9xl"
+          className="text-white font-black text-6xl"
           style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
         >
           {formatWorkoutType(workoutData.activity_type)}
