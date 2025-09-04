@@ -20,12 +20,16 @@ export const useWorkoutImageShare = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const canvas = await html2canvas(previewRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
+        backgroundColor: '#0f172a',
+        scale: 1, // Ajustado para o tamanho do Instagram Stories
         useCORS: true,
         allowTaint: true,
+        width: 1080,
+        height: 1920,
         scrollX: 0,
         scrollY: 0,
+        windowWidth: 1080,
+        windowHeight: 1920,
         logging: false,
       });
 

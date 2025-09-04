@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { SocialShareButton } from './SocialShareButton';
 import { WorkoutSharePreview } from './WorkoutSharePreview';
+import { WorkoutShareImage } from './WorkoutShareImage';
 import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { toast } from '@/hooks/use-toast';
@@ -115,16 +116,14 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
-            <div className="w-[1080px] bg-white p-8">
-              <WorkoutSharePreview workoutData={{
-                ...workoutData,
-                id: activityId,
-                coordinates: paceData?.map(p => ({
-                  latitude: p.coordinates[0],
-                  longitude: p.coordinates[1]
-                })) || []
-              }} />
-            </div>
+            <WorkoutShareImage workoutData={{
+              ...workoutData,
+              id: activityId,
+              coordinates: paceData?.map(p => ({
+                latitude: p.coordinates[0],
+                longitude: p.coordinates[1]
+              })) || []
+            }} />
           </div>
 
           {/* Social Media Buttons */}
