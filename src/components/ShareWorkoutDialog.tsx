@@ -26,6 +26,7 @@ interface ShareWorkoutDialogProps {
   onOpenChange: (open: boolean) => void;
   workoutData: {
     id: string;
+    activity_id?: string;
     activity_type: string | null;
     duration_in_seconds: number | null;
     distance_in_meters: number | null;
@@ -42,13 +43,19 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   const [shareAnimationActive, setShareAnimationActive] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { previewRef, shareWorkoutImage } = useWorkoutImageShare();
-  const { paceData } = useActivityPaceData(workoutData.id);
+  
+  // Usar activity_id como fallback se id não existir
+  const activityId = workoutData.id || (workoutData as any).activity_id || '';
+  const { paceData } = useActivityPaceData(activityId);
 
   // Debug log
   console.log('🔍 SHARE WORKOUT DIALOG:', {
     workoutId: workoutData.id,
+    activityId: (workoutData as any).activity_id, 
+    finalId: activityId,
     hasPaceData: !!paceData,
-    paceDataLength: paceData?.length || 0
+    paceDataLength: paceData?.length || 0,
+    workoutData: workoutData
   });
 
   // Share handlers with image generation
@@ -97,6 +104,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
           <div className="mb-6">
             <WorkoutSharePreview workoutData={{
               ...workoutData,
+              id: activityId,
               coordinates: paceData?.map(p => ({
                 latitude: p.coordinates[0],
                 longitude: p.coordinates[1]
@@ -108,6 +116,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
             <WorkoutShareImage workoutData={{
               ...workoutData,
+              id: activityId,
               coordinates: paceData?.map(p => ({
                 latitude: p.coordinates[0],
                 longitude: p.coordinates[1]

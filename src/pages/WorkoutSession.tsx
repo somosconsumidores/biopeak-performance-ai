@@ -72,7 +72,7 @@ export const WorkoutSession = () => {
     (activities.length > 0 ? activities[0] : latestActivity);
 
 
-  // Debug logs
+  // Debug logs  
   console.log('🔍 WORKOUT SESSION:', {
     latestActivity: !!latestActivity,
     latestLoading,
@@ -84,7 +84,8 @@ export const WorkoutSession = () => {
     currentActivityId: currentActivity?.id,
     currentActivityActivityId: currentActivity?.activity_id,
     selectedActivityId,
-    currentActivityFull: currentActivity
+    currentActivitySource: (currentActivity as any)?.source,
+    urlActivityId: new URLSearchParams(window.location.search).get('activityId')
   });
   
   // Simplify loading logic - only show loading if we don't have any data AND at least one hook is loading

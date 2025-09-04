@@ -27,15 +27,20 @@ interface WorkoutSharePreviewProps {
 }
 
 export const WorkoutSharePreview = ({ workoutData }: WorkoutSharePreviewProps) => {
-  const { paceData } = useActivityPaceData(workoutData.id || '');
+  // Usar activity_id como fallback se id não existir
+  const activityId = workoutData.id || (workoutData as any).activity_id || '';
+  const { paceData } = useActivityPaceData(activityId);
   
   // Debug log
   console.log('🔍 WORKOUT SHARE PREVIEW:', {
     workoutId: workoutData.id,
+    activityId: (workoutData as any).activity_id,
+    finalId: activityId,
     hasCoordinates: workoutData.coordinates && workoutData.coordinates.length > 0,
     hasPaceData: !!paceData,
     coordinatesLength: workoutData.coordinates?.length || 0,
-    paceDataLength: paceData?.length || 0
+    paceDataLength: paceData?.length || 0,
+    workoutData: workoutData
   });
   
   // Helper functions
