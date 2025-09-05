@@ -17,32 +17,41 @@ export const useWorkoutImageShare = () => {
     }
 
     try {
+      console.log('📱 WORKOUT IMAGE: Starting image generation for mobile');
+      
       // Aguardar o mapa ficar pronto ou timeout de segurança
       const mapReadyPromise = new Promise<void>((resolve) => {
         if (mapReadyRef.current) {
+          console.log('📱 WORKOUT IMAGE: Map already ready');
           resolve();
           return;
         }
         
         const checkMap = () => {
           if (mapReadyRef.current) {
+            console.log('📱 WORKOUT IMAGE: Map became ready');
             resolve();
           } else {
-            setTimeout(checkMap, 100);
+            setTimeout(checkMap, 200);
           }
         };
         checkMap();
       });
 
-      // Aguardar o mapa com timeout de segurança de 8 segundos
+      // Aguardar o mapa com timeout de segurança de 15 segundos (mais tempo para mobile)
+      console.log('📱 WORKOUT IMAGE: Waiting for map to be ready...');
       await Promise.race([
         mapReadyPromise,
-        new Promise(resolve => setTimeout(resolve, 8000))
+        new Promise(resolve => setTimeout(() => {
+          console.log('📱 WORKOUT IMAGE: Map timeout reached, proceeding anyway');
+          resolve(null);
+        }, 15000))
       ]);
       
+      console.log('📱 WORKOUT IMAGE: Generating canvas with html2canvas');
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
-        scale: 1, // Ajustado para o tamanho do Instagram Stories
+        scale: 1,
         useCORS: true,
         allowTaint: true,
         width: 1080,
@@ -51,16 +60,19 @@ export const useWorkoutImageShare = () => {
         scrollY: 0,
         windowWidth: 1080,
         windowHeight: 1920,
-        logging: false,
+        logging: true, // Ativar logging para debug
+        foreignObjectRendering: true, // Melhorar renderização no mobile
       });
 
+      console.log('📱 WORKOUT IMAGE: Canvas generated, creating blob');
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
+          console.log('📱 WORKOUT IMAGE: Blob created successfully');
           resolve(blob);
         }, 'image/png', 1.0);
       });
     } catch (error) {
-      console.error('Erro ao gerar imagem:', error);
+      console.error('📱 WORKOUT IMAGE: Error generating image:', error);
       toast({
         title: "Erro",
         description: "Não foi possível gerar a imagem do treino.",

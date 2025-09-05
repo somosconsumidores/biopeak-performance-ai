@@ -104,13 +104,18 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
             onMapReady={onMapReady}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-900/80">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900/80">
             <div 
-              className="text-white font-bold text-4xl text-center"
+              className="text-white font-bold text-4xl text-center mb-4"
               style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
             >
-              {paceLoading ? 'Carregando mapa...' : 'Mapa não disponível'}
+              {paceLoading ? 'Carregando mapa...' : 'Estatísticas do Treino'}
             </div>
+            {!paceLoading && (
+              <div className="text-white text-2xl text-center opacity-80">
+                Dados GPS não disponíveis
+              </div>
+            )}
           </div>
         )}
       </div>

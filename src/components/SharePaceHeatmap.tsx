@@ -21,17 +21,19 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
     // Try to get Mapbox token from Supabase edge function first
     const getMapboxToken = async () => {
       try {
+        console.log('🗺️ MOBILE SHARE MAP: Fetching Mapbox token...');
         const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         
         if (error || !data?.token) {
-          console.log('Mapbox token not available from Supabase');
+          console.error('🗺️ MOBILE SHARE MAP: Mapbox token not available', error);
           return;
         }
         
+        console.log('🗺️ MOBILE SHARE MAP: Mapbox token received successfully');
         setMapboxToken(data.token);
       } catch (error) {
-        console.log('Error fetching Mapbox token from Supabase:', error);
+        console.error('🗺️ MOBILE SHARE MAP: Error fetching Mapbox token', error);
       }
     };
 
@@ -61,10 +63,20 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
   };
 
   useEffect(() => {
-    if (!mapboxToken || !mapContainer.current || !data?.length) return;
+    if (!mapboxToken || !mapContainer.current || !data?.length) {
+      console.log('🗺️ MOBILE SHARE MAP: Missing requirements', {
+        hasToken: !!mapboxToken,
+        hasContainer: !!mapContainer.current,
+        hasData: !!data?.length,
+        dataLength: data?.length || 0
+      });
+      return;
+    }
 
     const initializeMap = async () => {
       try {
+        console.log('🗺️ MOBILE SHARE MAP: Initializing map with', data.length, 'points');
+        
         // Dynamically import mapbox-gl
         const mapboxgl = await import('mapbox-gl');
         
@@ -92,6 +104,8 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
         });
 
         map.current.on('load', () => {
+          console.log('🗺️ MOBILE SHARE MAP: Map loaded, adding layers');
+          
           // Create GeoJSON data with pace information
           const geojsonData = {
             type: 'FeatureCollection',
@@ -248,14 +262,22 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
 
         // Notify when map is ready for capture
         map.current.on('idle', () => {
+          console.log('🗺️ MOBILE SHARE MAP: Map idle event - ready for capture');
           if (onMapReady) {
-            // Small delay to ensure everything is fully rendered
-            setTimeout(() => onMapReady(), 500);
+            // Longer delay for mobile to ensure everything is fully rendered
+            setTimeout(() => {
+              console.log('🗺️ MOBILE SHARE MAP: Calling onMapReady callback');
+              onMapReady();
+            }, 1000);
           }
         });
 
       } catch (error) {
-        console.error('Error initializing share map:', error);
+        console.error('🗺️ MOBILE SHARE MAP: Error initializing map:', error);
+        // Notify that map failed to load so image generation can proceed
+        if (onMapReady) {
+          setTimeout(() => onMapReady(), 1000);
+        }
       }
     };
 

@@ -21,7 +21,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  console.log('🔍 USE_ACTIVITY_PACE_DATA:', {
+  console.log('🔍 USE_ACTIVITY_PACE_DATA (MOBILE):', {
     activityId,
     hasChartData: !!chartData,
     chartDataLength: chartData?.length || 0,
@@ -30,7 +30,8 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
     hasPaceData: !!paceData,
     paceDataLength: paceData?.length || 0,
     hasGpsData: !!gpsData,
-    gpsDataLength: gpsData?.length || 0
+    gpsDataLength: gpsData?.length || 0,
+    mobile: window.navigator.userAgent.includes('Mobile')
   });
 
   // Fetch GPS coordinates data
@@ -41,7 +42,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
     }
 
     const fetchGPSData = async () => {
-      console.log('🔍 FETCHING GPS DATA FOR:', activityId);
+      console.log('🔍 FETCHING GPS DATA FOR (MOBILE):', activityId);
       try {
         const { supabase } = await import('@/integrations/supabase/client');
         const { data: coordinatesData, error: fetchError } = await supabase
@@ -51,10 +52,11 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
           .not('coordinates', 'is', null)
           .single();
 
-        console.log('🔍 GPS DATA RESULT:', {
+        console.log('🔍 GPS DATA RESULT (MOBILE):', {
           coordinatesData,
           fetchError,
-          hasCoordinates: !!coordinatesData?.coordinates
+          hasCoordinates: !!coordinatesData?.coordinates,
+          coordinatesType: Array.isArray(coordinatesData?.coordinates) ? 'array' : typeof coordinatesData?.coordinates
         });
 
         if (fetchError) {
