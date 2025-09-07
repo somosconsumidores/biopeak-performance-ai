@@ -67,13 +67,8 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   }, [open, resetMapReady]);
 
   const handleImageShare = async (platform: string) => {
-    console.log('📱 SHARE DIALOG: Starting image share for platform:', platform);
-    
     setShareAnimationActive(true);
     setIsGeneratingImage(true);
-    
-    // Reset map ready state before generating
-    resetMapReady();
     
     try {
       await shareWorkoutImage(platform, workoutData);
