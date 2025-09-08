@@ -25,6 +25,15 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
   const activityId = workoutData.activity_id || workoutData.id || '';
   const { paceData, loading: paceLoading } = useActivityPaceData(activityId);
   
+  // Debug log for image generation
+  console.log('🔍 WORKOUT_SHARE_IMAGE: Component render', {
+    activityId,
+    hasPaceData: !!paceData,
+    paceDataLength: paceData?.length || 0,
+    isLoading: paceLoading,
+    hasCoordinates: !!workoutData.coordinates?.length
+  });
+  
   // Helper functions
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '--:--';

@@ -16,6 +16,8 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [isMapRendered, setIsMapRendered] = useState(false);
 
   useEffect(() => {
     // Try to get Mapbox token from Supabase edge function first
@@ -25,13 +27,14 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         
         if (error || !data?.token) {
-          console.log('Mapbox token not available from Supabase');
+          console.log('🔍 SHARE_HEATMAP: Mapbox token not available from Supabase');
           return;
         }
         
+        console.log('🔍 SHARE_HEATMAP: Mapbox token obtained successfully');
         setMapboxToken(data.token);
       } catch (error) {
-        console.log('Error fetching Mapbox token from Supabase:', error);
+        console.log('🔍 SHARE_HEATMAP: Error fetching Mapbox token:', error);
       }
     };
 
@@ -61,10 +64,23 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
   };
 
   useEffect(() => {
-    if (!mapboxToken || !mapContainer.current || !data?.length) return;
+    if (!mapboxToken || !mapContainer.current || !data?.length) {
+      console.log('🔍 SHARE_HEATMAP: Missing requirements:', {
+        hasToken: !!mapboxToken,
+        hasContainer: !!mapContainer.current,
+        hasData: !!data?.length
+      });
+      return;
+    }
+
+    console.log('🔍 SHARE_HEATMAP: Starting map initialization with', data.length, 'points');
 
     const initializeMap = async () => {
       try {
+        // Reset states
+        setIsMapLoaded(false);
+        setIsMapRendered(false);
+        
         // Dynamically import mapbox-gl
         const mapboxgl = await import('mapbox-gl');
         
@@ -92,6 +108,9 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
         });
 
         map.current.on('load', () => {
+          console.log('🔍 SHARE_HEATMAP: Map loaded, adding layers...');
+          setIsMapLoaded(true);
+          
           // Create GeoJSON data with pace information
           const geojsonData = {
             type: 'FeatureCollection',
@@ -244,18 +263,51 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
           map.current.fitBounds(mapBounds, {
             padding: 50
           });
+          
+          console.log('🔍 SHARE_HEATMAP: All layers added and bounds set');
         });
 
-        // Notify when map is ready for capture
-        map.current.on('idle', () => {
-          if (onMapReady) {
-            // Small delay to ensure everything is fully rendered
-            setTimeout(() => onMapReady(), 500);
+        // Notify when map is ready for capture - wait for complete render
+        let idleTimeout: NodeJS.Timeout;
+        let renderCheckCount = 0;
+        const maxRenderChecks = 10;
+        
+        const checkIfFullyRendered = () => {
+          renderCheckCount++;
+          console.log('🔍 SHARE_HEATMAP: Render check #', renderCheckCount);
+          
+          if (map.current && isMapLoaded) {
+            setIsMapRendered(true);
+            console.log('🔍 SHARE_HEATMAP: Map fully rendered, notifying parent');
+            
+            if (onMapReady) {
+              // Additional delay to ensure capture works properly
+              setTimeout(() => {
+                onMapReady();
+                console.log('🔍 SHARE_HEATMAP: Parent notified - map ready for capture');
+              }, 1000);
+            }
+          } else if (renderCheckCount < maxRenderChecks) {
+            setTimeout(checkIfFullyRendered, 500);
+          } else {
+            console.warn('🔍 SHARE_HEATMAP: Max render checks reached, proceeding anyway');
+            if (onMapReady) {
+              onMapReady();
+            }
           }
+        };
+
+        map.current.on('idle', () => {
+          clearTimeout(idleTimeout);
+          idleTimeout = setTimeout(checkIfFullyRendered, 300);
         });
 
       } catch (error) {
-        console.error('Error initializing share map:', error);
+        console.error('🔍 SHARE_HEATMAP: Error initializing map:', error);
+        // Notify parent even on error to prevent hanging
+        if (onMapReady) {
+          setTimeout(() => onMapReady(), 1000);
+        }
       }
     };
 
@@ -266,8 +318,10 @@ export const SharePaceHeatmap = ({ data, onMapReady }: SharePaceHeatmapProps) =>
         map.current.remove();
         map.current = null;
       }
+      setIsMapLoaded(false);
+      setIsMapRendered(false);
     };
-  }, [mapboxToken, data]);
+  }, [mapboxToken, data, onMapReady]);
 
   if (!data?.length) {
     return (

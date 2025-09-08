@@ -8,6 +8,7 @@ export const useWorkoutImageShare = () => {
 
   const generateWorkoutImage = useCallback(async (workoutData: any): Promise<Blob | null> => {
     if (!previewRef.current) {
+      console.error('🔍 IMAGE_SHARE: No preview element found');
       toast({
         title: "Erro",
         description: "Não foi possível capturar a imagem do treino.",
@@ -16,33 +17,49 @@ export const useWorkoutImageShare = () => {
       return null;
     }
 
+    console.log('🔍 IMAGE_SHARE: Starting image generation process...');
+
     try {
       // Aguardar o mapa ficar pronto ou timeout de segurança
       const mapReadyPromise = new Promise<void>((resolve) => {
         if (mapReadyRef.current) {
+          console.log('🔍 IMAGE_SHARE: Map already ready');
           resolve();
           return;
         }
         
+        console.log('🔍 IMAGE_SHARE: Waiting for map to be ready...');
         const checkMap = () => {
           if (mapReadyRef.current) {
+            console.log('🔍 IMAGE_SHARE: Map is now ready');
             resolve();
           } else {
-            setTimeout(checkMap, 100);
+            setTimeout(checkMap, 200);
           }
         };
         checkMap();
       });
 
-      // Aguardar o mapa com timeout de segurança de 8 segundos
+      // Aguardar o mapa com timeout de segurança de 15 segundos
+      console.log('🔍 IMAGE_SHARE: Racing between map ready and 15s timeout...');
       await Promise.race([
         mapReadyPromise,
-        new Promise(resolve => setTimeout(resolve, 8000))
+        new Promise(resolve => {
+          setTimeout(() => {
+            console.warn('🔍 IMAGE_SHARE: Timeout reached - proceeding without map confirmation');
+            resolve(undefined);
+          }, 15000);
+        })
       ]);
       
+      // Additional delay to ensure everything is settled
+      console.log('🔍 IMAGE_SHARE: Adding extra settling time...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('🔍 IMAGE_SHARE: Starting html2canvas capture...');
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f172a',
-        scale: 1, // Ajustado para o tamanho do Instagram Stories
+        scale: 1,
         useCORS: true,
         allowTaint: true,
         width: 1080,
@@ -51,16 +68,34 @@ export const useWorkoutImageShare = () => {
         scrollY: 0,
         windowWidth: 1080,
         windowHeight: 1920,
-        logging: false,
+        logging: true, // Enable logging for debugging
+        onclone: (clonedDoc) => {
+          console.log('🔍 IMAGE_SHARE: Document cloned for capture');
+          // Force all mapbox elements to be visible in cloned document
+          const mapElements = clonedDoc.querySelectorAll('[class*="mapbox"]');
+          mapElements.forEach(el => {
+            if (el instanceof HTMLElement) {
+              el.style.opacity = '1';
+              el.style.visibility = 'visible';
+            }
+          });
+        }
       });
+      
+      console.log('🔍 IMAGE_SHARE: Canvas generated successfully, size:', canvas.width, 'x', canvas.height);
 
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
+          if (blob) {
+            console.log('🔍 IMAGE_SHARE: Blob created successfully, size:', blob.size, 'bytes');
+          } else {
+            console.error('🔍 IMAGE_SHARE: Failed to create blob from canvas');
+          }
           resolve(blob);
         }, 'image/png', 1.0);
       });
     } catch (error) {
-      console.error('Erro ao gerar imagem:', error);
+      console.error('🔍 IMAGE_SHARE: Error generating image:', error);
       toast({
         title: "Erro",
         description: "Não foi possível gerar a imagem do treino.",
