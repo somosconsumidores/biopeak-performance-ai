@@ -79,7 +79,7 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
     
     // Swim, LAP_SWIMMING, OPEN_WATER_SWIMMING
     if (['SWIM', 'LAP_SWIMMING', 'OPEN_WATER_SWIMMING'].includes(type)) {
-      return '/lovable-uploads/249ce6d6-f6db-47c6-9745-c4eb7000ed58.png';
+      return '/lovable-uploads/9020a919-c039-4674-ba74-e140186b0c3a.png';
     }
     
     // Run, RUNNING, TREADMILL_RUNNING, INDOOR_CARDIO
