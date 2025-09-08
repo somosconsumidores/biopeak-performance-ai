@@ -63,6 +63,39 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
     return `${Math.round(bpm)} bpm`;
   };
 
+  const getBackgroundImage = () => {
+    const type = workoutData.activity_type?.toUpperCase();
+    if (!type) return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png'; // default run
+    
+    // WeightTraining, Workout, STRENGTH_TRAINING
+    if (['WEIGHTTRAINING', 'WORKOUT', 'STRENGTH_TRAINING'].includes(type)) {
+      return '/lovable-uploads/f5f0c382-e88d-48a8-9d67-a143cd9ca96a.png';
+    }
+    
+    // Walk, WALKING
+    if (['WALK', 'WALKING'].includes(type)) {
+      return '/lovable-uploads/dbf161f1-3a70-4926-ae9d-bd30f245111b.png';
+    }
+    
+    // Swim, LAP_SWIMMING, OPEN_WATER_SWIMMING
+    if (['SWIM', 'LAP_SWIMMING', 'OPEN_WATER_SWIMMING'].includes(type)) {
+      return '/lovable-uploads/249ce6d6-f6db-47c6-9745-c4eb7000ed58.png';
+    }
+    
+    // Run, RUNNING, TREADMILL_RUNNING, INDOOR_CARDIO
+    if (['RUN', 'RUNNING', 'TREADMILL_RUNNING', 'INDOOR_CARDIO'].includes(type)) {
+      return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png';
+    }
+    
+    // Ride, CYCLING, ROAD_BIKING, VirtualRide, MOUNTAIN_BIKING, INDOOR_CYCLING
+    if (['RIDE', 'CYCLING', 'ROAD_BIKING', 'VIRTUALRIDE', 'MOUNTAIN_BIKING', 'INDOOR_CYCLING'].includes(type)) {
+      return '/lovable-uploads/a6245b34-933b-49cd-8ea7-fa9ff83e2bea.png';
+    }
+    
+    // Default to run image
+    return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png';
+  };
+
   const formatWorkoutType = () => {
     // Priorizar activity_type da tabela all_activities
     const type = workoutData.activity_type;
@@ -90,7 +123,7 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
       className="w-[1080px] h-[1920px] relative overflow-hidden"
       style={{ 
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundImage: 'url(/lovable-uploads/3c4a2b7a-9602-461e-9497-7174f93dc4f1.png)',
+        backgroundImage: `url(${getBackgroundImage()})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
