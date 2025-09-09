@@ -8,20 +8,31 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-// Interface para controle de estado do checkout
+// Interface robusta para controle de estado do checkout
 interface CheckoutState {
   isInitializing: boolean;
   isActive: boolean;
   instance: any;
   containerId: string;
   plan: 'monthly' | 'annual';
+  clientSecret: string;
+  timestamp: number;
 }
 
-// Controle global para evitar múltiplas instâncias
+// Sistema global robusto - Single Instance Pattern
+let globalStripeInstance: Stripe | null = null;
+let globalStripePublishableKey: string | null = null;
 let globalCheckoutState: CheckoutState | null = null;
 let globalCleanupPromise: Promise<void> | null = null;
+let globalMutex: Promise<void> | null = null;
+let lastInitTimestamp: number = 0;
+
+// Debounce para inicializações (2 segundos)
+const DEBOUNCE_DELAY = 2000;
+const CLEANUP_TIMEOUT = 3000;
+const MAX_RETRIES = 3;
 
 export const Paywall = () => {
   const navigate = useNavigate();
@@ -73,50 +84,80 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  // Função de cleanup global mais robusta
-  const performGlobalCleanup = useCallback(async () => {
-    console.log('[GLOBAL-CLEANUP] 🧹 Iniciando cleanup global...');
-    
-    // Se já há uma operação de cleanup em andamento, aguardar
-    if (globalCleanupPromise) {
-      console.log('[GLOBAL-CLEANUP] ⏳ Aguardando cleanup anterior...');
-      await globalCleanupPromise;
+  // Sistema de mutex robusto para evitar condições de corrida
+  const acquireMutex = async () => {
+    while (globalMutex) {
+      console.log('[MUTEX] ⏳ Aguardando mutex global...');
+      await globalMutex;
     }
+  };
+
+  // Função de cleanup global ultra robusta
+  const performGlobalCleanup = useCallback(async () => {
+    console.log('[GLOBAL-CLEANUP] 🧹 Iniciando cleanup global ultra robusto...');
     
-    // Criar nova promessa de cleanup
+    await acquireMutex();
+    
+    // Criar nova promessa de cleanup com timeout agressivo
     globalCleanupPromise = (async () => {
-      // Limpar timeouts pendentes
-      if (cleanupTimeoutRef.current) {
-        clearTimeout(cleanupTimeoutRef.current);
-        cleanupTimeoutRef.current = null;
-      }
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-        initTimeoutRef.current = null;
-      }
-      
-      // Cleanup da instância global
-      if (globalCheckoutState?.instance) {
+      globalMutex = (async () => {
         try {
-          console.log('[GLOBAL-CLEANUP] 🗑️ Desmontando instância global...');
-          await globalCheckoutState.instance.unmount();
-          console.log('[GLOBAL-CLEANUP] ✅ Instância global desmontada');
-        } catch (error) {
-          console.log('[GLOBAL-CLEANUP] ⚠️ Erro ao desmontar global (ignorando):', error);
+          // Limpar todos os timeouts pendentes
+          if (cleanupTimeoutRef.current) {
+            clearTimeout(cleanupTimeoutRef.current);
+            cleanupTimeoutRef.current = null;
+          }
+          if (initTimeoutRef.current) {
+            clearTimeout(initTimeoutRef.current);
+            initTimeoutRef.current = null;
+          }
+          
+          // Cleanup agressivo da instância global
+          if (globalCheckoutState?.instance) {
+            try {
+              console.log('[GLOBAL-CLEANUP] 🗑️ Desmontando instância global...');
+              await Promise.race([
+                globalCheckoutState.instance.unmount(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), CLEANUP_TIMEOUT))
+              ]);
+              console.log('[GLOBAL-CLEANUP] ✅ Instância global desmontada');
+            } catch (error) {
+              console.log('[GLOBAL-CLEANUP] ⚠️ Timeout/Erro ao desmontar (continuando):', error);
+            }
+          }
+          
+          // Resetar completamente o estado global
+          globalCheckoutState = null;
+          lastInitTimestamp = 0;
+          
+          // Limpeza agressiva do DOM
+          if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+            // Forçar reflow para garantir limpeza
+            containerRef.current.offsetHeight;
+          }
+          
+          // Verificar se há elementos Stripe órfãos no DOM
+          const orphanElements = document.querySelectorAll('[data-testid*="stripe"], .StripeElement, [id*="stripe-"]');
+          orphanElements.forEach(el => {
+            try {
+              el.remove();
+              console.log('[GLOBAL-CLEANUP] 🗑️ Removido elemento Stripe órfão:', el.className);
+            } catch (e) {
+              console.log('[GLOBAL-CLEANUP] ⚠️ Erro ao remover elemento órfão:', e);
+            }
+          });
+          
+          // Timeout mais agressivo para garantir cleanup completo
+          await new Promise(resolve => setTimeout(resolve, CLEANUP_TIMEOUT));
+          console.log('[GLOBAL-CLEANUP] ✅ Cleanup global ultra robusto concluído');
+          
+        } finally {
+          globalMutex = null;
         }
-      }
+      })();
       
-      // Resetar estado global
-      globalCheckoutState = null;
-      
-      // Limpar o container DOM
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
-      
-      // Aguardar para garantir que o Stripe terminou a limpeza
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('[GLOBAL-CLEANUP] ✅ Cleanup global concluído');
+      await globalMutex;
     })();
     
     await globalCleanupPromise;
@@ -178,121 +219,199 @@ export const Paywall = () => {
     }
   }, [loading, selectedPlan, performGlobalCleanup, toast]);
 
-  // Inicialização robusta do checkout com controle global
-  const initializeCheckout = useCallback(async () => {
-    console.log('[INIT] 🔄 Função de inicialização chamada');
-    console.log('[INIT] Estado - showEmbedded:', showEmbedded, 'globalState:', globalCheckoutState?.isInitializing);
+  // Função robusta para obter/reutilizar instância Stripe global
+  const getGlobalStripeInstance = async (publishableKey: string): Promise<Stripe> => {
+    if (globalStripeInstance && globalStripePublishableKey === publishableKey) {
+      console.log('[STRIPE] ♻️ Reutilizando instância global do Stripe');
+      return globalStripeInstance;
+    }
     
+    console.log('[STRIPE] 🆕 Criando nova instância global do Stripe');
+    const stripe = await loadStripe(publishableKey);
+    if (!stripe) {
+      throw new Error('Falha ao carregar instância do Stripe');
+    }
+    
+    globalStripeInstance = stripe;
+    globalStripePublishableKey = publishableKey;
+    return stripe;
+  };
+
+  // Inicialização ultra robusta do checkout com padrão Single Instance
+  const initializeCheckout = useCallback(async (retryCount = 0) => {
+    const now = Date.now();
+    console.log(`[INIT] 🔄 Inicialização chamada (tentativa ${retryCount + 1}/${MAX_RETRIES})`);
+    console.log(`[INIT] Estado - showEmbedded:${showEmbedded}, globalState:${globalCheckoutState?.isInitializing}, debounce:${now - lastInitTimestamp}ms`);
+    
+    // Verificação de debounce (2 segundos)
+    if (now - lastInitTimestamp < DEBOUNCE_DELAY) {
+      console.log(`[INIT] ⏸️ Debounce ativo, aguardando ${DEBOUNCE_DELAY - (now - lastInitTimestamp)}ms`);
+      return;
+    }
+    
+    // Verificações de estado
     if (!showEmbedded || globalCheckoutState?.isInitializing) {
       console.log('[INIT] ⏸️ Bloqueado - showEmbedded:', showEmbedded, 'globalInitializing:', globalCheckoutState?.isInitializing);
       return;
     }
+
+    // Verificação de DOM
+    if (!containerRef.current) {
+      console.log('[INIT] ❌ Container DOM não disponível');
+      if (retryCount < MAX_RETRIES) {
+        setTimeout(() => initializeCheckout(retryCount + 1), 500);
+      }
+      return;
+    }
     
-    const containerId = `embedded-checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await acquireMutex();
+    
+    const containerId = `embedded-checkout-${now}-${Math.random().toString(36).substr(2, 9)}`;
+    lastInitTimestamp = now;
+    
     console.log(`[INIT] 🆔 Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
     
-    // Marcar como inicializando globalmente
-    globalCheckoutState = {
-      isInitializing: true,
-      isActive: false,
-      instance: null,
-      containerId,
-      plan: selectedPlan
-    };
-
     try {
-      // 1) Buscar chave pública
-      console.log('[INIT] 🔑 Buscando chave pública...');
-      const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
-      console.log('[INIT] 📝 Resposta da chave pública:', { pkData, pkError });
-      
-      if (pkError) {
-        throw new Error(`Erro ao buscar chave pública: ${pkError.message}`);
-      }
-      if (!pkData?.publishableKey) {
-        throw new Error('Chave pública da Stripe não retornada');
-      }
-
-      // 2) Criar sessão embedded
-      console.log('[INIT] 🏗️ Criando sessão embedded...');
-      const functionName = selectedPlan === 'monthly' 
-        ? 'create-monthly-checkout-embedded' 
-        : 'create-annual-checkout-embedded';
-      
-      console.log('[INIT] 📞 Chamando função:', functionName);
-      const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
-      console.log('[INIT] 📋 Resposta da sessão:', { sessionData, sessionError });
-      
-      if (sessionError) {
-        throw new Error(`Erro ao criar sessão: ${sessionError.message}`);
-      }
-      if (!sessionData?.client_secret) {
-        throw new Error('Client secret não retornado pela função');
-      }
-
-      // Verificar se ainda é a mesma inicialização
-      if (globalCheckoutState?.containerId !== containerId) {
-        console.log('[INIT] ❌ Inicialização cancelada - nova tentativa em andamento');
-        return;
-      }
-
-      // 3) Carregar Stripe
-      console.log('[INIT] 📦 Carregando Stripe com chave:', pkData.publishableKey.substring(0, 20) + '...');
-      const stripe = await loadStripe(pkData.publishableKey);
-      if (!stripe) {
-        throw new Error('Falha ao carregar instância do Stripe');
-      }
-
-      // 4) Inicializar checkout embedded
-      console.log('[INIT] 🎯 Criando instância embedded com client_secret:', sessionData.client_secret.substring(0, 20) + '...');
-      const checkoutInstance = await stripe.initEmbeddedCheckout({
-        clientSecret: sessionData.client_secret
-      });
-
-      // Verificar novamente se ainda é válido
-      if (globalCheckoutState?.containerId !== containerId) {
-        console.log('[INIT] ❌ Inicialização cancelada durante criação da instância');
-        if (checkoutInstance) {
-          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
+      globalMutex = (async () => {
+        // Verificar se já há um client_secret ativo para o mesmo plano
+        if (globalCheckoutState?.clientSecret && globalCheckoutState.plan === selectedPlan && globalCheckoutState.isActive) {
+          console.log('[INIT] ⚡ Client secret ativo encontrado, reutilizando...');
+          return;
         }
-        return;
-      }
+        
+        // Marcar como inicializando globalmente com todas as propriedades
+        globalCheckoutState = {
+          isInitializing: true,
+          isActive: false,
+          instance: null,
+          containerId,
+          plan: selectedPlan,
+          clientSecret: '', // Será preenchido quando obtido
+          timestamp: now
+        };
 
-      // 5) Verificar e preparar container DOM
-      if (!containerRef.current) {
-        throw new Error('Container ref não está disponível');
-      }
+        // 1) Buscar chave pública
+        console.log('[INIT] 🔑 Buscando chave pública...');
+        const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
+        console.log('[INIT] 📝 Resposta da chave pública:', { pkData, pkError });
+        
+        if (pkError) {
+          throw new Error(`Erro ao buscar chave pública: ${pkError.message}`);
+        }
+        if (!pkData?.publishableKey) {
+          throw new Error('Chave pública da Stripe não retornada');
+        }
 
-      // Verificar se ainda é a mesma inicialização antes de montar
-      if (globalCheckoutState?.containerId !== containerId) {
-        console.log('[INIT] ❌ Inicialização cancelada antes da montagem');
-        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
-        return;
-      }
+        // 2) Criar sessão embedded
+        console.log('[INIT] 🏗️ Criando sessão embedded...');
+        const functionName = selectedPlan === 'monthly' 
+          ? 'create-monthly-checkout-embedded' 
+          : 'create-annual-checkout-embedded';
+        
+        console.log('[INIT] 📞 Chamando função:', functionName);
+        const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
+        console.log('[INIT] 📋 Resposta da sessão:', { sessionData, sessionError });
+        
+        if (sessionError) {
+          throw new Error(`Erro ao criar sessão: ${sessionError.message}`);
+        }
+        if (!sessionData?.client_secret) {
+          throw new Error('Client secret não retornado pela função');
+        }
 
-      console.log('[INIT] 🏗️ Montando checkout diretamente no container...');
+        // Verificar se ainda é a mesma inicialização
+        if (globalCheckoutState?.containerId !== containerId) {
+          console.log('[INIT] ❌ Inicialização cancelada - nova tentativa em andamento');
+          return;
+        }
+
+        // Atualizar com o client_secret obtido
+        globalCheckoutState.clientSecret = sessionData.client_secret;
+
+        // 3) Obter instância Stripe global (reutilizável)
+        console.log('[INIT] 📦 Obtendo instância Stripe...');
+        const stripe = await getGlobalStripeInstance(pkData.publishableKey);
+
+        // 4) Inicializar checkout embedded
+        console.log('[INIT] 🎯 Criando instância embedded com client_secret:', sessionData.client_secret.substring(0, 20) + '...');
+        const checkoutInstance = await stripe.initEmbeddedCheckout({
+          clientSecret: sessionData.client_secret
+        });
+
+        // Verificar novamente se ainda é válido
+        if (globalCheckoutState?.containerId !== containerId) {
+          console.log('[INIT] ❌ Inicialização cancelada durante criação da instância');
+          if (checkoutInstance) {
+            try { 
+              await Promise.race([
+                checkoutInstance.unmount(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+              ]);
+            } catch (e) { 
+              console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); 
+            }
+          }
+          return;
+        }
+
+        // 5) Verificação final do DOM e montagem
+        if (!containerRef.current) {
+          throw new Error('Container DOM removido durante inicialização');
+        }
+
+        // Verificar se o container está vazio (sem elementos Stripe órfãos)
+        const hasStripeElements = containerRef.current.querySelector('[data-testid*="stripe"], .StripeElement');
+        if (hasStripeElements) {
+          console.log('[INIT] 🧹 Limpando elementos Stripe órfãos...');
+          containerRef.current.innerHTML = '';
+        }
+
+        console.log('[INIT] 🏗️ Montando checkout no container...');
+        
+        // 6) Montar com timeout de segurança
+        await Promise.race([
+          checkoutInstance.mount(containerRef.current),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na montagem')), 10000))
+        ]);
+        
+        // 7) Atualizar estado global para ativo
+        if (globalCheckoutState?.containerId === containerId) {
+          globalCheckoutState.isInitializing = false;
+          globalCheckoutState.isActive = true;
+          globalCheckoutState.instance = checkoutInstance;
+          console.log('[INIT] ✅ Checkout montado com sucesso!');
+          setLoading(false);
+        } else {
+          // Se não é mais válido, desmontar
+          console.log('[INIT] ⚠️ Estado inválido após montagem, desmontando...');
+          try { 
+            await Promise.race([
+              checkoutInstance.unmount(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+            ]);
+          } catch (e) { 
+            console.log('[INIT] ⚠️ Erro ao desmontar:', e); 
+          }
+        }
+      })();
       
-      // 6) Montar diretamente no container ref sem criar elementos intermediários
-      await checkoutInstance.mount(containerRef.current);
-      
-      // 7) Atualizar estado global para ativo
-      if (globalCheckoutState?.containerId === containerId) {
-        globalCheckoutState.isInitializing = false;
-        globalCheckoutState.isActive = true;
-        globalCheckoutState.instance = checkoutInstance;
-        console.log('[INIT] ✅ Checkout montado com sucesso!');
-        setLoading(false);
-      } else {
-        // Se não é mais válido, desmontar
-        console.log('[INIT] ⚠️ Estado inválido após montagem, desmontando...');
-        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar:', e); }
-      }
+      await globalMutex;
+      globalMutex = null;
       
     } catch (error) {
-      console.error('[INIT] ❌ Erro durante inicialização:', error);
+      globalMutex = null;
+      console.error(`[INIT] ❌ Erro durante inicialização (tentativa ${retryCount + 1}):`, error);
       
       // Resetar estado global em caso de erro
       globalCheckoutState = null;
+      
+      // Retry com backoff exponencial
+      if (retryCount < MAX_RETRIES - 1) {
+        const backoffDelay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`[INIT] 🔄 Tentando novamente em ${backoffDelay}ms...`);
+        setTimeout(() => initializeCheckout(retryCount + 1), backoffDelay);
+        return;
+      }
       
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar checkout';
       toast({
