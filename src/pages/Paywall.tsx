@@ -23,6 +23,7 @@ export const Paywall = () => {
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
   const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -54,26 +55,46 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  const handleStartNow = async () => {
-    // Previne múltiplas instâncias
-    if (loading || showEmbedded) return;
+  const cleanupCheckout = async () => {
+    if (isCleaningUp) return;
     
-    // Limpa qualquer checkout anterior
+    setIsCleaningUp(true);
+    
     if (checkoutInstance) {
       try {
-        checkoutInstance.unmount();
+        await checkoutInstance.unmount();
+        console.log('Checkout instance unmounted successfully');
       } catch (e) {
-        console.log('Error unmounting previous checkout:', e);
+        console.log('Error unmounting checkout:', e);
       }
       setCheckoutInstance(null);
     }
+    
+    // Limpa o DOM
+    const existingCheckout = document.querySelector('#embedded-checkout');
+    if (existingCheckout) {
+      existingCheckout.innerHTML = '';
+    }
+    
+    // Pequeno delay para garantir limpeza completa
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    setIsCleaningUp(false);
+  };
+
+  const handleStartNow = async () => {
+    // Previne múltiplas instâncias
+    if (loading || showEmbedded || isCleaningUp) return;
+    
+    // Limpa qualquer checkout anterior primeiro
+    await cleanupCheckout();
     
     // Inicia o modo de checkout embutido
     setShowEmbedded(true);
   };
 
   useEffect(() => {
-    if (!showEmbedded) return;
+    if (!showEmbedded || isCleaningUp) return;
     
     let isCancelled = false;
     let newCheckoutInstance: any = null;
@@ -82,33 +103,42 @@ export const Paywall = () => {
       try {
         setLoading(true);
         
-        // Garante que não há instância anterior
-        const existingCheckout = document.querySelector('#embedded-checkout');
-        if (existingCheckout) {
-          existingCheckout.innerHTML = '';
-        }
+        // Aguarda um pouco para garantir que não há conflitos
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (isCancelled) return;
 
         // 1) Buscar Publishable Key
         const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
         if (pkError || !pkData?.publishableKey) throw new Error('Chave pública da Stripe não configurada');
+
+        if (isCancelled) return;
 
         // 2) Criar sessão EMBEDDED (mensal/anual)
         const fn = selectedPlan === 'monthly' ? 'create-monthly-checkout-embedded' : 'create-annual-checkout-embedded';
         const { data: secData, error: secError } = await supabase.functions.invoke(fn);
         if (secError || !secData?.client_secret) throw new Error('Não foi possível iniciar o checkout embutido');
 
+        if (isCancelled) return;
+
         // 3) Montar o Embedded Checkout
-        if (!isCancelled) {
-          const stripe = await loadStripe(pkData.publishableKey);
-          if (!stripe) throw new Error('Falha ao carregar Stripe');
-          
-          newCheckoutInstance = await stripe.initEmbeddedCheckout({ 
-            clientSecret: secData.client_secret 
-          });
-          
-          if (!isCancelled && newCheckoutInstance) {
+        const stripe = await loadStripe(pkData.publishableKey);
+        if (!stripe) throw new Error('Falha ao carregar Stripe');
+        
+        if (isCancelled) return;
+        
+        console.log('Creating new embedded checkout instance...');
+        newCheckoutInstance = await stripe.initEmbeddedCheckout({ 
+          clientSecret: secData.client_secret 
+        });
+        
+        if (!isCancelled && newCheckoutInstance) {
+          console.log('Mounting checkout to DOM...');
+          const checkoutContainer = document.querySelector('#embedded-checkout');
+          if (checkoutContainer) {
             await newCheckoutInstance.mount('#embedded-checkout');
             setCheckoutInstance(newCheckoutInstance);
+            console.log('Checkout mounted successfully');
           }
         }
       } catch (err) {
@@ -121,6 +151,7 @@ export const Paywall = () => {
             description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
             variant: 'destructive' 
           });
+          await cleanupCheckout();
           setShowEmbedded(false);
         }
       } finally {
@@ -134,15 +165,16 @@ export const Paywall = () => {
 
     return () => {
       isCancelled = true;
-      if (newCheckoutInstance) {
+      if (newCheckoutInstance && newCheckoutInstance !== checkoutInstance) {
         try {
           newCheckoutInstance.unmount();
+          console.log('Cleanup: unmounted new instance');
         } catch (e) {
           console.log('Cleanup error:', e);
         }
       }
     };
-  }, [showEmbedded, selectedPlan, toast]);
+  }, [showEmbedded, selectedPlan, toast, isCleaningUp]);
 
   const benefits = [
     {
@@ -199,13 +231,8 @@ export const Paywall = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              if (checkoutInstance) {
-                try {
-                  checkoutInstance.unmount();
-                } catch (e) {}
-                setCheckoutInstance(null);
-              }
+            onClick={async () => {
+              await cleanupCheckout();
               setShowEmbedded(false);
             }}
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
