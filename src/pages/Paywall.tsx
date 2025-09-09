@@ -22,8 +22,7 @@ export const Paywall = () => {
   });
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
-  const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [checkoutKey, setCheckoutKey] = useState(0);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -55,58 +54,25 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  const cleanupCheckout = async () => {
-    if (isCleaningUp) return;
-    
-    setIsCleaningUp(true);
-    
-    if (checkoutInstance) {
-      try {
-        await checkoutInstance.unmount();
-        console.log('Checkout instance unmounted successfully');
-      } catch (e) {
-        console.log('Error unmounting checkout:', e);
-      }
-      setCheckoutInstance(null);
-    }
-    
-    // Limpa o DOM
-    const existingCheckout = document.querySelector('#embedded-checkout');
-    if (existingCheckout) {
-      existingCheckout.innerHTML = '';
-    }
-    
-    // Pequeno delay para garantir limpeza completa
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    setIsCleaningUp(false);
-  };
-
   const handleStartNow = async () => {
-    // Previne múltiplas instâncias
-    if (loading || showEmbedded || isCleaningUp) return;
+    if (loading || showEmbedded) return;
     
-    // Limpa qualquer checkout anterior primeiro
-    await cleanupCheckout();
-    
-    // Inicia o modo de checkout embutido
+    // Força recriação completa com nova key
+    setCheckoutKey(prev => prev + 1);
     setShowEmbedded(true);
   };
 
   useEffect(() => {
-    if (!showEmbedded || isCleaningUp) return;
+    if (!showEmbedded) return;
     
     let isCancelled = false;
-    let newCheckoutInstance: any = null;
+    let checkoutInstance: any = null;
 
     const init = async () => {
       try {
         setLoading(true);
         
-        // Aguarda um pouco para garantir que não há conflitos
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        if (isCancelled) return;
+        console.log(`Initializing checkout with key: ${checkoutKey}, plan: ${selectedPlan}`);
 
         // 1) Buscar Publishable Key
         const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
@@ -127,31 +93,23 @@ export const Paywall = () => {
         
         if (isCancelled) return;
         
-        console.log('Creating new embedded checkout instance...');
-        newCheckoutInstance = await stripe.initEmbeddedCheckout({ 
+        checkoutInstance = await stripe.initEmbeddedCheckout({ 
           clientSecret: secData.client_secret 
         });
         
-        if (!isCancelled && newCheckoutInstance) {
-          console.log('Mounting checkout to DOM...');
-          const checkoutContainer = document.querySelector('#embedded-checkout');
-          if (checkoutContainer) {
-            await newCheckoutInstance.mount('#embedded-checkout');
-            setCheckoutInstance(newCheckoutInstance);
-            console.log('Checkout mounted successfully');
-          }
+        if (!isCancelled && checkoutInstance) {
+          await checkoutInstance.mount(`#embedded-checkout-${checkoutKey}`);
+          console.log(`Checkout mounted successfully with key: ${checkoutKey}`);
         }
       } catch (err) {
         if (!isCancelled) {
           console.error('Embedded checkout error:', err);
           const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-          console.error('Detalhes do erro:', errorMessage);
           toast({ 
             title: 'Erro no Checkout', 
             description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
             variant: 'destructive' 
           });
-          await cleanupCheckout();
           setShowEmbedded(false);
         }
       } finally {
@@ -165,16 +123,16 @@ export const Paywall = () => {
 
     return () => {
       isCancelled = true;
-      if (newCheckoutInstance && newCheckoutInstance !== checkoutInstance) {
+      if (checkoutInstance) {
         try {
-          newCheckoutInstance.unmount();
-          console.log('Cleanup: unmounted new instance');
+          checkoutInstance.unmount();
+          console.log(`Cleanup: unmounted checkout with key: ${checkoutKey}`);
         } catch (e) {
           console.log('Cleanup error:', e);
         }
       }
     };
-  }, [showEmbedded, selectedPlan, toast, isCleaningUp]);
+  }, [showEmbedded, selectedPlan, checkoutKey, toast]);
 
   const benefits = [
     {
@@ -225,16 +183,13 @@ export const Paywall = () => {
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
             <CardContent className="p-0">
-              <div id="embedded-checkout" className="min-h-[640px]" />
+              <div id={`embedded-checkout-${checkoutKey}`} className="min-h-[640px]" />
             </CardContent>
           </Card>
           <Button
             variant="ghost"
             size="icon"
-            onClick={async () => {
-              await cleanupCheckout();
-              setShowEmbedded(false);
-            }}
+            onClick={() => setShowEmbedded(false)}
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
             aria-label="Fechar checkout"
           >
