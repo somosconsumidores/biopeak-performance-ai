@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +10,35 @@ import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { loadStripe } from '@stripe/stripe-js';
 
+// Interface para controle de estado do checkout
+interface CheckoutState {
+  isInitializing: boolean;
+  isActive: boolean;
+  instance: any;
+  containerId: string;
+  plan: 'monthly' | 'annual';
+}
+
 export const Paywall = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
+  
+  // Estado robusto para controle do checkout
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(() => {
-    // Inicializar baseado no parâmetro da URL apenas uma vez
     const planParam = new URLSearchParams(window.location.search).get('plan');
     return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
   });
+  
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
-  const [checkoutKey, setCheckoutKey] = useState(0);
+  
+  // Refs para controle direto do DOM e instâncias
+  const checkoutStateRef = useRef<CheckoutState | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -54,85 +70,200 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  const handleStartNow = async () => {
-    if (loading || showEmbedded) return;
+  // Função de cleanup definitiva
+  const performAdvancedCleanup = useCallback(async () => {
+    console.log('[CLEANUP] Iniciando cleanup avançado...');
     
-    // Força recriação completa com nova key
-    setCheckoutKey(prev => prev + 1);
-    setShowEmbedded(true);
-  };
-
-  useEffect(() => {
-    if (!showEmbedded) return;
+    // Limpar timeouts pendentes
+    if (cleanupTimeoutRef.current) {
+      clearTimeout(cleanupTimeoutRef.current);
+      cleanupTimeoutRef.current = null;
+    }
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+      initTimeoutRef.current = null;
+    }
     
-    let isCancelled = false;
-    let checkoutInstance: any = null;
-
-    const init = async () => {
+    // Cleanup da instância atual
+    if (checkoutStateRef.current?.instance) {
       try {
-        setLoading(true);
-        
-        console.log(`Initializing checkout with key: ${checkoutKey}, plan: ${selectedPlan}`);
-
-        // 1) Buscar Publishable Key
-        const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
-        if (pkError || !pkData?.publishableKey) throw new Error('Chave pública da Stripe não configurada');
-
-        if (isCancelled) return;
-
-        // 2) Criar sessão EMBEDDED (mensal/anual)
-        const fn = selectedPlan === 'monthly' ? 'create-monthly-checkout-embedded' : 'create-annual-checkout-embedded';
-        const { data: secData, error: secError } = await supabase.functions.invoke(fn);
-        if (secError || !secData?.client_secret) throw new Error('Não foi possível iniciar o checkout embutido');
-
-        if (isCancelled) return;
-
-        // 3) Montar o Embedded Checkout
-        const stripe = await loadStripe(pkData.publishableKey);
-        if (!stripe) throw new Error('Falha ao carregar Stripe');
-        
-        if (isCancelled) return;
-        
-        checkoutInstance = await stripe.initEmbeddedCheckout({ 
-          clientSecret: secData.client_secret 
-        });
-        
-        if (!isCancelled && checkoutInstance) {
-          await checkoutInstance.mount(`#embedded-checkout-${checkoutKey}`);
-          console.log(`Checkout mounted successfully with key: ${checkoutKey}`);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          console.error('Embedded checkout error:', err);
-          const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-          toast({ 
-            title: 'Erro no Checkout', 
-            description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
-            variant: 'destructive' 
-          });
-          setShowEmbedded(false);
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
+        console.log('[CLEANUP] Desmontando instância atual...');
+        await checkoutStateRef.current.instance.unmount();
+        console.log('[CLEANUP] Instância desmontada com sucesso');
+      } catch (error) {
+        console.log('[CLEANUP] Erro ao desmontar (esperado):', error);
       }
+    }
+    
+    // Limpar DOM completamente
+    if (containerRef.current) {
+      console.log('[CLEANUP] Limpando DOM...');
+      containerRef.current.innerHTML = '';
+    }
+    
+    // Resetar estado
+    checkoutStateRef.current = null;
+    
+    // Aguardar um tempo para garantir cleanup completo
+    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('[CLEANUP] Cleanup concluído');
+  }, []);
+
+  const handleStartNow = useCallback(async () => {
+    if (loading || (checkoutStateRef.current?.isInitializing)) {
+      console.log('[START] Operação já em andamento, ignorando...');
+      return;
+    }
+    
+    console.log(`[START] Iniciando checkout para plano: ${selectedPlan}`);
+    setLoading(true);
+    
+    try {
+      // Cleanup completo antes de iniciar
+      await performAdvancedCleanup();
+      
+      // Aguardar um pouco mais para garantir que tudo foi limpo
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setShowEmbedded(true);
+    } catch (error) {
+      console.error('[START] Erro durante inicialização:', error);
+      setLoading(false);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao inicializar checkout. Tente novamente.',
+        variant: 'destructive'
+      });
+    }
+  }, [loading, selectedPlan, performAdvancedCleanup, toast]);
+
+  // Inicialização robusta do checkout
+  const initializeCheckout = useCallback(async () => {
+    if (!showEmbedded || checkoutStateRef.current?.isInitializing) return;
+    
+    const containerId = `embedded-checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[INIT] Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
+    
+    // Marcar como inicializando
+    checkoutStateRef.current = {
+      isInitializing: true,
+      isActive: false,
+      instance: null,
+      containerId,
+      plan: selectedPlan
     };
 
-    init();
+    try {
+      // 1) Buscar chave pública
+      console.log('[INIT] Buscando chave pública...');
+      const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
+      if (pkError || !pkData?.publishableKey) {
+        throw new Error('Chave pública da Stripe não configurada');
+      }
 
+      // 2) Criar sessão embedded
+      console.log('[INIT] Criando sessão embedded...');
+      const functionName = selectedPlan === 'monthly' 
+        ? 'create-monthly-checkout-embedded' 
+        : 'create-annual-checkout-embedded';
+      
+      const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
+      if (sessionError || !sessionData?.client_secret) {
+        throw new Error('Não foi possível criar a sessão de checkout');
+      }
+
+      // Verificar se ainda é a mesma inicialização
+      if (checkoutStateRef.current?.containerId !== containerId) {
+        console.log('[INIT] Inicialização cancelada - nova tentativa em andamento');
+        return;
+      }
+
+      // 3) Carregar Stripe
+      console.log('[INIT] Carregando Stripe...');
+      const stripe = await loadStripe(pkData.publishableKey);
+      if (!stripe) {
+        throw new Error('Falha ao carregar Stripe');
+      }
+
+      // 4) Inicializar checkout embedded
+      console.log('[INIT] Criando instância embedded...');
+      const checkoutInstance = await stripe.initEmbeddedCheckout({
+        clientSecret: sessionData.client_secret
+      });
+
+      // Verificar novamente se ainda é válido
+      if (checkoutStateRef.current?.containerId !== containerId) {
+        console.log('[INIT] Inicialização cancelada durante criação da instância');
+        if (checkoutInstance) {
+          try { await checkoutInstance.unmount(); } catch (e) { /* ignore */ }
+        }
+        return;
+      }
+
+      // 5) Preparar container DOM
+      if (containerRef.current) {
+        containerRef.current.innerHTML = `<div id="${containerId}" class="min-h-[640px]"></div>`;
+        
+        // Aguardar o DOM estar pronto
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 6) Montar o checkout
+        console.log('[INIT] Montando checkout no DOM...');
+        await checkoutInstance.mount(`#${containerId}`);
+        
+        // Atualizar estado para ativo
+        if (checkoutStateRef.current?.containerId === containerId) {
+          checkoutStateRef.current.isInitializing = false;
+          checkoutStateRef.current.isActive = true;
+          checkoutStateRef.current.instance = checkoutInstance;
+          console.log('[INIT] Checkout montado com sucesso!');
+        } else {
+          // Se não é mais válido, desmontar
+          try { await checkoutInstance.unmount(); } catch (e) { /* ignore */ }
+        }
+      }
+      
+    } catch (error) {
+      console.error('[INIT] Erro durante inicialização:', error);
+      
+      // Resetar estado em caso de erro
+      checkoutStateRef.current = null;
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: 'Erro no Checkout',
+        description: `Falha ao inicializar: ${errorMessage}`,
+        variant: 'destructive'
+      });
+      
+      setShowEmbedded(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [showEmbedded, selectedPlan, toast]);
+
+  // Efeito para inicializar checkout
+  useEffect(() => {
+    if (showEmbedded) {
+      // Usar timeout para permitir que o DOM se atualize
+      initTimeoutRef.current = setTimeout(() => {
+        initializeCheckout();
+      }, 100);
+    }
+    
     return () => {
-      isCancelled = true;
-      if (checkoutInstance) {
-        try {
-          checkoutInstance.unmount();
-          console.log(`Cleanup: unmounted checkout with key: ${checkoutKey}`);
-        } catch (e) {
-          console.log('Cleanup error:', e);
-        }
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
       }
     };
-  }, [showEmbedded, selectedPlan, checkoutKey, toast]);
+  }, [showEmbedded, initializeCheckout]);
+
+  // Cleanup quando componente desmonta
+  useEffect(() => {
+    return () => {
+      performAdvancedCleanup();
+    };
+  }, [performAdvancedCleanup]);
 
   const benefits = [
     {
@@ -183,13 +314,28 @@ export const Paywall = () => {
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
             <CardContent className="p-0">
-              <div id={`embedded-checkout-${checkoutKey}`} className="min-h-[640px]" />
+              <div ref={containerRef} className="min-h-[640px]">
+                {loading && (
+                  <div className="flex items-center justify-center h-[640px]">
+                    <div className="text-center space-y-4">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                      <p className="text-sm text-muted-foreground">
+                        Carregando checkout seguro...
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setShowEmbedded(false)}
+            onClick={async () => {
+              await performAdvancedCleanup();
+              setShowEmbedded(false);
+              setLoading(false);
+            }}
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
             aria-label="Fechar checkout"
           >
