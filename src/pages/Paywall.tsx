@@ -104,24 +104,30 @@ export const Paywall = () => {
   }, []);
 
   const handleStartNow = useCallback(async () => {
+    console.log('[START] 🚀 Botão clicado, verificando condições...');
+    console.log('[START] Estado atual - loading:', loading, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+    
     if (loading || (checkoutStateRef.current?.isInitializing)) {
-      console.log('[START] Operação já em andamento, ignorando...');
+      console.log('[START] ❌ Operação já em andamento, ignorando...');
       return;
     }
     
-    console.log(`[START] Iniciando checkout para plano: ${selectedPlan}`);
+    console.log(`[START] ✅ Iniciando checkout para plano: ${selectedPlan}`);
     setLoading(true);
     
     try {
       // Cleanup completo antes de iniciar
+      console.log('[START] 🧹 Fazendo cleanup antes de iniciar...');
       await performAdvancedCleanup();
       
       // Aguardar um pouco mais para garantir que tudo foi limpo
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
+      console.log('[START] 📱 Mostrando modal embedded...');
       setShowEmbedded(true);
+      
     } catch (error) {
-      console.error('[START] Erro durante inicialização:', error);
+      console.error('[START] ❌ Erro durante inicialização:', error);
       setLoading(false);
       toast({
         title: 'Erro',
@@ -133,13 +139,16 @@ export const Paywall = () => {
 
   // Inicialização robusta do checkout
   const initializeCheckout = useCallback(async () => {
+    console.log('[INIT] 🔄 Função de inicialização chamada');
+    console.log('[INIT] Estado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+    
     if (!showEmbedded || checkoutStateRef.current?.isInitializing) {
-      console.log('[INIT] Bloqueado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+      console.log('[INIT] ⏸️ Bloqueado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
       return;
     }
     
     const containerId = `embedded-checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`[INIT] Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
+    console.log(`[INIT] 🆔 Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
     
     // Marcar como inicializando
     checkoutStateRef.current = {
@@ -152,9 +161,9 @@ export const Paywall = () => {
 
     try {
       // 1) Buscar chave pública
-      console.log('[INIT] Buscando chave pública...');
+      console.log('[INIT] 🔑 Buscando chave pública...');
       const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
-      console.log('[INIT] Resposta da chave pública:', { pkData, pkError });
+      console.log('[INIT] 📝 Resposta da chave pública:', { pkData, pkError });
       
       if (pkError) {
         throw new Error(`Erro ao buscar chave pública: ${pkError.message}`);
@@ -164,14 +173,14 @@ export const Paywall = () => {
       }
 
       // 2) Criar sessão embedded
-      console.log('[INIT] Criando sessão embedded...');
+      console.log('[INIT] 🏗️ Criando sessão embedded...');
       const functionName = selectedPlan === 'monthly' 
         ? 'create-monthly-checkout-embedded' 
         : 'create-annual-checkout-embedded';
       
-      console.log('[INIT] Chamando função:', functionName);
+      console.log('[INIT] 📞 Chamando função:', functionName);
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
-      console.log('[INIT] Resposta da sessão:', { sessionData, sessionError });
+      console.log('[INIT] 📋 Resposta da sessão:', { sessionData, sessionError });
       
       if (sessionError) {
         throw new Error(`Erro ao criar sessão: ${sessionError.message}`);
@@ -182,28 +191,28 @@ export const Paywall = () => {
 
       // Verificar se ainda é a mesma inicialização
       if (checkoutStateRef.current?.containerId !== containerId) {
-        console.log('[INIT] Inicialização cancelada - nova tentativa em andamento');
+        console.log('[INIT] ❌ Inicialização cancelada - nova tentativa em andamento');
         return;
       }
 
       // 3) Carregar Stripe
-      console.log('[INIT] Carregando Stripe com chave:', pkData.publishableKey.substring(0, 20) + '...');
+      console.log('[INIT] 📦 Carregando Stripe com chave:', pkData.publishableKey.substring(0, 20) + '...');
       const stripe = await loadStripe(pkData.publishableKey);
       if (!stripe) {
         throw new Error('Falha ao carregar instância do Stripe');
       }
 
       // 4) Inicializar checkout embedded
-      console.log('[INIT] Criando instância embedded com client_secret:', sessionData.client_secret.substring(0, 20) + '...');
+      console.log('[INIT] 🎯 Criando instância embedded com client_secret:', sessionData.client_secret.substring(0, 20) + '...');
       const checkoutInstance = await stripe.initEmbeddedCheckout({
         clientSecret: sessionData.client_secret
       });
 
       // Verificar novamente se ainda é válido
       if (checkoutStateRef.current?.containerId !== containerId) {
-        console.log('[INIT] Inicialização cancelada durante criação da instância');
+        console.log('[INIT] ❌ Inicialização cancelada durante criação da instância');
         if (checkoutInstance) {
-          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar instância cancelada:', e); }
+          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
         }
         return;
       }
@@ -215,12 +224,12 @@ export const Paywall = () => {
 
       // Verificar se ainda é a mesma inicialização antes de montar
       if (checkoutStateRef.current?.containerId !== containerId) {
-        console.log('[INIT] Inicialização cancelada antes da montagem');
-        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar instância cancelada:', e); }
+        console.log('[INIT] ❌ Inicialização cancelada antes da montagem');
+        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
         return;
       }
 
-      console.log('[INIT] Montando checkout diretamente no container...');
+      console.log('[INIT] 🏗️ Montando checkout diretamente no container...');
       
       // 6) Montar diretamente no container ref sem criar elementos intermediários
       await checkoutInstance.mount(containerRef.current);
@@ -234,8 +243,8 @@ export const Paywall = () => {
         setLoading(false);
       } else {
         // Se não é mais válido, desmontar
-        console.log('[INIT] Estado inválido após montagem, desmontando...');
-        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar:', e); }
+        console.log('[INIT] ⚠️ Estado inválido após montagem, desmontando...');
+        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar:', e); }
       }
       
     } catch (error) {
