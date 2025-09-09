@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
+import { loadStripe } from '@stripe/stripe-js';
 
 export const Paywall = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export const Paywall = () => {
     return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
   });
   const [loading, setLoading] = useState(false);
+  const [showEmbedded, setShowEmbedded] = useState(false);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -52,40 +54,50 @@ export const Paywall = () => {
   };
 
   const handleStartNow = async () => {
-    try {
-      setLoading(true);
-      
-      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
-      
-      const { data, error } = await supabase.functions.invoke(functionName);
-      
-      if (error) {
-        console.error('Error creating checkout:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível processar o pagamento. Tente novamente.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível processar o pagamento. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Inicia o modo de checkout embutido
+    setShowEmbedded(true);
   };
+
+  useEffect(() => {
+    if (!showEmbedded) return;
+    let isCancelled = false as boolean;
+    let checkoutInstance: any;
+
+    const init = async () => {
+      try {
+        setLoading(true);
+        // 1) Buscar Publishable Key
+        const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
+        if (pkError || !pkData?.publishableKey) throw new Error('Chave pública da Stripe não configurada');
+
+        // 2) Criar sessão EMBEDDED (mensal/anual)
+        const fn = selectedPlan === 'monthly' ? 'create-monthly-checkout-embedded' : 'create-annual-checkout-embedded';
+        const { data: secData, error: secError } = await supabase.functions.invoke(fn);
+        if (secError || !secData?.client_secret) throw new Error('Não foi possível iniciar o checkout embutido');
+
+        // 3) Montar o Embedded Checkout
+        const stripe = await loadStripe(pkData.publishableKey);
+        const checkout = await stripe?.initEmbeddedCheckout({ clientSecret: secData.client_secret });
+        if (!isCancelled) {
+          checkout?.mount('#embedded-checkout');
+          checkoutInstance = checkout;
+        }
+      } catch (err) {
+        console.error('Embedded checkout error:', err);
+        toast({ title: 'Erro', description: 'Falha ao iniciar o checkout embutido.', variant: 'destructive' });
+        setShowEmbedded(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      isCancelled = true;
+      try { checkoutInstance?.unmount?.(); } catch {}
+    };
+  }, [showEmbedded, selectedPlan, toast]);
 
   const benefits = [
     {
@@ -131,6 +143,25 @@ export const Paywall = () => {
       >
         <X className="h-5 w-5" />
       </Button>
+
+      {showEmbedded && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl">
+            <CardContent className="p-0">
+              <div id="embedded-checkout" className="min-h-[640px]" />
+            </CardContent>
+          </Card>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowEmbedded(false)}
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
+            aria-label="Fechar checkout"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+      )}
 
       <Card className="glass-card static-dialog w-full max-w-md mx-auto">
         <CardContent className="p-6 space-y-6">
