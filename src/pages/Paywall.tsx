@@ -109,14 +109,40 @@ export const Paywall = () => {
       // Resetar estado global
       globalCheckoutState = null;
       
+      // Limpar o container DOM
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+      
       // Aguardar para garantir que o Stripe terminou a limpeza
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('[GLOBAL-CLEANUP] ✅ Cleanup global concluído');
     })();
     
     await globalCleanupPromise;
     globalCleanupPromise = null;
   }, []);
+
+  // Função para trocar de plano (com cleanup obrigatório)
+  const handlePlanSwitch = useCallback(async (newPlan: 'monthly' | 'annual') => {
+    console.log(`[PLAN-SWITCH] 🔄 Trocando plano de ${selectedPlan} para ${newPlan}`);
+    
+    if (selectedPlan === newPlan) {
+      console.log('[PLAN-SWITCH] ⏸️ Mesmo plano selecionado, ignorando...');
+      return;
+    }
+    
+    // Se há um checkout ativo, fazer cleanup primeiro
+    if (showEmbedded || globalCheckoutState?.instance) {
+      console.log('[PLAN-SWITCH] 🧹 Fazendo cleanup antes de trocar...');
+      setShowEmbedded(false);
+      await performGlobalCleanup();
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.log(`[PLAN-SWITCH] ✅ Trocando para plano: ${newPlan}`);
+    setSelectedPlan(newPlan);
+  }, [selectedPlan, showEmbedded, performGlobalCleanup]);
 
   const handleStartNow = useCallback(async () => {
     console.log('[START] 🚀 Botão clicado, verificando condições...');
@@ -136,7 +162,7 @@ export const Paywall = () => {
       await performGlobalCleanup();
       
       // Aguardar um pouco mais para garantir que tudo foi limpo
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       console.log('[START] 📱 Mostrando modal embedded...');
       setShowEmbedded(true);
@@ -435,7 +461,7 @@ export const Paywall = () => {
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : 'hover:bg-muted/20'
               }`}
-              onClick={() => setSelectedPlan('annual')}
+              onClick={() => handlePlanSwitch('annual')}
             >
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex-1">
@@ -472,7 +498,7 @@ export const Paywall = () => {
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : 'hover:bg-muted/20'
               }`}
-              onClick={() => setSelectedPlan('monthly')}
+              onClick={() => handlePlanSwitch('monthly')}
             >
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex-1">
