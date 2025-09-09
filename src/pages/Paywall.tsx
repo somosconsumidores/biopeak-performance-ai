@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,16 +9,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
 
-
 export const Paywall = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
-  
-  // Ler plano da URL
-  const selectedPlan = (searchParams.get('plan') === 'monthly') ? 'monthly' : 'annual';
-  
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(() => {
+    // Inicializar baseado no parâmetro da URL apenas uma vez
+    const planParam = new URLSearchParams(window.location.search).get('plan');
+    return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
+  });
   const [loading, setLoading] = useState(false);
 
   // Handle successful payment redirect
@@ -47,46 +47,45 @@ export const Paywall = () => {
   }, [searchParams, refreshSubscription, navigate, toast]);
 
   const handleClose = () => {
+    // Navegar para /sync após fechar o paywall
     navigate('/sync');
   };
 
-  // Navigation-based plan switching
-  const handlePlanSwitch = useCallback((newPlan: 'monthly' | 'annual') => {
-    if (selectedPlan === newPlan) return;
-    
-    // Navigate to new URL with plan parameter - this triggers a fresh page load
-    navigate(`/paywall?plan=${newPlan}`, { replace: true });
-  }, [selectedPlan, navigate]);
-
-  const handleStartNow = useCallback(async () => {
-    if (loading) return;
-    
-    setLoading(true);
-    
+  const handleStartNow = async () => {
     try {
-      // Create session for standard checkout (redirect)
-      const functionName = selectedPlan === 'monthly' 
-        ? 'create-monthly-checkout' 
-        : 'create-annual-checkout';
+      setLoading(true);
       
-      const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
-      if (sessionError || !sessionData?.url) {
-        throw new Error(`Erro na sessão: ${sessionError?.message}`);
+      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
+      
+      const { data, error } = await supabase.functions.invoke(functionName);
+      
+      if (error) {
+        console.error('Error creating checkout:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível processar o pagamento. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
       }
 
-      // Redirect to Stripe Checkout
-      window.location.href = sessionData.url;
-      
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Error:', error);
       toast({
-        title: 'Erro no Checkout',
-        description: errorMsg,
-        variant: 'destructive'
+        title: "Erro",
+        description: "Não foi possível processar o pagamento. Tente novamente.",
+        variant: "destructive"
       });
+    } finally {
       setLoading(false);
     }
-  }, [loading, selectedPlan, toast]);
+  };
 
   const benefits = [
     {
@@ -132,7 +131,6 @@ export const Paywall = () => {
       >
         <X className="h-5 w-5" />
       </Button>
-
 
       <Card className="glass-card static-dialog w-full max-w-md mx-auto">
         <CardContent className="p-6 space-y-6">
@@ -188,7 +186,7 @@ export const Paywall = () => {
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : 'hover:bg-muted/20'
               }`}
-              onClick={() => handlePlanSwitch('annual')}
+              onClick={() => setSelectedPlan('annual')}
             >
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex-1">
@@ -225,7 +223,7 @@ export const Paywall = () => {
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : 'hover:bg-muted/20'
               }`}
-              onClick={() => handlePlanSwitch('monthly')}
+              onClick={() => setSelectedPlan('monthly')}
             >
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex-1">

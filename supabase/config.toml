@@ -167,15 +167,3 @@ verify_jwt = true
 
 [functions.classify-workouts-from-series]
 verify_jwt = true
-
-[functions.get-stripe-publishable-key]
-verify_jwt = false
-
-[functions.create-monthly-checkout-embedded]
-verify_jwt = true
-
-[functions.create-annual-checkout-embedded]
-verify_jwt = true
-
-[functions.stripe-diagnostics]
-verify_jwt = false
