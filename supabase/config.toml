@@ -176,3 +176,6 @@ verify_jwt = true
 
 [functions.create-annual-checkout-embedded]
 verify_jwt = true
+
+[functions.stripe-diagnostics]
+verify_jwt = false

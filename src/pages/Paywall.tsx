@@ -84,7 +84,13 @@ export const Paywall = () => {
         }
       } catch (err) {
         console.error('Embedded checkout error:', err);
-        toast({ title: 'Erro', description: 'Falha ao iniciar o checkout embutido.', variant: 'destructive' });
+        const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+        console.error('Detalhes do erro:', errorMessage);
+        toast({ 
+          title: 'Erro no Checkout', 
+          description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
+          variant: 'destructive' 
+        });
         setShowEmbedded(false);
       } finally {
         setLoading(false);
