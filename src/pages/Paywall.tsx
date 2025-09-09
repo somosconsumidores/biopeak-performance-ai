@@ -8,22 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
-import { loadStripe, Stripe } from '@stripe/stripe-js';
-
-// Stripe Instance Isolation Strategy
-interface CheckoutInstance {
-  stripe: Stripe | null;
-  embeddedCheckout: any;
-  plan: 'monthly' | 'annual';
-}
-
-// Controle simples de instância ativa
-let currentCheckoutInstance: CheckoutInstance | null = null;
-let isInitializing = false;
-
-// Timeouts para limpeza completa
-const COMPLETE_CLEANUP_TIMEOUT = 5000;
-const RETRY_DELAY = 1000;
+import { loadStripe } from '@stripe/stripe-js';
 
 export const Paywall = () => {
   const navigate = useNavigate();
@@ -31,19 +16,14 @@ export const Paywall = () => {
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
   
-  // Estado robusto para controle do checkout
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(() => {
-    const planParam = new URLSearchParams(window.location.search).get('plan');
-    return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
-  });
+  // Ler plano da URL
+  const selectedPlan = (searchParams.get('plan') === 'monthly') ? 'monthly' : 'annual';
   
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
   
-  // Refs para controle direto do DOM
+  // Ref para container do checkout
   const containerRef = useRef<HTMLDivElement>(null);
-  const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -71,223 +51,61 @@ export const Paywall = () => {
   }, [searchParams, refreshSubscription, navigate, toast]);
 
   const handleClose = () => {
-    // Navegar para /sync após fechar o paywall
     navigate('/sync');
   };
 
-  // Cleanup completo - Destroy tudo antes de recriar
-  const performCompleteDestroy = useCallback(async () => {
-    console.log('[DESTROY] 🔥 Iniciando destruição completa...');
+  // Navigation-based plan switching
+  const handlePlanSwitch = useCallback((newPlan: 'monthly' | 'annual') => {
+    if (selectedPlan === newPlan) return;
     
-    // Limpar timeouts pendentes
-    if (cleanupTimeoutRef.current) {
-      clearTimeout(cleanupTimeoutRef.current);
-      cleanupTimeoutRef.current = null;
-    }
-    if (initTimeoutRef.current) {
-      clearTimeout(initTimeoutRef.current);
-      initTimeoutRef.current = null;
-    }
-    
-    // Destruir instância atual se existe
-    if (currentCheckoutInstance?.embeddedCheckout) {
-      try {
-        console.log('[DESTROY] 🗑️ Desmontando embedded checkout...');
-        await Promise.race([
-          currentCheckoutInstance.embeddedCheckout.unmount(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-        ]);
-        console.log('[DESTROY] ✅ Embedded checkout desmontado');
-      } catch (error) {
-        console.log('[DESTROY] ⚠️ Erro/timeout ao desmontar (continuando):', error);
-      }
-    }
-    
-    // Resetar instância atual
-    currentCheckoutInstance = null;
-    isInitializing = false;
-    
-    // Limpeza completa do DOM
-    if (containerRef.current) {
-      containerRef.current.innerHTML = '';
-      // Force DOM refresh
-      containerRef.current.offsetHeight;
-    }
-    
-    // Remover elementos Stripe órfãos
-    const stripeElements = document.querySelectorAll('[data-testid*="stripe"], .StripeElement, [id*="stripe-"], [class*="stripe"]');
-    stripeElements.forEach(el => {
-      try {
-        el.remove();
-        console.log('[DESTROY] 🧹 Elemento Stripe órfão removido');
-      } catch (e) {
-        console.log('[DESTROY] ⚠️ Erro ao remover elemento órfão:', e);
-      }
-    });
-    
-    // Aguardar tempo suficiente para limpeza completa (5 segundos)
-    console.log('[DESTROY] ⏰ Aguardando limpeza completa (5s)...');
-    await new Promise(resolve => setTimeout(resolve, COMPLETE_CLEANUP_TIMEOUT));
-    console.log('[DESTROY] ✅ Destruição completa finalizada');
-  }, []);
-
-  // Troca de plano - Destruir tudo e recriar
-  const handlePlanSwitch = useCallback(async (newPlan: 'monthly' | 'annual') => {
-    console.log(`[PLAN-SWITCH] 🔄 Mudando de ${selectedPlan} para ${newPlan}`);
-    
-    if (selectedPlan === newPlan) {
-      console.log('[PLAN-SWITCH] ⏸️ Mesmo plano selecionado');
-      return;
-    }
-    
-    // Se há checkout ativo, destruir completamente
-    if (showEmbedded || currentCheckoutInstance) {
-      console.log('[PLAN-SWITCH] 🔥 Destruindo checkout ativo...');
-      setShowEmbedded(false);
-      await performCompleteDestroy();
-    }
-    
-    console.log(`[PLAN-SWITCH] ✅ Plano alterado para: ${newPlan}`);
-    setSelectedPlan(newPlan);
-  }, [selectedPlan, showEmbedded, performCompleteDestroy]);
+    // Navigate to new URL with plan parameter - this triggers a fresh page load
+    navigate(`/paywall?plan=${newPlan}`, { replace: true });
+  }, [selectedPlan, navigate]);
 
   const handleStartNow = useCallback(async () => {
-    console.log('[START] 🚀 Iniciando checkout...');
+    if (loading) return;
     
-    if (loading || isInitializing) {
-      console.log('[START] ❌ Já em progresso, ignorando...');
-      return;
-    }
-    
-    console.log(`[START] ✅ Iniciando para plano: ${selectedPlan}`);
     setLoading(true);
+    setShowEmbedded(true);
+  }, [loading]);
+
+  // Create checkout - simple approach with fresh page context
+  const createCheckout = useCallback(async () => {
+    if (!showEmbedded || !containerRef.current) return;
     
     try {
-      // Destruir completamente qualquer instância existente
-      console.log('[START] 🔥 Destruindo instâncias existentes...');
-      await performCompleteDestroy();
-      
-      console.log('[START] 📱 Exibindo modal de checkout...');
-      setShowEmbedded(true);
-      
-    } catch (error) {
-      console.error('[START] ❌ Erro:', error);
-      setLoading(false);
-      toast({
-        title: 'Erro',
-        description: 'Falha ao inicializar. Tente novamente.',
-        variant: 'destructive'
-      });
-    }
-  }, [loading, selectedPlan, performCompleteDestroy, toast]);
-
-  // Criar nova instância Stripe isolada (NUNCA reutilizar)
-  const createFreshStripeInstance = async (publishableKey: string): Promise<Stripe> => {
-    console.log('[STRIPE] 🆕 Criando instância Stripe completamente nova...');
-    const stripe = await loadStripe(publishableKey, {
-      // Força criação de nova instância
-      stripeAccount: undefined
-    });
-    if (!stripe) {
-      throw new Error('Falha ao carregar Stripe');
-    }
-    console.log('[STRIPE] ✅ Nova instância Stripe criada');
-    return stripe;
-  };
-
-  // Criar checkout completamente novo (Instance Isolation)
-  const createFreshCheckout = useCallback(async (retryCount = 0) => {
-    console.log(`[CREATE] 🆕 Criando checkout (tentativa ${retryCount + 1})`);
-    
-    // Verificar precondições
-    if (!showEmbedded || isInitializing) {
-      console.log('[CREATE] ❌ Precondições não atendidas');
-      return;
-    }
-
-    if (!containerRef.current) {
-      console.log('[CREATE] ❌ Container não disponível');
-      if (retryCount < 3) {
-        setTimeout(() => createFreshCheckout(retryCount + 1), RETRY_DELAY);
-      }
-      return;
-    }
-
-    isInitializing = true;
-    
-    try {
-      console.log(`[CREATE] 🎯 Criando para plano: ${selectedPlan}`);
-      
-      // 1) Obter chave pública
-      console.log('[CREATE] 🔑 Buscando chave pública...');
+      // Get publishable key
       const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
       if (pkError || !pkData?.publishableKey) {
-        throw new Error(`Erro na chave pública: ${pkError?.message || 'Chave não retornada'}`);
+        throw new Error(`Erro na chave pública: ${pkError?.message}`);
       }
 
-      // 2) Criar sessão
-      console.log('[CREATE] 🏗️ Criando sessão...');
+      // Create session
       const functionName = selectedPlan === 'monthly' 
         ? 'create-monthly-checkout-embedded' 
         : 'create-annual-checkout-embedded';
       
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
       if (sessionError || !sessionData?.client_secret) {
-        throw new Error(`Erro na sessão: ${sessionError?.message || 'Client secret não retornado'}`);
+        throw new Error(`Erro na sessão: ${sessionError?.message}`);
       }
 
-      // 3) Criar nova instância Stripe isolada
-      console.log('[CREATE] 🔧 Criando instância Stripe isolada...');
-      const stripe = await createFreshStripeInstance(pkData.publishableKey);
+      // Create Stripe instance and embedded checkout
+      const stripe = await loadStripe(pkData.publishableKey);
+      if (!stripe) throw new Error('Falha ao carregar Stripe');
 
-      // 4) Criar embedded checkout
-      console.log('[CREATE] 📱 Criando embedded checkout...');
       const embeddedCheckout = await stripe.initEmbeddedCheckout({
         clientSecret: sessionData.client_secret
       });
 
-      // 5) Verificar DOM novamente
-      if (!containerRef.current || !showEmbedded) {
-        console.log('[CREATE] ❌ DOM ou estado inválido, desmontando...');
-        try {
-          await embeddedCheckout.unmount();
-        } catch (e) {
-          console.log('[CREATE] ⚠️ Erro ao desmontar:', e);
-        }
-        return;
+      // Mount to container
+      if (containerRef.current && showEmbedded) {
+        containerRef.current.innerHTML = '';
+        await embeddedCheckout.mount(containerRef.current);
+        setLoading(false);
       }
-
-      // 6) Limpar container e montar
-      containerRef.current.innerHTML = '';
-      console.log('[CREATE] 🏗️ Montando no container...');
-      
-      await Promise.race([
-        embeddedCheckout.mount(containerRef.current),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout montagem')), 15000))
-      ]);
-
-      // 7) Salvar instância atual
-      currentCheckoutInstance = {
-        stripe,
-        embeddedCheckout,
-        plan: selectedPlan
-      };
-
-      console.log('[CREATE] ✅ Checkout criado e montado com sucesso!');
-      setLoading(false);
       
     } catch (error) {
-      console.error(`[CREATE] ❌ Erro (tentativa ${retryCount + 1}):`, error);
-      
-      // Retry com delay
-      if (retryCount < 2) {
-        const delay = (retryCount + 1) * RETRY_DELAY;
-        console.log(`[CREATE] 🔄 Retry em ${delay}ms...`);
-        setTimeout(() => createFreshCheckout(retryCount + 1), delay);
-        return;
-      }
-      
-      // Falhou definitivamente
       const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: 'Erro no Checkout',
@@ -297,34 +115,18 @@ export const Paywall = () => {
       
       setShowEmbedded(false);
       setLoading(false);
-      
-    } finally {
-      isInitializing = false;
     }
-  }, [showEmbedded, selectedPlan, toast, createFreshStripeInstance]);
+  }, [showEmbedded, selectedPlan, toast]);
 
-  // Efeito para criar checkout quando modal abrir
+  // Create checkout when modal opens
   useEffect(() => {
     if (showEmbedded) {
-      // Delay para DOM se atualizar
-      initTimeoutRef.current = setTimeout(() => {
-        createFreshCheckout();
+      const timer = setTimeout(() => {
+        createCheckout();
       }, 200);
+      return () => clearTimeout(timer);
     }
-    
-    return () => {
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-    };
-  }, [showEmbedded, createFreshCheckout]);
-
-  // Cleanup ao desmontar componente
-  useEffect(() => {
-    return () => {
-      performCompleteDestroy();
-    };
-  }, [performCompleteDestroy]);
+  }, [showEmbedded, createCheckout]);
 
   const benefits = [
     {
@@ -391,8 +193,7 @@ export const Paywall = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={async () => {
-              await performCompleteDestroy();
+            onClick={() => {
               setShowEmbedded(false);
               setLoading(false);
             }}
