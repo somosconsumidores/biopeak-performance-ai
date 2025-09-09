@@ -139,7 +139,10 @@ export const Paywall = () => {
 
   // Inicialização robusta do checkout
   const initializeCheckout = useCallback(async () => {
-    if (!showEmbedded || checkoutStateRef.current?.isInitializing) return;
+    if (!showEmbedded || checkoutStateRef.current?.isInitializing) {
+      console.log('[INIT] Bloqueado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+      return;
+    }
     
     const containerId = `embedded-checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log(`[INIT] Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
@@ -157,8 +160,13 @@ export const Paywall = () => {
       // 1) Buscar chave pública
       console.log('[INIT] Buscando chave pública...');
       const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
-      if (pkError || !pkData?.publishableKey) {
-        throw new Error('Chave pública da Stripe não configurada');
+      console.log('[INIT] Resposta da chave pública:', { pkData, pkError });
+      
+      if (pkError) {
+        throw new Error(`Erro ao buscar chave pública: ${pkError.message}`);
+      }
+      if (!pkData?.publishableKey) {
+        throw new Error('Chave pública da Stripe não retornada');
       }
 
       // 2) Criar sessão embedded
@@ -167,9 +175,15 @@ export const Paywall = () => {
         ? 'create-monthly-checkout-embedded' 
         : 'create-annual-checkout-embedded';
       
+      console.log('[INIT] Chamando função:', functionName);
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
-      if (sessionError || !sessionData?.client_secret) {
-        throw new Error('Não foi possível criar a sessão de checkout');
+      console.log('[INIT] Resposta da sessão:', { sessionData, sessionError });
+      
+      if (sessionError) {
+        throw new Error(`Erro ao criar sessão: ${sessionError.message}`);
+      }
+      if (!sessionData?.client_secret) {
+        throw new Error('Client secret não retornado pela função');
       }
 
       // Verificar se ainda é a mesma inicialização
@@ -179,14 +193,14 @@ export const Paywall = () => {
       }
 
       // 3) Carregar Stripe
-      console.log('[INIT] Carregando Stripe...');
+      console.log('[INIT] Carregando Stripe com chave:', pkData.publishableKey.substring(0, 20) + '...');
       const stripe = await loadStripe(pkData.publishableKey);
       if (!stripe) {
-        throw new Error('Falha ao carregar Stripe');
+        throw new Error('Falha ao carregar instância do Stripe');
       }
 
       // 4) Inicializar checkout embedded
-      console.log('[INIT] Criando instância embedded...');
+      console.log('[INIT] Criando instância embedded com client_secret:', sessionData.client_secret.substring(0, 20) + '...');
       const checkoutInstance = await stripe.initEmbeddedCheckout({
         clientSecret: sessionData.client_secret
       });
@@ -195,20 +209,27 @@ export const Paywall = () => {
       if (checkoutStateRef.current?.containerId !== containerId) {
         console.log('[INIT] Inicialização cancelada durante criação da instância');
         if (checkoutInstance) {
-          try { await checkoutInstance.unmount(); } catch (e) { /* ignore */ }
+          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar instância cancelada:', e); }
         }
         return;
       }
 
       // 5) Preparar container DOM
       if (containerRef.current) {
-        containerRef.current.innerHTML = `<div id="${containerId}" class="min-h-[640px]"></div>`;
+        console.log('[INIT] Preparando container DOM...');
+        containerRef.current.innerHTML = `<div id="${containerId}" class="min-h-[640px] w-full"></div>`;
         
         // Aguardar o DOM estar pronto
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verificar se o elemento existe
+        const targetElement = document.getElementById(containerId);
+        if (!targetElement) {
+          throw new Error(`Elemento DOM ${containerId} não encontrado`);
+        }
         
         // 6) Montar o checkout
-        console.log('[INIT] Montando checkout no DOM...');
+        console.log('[INIT] Montando checkout no DOM elemento:', containerId);
         await checkoutInstance.mount(`#${containerId}`);
         
         // Atualizar estado para ativo
@@ -216,28 +237,31 @@ export const Paywall = () => {
           checkoutStateRef.current.isInitializing = false;
           checkoutStateRef.current.isActive = true;
           checkoutStateRef.current.instance = checkoutInstance;
-          console.log('[INIT] Checkout montado com sucesso!');
+          console.log('[INIT] ✅ Checkout montado com sucesso!');
+          setLoading(false);
         } else {
           // Se não é mais válido, desmontar
-          try { await checkoutInstance.unmount(); } catch (e) { /* ignore */ }
+          console.log('[INIT] Estado inválido após montagem, desmontando...');
+          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar:', e); }
         }
+      } else {
+        throw new Error('Container ref não está disponível');
       }
       
     } catch (error) {
-      console.error('[INIT] Erro durante inicialização:', error);
+      console.error('[INIT] ❌ Erro durante inicialização:', error);
       
       // Resetar estado em caso de erro
       checkoutStateRef.current = null;
       
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar checkout';
       toast({
         title: 'Erro no Checkout',
-        description: `Falha ao inicializar: ${errorMessage}`,
+        description: errorMessage,
         variant: 'destructive'
       });
       
       setShowEmbedded(false);
-    } finally {
       setLoading(false);
     }
   }, [showEmbedded, selectedPlan, toast]);
