@@ -19,6 +19,10 @@ interface CheckoutState {
   plan: 'monthly' | 'annual';
 }
 
+// Controle global para evitar múltiplas instâncias
+let globalCheckoutState: CheckoutState | null = null;
+let globalCleanupPromise: Promise<void> | null = null;
+
 export const Paywall = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,8 +38,7 @@ export const Paywall = () => {
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
   
-  // Refs para controle direto do DOM e instâncias
-  const checkoutStateRef = useRef<CheckoutState | null>(null);
+  // Refs para controle direto do DOM
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,44 +73,56 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  // Função de cleanup definitiva - sem manipulação direta do DOM
-  const performAdvancedCleanup = useCallback(async () => {
-    console.log('[CLEANUP] Iniciando cleanup avançado...');
+  // Função de cleanup global mais robusta
+  const performGlobalCleanup = useCallback(async () => {
+    console.log('[GLOBAL-CLEANUP] 🧹 Iniciando cleanup global...');
     
-    // Limpar timeouts pendentes
-    if (cleanupTimeoutRef.current) {
-      clearTimeout(cleanupTimeoutRef.current);
-      cleanupTimeoutRef.current = null;
-    }
-    if (initTimeoutRef.current) {
-      clearTimeout(initTimeoutRef.current);
-      initTimeoutRef.current = null;
+    // Se já há uma operação de cleanup em andamento, aguardar
+    if (globalCleanupPromise) {
+      console.log('[GLOBAL-CLEANUP] ⏳ Aguardando cleanup anterior...');
+      await globalCleanupPromise;
     }
     
-    // Cleanup da instância atual primeiro
-    if (checkoutStateRef.current?.instance) {
-      try {
-        console.log('[CLEANUP] Desmontando instância Stripe...');
-        await checkoutStateRef.current.instance.unmount();
-        console.log('[CLEANUP] Instância Stripe desmontada');
-      } catch (error) {
-        console.log('[CLEANUP] Erro ao desmontar Stripe (ignorando):', error);
+    // Criar nova promessa de cleanup
+    globalCleanupPromise = (async () => {
+      // Limpar timeouts pendentes
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current);
+        cleanupTimeoutRef.current = null;
       }
-    }
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+        initTimeoutRef.current = null;
+      }
+      
+      // Cleanup da instância global
+      if (globalCheckoutState?.instance) {
+        try {
+          console.log('[GLOBAL-CLEANUP] 🗑️ Desmontando instância global...');
+          await globalCheckoutState.instance.unmount();
+          console.log('[GLOBAL-CLEANUP] ✅ Instância global desmontada');
+        } catch (error) {
+          console.log('[GLOBAL-CLEANUP] ⚠️ Erro ao desmontar global (ignorando):', error);
+        }
+      }
+      
+      // Resetar estado global
+      globalCheckoutState = null;
+      
+      // Aguardar para garantir que o Stripe terminou a limpeza
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('[GLOBAL-CLEANUP] ✅ Cleanup global concluído');
+    })();
     
-    // Resetar estado sem tocar no DOM diretamente
-    checkoutStateRef.current = null;
-    
-    // Aguardar para garantir que o Stripe terminou a limpeza
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('[CLEANUP] Cleanup concluído');
+    await globalCleanupPromise;
+    globalCleanupPromise = null;
   }, []);
 
   const handleStartNow = useCallback(async () => {
     console.log('[START] 🚀 Botão clicado, verificando condições...');
-    console.log('[START] Estado atual - loading:', loading, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+    console.log('[START] Estado atual - loading:', loading, 'globalState:', globalCheckoutState?.isInitializing);
     
-    if (loading || (checkoutStateRef.current?.isInitializing)) {
+    if (loading || globalCheckoutState?.isInitializing) {
       console.log('[START] ❌ Operação já em andamento, ignorando...');
       return;
     }
@@ -116,12 +131,12 @@ export const Paywall = () => {
     setLoading(true);
     
     try {
-      // Cleanup completo antes de iniciar
-      console.log('[START] 🧹 Fazendo cleanup antes de iniciar...');
-      await performAdvancedCleanup();
+      // Cleanup global antes de iniciar
+      console.log('[START] 🧹 Fazendo cleanup global antes de iniciar...');
+      await performGlobalCleanup();
       
       // Aguardar um pouco mais para garantir que tudo foi limpo
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('[START] 📱 Mostrando modal embedded...');
       setShowEmbedded(true);
@@ -135,23 +150,23 @@ export const Paywall = () => {
         variant: 'destructive'
       });
     }
-  }, [loading, selectedPlan, performAdvancedCleanup, toast]);
+  }, [loading, selectedPlan, performGlobalCleanup, toast]);
 
-  // Inicialização robusta do checkout
+  // Inicialização robusta do checkout com controle global
   const initializeCheckout = useCallback(async () => {
     console.log('[INIT] 🔄 Função de inicialização chamada');
-    console.log('[INIT] Estado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+    console.log('[INIT] Estado - showEmbedded:', showEmbedded, 'globalState:', globalCheckoutState?.isInitializing);
     
-    if (!showEmbedded || checkoutStateRef.current?.isInitializing) {
-      console.log('[INIT] ⏸️ Bloqueado - showEmbedded:', showEmbedded, 'isInitializing:', checkoutStateRef.current?.isInitializing);
+    if (!showEmbedded || globalCheckoutState?.isInitializing) {
+      console.log('[INIT] ⏸️ Bloqueado - showEmbedded:', showEmbedded, 'globalInitializing:', globalCheckoutState?.isInitializing);
       return;
     }
     
     const containerId = `embedded-checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log(`[INIT] 🆔 Inicializando checkout: ${containerId}, plano: ${selectedPlan}`);
     
-    // Marcar como inicializando
-    checkoutStateRef.current = {
+    // Marcar como inicializando globalmente
+    globalCheckoutState = {
       isInitializing: true,
       isActive: false,
       instance: null,
@@ -190,7 +205,7 @@ export const Paywall = () => {
       }
 
       // Verificar se ainda é a mesma inicialização
-      if (checkoutStateRef.current?.containerId !== containerId) {
+      if (globalCheckoutState?.containerId !== containerId) {
         console.log('[INIT] ❌ Inicialização cancelada - nova tentativa em andamento');
         return;
       }
@@ -209,7 +224,7 @@ export const Paywall = () => {
       });
 
       // Verificar novamente se ainda é válido
-      if (checkoutStateRef.current?.containerId !== containerId) {
+      if (globalCheckoutState?.containerId !== containerId) {
         console.log('[INIT] ❌ Inicialização cancelada durante criação da instância');
         if (checkoutInstance) {
           try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
@@ -223,7 +238,7 @@ export const Paywall = () => {
       }
 
       // Verificar se ainda é a mesma inicialização antes de montar
-      if (checkoutStateRef.current?.containerId !== containerId) {
+      if (globalCheckoutState?.containerId !== containerId) {
         console.log('[INIT] ❌ Inicialização cancelada antes da montagem');
         try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] ⚠️ Erro ao desmontar instância cancelada:', e); }
         return;
@@ -234,11 +249,11 @@ export const Paywall = () => {
       // 6) Montar diretamente no container ref sem criar elementos intermediários
       await checkoutInstance.mount(containerRef.current);
       
-      // 7) Atualizar estado para ativo
-      if (checkoutStateRef.current?.containerId === containerId) {
-        checkoutStateRef.current.isInitializing = false;
-        checkoutStateRef.current.isActive = true;
-        checkoutStateRef.current.instance = checkoutInstance;
+      // 7) Atualizar estado global para ativo
+      if (globalCheckoutState?.containerId === containerId) {
+        globalCheckoutState.isInitializing = false;
+        globalCheckoutState.isActive = true;
+        globalCheckoutState.instance = checkoutInstance;
         console.log('[INIT] ✅ Checkout montado com sucesso!');
         setLoading(false);
       } else {
@@ -250,8 +265,8 @@ export const Paywall = () => {
     } catch (error) {
       console.error('[INIT] ❌ Erro durante inicialização:', error);
       
-      // Resetar estado em caso de erro
-      checkoutStateRef.current = null;
+      // Resetar estado global em caso de erro
+      globalCheckoutState = null;
       
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar checkout';
       toast({
@@ -284,9 +299,9 @@ export const Paywall = () => {
   // Cleanup quando componente desmonta
   useEffect(() => {
     return () => {
-      performAdvancedCleanup();
+      performGlobalCleanup();
     };
-  }, [performAdvancedCleanup]);
+  }, [performGlobalCleanup]);
 
   const benefits = [
     {
@@ -354,7 +369,7 @@ export const Paywall = () => {
             variant="ghost"
             size="icon"
             onClick={async () => {
-              await performAdvancedCleanup();
+              await performGlobalCleanup();
               setShowEmbedded(false);
               setLoading(false);
             }}
