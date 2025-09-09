@@ -8,7 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
-import { loadStripe } from '@stripe/stripe-js';
+
 
 export const Paywall = () => {
   const navigate = useNavigate();
@@ -20,10 +20,6 @@ export const Paywall = () => {
   const selectedPlan = (searchParams.get('plan') === 'monthly') ? 'monthly' : 'annual';
   
   const [loading, setLoading] = useState(false);
-  const [showEmbedded, setShowEmbedded] = useState(false);
-  
-  // Ref para container do checkout
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -66,44 +62,20 @@ export const Paywall = () => {
     if (loading) return;
     
     setLoading(true);
-    setShowEmbedded(true);
-  }, [loading]);
-
-  // Create checkout - simple approach with fresh page context
-  const createCheckout = useCallback(async () => {
-    if (!showEmbedded || !containerRef.current) return;
     
     try {
-      // Get publishable key
-      const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
-      if (pkError || !pkData?.publishableKey) {
-        throw new Error(`Erro na chave pública: ${pkError?.message}`);
-      }
-
-      // Create session
+      // Create session for standard checkout (redirect)
       const functionName = selectedPlan === 'monthly' 
-        ? 'create-monthly-checkout-embedded' 
-        : 'create-annual-checkout-embedded';
+        ? 'create-monthly-checkout' 
+        : 'create-annual-checkout';
       
       const { data: sessionData, error: sessionError } = await supabase.functions.invoke(functionName);
-      if (sessionError || !sessionData?.client_secret) {
+      if (sessionError || !sessionData?.url) {
         throw new Error(`Erro na sessão: ${sessionError?.message}`);
       }
 
-      // Create Stripe instance and embedded checkout
-      const stripe = await loadStripe(pkData.publishableKey);
-      if (!stripe) throw new Error('Falha ao carregar Stripe');
-
-      const embeddedCheckout = await stripe.initEmbeddedCheckout({
-        clientSecret: sessionData.client_secret
-      });
-
-      // Mount to container
-      if (containerRef.current && showEmbedded) {
-        containerRef.current.innerHTML = '';
-        await embeddedCheckout.mount(containerRef.current);
-        setLoading(false);
-      }
+      // Redirect to Stripe Checkout
+      window.location.href = sessionData.url;
       
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -112,21 +84,9 @@ export const Paywall = () => {
         description: errorMsg,
         variant: 'destructive'
       });
-      
-      setShowEmbedded(false);
       setLoading(false);
     }
-  }, [showEmbedded, selectedPlan, toast]);
-
-  // Create checkout when modal opens
-  useEffect(() => {
-    if (showEmbedded) {
-      const timer = setTimeout(() => {
-        createCheckout();
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [showEmbedded, createCheckout]);
+  }, [loading, selectedPlan, toast]);
 
   const benefits = [
     {
@@ -173,37 +133,6 @@ export const Paywall = () => {
         <X className="h-5 w-5" />
       </Button>
 
-      {showEmbedded && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl">
-            <CardContent className="p-0 relative">
-              {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/90 z-10">
-                  <div className="text-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                    <p className="text-sm text-muted-foreground">
-                      Carregando checkout seguro...
-                    </p>
-                  </div>
-                </div>
-              )}
-              <div ref={containerRef} className="min-h-[640px] w-full" />
-            </CardContent>
-          </Card>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setShowEmbedded(false);
-              setLoading(false);
-            }}
-            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
-            aria-label="Fechar checkout"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-      )}
 
       <Card className="glass-card static-dialog w-full max-w-md mx-auto">
         <CardContent className="p-6 space-y-6">
