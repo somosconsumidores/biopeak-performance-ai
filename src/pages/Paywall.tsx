@@ -22,6 +22,7 @@ export const Paywall = () => {
   });
   const [loading, setLoading] = useState(false);
   const [showEmbedded, setShowEmbedded] = useState(false);
+  const [checkoutInstance, setCheckoutInstance] = useState<any>(null);
 
   // Handle successful payment redirect
   useEffect(() => {
@@ -54,18 +55,39 @@ export const Paywall = () => {
   };
 
   const handleStartNow = async () => {
+    // Previne múltiplas instâncias
+    if (loading || showEmbedded) return;
+    
+    // Limpa qualquer checkout anterior
+    if (checkoutInstance) {
+      try {
+        checkoutInstance.unmount();
+      } catch (e) {
+        console.log('Error unmounting previous checkout:', e);
+      }
+      setCheckoutInstance(null);
+    }
+    
     // Inicia o modo de checkout embutido
     setShowEmbedded(true);
   };
 
   useEffect(() => {
     if (!showEmbedded) return;
-    let isCancelled = false as boolean;
-    let checkoutInstance: any;
+    
+    let isCancelled = false;
+    let newCheckoutInstance: any = null;
 
     const init = async () => {
       try {
         setLoading(true);
+        
+        // Garante que não há instância anterior
+        const existingCheckout = document.querySelector('#embedded-checkout');
+        if (existingCheckout) {
+          existingCheckout.innerHTML = '';
+        }
+
         // 1) Buscar Publishable Key
         const { data: pkData, error: pkError } = await supabase.functions.invoke('get-stripe-publishable-key');
         if (pkError || !pkData?.publishableKey) throw new Error('Chave pública da Stripe não configurada');
@@ -76,24 +98,35 @@ export const Paywall = () => {
         if (secError || !secData?.client_secret) throw new Error('Não foi possível iniciar o checkout embutido');
 
         // 3) Montar o Embedded Checkout
-        const stripe = await loadStripe(pkData.publishableKey);
-        const checkout = await stripe?.initEmbeddedCheckout({ clientSecret: secData.client_secret });
         if (!isCancelled) {
-          checkout?.mount('#embedded-checkout');
-          checkoutInstance = checkout;
+          const stripe = await loadStripe(pkData.publishableKey);
+          if (!stripe) throw new Error('Falha ao carregar Stripe');
+          
+          newCheckoutInstance = await stripe.initEmbeddedCheckout({ 
+            clientSecret: secData.client_secret 
+          });
+          
+          if (!isCancelled && newCheckoutInstance) {
+            await newCheckoutInstance.mount('#embedded-checkout');
+            setCheckoutInstance(newCheckoutInstance);
+          }
         }
       } catch (err) {
-        console.error('Embedded checkout error:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-        console.error('Detalhes do erro:', errorMessage);
-        toast({ 
-          title: 'Erro no Checkout', 
-          description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
-          variant: 'destructive' 
-        });
-        setShowEmbedded(false);
+        if (!isCancelled) {
+          console.error('Embedded checkout error:', err);
+          const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+          console.error('Detalhes do erro:', errorMessage);
+          toast({ 
+            title: 'Erro no Checkout', 
+            description: `Falha ao iniciar o checkout embutido: ${errorMessage}`, 
+            variant: 'destructive' 
+          });
+          setShowEmbedded(false);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -101,7 +134,13 @@ export const Paywall = () => {
 
     return () => {
       isCancelled = true;
-      try { checkoutInstance?.unmount?.(); } catch {}
+      if (newCheckoutInstance) {
+        try {
+          newCheckoutInstance.unmount();
+        } catch (e) {
+          console.log('Cleanup error:', e);
+        }
+      }
     };
   }, [showEmbedded, selectedPlan, toast]);
 
@@ -160,7 +199,15 @@ export const Paywall = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setShowEmbedded(false)}
+            onClick={() => {
+              if (checkoutInstance) {
+                try {
+                  checkoutInstance.unmount();
+                } catch (e) {}
+                setCheckoutInstance(null);
+              }
+              setShowEmbedded(false);
+            }}
             className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40"
             aria-label="Fechar checkout"
           >
