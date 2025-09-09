@@ -70,7 +70,7 @@ export const Paywall = () => {
     navigate('/sync');
   };
 
-  // Função de cleanup definitiva
+  // Função de cleanup definitiva - sem manipulação direta do DOM
   const performAdvancedCleanup = useCallback(async () => {
     console.log('[CLEANUP] Iniciando cleanup avançado...');
     
@@ -84,28 +84,22 @@ export const Paywall = () => {
       initTimeoutRef.current = null;
     }
     
-    // Cleanup da instância atual
+    // Cleanup da instância atual primeiro
     if (checkoutStateRef.current?.instance) {
       try {
-        console.log('[CLEANUP] Desmontando instância atual...');
+        console.log('[CLEANUP] Desmontando instância Stripe...');
         await checkoutStateRef.current.instance.unmount();
-        console.log('[CLEANUP] Instância desmontada com sucesso');
+        console.log('[CLEANUP] Instância Stripe desmontada');
       } catch (error) {
-        console.log('[CLEANUP] Erro ao desmontar (esperado):', error);
+        console.log('[CLEANUP] Erro ao desmontar Stripe (ignorando):', error);
       }
     }
     
-    // Limpar DOM completamente
-    if (containerRef.current) {
-      console.log('[CLEANUP] Limpando DOM...');
-      containerRef.current.innerHTML = '';
-    }
-    
-    // Resetar estado
+    // Resetar estado sem tocar no DOM diretamente
     checkoutStateRef.current = null;
     
-    // Aguardar um tempo para garantir cleanup completo
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Aguardar para garantir que o Stripe terminou a limpeza
+    await new Promise(resolve => setTimeout(resolve, 300));
     console.log('[CLEANUP] Cleanup concluído');
   }, []);
 
@@ -214,38 +208,34 @@ export const Paywall = () => {
         return;
       }
 
-      // 5) Preparar container DOM
-      if (containerRef.current) {
-        console.log('[INIT] Preparando container DOM...');
-        containerRef.current.innerHTML = `<div id="${containerId}" class="min-h-[640px] w-full"></div>`;
-        
-        // Aguardar o DOM estar pronto
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Verificar se o elemento existe
-        const targetElement = document.getElementById(containerId);
-        if (!targetElement) {
-          throw new Error(`Elemento DOM ${containerId} não encontrado`);
-        }
-        
-        // 6) Montar o checkout
-        console.log('[INIT] Montando checkout no DOM elemento:', containerId);
-        await checkoutInstance.mount(`#${containerId}`);
-        
-        // Atualizar estado para ativo
-        if (checkoutStateRef.current?.containerId === containerId) {
-          checkoutStateRef.current.isInitializing = false;
-          checkoutStateRef.current.isActive = true;
-          checkoutStateRef.current.instance = checkoutInstance;
-          console.log('[INIT] ✅ Checkout montado com sucesso!');
-          setLoading(false);
-        } else {
-          // Se não é mais válido, desmontar
-          console.log('[INIT] Estado inválido após montagem, desmontando...');
-          try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar:', e); }
-        }
-      } else {
+      // 5) Verificar e preparar container DOM
+      if (!containerRef.current) {
         throw new Error('Container ref não está disponível');
+      }
+
+      // Verificar se ainda é a mesma inicialização antes de montar
+      if (checkoutStateRef.current?.containerId !== containerId) {
+        console.log('[INIT] Inicialização cancelada antes da montagem');
+        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar instância cancelada:', e); }
+        return;
+      }
+
+      console.log('[INIT] Montando checkout diretamente no container...');
+      
+      // 6) Montar diretamente no container ref sem criar elementos intermediários
+      await checkoutInstance.mount(containerRef.current);
+      
+      // 7) Atualizar estado para ativo
+      if (checkoutStateRef.current?.containerId === containerId) {
+        checkoutStateRef.current.isInitializing = false;
+        checkoutStateRef.current.isActive = true;
+        checkoutStateRef.current.instance = checkoutInstance;
+        console.log('[INIT] ✅ Checkout montado com sucesso!');
+        setLoading(false);
+      } else {
+        // Se não é mais válido, desmontar
+        console.log('[INIT] Estado inválido após montagem, desmontando...');
+        try { await checkoutInstance.unmount(); } catch (e) { console.log('[INIT] Erro ao desmontar:', e); }
       }
       
     } catch (error) {
@@ -337,19 +327,18 @@ export const Paywall = () => {
       {showEmbedded && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
-            <CardContent className="p-0">
-              <div ref={containerRef} className="min-h-[640px]">
-                {loading && (
-                  <div className="flex items-center justify-center h-[640px]">
-                    <div className="text-center space-y-4">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                      <p className="text-sm text-muted-foreground">
-                        Carregando checkout seguro...
-                      </p>
-                    </div>
+            <CardContent className="p-0 relative">
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/90 z-10">
+                  <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="text-sm text-muted-foreground">
+                      Carregando checkout seguro...
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              <div ref={containerRef} className="min-h-[640px] w-full" />
             </CardContent>
           </Card>
           <Button
