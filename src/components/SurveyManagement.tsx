@@ -122,6 +122,32 @@ export const SurveyManagement = () => {
     }
   };
 
+  const resetSurveyInteractions = async (campaignId: string) => {
+    if (!confirm('Tem certeza que deseja resetar todas as interações desta pesquisa? Isso permitirá que todos os usuários vejam a pesquisa novamente.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('survey_user_interactions')
+        .delete()
+        .eq('campaign_id', campaignId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Interações resetadas",
+        description: "Todas as interações da pesquisa foram removidas. Os usuários poderão vê-la novamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao resetar interações da pesquisa.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setSelectedCampaign(null);
@@ -227,13 +253,21 @@ export const SurveyManagement = () => {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleCampaignStatus(campaign.id, campaign.is_active)}
-                    >
-                      {campaign.is_active ? 'Desativar' : 'Ativar'}
-                    </Button>
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => resetSurveyInteractions(campaign.id)}
+                       className="text-orange-600 hover:text-orange-700"
+                     >
+                       Reset Teste
+                     </Button>
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => toggleCampaignStatus(campaign.id, campaign.is_active)}
+                     >
+                       {campaign.is_active ? 'Desativar' : 'Ativar'}
+                     </Button>
                     <Button
                       variant="outline"
                       size="sm"

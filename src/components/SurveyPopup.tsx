@@ -126,15 +126,21 @@ export const SurveyPopup = ({ survey, onSubmit, onDismiss }: SurveyPopupProps) =
           )}
         </CardHeader>
         <CardContent className="space-y-6">
-          {survey.questions?.map((question) => (
-            <div key={question.id} className="space-y-2">
-              <Label className="text-sm font-medium">
-                {question.question_text}
-                {question.is_required && <span className="text-destructive ml-1">*</span>}
-              </Label>
-              {renderQuestion(question)}
+          {!survey.questions || survey.questions.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <p>Esta pesquisa não possui perguntas configuradas.</p>
             </div>
-          ))}
+          ) : (
+            survey.questions.map((question) => (
+              <div key={question.id} className="space-y-2">
+                <Label className="text-sm font-medium">
+                  {question.question_text}
+                  {question.is_required && <span className="text-destructive ml-1">*</span>}
+                </Label>
+                {renderQuestion(question)}
+              </div>
+            ))
+          )}
           
           <div className="flex space-x-2 pt-4">
             <Button

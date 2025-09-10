@@ -33,11 +33,14 @@ export const useSurveyPopup = () => {
 
   const checkForActiveSurvey = async () => {
     if (!user) {
+      console.log('[Survey] No user found, skipping survey check');
       setLoading(false);
       return;
     }
 
     try {
+      console.log('[Survey] Checking for active surveys for user:', user.id);
+      
       // Check if user has already seen any active surveys
       const { data: interactions } = await supabase
         .from('survey_user_interactions')
@@ -45,9 +48,10 @@ export const useSurveyPopup = () => {
         .eq('user_id', user.id);
 
       const seenCampaignIds = interactions?.map(i => i.campaign_id) || [];
+      console.log('[Survey] User has interacted with campaigns:', seenCampaignIds);
 
-      // Get active survey that user hasn't seen
-      const { data: campaigns } = await supabase
+      // Build query for active surveys
+      let query = supabase
         .from('survey_campaigns')
         .select(`
           *,
@@ -55,22 +59,42 @@ export const useSurveyPopup = () => {
         `)
         .eq('is_active', true)
         .lte('start_date', new Date().toISOString().split('T')[0])
-        .gte('end_date', new Date().toISOString().split('T')[0])
-        .not('id', 'in', `(${seenCampaignIds.join(',')})`)
+        .gte('end_date', new Date().toISOString().split('T')[0]);
+
+      // Only apply the exclusion filter if there are campaigns to exclude
+      if (seenCampaignIds.length > 0) {
+        query = query.not('id', 'in', `(${seenCampaignIds.join(',')})`);
+      }
+
+      const { data: campaigns } = await query
         .order('created_at', { ascending: false })
         .limit(1);
 
+      console.log('[Survey] Found campaigns:', campaigns);
+
       if (campaigns && campaigns.length > 0) {
         const campaign = campaigns[0];
+        console.log('[Survey] Processing campaign:', campaign.title, 'Questions:', campaign.survey_questions?.length);
+        
         // Sort questions by order_index
         if (campaign.survey_questions) {
           campaign.survey_questions.sort((a: any, b: any) => a.order_index - b.order_index);
+          console.log('[Survey] Sorted questions:', campaign.survey_questions.map((q: any) => q.question_text));
         }
-        setCurrentSurvey(campaign as SurveyCampaign);
-        setIsVisible(true);
+        
+        // Only show survey if it has questions
+        if (campaign.survey_questions && campaign.survey_questions.length > 0) {
+          setCurrentSurvey(campaign as SurveyCampaign);
+          setIsVisible(true);
+          console.log('[Survey] Survey will be displayed');
+        } else {
+          console.log('[Survey] No questions found for campaign, skipping');
+        }
+      } else {
+        console.log('[Survey] No active surveys found for user');
       }
     } catch (error) {
-      console.error('Error checking for active surveys:', error);
+      console.error('[Survey] Error checking for active surveys:', error);
     } finally {
       setLoading(false);
     }
