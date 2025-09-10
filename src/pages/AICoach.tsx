@@ -33,7 +33,7 @@ export const AICoach = () => {
       <ParticleBackground />
       <Header />
       
-      <div className="pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+      <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="container mx-auto max-w-4xl">
           {/* Header */}
           <ScrollReveal>

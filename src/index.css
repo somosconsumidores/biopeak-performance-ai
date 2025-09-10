@@ -139,6 +139,36 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  /* Safe area support for iOS devices */
+  .safe-pt-16 {
+    padding-top: calc(4rem + env(safe-area-inset-top));
+  }
+  
+  .safe-pt-20 {
+    padding-top: calc(5rem + env(safe-area-inset-top));
+  }
+  
+  .safe-pt-24 {
+    padding-top: calc(6rem + env(safe-area-inset-top));
+  }
+  
+  /* Responsive safe area padding classes for mobile apps */
+  @media (max-width: 639px) {
+    .safe-pt-16 {
+      padding-top: calc(4rem + env(safe-area-inset-top));
+    }
+    
+    .safe-pt-20 {
+      padding-top: calc(5rem + env(safe-area-inset-top));
+    }
+  }
+  
+  @media (min-width: 640px) {
+    .safe-pt-24 {
+      padding-top: calc(6rem + env(safe-area-inset-top));
+    }
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   /* Mobile optimizations */

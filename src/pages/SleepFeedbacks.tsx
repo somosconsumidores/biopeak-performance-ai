@@ -86,7 +86,7 @@ export const SleepFeedbacks = () => {
   return (
     <>
       <Header />
-      <div className="container mx-auto px-4 py-8 pt-20">
+      <div className="container mx-auto px-4 py-8 safe-pt-20">
         <ScrollReveal>
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">

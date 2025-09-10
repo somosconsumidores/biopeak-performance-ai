@@ -17,7 +17,7 @@ const TrainingPlan = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="pt-16 pb-20 md:pb-4">
+      <div className="safe-pt-16 pb-20 md:pb-4">
         <div className="container mx-auto px-4 py-4 md:py-6 space-y-6">
           {/* Header */}
           <div className="text-center md:text-left">

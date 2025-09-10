@@ -226,7 +226,7 @@ export function GarminSync() {
       <ParticleBackground />
       <Header />
       
-      <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="safe-pt-20 pb-8 px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <ScrollReveal>
             <div className="text-center mb-8">
