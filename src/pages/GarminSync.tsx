@@ -2,6 +2,7 @@ import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-updated.png';
 import stravaLogo from '@/assets/strava-logo.svg';
 import polarLogo from '@/assets/polar-logo.png';
+import appleHealthLogo from '@/assets/apple-health-logo.png';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaStats } from '@/hooks/useStravaStats';
 import { usePolarAuth } from '@/hooks/usePolarAuth';
 import { usePolarStats } from '@/hooks/usePolarStats';
+import { useHealthKitAuth } from '@/hooks/useHealthKitAuth';
+import { useHealthKitSync } from '@/hooks/useHealthKitSync';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -88,6 +91,20 @@ export function GarminSync() {
   
   const polarActivities = polarStats?.activitiesCount || 0;
   const polarLastSync = polarStats?.lastSyncAt || null;
+  
+  // Apple Health integration
+  const { 
+    isSupported: healthKitSupported,
+    hasConnectedDevice: healthKitConnected,
+    isLoading: healthKitConnecting,
+    requestPermissions: connectHealthKit,
+    disconnect: disconnectHealthKit 
+  } = useHealthKitAuth();
+  const { 
+    syncActivities: syncHealthKitActivities,
+    isLoading: healthKitSyncing,
+    lastSyncResult: healthKitLastSync 
+  } = useHealthKitSync();
   const disconnectStrava = async () => {
     console.log('Strava disconnect');
     try {
@@ -180,6 +197,16 @@ export function GarminSync() {
     startPolarFlow();
   };
 
+  const handleConnectHealthKit = async () => {
+    console.log('[HealthKitSync] Connect button clicked');
+    await connectHealthKit();
+  };
+
+  const handleSyncHealthKit = async () => {
+    console.log('[HealthKitSync] Sync button clicked');
+    await syncHealthKitActivities();
+  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -218,6 +245,19 @@ export function GarminSync() {
     { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
+  const healthKitSyncStats = {
+    lastSync: healthKitLastSync ? formatLastSync(healthKitLastSync.lastSyncAt) : 'Nunca sincronizado',
+    activitiesCount: healthKitLastSync?.syncedCount || 0,
+    syncStatus: healthKitConnected ? ('connected' as const) : ('disconnected' as const)
+  };
+
+  const healthKitMetrics = [
+    { label: 'Atividades Totais', value: healthKitSyncStats.activitiesCount, icon: Activity },
+    { label: 'Última Sincronização', value: healthKitSyncStats.lastSync, icon: Timer },
+    { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
+    { label: 'GPS', value: 'Ativo', icon: MapPin },
+  ];
+
 
   const webhookEndpoint = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-activities-webhook';
 
@@ -242,7 +282,7 @@ export function GarminSync() {
           </ScrollReveal>
 
           {/* Main Connection Cards */}
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
             {/* Garmin Connection Card */}
             <ScrollReveal delay={100}>
               <Card className="glass-card">
@@ -560,6 +600,134 @@ export function GarminSync() {
                 </CardContent>
               </Card>
             </ScrollReveal>
+
+            {/* Apple Health Connection Card */}
+            {healthKitSupported && (
+              <ScrollReveal delay={200}>
+                <Card className="glass-card">
+                  <CardHeader>
+                    <div className="flex flex-col space-y-4">
+                      {/* Apple Health Logo */}
+                      <div className="flex justify-center">
+                        <img 
+                          src={appleHealthLogo} 
+                          alt="Apple Health" 
+                          className="h-12 w-auto opacity-90"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-3">
+                            <Heart className="h-6 w-6 text-red-500" />
+                            Apple Health
+                          </CardTitle>
+                          <CardDescription>
+                            Conecte sua conta Apple Health
+                          </CardDescription>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge className={getStatusColor(healthKitSyncStats.syncStatus)}>
+                            {healthKitSyncStats.syncStatus === 'connected' && (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
+                            {healthKitSyncStats.syncStatus === 'disconnected' && (
+                              <AlertCircle className="h-4 w-4 mr-2" />
+                            )}
+                            {getStatusText(healthKitSyncStats.syncStatus)}
+                          </Badge>
+                          
+                          {healthKitConnected && (
+                            <Button 
+                              onClick={disconnectHealthKit}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                            >
+                              Desconectar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {healthKitSyncStats.syncStatus === 'disconnected' ? (
+                        <>
+                          <Alert className="border-red-500/50 bg-red-500/10">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription className="text-red-400">
+                              Conecte sua conta Apple Health para sincronizar atividades do Apple Watch
+                            </AlertDescription>
+                          </Alert>
+                          
+                          <Button 
+                            onClick={handleConnectHealthKit}
+                            disabled={healthKitConnecting}
+                            className="w-full bg-red-500 hover:bg-red-600"
+                            size="lg"
+                          >
+                            {healthKitConnecting ? (
+                              <>
+                                <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                                Conectando...
+                              </>
+                            ) : (
+                              <>
+                                <Heart className="h-4 w-4 mr-2" />
+                                Conectar Apple Health
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Alert className="border-green-500/50 bg-green-500/10">
+                            <CheckCircle className="h-4 w-4" />
+                            <AlertDescription className="text-green-400">
+                              <strong>🎉 Conectado!</strong> Dados do Apple Watch disponíveis.
+                            </AlertDescription>
+                          </Alert>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            {healthKitMetrics.map((metric, index) => (
+                              <div key={index} className="metric-card">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <metric.icon className="h-3 w-3 text-primary" />
+                                  <span className="text-xs text-muted-foreground">{metric.label}</span>
+                                </div>
+                                <div className="font-semibold text-sm">{metric.value}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <Button 
+                            onClick={handleSyncHealthKit}
+                            disabled={healthKitSyncing}
+                            className="w-full"
+                            variant="outline"
+                            size="sm"
+                          >
+                            {healthKitSyncing ? (
+                              <>
+                                <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                                Sincronizando...
+                              </>
+                            ) : (
+                              <>
+                                <Activity className="h-4 w-4 mr-2" />
+                                Sincronizar Agora
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
+            )}
           </div>
 
 
