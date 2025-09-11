@@ -308,16 +308,6 @@ export function GarminSync() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                        <Badge className={`${getStatusColor(garminSyncStats.syncStatus)} text-xs px-2 py-1`}>
-                          {garminSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          )}
-                          {garminSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          {getStatusText(garminSyncStats.syncStatus)}
-                        </Badge>
-                        
                         {garminConnected && (
                           <Button 
                             onClick={disconnectGarmin}
@@ -361,6 +351,13 @@ export function GarminSync() {
                             </>
                           )}
                         </Button>
+
+                        <div className="pt-2">
+                          <Badge className={`${getStatusColor(garminSyncStats.syncStatus)} text-xs px-2 py-1`}>
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            {getStatusText(garminSyncStats.syncStatus)}
+                          </Badge>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -413,28 +410,18 @@ export function GarminSync() {
                           Conecte sua conta Strava
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                        <Badge className={`${getStatusColor(stravaSyncStats.syncStatus)} text-xs px-2 py-1`}>
-                          {stravaSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          )}
-                          {stravaSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          {getStatusText(stravaSyncStats.syncStatus)}
-                        </Badge>
-                        
-                        {stravaConnected && (
-                          <Button 
-                            onClick={disconnectStrava}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                          >
-                            Desconectar
-                          </Button>
-                        )}
-                      </div>
+                       <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
+                         {stravaConnected && (
+                           <Button 
+                             onClick={disconnectStrava}
+                             variant="outline"
+                             size="sm"
+                             className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                           >
+                             Desconectar
+                           </Button>
+                         )}
+                       </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -467,6 +454,13 @@ export function GarminSync() {
                             </>
                           )}
                         </Button>
+
+                        <div className="pt-2">
+                          <Badge className={`${getStatusColor(stravaSyncStats.syncStatus)} text-xs px-2 py-1`}>
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            {getStatusText(stravaSyncStats.syncStatus)}
+                          </Badge>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -519,28 +513,18 @@ export function GarminSync() {
                           Conecte sua conta Polar Flow
                         </CardDescription>
                       </div>
-                       <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                        <Badge className={`${getStatusColor(polarSyncStats.syncStatus)} text-xs px-2 py-1`}>
-                          {polarSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-3 w-3 mr-1" />
+                        <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
+                          {polarConnected && (
+                            <Button 
+                              onClick={disconnectPolar}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                            >
+                              Desconectar
+                            </Button>
                           )}
-                          {polarSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          {getStatusText(polarSyncStats.syncStatus)}
-                        </Badge>
-                        
-                        {polarConnected && (
-                          <Button 
-                            onClick={disconnectPolar}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                          >
-                            Desconectar
-                          </Button>
-                        )}
-                      </div>
+                        </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -573,6 +557,13 @@ export function GarminSync() {
                             </>
                           )}
                         </Button>
+
+                        <div className="pt-2">
+                          <Badge className={`${getStatusColor(polarSyncStats.syncStatus)} text-xs px-2 py-1`}>
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            {getStatusText(polarSyncStats.syncStatus)}
+                          </Badge>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -633,28 +624,18 @@ export function GarminSync() {
                             Conecte sua conta Apple Health
                           </CardDescription>
                         </div>
-                        <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                          <Badge className={`${getStatusColor(healthKitSyncStats.syncStatus)} text-xs px-2 py-1`}>
-                            {healthKitSyncStats.syncStatus === 'connected' && (
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                            )}
-                            {healthKitSyncStats.syncStatus === 'disconnected' && (
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                            )}
-                            {getStatusText(healthKitSyncStats.syncStatus)}
-                          </Badge>
-                          
-                          {healthKitConnected && (
-                            <Button 
-                              onClick={disconnectHealthKit}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                            >
-                              Desconectar
-                            </Button>
-                          )}
-                        </div>
+                         <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
+                           {healthKitConnected && (
+                             <Button 
+                               onClick={disconnectHealthKit}
+                               variant="outline"
+                               size="sm"
+                               className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                             >
+                               Desconectar
+                             </Button>
+                           )}
+                         </div>
                       </div>
                     </div>
                   </CardHeader>
@@ -705,6 +686,13 @@ export function GarminSync() {
                               </>
                             )}
                           </Button>
+
+                          <div className="pt-2">
+                            <Badge className={`${getStatusColor(healthKitSyncStats.syncStatus)} text-xs px-2 py-1`}>
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              {getStatusText(healthKitSyncStats.syncStatus)}
+                            </Badge>
+                          </div>
                         </>
                       ) : (
                         <>
