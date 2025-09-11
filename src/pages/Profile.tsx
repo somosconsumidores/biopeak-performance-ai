@@ -489,25 +489,6 @@ export const Profile = () => {
             </Card>
           </ScrollReveal>
 
-          {/* Connection Status */}
-          <ScrollReveal delay={450}>
-            <Card className="glass-card border-glass-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span>Conexões de Dispositivos</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  <GarminConnectionStatus />
-                  <StravaConnectionStatus />
-                  <PolarConnectionStatus />
-                  <HealthKitConnectionStatus />
-                </div>
-              </CardContent>
-            </Card>
-          </ScrollReveal>
         </div>
       </div>
     </div>
