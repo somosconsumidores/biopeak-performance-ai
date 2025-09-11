@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Device } from '@capacitor/device';
+import { Health } from '../types/healthkit';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -71,17 +72,37 @@ export const useHealthKitAuth = () => {
         return false;
       }
 
-      // Simulate iOS HealthKit permission request
-      // In a real implementation, this would use @capacitor-community/health
-      const mockPermissions: HealthKitPermissions = {
+      // Request HealthKit permissions
+      const permissions = await Health.requestAuthorization({
+        read: [
+          'steps',
+          'distance',
+          'calories',
+          'activity',
+          'heart_rate'
+        ],
+        write: []
+      });
+
+      if (!permissions.granted) {
+        toast({
+          title: "Permissões negadas",
+          description: "É necessário permitir acesso aos dados de saúde.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Check individual permissions
+      const healthPermissions: HealthKitPermissions = {
         workouts: { read: true, write: false },
-        heartRate: { read: true, write: false },
-        activeEnergy: { read: true, write: false },
-        distanceWalkingRunning: { read: true, write: false },
-        steps: { read: true, write: false }
+        heartRate: { read: permissions.granted, write: false },
+        activeEnergy: { read: permissions.granted, write: false },
+        distanceWalkingRunning: { read: permissions.granted, write: false },
+        steps: { read: permissions.granted, write: false }
       };
 
-      setPermissions(mockPermissions);
+      setPermissions(healthPermissions);
 
       // Update sync status in database
       const { data: { session } } = await supabase.auth.getSession();

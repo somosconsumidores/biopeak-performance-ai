@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Health } from '../types/healthkit';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,12 +21,26 @@ interface HealthKitWorkout {
   totalEnergyBurned?: number;
   sourceName?: string;
   device?: string;
+  averageHeartRate?: number;
+  maxHeartRate?: number;
 }
 
 export const useHealthKitSync = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const { toast } = useToast();
+
+  // Helper function to map HealthKit workout types
+  const mapWorkoutType = (hkType: number): string => {
+    const typeMap: { [key: number]: string } = {
+      1: 'Running', // HKWorkoutActivityTypeRunning
+      2: 'Walking', // HKWorkoutActivityTypeWalking  
+      13: 'Cycling', // HKWorkoutActivityTypeCycling
+      16: 'Swimming', // HKWorkoutActivityTypeSwimming
+      3000: 'Other' // HKWorkoutActivityTypeOther
+    };
+    return typeMap[hkType] || 'Other';
+  };
 
   const syncActivities = async (): Promise<boolean> => {
     setIsLoading(true);
@@ -70,26 +85,60 @@ export const useHealthKitSync = () => {
         return false;
       }
 
-      // Simulate fetching HealthKit workouts
-      // In a real implementation, this would use @capacitor-community/health
-      const mockWorkouts: HealthKitWorkout[] = [
-        {
-          uuid: `healthkit_${Date.now()}_1`,
-          workoutActivityType: 'Running',
-          startDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
-          endDate: new Date(Date.now() - 24 * 60 * 60 * 1000 + 30 * 60 * 1000), // 30 min duration
-          duration: 1800, // 30 minutes in seconds
-          totalDistance: 5000, // 5km in meters
-          totalEnergyBurned: 350,
-          sourceName: 'Apple Watch',
-          device: 'Apple Watch Series 8'
+      // Fetch workouts from HealthKit
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 30); // Last 30 days
+
+      const workouts = await Health.queryHKitSampleType({
+        sampleName: 'HKWorkoutTypeIdentifier',
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 100
+      });
+
+      // Fetch additional data for each workout
+      const processedWorkouts: HealthKitWorkout[] = [];
+      
+      for (const workout of workouts.resultData || []) {
+        try {
+          // Fetch heart rate data for this workout
+          const heartRateData = await Health.queryHKitSampleType({
+            sampleName: 'HKQuantityTypeIdentifierHeartRate',
+            startDate: workout.startDate,
+            endDate: workout.endDate,
+            limit: 1000
+          });
+
+          // Calculate average and max heart rate
+          const heartRates = heartRateData.resultData?.map(hr => parseFloat(hr.value)) || [];
+          const avgHeartRate = heartRates.length > 0 ? Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length) : undefined;
+          const maxHeartRate = heartRates.length > 0 ? Math.max(...heartRates) : undefined;
+
+          const processedWorkout: HealthKitWorkout = {
+            uuid: workout.uuid,
+            workoutActivityType: mapWorkoutType(workout.workoutActivityType || 1),
+            startDate: new Date(workout.startDate),
+            endDate: new Date(workout.endDate),
+            duration: workout.duration || 0,
+            totalDistance: workout.totalDistance,
+            totalEnergyBurned: workout.totalEnergyBurned,
+            sourceName: workout.sourceName || 'Apple Watch',
+            device: workout.device || 'Apple Watch',
+            averageHeartRate: avgHeartRate,
+            maxHeartRate: maxHeartRate
+          };
+
+          processedWorkouts.push(processedWorkout);
+        } catch (error) {
+          console.error('[useHealthKitSync] Error processing workout:', error);
         }
-      ];
+      }
 
       // Process and store activities
       let syncedCount = 0;
       
-      for (const workout of mockWorkouts) {
+      for (const workout of processedWorkouts) {
         try {
           const activityData = {
             user_id: session.user.id,
@@ -100,6 +149,8 @@ export const useHealthKitSync = () => {
             duration_seconds: workout.duration,
             distance_meters: workout.totalDistance,
             active_calories: workout.totalEnergyBurned,
+            average_heart_rate: workout.averageHeartRate,
+            max_heart_rate: workout.maxHeartRate,
             source_name: workout.sourceName,
             device_name: workout.device,
             raw_data: workout
@@ -136,7 +187,7 @@ export const useHealthKitSync = () => {
       const result: SyncResult = {
         message: `Sincronização concluída: ${syncedCount} atividades do HealthKit`,
         synced: syncedCount,
-        total: mockWorkouts.length,
+        total: processedWorkouts.length,
         lastSyncAt: now
       };
 

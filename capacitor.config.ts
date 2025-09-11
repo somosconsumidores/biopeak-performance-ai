@@ -68,6 +68,10 @@ const config: CapacitorConfig = {
       hidden: false,
       bigText: false
     },
+    CapacitorHealth: {
+      syncOnAppStart: true,
+      syncInterval: 'hourly'
+    }
   },
   android: {
     allowMixedContent: true,
@@ -97,6 +101,8 @@ const config: CapacitorConfig = {
       "NSCameraUsageDescription",
       "NSMicrophoneUsageDescription",
       "NSPhotoLibraryUsageDescription",
+      "NSHealthShareUsageDescription",
+      "NSHealthUpdateUsageDescription"
     ]
   },
 };
