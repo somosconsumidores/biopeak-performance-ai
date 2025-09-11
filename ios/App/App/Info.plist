@@ -44,6 +44,13 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	
+	<!-- Background Modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+	</array>
+	
 	<!-- HealthKit Permissions -->
 	<key>NSHealthShareUsageDescription</key>
 	<string>BioPeak precisa acessar seus dados de saúde para sincronizar e analisar suas atividades físicas do Apple Watch.</string>
