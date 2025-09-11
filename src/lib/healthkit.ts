@@ -84,24 +84,39 @@ class HealthKitWrapper {
   }
 
   private async initializeHealthKit() {
+    console.log('[BioPeakHealthKit] Initializing... Platform:', Capacitor.getPlatform(), 'isNative:', Capacitor.isNativePlatform());
+    
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
         // Use BioPeak custom HealthKit plugin
         const { BioPeakHealthKit } = Capacitor as any;
+        console.log('[BioPeakHealthKit] Capacitor plugins available:', Object.keys(Capacitor));
+        console.log('[BioPeakHealthKit] BioPeakHealthKit plugin found:', !!BioPeakHealthKit);
+        
         this.customHealthKit = BioPeakHealthKit;
-        console.log('[BioPeakHealthKit] Custom HealthKit plugin initialized');
+        console.log('[BioPeakHealthKit] Custom HealthKit plugin initialized successfully');
       } catch (error) {
         console.log('[BioPeakHealthKit] Custom plugin not available, using mock:', error);
         this.customHealthKit = null;
       }
+    } else {
+      console.log('[BioPeakHealthKit] Not iOS or not native platform, using mock');
     }
   }
 
   async requestAuthorization(options: HealthKitPermissionRequest): Promise<HealthKitPermissionResponse> {
     if (this.customHealthKit) {
       try {
-        console.log('[BioPeakHealthKit] Requesting HealthKit permissions:', options);
-        const result = await this.customHealthKit.requestAuthorization();
+        console.log('[BioPeakHealthKit] NATIVE: Requesting HealthKit permissions:', options);
+        console.log('[BioPeakHealthKit] NATIVE: Plugin available:', !!this.customHealthKit);
+        
+        // Pass the permissions to the native method
+        const result = await this.customHealthKit.requestAuthorization({
+          read: options.read,
+          write: options.write
+        });
+        
+        console.log('[BioPeakHealthKit] NATIVE: Authorization result:', result);
         return { granted: result.granted, error: result.error };
       } catch (error) {
         console.error('[BioPeakHealthKit] Error requesting permissions:', error);
