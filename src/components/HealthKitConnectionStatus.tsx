@@ -33,11 +33,13 @@ export const HealthKitConnectionStatus: React.FC = () => {
   };
 
   const handleSync = async () => {
-    const success = await syncActivities();
-    if (success) {
+    try {
+      const result = await syncActivities();
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['unified-activity-history'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+    } catch (error) {
+      console.error('Sync failed:', error);
     }
   };
 
@@ -134,13 +136,11 @@ export const HealthKitConnectionStatus: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Atividades sincronizadas:</span>
-                <span className="font-medium">{lastSyncResult.synced}</span>
+                <span className="font-medium">{lastSyncResult.syncedCount}</span>
               </div>
-              {lastSyncResult.lastSyncAt && (
-                <div className="text-xs text-muted-foreground">
-                  Última sincronização: {lastSyncResult.lastSyncAt.toLocaleString('pt-BR')}
-                </div>
-              )}
+              <div className="text-xs text-muted-foreground">
+                Última sincronização: {new Date(lastSyncResult.lastSyncAt).toLocaleString('pt-BR')}
+              </div>
             </div>
           )}
           

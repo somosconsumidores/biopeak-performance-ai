@@ -1,135 +1,202 @@
-# Configuração HealthKit para BioPeak
+# 📱 Setup HealthKit - BioPeak (Plugin Customizado)
 
-Este guia mostra como completar a integração real do HealthKit no BioPeak.
+## Visão Geral
 
-## 📱 Pré-requisitos
+O BioPeak utiliza um plugin HealthKit customizado desenvolvido especificamente para capturar dados completos de treino do iOS, incluindo:
 
-- Dispositivo iOS (iPhone/Apple Watch)
-- Xcode instalado (apenas macOS)
-- Conta Apple Developer
+- **Workouts** (resumos de treino)
+- **GPS Routes** (rotas completas com latitude, longitude, altitude)
+- **Séries Temporais** (frequência cardíaca, energia, pace)
+- **Integração completa** com análises de IA do BioPeak
 
-## 🚀 Passos de Instalação
+## 🔧 Configuração
 
-### 1. Instalar Dependência HealthKit
+### 1. Plugin Nativo (Já Incluído)
+
+O plugin customizado `BioPeakHealthKit` está incluído no projeto iOS:
+- `ios/App/App/Plugins/BioPeakHealthKit.swift` - Implementação Swift
+- `ios/App/App/Plugins/BioPeakHealthKit.m` - Bridge Objective-C
+
+### 2. Configurar Projeto iOS
+
+Após qualquer alteração no código nativo, execute:
 
 ```bash
-# Fix date-fns version first
-npm install date-fns@^3.6.0
-
-# Clean install to resolve conflicts
-rm -rf node_modules package-lock.json
-npm install
-
-# Install HealthKit plugin (compatible fork)
-npm install @felipeclopes/capacitor-healthkit
-
-# Sync with iOS
+# Sincronizar com iOS
 npx cap sync ios
-```
 
-### 2. Configurar iOS Project
-
-Após executar `npm run build` e `npx cap sync ios`:
-
-#### 2.1. Atualizar Info.plist
-Os arquivos `ios/App/App/Info.plist` e `ios/App/App/App.entitlements` já foram criados com as permissões necessárias.
-
-#### 2.2. Abrir no Xcode
-```bash
+# Abrir no Xcode para configuração final
 npx cap open ios
 ```
 
-#### 2.3. Configurar Capabilities no Xcode
+### 3. Configurar Permissões iOS
 
-1. Selecione o projeto "App" no navegador
-2. Vá para a aba "Signing & Capabilities"
-3. Clique no botão "+" para adicionar capabilities
-4. Adicione "HealthKit"
-5. Marque as seguintes opções:
-   - ✅ Clinical Health Records
-   - ✅ Background Delivery
-   - ✅ Steps
-   - ✅ Distance
-   - ✅ Heart Rate
-   - ✅ Active Energy
-   - ✅ Workout Types
+No **Xcode**, adicione as seguintes permissões no `Info.plist`:
 
-### 3. Integração de Código
+```xml
+<!-- HealthKit Permissions -->
+<key>NSHealthShareUsageDescription</key>
+<string>BioPeak precisa acessar seus dados de saúde para sincronizar e analisar suas atividades físicas do Apple Watch.</string>
 
-O código foi atualizado para usar `@felipeclopes/capacitor-healthkit` através de uma biblioteca wrapper:
+<key>NSHealthUpdateUsageDescription</key>
+<string>BioPeak pode atualizar seus dados de saúde com informações de atividades.</string>
 
-- `src/lib/healthkit.ts` - Wrapper do HealthKit que lida com dispositivo real e desenvolvimento
-- `src/types/healthkit.ts` - Atualizado para re-exportar do wrapper  
-- Hooks atualizados para usar o novo wrapper
+<!-- Location Permission (for GPS data) -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>BioPeak precisa acessar localização para capturar rotas GPS dos treinos.</string>
+```
 
-A integração detecta automaticamente se você está em um dispositivo iOS real ou em desenvolvimento e usa a implementação apropriada.
+### 4. Configurar HealthKit Capability
 
-### 4. Testar Integração
+No **Xcode**:
+1. Selecione o target do projeto
+2. Vá para **Signing & Capabilities**
+3. Clique **+ Capability**
+4. Adicione **HealthKit**
+5. Configure as permissões:
+   - ✅ **Clinical Health Records**
+   - ✅ **Background Delivery**
+   - ✅ **Workouts**
+   - ✅ **Heart Rate**
+   - ✅ **Active Energy**
+   - ✅ **Distance**
+   - ✅ **Steps**
+   - ✅ **Workout Routes**
 
-1. Execute `npm run build`
-2. Execute `npx cap sync ios`
-3. Execute `npx cap run ios` ou abra o projeto no Xcode
-4. Teste no dispositivo físico (HealthKit não funciona no simulador)
+## 🚀 Funcionalidades Implementadas
 
-## 📋 Funcionalidades Implementadas
+### APIs Disponíveis
 
-### ✅ Autenticação HealthKit
-- Solicitação de permissões
-- Verificação de suporte
-- Status de conexão
+O plugin customizado oferece as seguintes APIs:
 
-### ✅ Sincronização de Dados
-- Workouts dos últimos 30 dias
-- Dados de frequência cardíaca
-- Calorias queimadas
-- Distância e duração
+```typescript
+// Solicitar permissões HealthKit
+await HealthKit.requestAuthorization({
+  read: ['workouts', 'heart_rate', 'calories', 'distance', 'steps'],
+  write: []
+});
 
-### ✅ Armazenamento
-- Tabela `healthkit_activities`
-- Integração com `all_activities`
-- Edge function para processamento
+// Buscar workouts dos últimos 30 dias
+const workouts = await HealthKit.queryWorkouts();
 
-### ✅ Interface do Usuário
-- Componente de status de conexão
-- Botões para conectar/sincronizar
-- Feedback visual do processo
+// Buscar rota GPS de um workout específico
+const locations = await HealthKit.queryWorkoutRoute(workoutUUID);
+
+// Buscar séries temporais (HR, energia)
+const series = await HealthKit.queryWorkoutSeries(workoutUUID, startDate, endDate);
+```
+
+### Dados Capturados
+
+#### Resumo do Workout
+- UUID único
+- Tipo de atividade (corrida, caminhada, ciclismo, etc.)
+- Data/hora de início e fim
+- Duração total
+- Distância percorrida
+- Energia gasta (calorias)
+- Dispositivo de origem
+
+#### Rota GPS
+- Coordenadas (latitude, longitude)
+- Altitude
+- Timestamp de cada ponto
+- Velocidade instantânea
+- Precisão horizontal/vertical
+- Direção (course)
+
+#### Séries Temporais
+- **Frequência Cardíaca**: valores ao longo do tempo
+- **Energia**: consumo acumulado de calorias
+- **Timestamps**: sincronização temporal precisa
+
+### Integração com Supabase
+
+Os dados são salvos nas seguintes tabelas:
+
+```sql
+-- Atividades principais
+healthkit_activities
+
+-- Coordenadas GPS
+activity_coordinates (activity_source = 'healthkit')
+
+-- Cache para gráficos
+activity_chart_cache (activity_source = 'healthkit')
+
+-- Status de sincronização
+healthkit_sync_status
+```
+
+## 📊 Análises de IA Suportadas
+
+Com os dados completos capturados, o BioPeak pode realizar:
+
+- **Cálculo de VO₂max** baseado em GPS e frequência cardíaca
+- **Análise de pace zones** e eficiência
+- **Predição de performance** usando séries temporais
+- **Detecção de padrões** em rotas e métricas
+- **Comparação entre atividades** com dados precisos
+
+## 🧪 Teste da Implementação
+
+### Teste em Dispositivo Físico (Obrigatório)
+
+⚠️ **HealthKit só funciona em dispositivos iOS reais, não no simulador**
+
+1. Conecte um iPhone/Apple Watch
+2. Execute o projeto via Xcode
+3. Permita acesso ao HealthKit quando solicitado
+4. Execute uma sincronização de teste
+
+### Validação dos Dados
+
+```typescript
+// Hook para sincronização
+import { useHealthKitSync } from '@/hooks/useHealthKitSync';
+
+const { syncActivities, isLoading, lastSyncResult } = useHealthKitSync();
+
+// Executar sincronização
+const result = await syncActivities();
+console.log('Sincronizado:', result.syncedCount, 'atividades');
+```
 
 ## 🔧 Troubleshooting
 
-### Erro "Module not found"
-- Certifique-se de que executou `npm install @felipeclopes/capacitor-healthkit`
-- Execute `npx cap sync ios` após a instalação
+### HealthKit não Disponível
+- Verifique se está executando em dispositivo iOS real
+- Confirme que o HealthKit capability foi adicionado no Xcode
 
 ### Permissões Negadas
-- Vá em Configurações > Privacidade e Segurança > Saúde > BioPeak
-- Ative as permissões necessárias
+- Vá para **Configurações** → **Privacidade** → **Saúde** → **BioPeak**
+- Ative todas as permissões necessárias
 
-### Dados Não Aparecem
-- Verifique se há atividades no app Saúde do iOS
-- Teste a sincronização manualmente
-- Verifique os logs no console
+### GPS/Rotas não Aparecem
+- Verifique permissão de localização
+- Confirme que o treino foi feito com GPS ativo no Apple Watch
+- Alguns treinos indoor não têm dados de rota (normal)
 
-## 📱 Testando no Dispositivo
+### Dados não Sincronizam
+- Verifique logs no console do Xcode
+- Confirme conectividade com Supabase
+- Execute `npx cap sync ios` após mudanças
 
-1. Conecte um iPhone físico
-2. Configure certificado de desenvolvedor
-3. Execute o build direto no dispositivo
-4. Abra o app e permita acesso ao HealthKit
-5. Execute uma atividade no Apple Watch
-6. Teste a sincronização no BioPeak
+## 🔮 Próximos Passos
 
-## 🔄 Sincronização Automática
+### Android Health Connect
+A arquitetura está preparada para adicionar suporte ao Android Health Connect, mantendo a mesma interface unificada.
 
-O sistema está configurado para:
-- Sincronizar na inicialização do app
-- Sincronizar a cada hora (background)
-- Permitir sincronização manual
+### Expansão de Métricas
+O plugin pode ser facilmente estendido para capturar:
+- SpO₂ (saturação de oxigênio)
+- Dados de sono
+- Variabilidade da frequência cardíaca (HRV)
+- Dados de recuperação
 
-## 📊 Dados Suportados
+---
 
-- **Workouts**: Corrida, Caminhada, Ciclismo, Natação
-- **Métricas**: Duração, Distância, Calorias, FC
-- **Dispositivos**: Apple Watch, iPhone
-- **Período**: Últimos 30 dias
-
-O sistema foi projetado para ser robusto e handle casos de erro graciosamente.
+**✅ Plugin customizado totalmente funcional**  
+**✅ Dados completos para análises de IA**  
+**✅ Zero custos recorrentes**  
+**✅ Controle total da implementação**

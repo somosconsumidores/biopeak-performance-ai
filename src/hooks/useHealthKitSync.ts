@@ -1,227 +1,242 @@
 import { useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { HealthKit } from '../lib/healthkit';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { HealthKit, HealthKitWorkout, HealthKitLocation, HealthKitSeriesData } from '@/lib/healthkit';
+import { useAuth } from './useAuth';
 
-interface SyncResult {
+export interface SyncResult {
   message: string;
-  synced: number;
-  total: number;
-  lastSyncAt?: Date;
+  syncedCount: number;
+  totalCount: number;
+  lastSyncAt: string;
 }
 
-interface HealthKitWorkout {
+export interface ProcessedHealthKitWorkout {
   uuid: string;
-  workoutActivityType: string;
-  startDate: Date;
-  endDate: Date;
+  activityType: string;
+  startTime: string;
+  endTime: string;
   duration: number;
-  totalDistance?: number;
-  totalEnergyBurned?: number;
-  sourceName?: string;
-  device?: string;
+  distance: number;
+  energy: number;
+  sourceName: string;
+  device: string;
   averageHeartRate?: number;
   maxHeartRate?: number;
+  locations?: HealthKitLocation[];
+  series?: HealthKitSeriesData;
 }
 
 export const useHealthKitSync = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
-  const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Helper function to map HealthKit workout types
-  const mapWorkoutType = (hkType: number): string => {
-    const typeMap: { [key: number]: string } = {
-      1: 'Running', // HKWorkoutActivityTypeRunning
-      2: 'Walking', // HKWorkoutActivityTypeWalking  
-      13: 'Cycling', // HKWorkoutActivityTypeCycling
-      16: 'Swimming', // HKWorkoutActivityTypeSwimming
-      3000: 'Other' // HKWorkoutActivityTypeOther
+  const mapWorkoutType = (type: number): string => {
+    const workoutTypes: { [key: number]: string } = {
+      1: 'Run',
+      2: 'Walk',
+      3: 'Cycle',
+      4: 'Swim',
+      5: 'Other',
+      13: 'Run', // HKWorkoutActivityTypeRunning
+      // Add more mappings as needed
     };
-    return typeMap[hkType] || 'Other';
+    return workoutTypes[type] || 'Other';
   };
 
-  const syncActivities = async (): Promise<boolean> => {
+  const processHeartRateData = (heartRateData?: Array<{timestamp: string; value: number}>): {avg?: number; max?: number} => {
+    if (!heartRateData || heartRateData.length === 0) return {};
+    
+    const values = heartRateData.map(hr => hr.value);
+    const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const max = Math.max(...values);
+    
+    return { avg: Math.round(avg), max: Math.round(max) };
+  };
+
+  const syncActivities = async (): Promise<SyncResult> => {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     setIsLoading(true);
-    setLastSyncResult(null);
-
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[HealthKitSync] Starting sync process');
       
-      if (!session) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar logado para sincronizar atividades.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-        toast({
-          title: "Plataforma não suportada",
-          description: "Sincronização do HealthKit disponível apenas no iOS.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      console.log('[useHealthKitSync] Starting HealthKit activities sync...');
-
-      // Check if user has permissions
-      const { data: syncStatus } = await supabase
-        .from('healthkit_sync_status')
-        .select('permissions_granted')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (!syncStatus?.permissions_granted) {
-        toast({
-          title: "Permissões necessárias",
-          description: "Configure as permissões do HealthKit primeiro.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      // Fetch workouts from HealthKit
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 30); // Last 30 days
-
-      const workouts = await HealthKit.queryHKitSampleType({
-        sampleName: 'HKWorkoutTypeIdentifier',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 100
+      // Check permissions first
+      const authResult = await HealthKit.requestAuthorization({
+        read: ['workouts', 'heart_rate', 'calories', 'distance', 'steps'],
+        write: []
       });
 
-      // Fetch additional data for each workout
-      const processedWorkouts: HealthKitWorkout[] = [];
-      
-      for (const workout of workouts.resultData || []) {
+      if (!authResult.granted) {
+        toast.error('HealthKit permissions required');
+        throw new Error('HealthKit permissions not granted');
+      }
+
+      // Query workouts from the last 30 days
+      const workouts = await HealthKit.queryWorkouts();
+      console.log(`[HealthKitSync] Found ${workouts.length} workouts`);
+
+      if (workouts.length === 0) {
+        const result: SyncResult = {
+          message: 'No workouts found in HealthKit',
+          syncedCount: 0,
+          totalCount: 0,
+          lastSyncAt: new Date().toISOString()
+        };
+        setLastSyncResult(result);
+        return result;
+      }
+
+      const processedWorkouts: ProcessedHealthKitWorkout[] = [];
+
+      // Process each workout
+      for (const workout of workouts) {
         try {
-          // Fetch heart rate data for this workout
-          const heartRateData = await HealthKit.queryHKitSampleType({
-            sampleName: 'HKQuantityTypeIdentifierHeartRate',
-            startDate: workout.startDate,
-            endDate: workout.endDate,
-            limit: 1000
-          });
+          console.log(`[HealthKitSync] Processing workout ${workout.uuid}`);
+          
+          // Get GPS route if available
+          const locations = await HealthKit.queryWorkoutRoute(workout.uuid);
+          
+          // Get time series data (HR, energy)
+          const series = await HealthKit.queryWorkoutSeries(
+            workout.uuid,
+            workout.startDate,
+            workout.endDate
+          );
 
-          // Calculate average and max heart rate
-          const heartRates = heartRateData.resultData?.map(hr => parseFloat(hr.value)) || [];
-          const avgHeartRate = heartRates.length > 0 ? Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length) : undefined;
-          const maxHeartRate = heartRates.length > 0 ? Math.max(...heartRates) : undefined;
+          const heartRateStats = processHeartRateData(series.heartRate);
 
-          const processedWorkout: HealthKitWorkout = {
+          const processedWorkout: ProcessedHealthKitWorkout = {
             uuid: workout.uuid,
-            workoutActivityType: mapWorkoutType(workout.workoutActivityType || 1),
-            startDate: new Date(workout.startDate),
-            endDate: new Date(workout.endDate),
-            duration: workout.duration || 0,
-            totalDistance: workout.totalDistance,
-            totalEnergyBurned: workout.totalEnergyBurned,
-            sourceName: workout.sourceName || 'Apple Watch',
-            device: workout.device || 'Apple Watch',
-            averageHeartRate: avgHeartRate,
-            maxHeartRate: maxHeartRate
+            activityType: mapWorkoutType(workout.workoutActivityType),
+            startTime: workout.startDate,
+            endTime: workout.endDate,
+            duration: workout.duration,
+            distance: workout.totalDistance,
+            energy: workout.totalEnergyBurned,
+            sourceName: workout.sourceName,
+            device: workout.device,
+            averageHeartRate: heartRateStats.avg,
+            maxHeartRate: heartRateStats.max,
+            locations: locations.length > 0 ? locations : undefined,
+            series
           };
 
           processedWorkouts.push(processedWorkout);
         } catch (error) {
-          console.error('[useHealthKitSync] Error processing workout:', error);
+          console.error(`[HealthKitSync] Error processing workout ${workout.uuid}:`, error);
         }
       }
 
-      // Process and store activities
+      // Save to Supabase using existing table structure
       let syncedCount = 0;
-      
       for (const workout of processedWorkouts) {
         try {
-          const activityData = {
-            user_id: session.user.id,
-            healthkit_uuid: workout.uuid,
-            activity_type: workout.workoutActivityType,
-            start_time: workout.startDate.toISOString(),
-            end_time: workout.endDate.toISOString(),
-            duration_seconds: workout.duration,
-            distance_meters: workout.totalDistance,
-            active_calories: workout.totalEnergyBurned,
-            average_heart_rate: workout.averageHeartRate,
-            max_heart_rate: workout.maxHeartRate,
-            source_name: workout.sourceName,
-            device_name: workout.device,
-            raw_data: workout
-          };
-
-          const { error } = await supabase
+          // Insert into healthkit_activities table (using existing structure)
+          const { error: insertError } = await supabase
             .from('healthkit_activities')
-            .upsert(activityData, {
-              onConflict: 'user_id, healthkit_uuid'
+            .upsert({
+              user_id: user.id,
+              healthkit_uuid: workout.uuid, // Using existing column name
+              activity_type: workout.activityType,
+              start_time: workout.startTime,
+              end_time: workout.endTime,
+              duration_seconds: Math.round(workout.duration), // Using existing column name
+              distance_meters: workout.distance, // Using existing column name
+              active_calories: Math.round(workout.energy), // Using existing column name
+              average_heart_rate: workout.averageHeartRate, // Using existing column name
+              max_heart_rate: workout.maxHeartRate, // Using existing column name
+              device_name: workout.device,
+              source_name: workout.sourceName,
+              activity_date: new Date(workout.startTime).toISOString().split('T')[0],
+              raw_data: {
+                locations: workout.locations,
+                series: workout.series
+              }
+            }, {
+              onConflict: 'user_id,healthkit_uuid'
             });
 
-          if (!error) {
-            syncedCount++;
-          } else {
-            console.error('[useHealthKitSync] Error saving activity:', error);
+          if (insertError) {
+            console.error('[HealthKitSync] Error inserting workout:', insertError);
+            continue;
           }
+
+          // Save GPS coordinates if available
+          if (workout.locations && workout.locations.length > 0) {
+            const coordinates = workout.locations.map(loc => [loc.longitude, loc.latitude]);
+            
+            await supabase
+              .from('activity_coordinates')
+              .upsert({
+                user_id: user.id,
+                activity_id: workout.uuid,
+                activity_source: 'healthkit',
+                coordinates: coordinates,
+                total_points: workout.locations.length,
+                sampled_points: workout.locations.length,
+                starting_latitude: workout.locations[0].latitude,
+                starting_longitude: workout.locations[0].longitude
+              }, {
+                onConflict: 'user_id,activity_id,activity_source'
+              });
+          }
+
+          syncedCount++;
         } catch (error) {
-          console.error('[useHealthKitSync] Error processing workout:', error);
+          console.error(`[HealthKitSync] Error saving workout ${workout.uuid}:`, error);
         }
       }
 
       // Update sync status
-      const now = new Date();
       await supabase
         .from('healthkit_sync_status')
-        .update({
+        .upsert({
+          user_id: user.id,
+          last_sync_at: new Date().toISOString(),
           sync_status: 'completed',
-          last_sync_at: now.toISOString(),
           activities_synced: syncedCount,
+          total_activities: workouts.length,
           error_message: null
-        })
-        .eq('user_id', session.user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       const result: SyncResult = {
-        message: `Sincronização concluída: ${syncedCount} atividades do HealthKit`,
-        synced: syncedCount,
-        total: processedWorkouts.length,
-        lastSyncAt: now
+        message: `Successfully synced ${syncedCount} of ${workouts.length} activities`,
+        syncedCount,
+        totalCount: workouts.length,
+        lastSyncAt: new Date().toISOString()
       };
 
       setLastSyncResult(result);
+      toast.success(result.message);
       
-      toast({
-        title: "Sincronização concluída",
-        description: result.message,
-      });
-
-      console.log('[useHealthKitSync] Sync completed:', result);
-      return true;
+      return result;
 
     } catch (error) {
-      console.error('[useHealthKitSync] Unexpected error:', error);
+      console.error('[HealthKitSync] Sync failed:', error);
       
       // Update sync status with error
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (user) {
         await supabase
           .from('healthkit_sync_status')
-          .update({
+          .upsert({
+            user_id: user.id,
+            last_sync_at: new Date().toISOString(),
             sync_status: 'error',
-            error_message: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-          .eq('user_id', session.user.id);
+            error_message: error.message
+          }, {
+            onConflict: 'user_id'
+          });
       }
 
-      toast({
-        title: "Erro inesperado",
-        description: "Ocorreu um erro inesperado durante a sincronização.",
-        variant: "destructive",
-      });
-      return false;
+      toast.error(`Sync failed: ${error.message}`);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -230,6 +245,6 @@ export const useHealthKitSync = () => {
   return {
     syncActivities,
     isLoading,
-    lastSyncResult,
+    lastSyncResult
   };
 };
