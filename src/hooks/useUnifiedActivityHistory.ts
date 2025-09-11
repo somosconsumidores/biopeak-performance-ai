@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface UnifiedActivity {
   id: string;
   activity_id: string;
-  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP';
+  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'HEALTHKIT';
   activity_type: string | null;
   activity_date: string | null;
   duration_in_seconds: number | null;
@@ -132,6 +132,8 @@ export function useUnifiedActivityHistory(limit?: number) {
       ? 'Strava GPX' 
       : activity.device_name === 'Zepp GPX'
       ? 'Zepp GPX'
+      : activity.source === 'HEALTHKIT'
+      ? 'Apple Watch'
       : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
     // Mantém o display como antes
     return `${date} - ${type} ${distance} ${duration} [${sourceLabel}]`.trim();
@@ -169,7 +171,7 @@ export function useUnifiedActivityHistory(limit?: number) {
   };
 
   // Helper function para mapear fonte da atividade
-  const mapActivitySource = (source: string): 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' => {
+  const mapActivitySource = (source: string): 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'HEALTHKIT' => {
     switch (source?.toLowerCase()) {
       case 'garmin': return 'GARMIN';
       case 'strava':
@@ -177,6 +179,7 @@ export function useUnifiedActivityHistory(limit?: number) {
       case 'polar': return 'POLAR';
       case 'zepp':
       case 'zepp_gpx': return 'ZEPP';
+      case 'healthkit': return 'HEALTHKIT';
       default: return 'GARMIN';
     }
   };

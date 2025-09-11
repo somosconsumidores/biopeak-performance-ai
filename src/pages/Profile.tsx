@@ -12,6 +12,10 @@ import { useProfileStats } from '@/hooks/useProfileStats';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSubscription } from '@/hooks/useSubscription';
 import { AchievementSection } from '@/components/AchievementSection';
+import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
+import { StravaConnectionStatus } from '@/components/StravaConnectionStatus';
+import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
+import { HealthKitConnectionStatus } from '@/components/HealthKitConnectionStatus';
 import { 
   Settings, 
   Target,
@@ -480,6 +484,26 @@ export const Profile = () => {
                       Pace Médio
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+
+          {/* Connection Status */}
+          <ScrollReveal delay={450}>
+            <Card className="glass-card border-glass-border">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <span>Conexões de Dispositivos</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                  <GarminConnectionStatus />
+                  <StravaConnectionStatus />
+                  <PolarConnectionStatus />
+                  <HealthKitConnectionStatus />
                 </div>
               </CardContent>
             </Card>

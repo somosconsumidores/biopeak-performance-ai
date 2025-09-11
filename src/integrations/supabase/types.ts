@@ -1471,6 +1471,117 @@ export type Database = {
         }
         Relationships: []
       }
+      healthkit_activities: {
+        Row: {
+          active_calories: number | null
+          activity_date: string | null
+          activity_type: string | null
+          average_heart_rate: number | null
+          created_at: string
+          device_name: string | null
+          distance_meters: number | null
+          duration_seconds: number | null
+          elevation_gain_meters: number | null
+          elevation_loss_meters: number | null
+          end_time: string | null
+          healthkit_uuid: string
+          id: string
+          max_heart_rate: number | null
+          pace_min_per_km: number | null
+          raw_data: Json | null
+          source_name: string | null
+          start_time: string | null
+          steps: number | null
+          total_calories: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_calories?: number | null
+          activity_date?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          elevation_loss_meters?: number | null
+          end_time?: string | null
+          healthkit_uuid: string
+          id?: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          raw_data?: Json | null
+          source_name?: string | null
+          start_time?: string | null
+          steps?: number | null
+          total_calories?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_calories?: number | null
+          activity_date?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string
+          device_name?: string | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          elevation_loss_meters?: number | null
+          end_time?: string | null
+          healthkit_uuid?: string
+          id?: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          raw_data?: Json | null
+          source_name?: string | null
+          start_time?: string | null
+          steps?: number | null
+          total_calories?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      healthkit_sync_status: {
+        Row: {
+          activities_synced: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          last_sync_at: string | null
+          permissions_granted: boolean | null
+          sync_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activities_synced?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_sync_at?: string | null
+          permissions_granted?: boolean | null
+          sync_status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activities_synced?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_sync_at?: string | null
+          permissions_granted?: boolean | null
+          sync_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       oauth_states: {
         Row: {
           created_at: string
