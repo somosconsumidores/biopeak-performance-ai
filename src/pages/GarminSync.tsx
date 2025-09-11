@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-updated.png';
 import stravaLogo from '@/assets/strava-logo.svg';
 import polarLogo from '@/assets/polar-logo.png';
-import appleHealthLogo from '@/assets/apple-health-logo.png';
+import appleHealthLogo from '@/assets/works-with-apple-health-logo.png';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
