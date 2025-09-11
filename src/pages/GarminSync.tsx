@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import garminLogo from '@/assets/garmin-logo-updated.png';
 import stravaLogo from '@/assets/strava-logo.svg';
 import polarLogo from '@/assets/polar-logo.png';
-import appleHealthLogo from '@/assets/works-with-apple-health-logo.png';
+
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
@@ -609,9 +609,12 @@ export function GarminSync() {
                       {/* Apple Health Logo */}
                       <div className="flex justify-center">
                         <img 
-                          src={appleHealthLogo} 
-                          alt="Apple Health" 
+                          src="/works-with-apple-health-logo.png" 
+                          alt="Works with Apple Health" 
                           className="h-12 w-auto opacity-90"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                       
