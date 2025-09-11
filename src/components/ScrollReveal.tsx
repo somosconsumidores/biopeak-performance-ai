@@ -11,27 +11,43 @@ export const ScrollReveal = ({ children, className = '', delay = 0 }: ScrollReve
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setTimeout(() => {
-            setIsVisible(true);
-          }, delay);
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px',
-      }
-    );
+    // Graceful fallback for environments without IntersectionObserver (older iOS WKWebView)
+    if (typeof window === 'undefined' || typeof (window as any).IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
 
-    if (ref.current) {
+    let observer: IntersectionObserver | null = null;
+    try {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            const t = window.setTimeout(() => {
+              setIsVisible(true);
+            }, delay);
+          }
+        },
+        {
+          threshold: 0.1,
+          rootMargin: '0px 0px -50px 0px',
+        }
+      );
+    } catch (err) {
+      // In case constructing the observer throws in some engines
+      setIsVisible(true);
+      return;
+    }
+
+    if (ref.current && observer) {
       observer.observe(ref.current);
     }
 
     return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
+      if (ref.current && observer) {
+        try {
+          observer.unobserve(ref.current);
+          observer.disconnect();
+        } catch {}
       }
     };
   }, [delay]);

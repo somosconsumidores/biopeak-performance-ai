@@ -10,8 +10,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import AchievementBadge from '@/components/AchievementBadge';
 // Logo imports
-const bioPeakLogoDark = '/lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png';
-const bioPeakLogoLight = '/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png';
+const BASE = import.meta.env.BASE_URL || '';
+const bioPeakLogoDark = `${BASE}lovable-uploads/4f1bd6d1-3d85-4200-84b8-b6edda665af2.png`;
+const bioPeakLogoLight = `${BASE}lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png`;
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -72,7 +73,7 @@ export const Header = () => {
         <div className="flex items-center justify-between h-16 sm:h-18" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <img src={`${currentLogo}?v=${Date.now()}`} alt="BioPeak" className="h-8 w-8 sm:h-10 sm:w-10" />
+            <img src={currentLogo} alt="BioPeak" className="h-8 w-8 sm:h-10 sm:w-10" />
           </Link>
 
           {/* Desktop Navigation */}
