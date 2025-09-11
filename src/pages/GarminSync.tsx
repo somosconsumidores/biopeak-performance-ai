@@ -308,12 +308,12 @@ export function GarminSync() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge className={getStatusColor(garminSyncStats.syncStatus)}>
+                        <Badge className={`${getStatusColor(garminSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {garminSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <CheckCircle className="h-3 w-3 mr-1" />
                           )}
                           {garminSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-4 w-4 mr-2" />
+                            <AlertCircle className="h-3 w-3 mr-1" />
                           )}
                           {getStatusText(garminSyncStats.syncStatus)}
                         </Badge>
@@ -414,12 +414,12 @@ export function GarminSync() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge className={getStatusColor(stravaSyncStats.syncStatus)}>
+                        <Badge className={`${getStatusColor(stravaSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {stravaSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <CheckCircle className="h-3 w-3 mr-1" />
                           )}
                           {stravaSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-4 w-4 mr-2" />
+                            <AlertCircle className="h-3 w-3 mr-1" />
                           )}
                           {getStatusText(stravaSyncStats.syncStatus)}
                         </Badge>
@@ -520,12 +520,12 @@ export function GarminSync() {
                         </CardDescription>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge className={getStatusColor(polarSyncStats.syncStatus)}>
+                        <Badge className={`${getStatusColor(polarSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {polarSyncStats.syncStatus === 'connected' && (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <CheckCircle className="h-3 w-3 mr-1" />
                           )}
                           {polarSyncStats.syncStatus === 'disconnected' && (
-                            <AlertCircle className="h-4 w-4 mr-2" />
+                            <AlertCircle className="h-3 w-3 mr-1" />
                           )}
                           {getStatusText(polarSyncStats.syncStatus)}
                         </Badge>
@@ -613,7 +613,8 @@ export function GarminSync() {
                           alt="Works with Apple Health" 
                           className="h-12 w-auto opacity-90"
                           onError={(e) => {
-                            e.currentTarget.style.display = 'none';
+                            console.warn('Apple Health logo failed to load');
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iI0ZGM0IzMCIvPgo8cGF0aCBkPSJNMzIgMThIMjZWMTJIMjJWMThIMTZWMjJIMjJWMjhIMjZWMjJIMzJWMThaTTI2IDE2VjE0SDIyVjE2SDI2Wk0yNiAyNlYyNEgyMlYyNkgyNloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
                           }}
                         />
                       </div>
@@ -629,12 +630,12 @@ export function GarminSync() {
                           </CardDescription>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge className={getStatusColor(healthKitSyncStats.syncStatus)}>
+                          <Badge className={`${getStatusColor(healthKitSyncStats.syncStatus)} text-xs px-2 py-1`}>
                             {healthKitSyncStats.syncStatus === 'connected' && (
-                              <CheckCircle className="h-4 w-4 mr-2" />
+                              <CheckCircle className="h-3 w-3 mr-1" />
                             )}
                             {healthKitSyncStats.syncStatus === 'disconnected' && (
-                              <AlertCircle className="h-4 w-4 mr-2" />
+                              <AlertCircle className="h-3 w-3 mr-1" />
                             )}
                             {getStatusText(healthKitSyncStats.syncStatus)}
                           </Badge>
