@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Device } from '@capacitor/device';
-import { Health } from '../types/healthkit';
+import { HealthKit } from '../lib/healthkit';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -73,7 +73,7 @@ export const useHealthKitAuth = () => {
       }
 
       // Request HealthKit permissions
-      const permissions = await Health.requestAuthorization({
+      const permissions = await HealthKit.requestAuthorization({
         read: [
           'steps',
           'distance',

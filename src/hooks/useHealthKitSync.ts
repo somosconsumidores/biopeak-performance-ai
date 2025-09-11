@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Health } from '../types/healthkit';
+import { HealthKit } from '../lib/healthkit';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -90,7 +90,7 @@ export const useHealthKitSync = () => {
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - 30); // Last 30 days
 
-      const workouts = await Health.queryHKitSampleType({
+      const workouts = await HealthKit.queryHKitSampleType({
         sampleName: 'HKWorkoutTypeIdentifier',
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -103,7 +103,7 @@ export const useHealthKitSync = () => {
       for (const workout of workouts.resultData || []) {
         try {
           // Fetch heart rate data for this workout
-          const heartRateData = await Health.queryHKitSampleType({
+          const heartRateData = await HealthKit.queryHKitSampleType({
             sampleName: 'HKQuantityTypeIdentifierHeartRate',
             startDate: workout.startDate,
             endDate: workout.endDate,
