@@ -297,7 +297,7 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
                       <div>
                         <CardTitle className="flex items-center gap-3">
                           <Watch className="h-6 w-6 text-primary" />
@@ -307,7 +307,7 @@ export function GarminSync() {
                           Conecte sua conta Garmin Connect
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-end gap-2 justify-self-end">
                         <Badge className={`${getStatusColor(garminSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {garminSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -403,7 +403,7 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
                       <div>
                         <CardTitle className="flex items-center gap-3">
                           <Activity className="h-6 w-6 text-primary" />
@@ -413,7 +413,7 @@ export function GarminSync() {
                           Conecte sua conta Strava
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-end gap-2 justify-self-end">
                         <Badge className={`${getStatusColor(stravaSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {stravaSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -509,7 +509,7 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
                       <div>
                         <CardTitle className="flex items-center gap-3">
                           <Heart className="h-6 w-6 text-primary" />
@@ -519,7 +519,7 @@ export function GarminSync() {
                           Conecte sua conta Polar Flow
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-end gap-2 justify-self-end">
                         <Badge className={`${getStatusColor(polarSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {polarSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -609,17 +609,21 @@ export function GarminSync() {
                       {/* Apple Health Logo */}
                       <div className="flex justify-center">
                         <img 
-                          src="/works-with-apple-health-logo.png" 
-                          alt="Works with Apple Health" 
+                          src="https://static.wixstatic.com/media/a025ad_18a486e8d8544c5481fa62c82331fbfc~mv2.png" 
+                          alt="Works with Apple Health official logo" 
                           className="h-12 w-auto opacity-90"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          width={192}
+                          height={48}
                           onError={(e) => {
-                            console.warn('Apple Health logo failed to load');
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iI0ZGM0IzMCIvPgo8cGF0aCBkPSJNMzIgMThIMjZWMTJIMjJWMThIMTZWMjJIMjJWMjhIMjZWMjJIMzJWMThaTTI2IDE2VjE0SDIyVjE2SDI2Wk0yNiAyNlYyNEgyMlYyNkgyNloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
+                            console.warn('Apple Health logo failed to load, falling back to local asset');
+                            e.currentTarget.src = '/works-with-apple-health-logo.png';
                           }}
                         />
                       </div>
                       
-                      <div className="flex items-center justify-between">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
                         <div>
                           <CardTitle className="flex items-center gap-3">
                             <Heart className="h-6 w-6 text-red-500" />
@@ -629,7 +633,7 @@ export function GarminSync() {
                             Conecte sua conta Apple Health
                           </CardDescription>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2 justify-self-end">
                           <Badge className={`${getStatusColor(healthKitSyncStats.syncStatus)} text-xs px-2 py-1`}>
                             {healthKitSyncStats.syncStatus === 'connected' && (
                               <CheckCircle className="h-3 w-3 mr-1" />
