@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 
-// HealthKit wrapper for @perfood/capacitor-healthkit
+// HealthKit wrapper for @felipeclopes/capacitor-healthkit
 export interface HealthKitPermissionRequest {
   read: string[];
   write: string[];
@@ -45,10 +45,10 @@ class HealthKitWrapper {
   private async initializeHealthKit() {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
-        // Dynamic import for @perfood/capacitor-healthkit (graceful failure if not installed)
-        const healthKitModule = await eval('import("@perfood/capacitor-healthkit")').catch(() => null);
-        if (healthKitModule && healthKitModule.CapacitorHealthkit) {
-          this.capacitorHealthKit = healthKitModule.CapacitorHealthkit;
+        // Dynamic import for @felipeclopes/capacitor-healthkit (graceful failure if not installed)
+        const healthKitModule = await eval('import("@felipeclopes/capacitor-healthkit")').catch(() => null);
+        if (healthKitModule && healthKitModule.CapacitorHealth) {
+          this.capacitorHealthKit = healthKitModule.CapacitorHealth;
           console.log('[HealthKitWrapper] Real HealthKit initialized');
         } else {
           console.log('[HealthKitWrapper] HealthKit plugin not found, using mock');

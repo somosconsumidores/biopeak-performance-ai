@@ -13,7 +13,18 @@ Este guia mostra como completar a integração real do HealthKit no BioPeak.
 ### 1. Instalar Dependência HealthKit
 
 ```bash
-npm install @perfood/capacitor-healthkit
+# Fix date-fns version first
+npm install date-fns@^3.6.0
+
+# Clean install to resolve conflicts
+rm -rf node_modules package-lock.json
+npm install
+
+# Install HealthKit plugin (compatible fork)
+npm install @felipeclopes/capacitor-healthkit
+
+# Sync with iOS
+npx cap sync ios
 ```
 
 ### 2. Configurar iOS Project
@@ -45,7 +56,7 @@ npx cap open ios
 
 ### 3. Integração de Código
 
-O código foi atualizado para usar `@perfood/capacitor-healthkit` através de uma biblioteca wrapper:
+O código foi atualizado para usar `@felipeclopes/capacitor-healthkit` através de uma biblioteca wrapper:
 
 - `src/lib/healthkit.ts` - Wrapper do HealthKit que lida com dispositivo real e desenvolvimento
 - `src/types/healthkit.ts` - Atualizado para re-exportar do wrapper  
@@ -86,7 +97,7 @@ A integração detecta automaticamente se você está em um dispositivo iOS real
 ## 🔧 Troubleshooting
 
 ### Erro "Module not found"
-- Certifique-se de que executou `npm install @perfood/capacitor-healthkit`
+- Certifique-se de que executou `npm install @felipeclopes/capacitor-healthkit`
 - Execute `npx cap sync ios` após a instalação
 
 ### Permissões Negadas
