@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 
-// HealthKit wrapper for @felipeclopes/capacitor-healthkit
+// BioPeak Custom HealthKit Plugin Interfaces
 export interface HealthKitPermissionRequest {
   read: string[];
   write: string[];
@@ -8,8 +8,53 @@ export interface HealthKitPermissionRequest {
 
 export interface HealthKitPermissionResponse {
   granted: boolean;
+  error?: string;
 }
 
+export interface HealthKitWorkout {
+  uuid: string;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  workoutActivityType: number;
+  totalDistance: number;
+  totalEnergyBurned: number;
+  sourceName: string;
+  device: string;
+}
+
+export interface HealthKitLocation {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  timestamp: string;
+  speed: number;
+  course: number;
+  horizontalAccuracy: number;
+  verticalAccuracy: number;
+}
+
+export interface HealthKitSeriesData {
+  heartRate?: Array<{
+    timestamp: string;
+    value: number;
+    endTimestamp: string;
+  }>;
+  energy?: Array<{
+    timestamp: string;
+    value: number;
+    endTimestamp: string;
+  }>;
+}
+
+export interface HealthKitQueryResult {
+  workouts?: HealthKitWorkout[];
+  locations?: HealthKitLocation[];
+  series?: HealthKitSeriesData;
+  resultData?: HealthKitSample[]; // Legacy compatibility
+}
+
+// Legacy compatibility interfaces
 export interface HealthKitQueryOptions {
   sampleName: string;
   startDate: string;
@@ -30,13 +75,9 @@ export interface HealthKitSample {
   workoutActivityType?: number;
 }
 
-export interface HealthKitQueryResult {
-  resultData?: HealthKitSample[];
-}
-
-// HealthKit wrapper that handles both real device and development
+// BioPeak Custom HealthKit wrapper
 class HealthKitWrapper {
-  private capacitorHealthKit: any = null;
+  private customHealthKit: any = null;
 
   constructor() {
     this.initializeHealthKit();
@@ -45,121 +86,157 @@ class HealthKitWrapper {
   private async initializeHealthKit() {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
-        // Dynamic import for @felipeclopes/capacitor-healthkit (graceful failure if not installed)
-        const healthKitModule = await eval('import("@felipeclopes/capacitor-healthkit")').catch(() => null);
-        if (healthKitModule && healthKitModule.CapacitorHealth) {
-          this.capacitorHealthKit = healthKitModule.CapacitorHealth;
-          console.log('[HealthKitWrapper] Real HealthKit initialized');
-        } else {
-          console.log('[HealthKitWrapper] HealthKit plugin not found, using mock');
-          this.capacitorHealthKit = null;
-        }
+        // Use BioPeak custom HealthKit plugin
+        const { BioPeakHealthKit } = Capacitor as any;
+        this.customHealthKit = BioPeakHealthKit;
+        console.log('[BioPeakHealthKit] Custom HealthKit plugin initialized');
       } catch (error) {
-        console.log('[HealthKitWrapper] HealthKit plugin not available, using mock:', error);
-        this.capacitorHealthKit = null;
+        console.log('[BioPeakHealthKit] Custom plugin not available, using mock:', error);
+        this.customHealthKit = null;
       }
     }
   }
 
   async requestAuthorization(options: HealthKitPermissionRequest): Promise<HealthKitPermissionResponse> {
-    if (this.capacitorHealthKit) {
+    if (this.customHealthKit) {
       try {
-        console.log('[HealthKitWrapper] Requesting real HealthKit permissions:', options);
-        
-        // Map our permission strings to HealthKit types
-        const readPermissions = options.read.map(this.mapPermissionToHealthKitType);
-        const writePermissions = options.write.map(this.mapPermissionToHealthKitType);
-
-        const result = await this.capacitorHealthKit.requestAuthorization({
-          all: [...readPermissions, ...writePermissions],
-          read: readPermissions,
-          write: writePermissions
-        });
-
-        return { granted: !!result };
+        console.log('[BioPeakHealthKit] Requesting HealthKit permissions:', options);
+        const result = await this.customHealthKit.requestAuthorization();
+        return { granted: result.granted, error: result.error };
       } catch (error) {
-        console.error('[HealthKitWrapper] Error requesting permissions:', error);
-        return { granted: false };
+        console.error('[BioPeakHealthKit] Error requesting permissions:', error);
+        return { granted: false, error: error.message };
       }
     } else {
       // Mock implementation for development
-      console.log('[HealthKitWrapper] Mock: Requesting authorization:', options);
+      console.log('[BioPeakHealthKit] Mock: Requesting authorization:', options);
       return { granted: true };
     }
   }
 
-  async queryHKitSampleType(options: HealthKitQueryOptions): Promise<HealthKitQueryResult> {
-    if (this.capacitorHealthKit) {
+  async queryWorkouts(): Promise<HealthKitWorkout[]> {
+    if (this.customHealthKit) {
       try {
-        console.log('[HealthKitWrapper] Querying real HealthKit samples:', options);
-        
-        const healthKitType = this.mapSampleNameToHealthKitType(options.sampleName);
-        
-        const result = await this.capacitorHealthKit.queryHKitSampleType({
-          sampleName: healthKitType,
-          startDate: new Date(options.startDate),
-          endDate: new Date(options.endDate),
-          limit: options.limit
-        });
-
-        // Transform the result to match our interface
-        const transformedResult: HealthKitQueryResult = {
-          resultData: result.resultData?.map((sample: any) => ({
-            uuid: sample.uuid || sample.id || `hk_${Date.now()}_${Math.random()}`,
-            startDate: sample.startDate || sample.startTimestamp,
-            endDate: sample.endDate || sample.endTimestamp, 
-            value: sample.value?.toString() || '0',
-            duration: sample.duration,
-            totalDistance: sample.totalDistance,
-            totalEnergyBurned: sample.totalEnergyBurned || sample.activeEnergyBurned,
-            sourceName: sample.sourceName || sample.sourceRevision?.source?.name,
-            device: sample.device || sample.sourceRevision?.source?.name,
-            workoutActivityType: sample.workoutActivityType
-          }))
-        };
-
-        return transformedResult;
+        console.log('[BioPeakHealthKit] Querying workouts');
+        const result = await this.customHealthKit.queryWorkouts();
+        return result.workouts || [];
       } catch (error) {
-        console.error('[HealthKitWrapper] Error querying samples:', error);
-        return { resultData: [] };
+        console.error('[BioPeakHealthKit] Error querying workouts:', error);
+        return [];
       }
     } else {
       // Mock implementation for development
-      console.log('[HealthKitWrapper] Mock: Querying samples:', options);
-      
-      if (options.sampleName === 'HKWorkoutTypeIdentifier') {
-        return {
-          resultData: [
-            {
-              uuid: `mock_${Date.now()}`,
-              startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-              endDate: new Date(Date.now() - 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
-              value: '1', // Running
-              duration: 1800,
-              totalDistance: 5000,
-              totalEnergyBurned: 350,
-              sourceName: 'Apple Watch',
-              device: 'Apple Watch Series 8',
-              workoutActivityType: 1
-            }
-          ]
-        };
-      } else if (options.sampleName === 'HKQuantityTypeIdentifierHeartRate') {
-        // Mock heart rate data
-        const heartRateData: HealthKitSample[] = [];
-        for (let i = 0; i < 30; i++) {
-          heartRateData.push({
-            uuid: `hr_${i}`,
-            startDate: options.startDate,
-            endDate: options.endDate,
-            value: (150 + Math.random() * 20).toString() // 150-170 bpm
-          });
+      console.log('[BioPeakHealthKit] Mock: Querying workouts');
+      return [
+        {
+          uuid: `mock_${Date.now()}`,
+          startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() - 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
+          duration: 1800,
+          workoutActivityType: 1, // Running
+          totalDistance: 5000,
+          totalEnergyBurned: 350,
+          sourceName: 'Apple Watch',
+          device: 'Apple Watch Series 8'
         }
-        return { resultData: heartRateData };
+      ];
+    }
+  }
+
+  async queryWorkoutRoute(workoutUUID: string): Promise<HealthKitLocation[]> {
+    if (this.customHealthKit) {
+      try {
+        console.log('[BioPeakHealthKit] Querying workout route:', workoutUUID);
+        const result = await this.customHealthKit.queryWorkoutRoute({ workoutUUID });
+        return result.locations || [];
+      } catch (error) {
+        console.error('[BioPeakHealthKit] Error querying workout route:', error);
+        return [];
+      }
+    } else {
+      // Mock GPS data for development
+      console.log('[BioPeakHealthKit] Mock: Querying workout route');
+      const mockLocations: HealthKitLocation[] = [];
+      for (let i = 0; i < 100; i++) {
+        mockLocations.push({
+          latitude: -22.9868 + (Math.random() - 0.5) * 0.01,
+          longitude: -43.2214 + (Math.random() - 0.5) * 0.01,
+          altitude: 50 + Math.random() * 10,
+          timestamp: new Date(Date.now() - (100 - i) * 30000).toISOString(),
+          speed: 3 + Math.random() * 2,
+          course: Math.random() * 360,
+          horizontalAccuracy: 5,
+          verticalAccuracy: 5
+        });
+      }
+      return mockLocations;
+    }
+  }
+
+  async queryWorkoutSeries(workoutUUID: string, startDate: string, endDate: string): Promise<HealthKitSeriesData> {
+    if (this.customHealthKit) {
+      try {
+        console.log('[BioPeakHealthKit] Querying workout series:', workoutUUID);
+        const result = await this.customHealthKit.queryWorkoutSeries({ 
+          workoutUUID, 
+          startDate, 
+          endDate 
+        });
+        return result.series || {};
+      } catch (error) {
+        console.error('[BioPeakHealthKit] Error querying workout series:', error);
+        return {};
+      }
+    } else {
+      // Mock series data for development
+      console.log('[BioPeakHealthKit] Mock: Querying workout series');
+      const mockHeartRate = [];
+      const mockEnergy = [];
+      
+      for (let i = 0; i < 30; i++) {
+        const timestamp = new Date(Date.parse(startDate) + i * 60000).toISOString();
+        mockHeartRate.push({
+          timestamp,
+          value: 150 + Math.random() * 20,
+          endTimestamp: timestamp
+        });
+        mockEnergy.push({
+          timestamp,
+          value: i * 5 + Math.random() * 2,
+          endTimestamp: timestamp
+        });
       }
       
-      return { resultData: [] };
+      return {
+        heartRate: mockHeartRate,
+        energy: mockEnergy
+      };
     }
+  }
+
+  // Legacy compatibility method
+  async queryHKitSampleType(options: HealthKitQueryOptions): Promise<HealthKitQueryResult> {
+    console.log('[BioPeakHealthKit] Legacy method called, redirecting to new API');
+    
+    if (options.sampleName === 'HKWorkoutTypeIdentifier' || options.sampleName === 'workouts') {
+      const workouts = await this.queryWorkouts();
+      return {
+        resultData: workouts.map(workout => ({
+          uuid: workout.uuid,
+          startDate: workout.startDate,
+          endDate: workout.endDate,
+          value: workout.workoutActivityType.toString(),
+          duration: workout.duration,
+          totalDistance: workout.totalDistance,
+          totalEnergyBurned: workout.totalEnergyBurned,
+          sourceName: workout.sourceName,
+          device: workout.device,
+          workoutActivityType: workout.workoutActivityType
+        }))
+      };
+    }
+    
+    return { resultData: [] };
   }
 
   private mapPermissionToHealthKitType(permission: string): string {
