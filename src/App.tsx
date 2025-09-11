@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
@@ -38,22 +38,26 @@ import { Paywall } from "./pages/Paywall";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
+import RootErrorBoundary from "./components/RootErrorBoundary";
+
 const queryClient = new QueryClient();
 
 // App component that includes the route protection logic
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <AuthProvider>
-            <AppRoutes />
-            <PWAInstallPrompt />
-          </AuthProvider>
-        </TooltipProvider>
-      </ThemeProvider>
+      <RootErrorBoundary>
+        <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AuthProvider>
+              <AppRoutes />
+              <PWAInstallPrompt />
+            </AuthProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </RootErrorBoundary>
     </QueryClientProvider>
   );
 };
@@ -80,8 +84,11 @@ function AppRoutes() {
     setPermissionsDialogOpen(false);
   };
 
+  const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor;
+  const Router = isNative ? HashRouter : BrowserRouter;
+
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={
           <PublicRoute>
@@ -208,7 +215,7 @@ function AppRoutes() {
           onDismiss={dismissSurvey}
         />
       )}
-    </BrowserRouter>
+    </Router>
   );
 }
 
