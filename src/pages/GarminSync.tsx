@@ -602,8 +602,7 @@ export function GarminSync() {
             </ScrollReveal>
 
             {/* Apple Health Connection Card */}
-            {healthKitSupported && (
-              <ScrollReveal delay={200}>
+            <ScrollReveal delay={200}>
                 <Card className="glass-card">
                   <CardHeader>
                     <div className="flex flex-col space-y-4">
@@ -653,7 +652,25 @@ export function GarminSync() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {healthKitSyncStats.syncStatus === 'disconnected' ? (
+                      {!healthKitSupported ? (
+                        <>
+                          <Alert className="border-amber-500/50 bg-amber-500/10">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription className="text-amber-400">
+                              Apple Health está disponível apenas em dispositivos iOS com o app nativo
+                            </AlertDescription>
+                          </Alert>
+                          
+                          <Button 
+                            disabled={true}
+                            className="w-full bg-red-500/50 cursor-not-allowed"
+                            size="lg"
+                          >
+                            <Heart className="h-4 w-4 mr-2" />
+                            Disponível apenas no iOS
+                          </Button>
+                        </>
+                      ) : healthKitSyncStats.syncStatus === 'disconnected' ? (
                         <>
                           <Alert className="border-red-500/50 bg-red-500/10">
                             <AlertCircle className="h-4 w-4" />
@@ -727,7 +744,6 @@ export function GarminSync() {
                   </CardContent>
                 </Card>
               </ScrollReveal>
-            )}
           </div>
 
 
