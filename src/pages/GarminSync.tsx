@@ -307,7 +307,7 @@ export function GarminSync() {
                           Conecte sua conta Garmin Connect
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2 justify-self-end">
+                      <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
                         <Badge className={`${getStatusColor(garminSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {garminSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -413,7 +413,7 @@ export function GarminSync() {
                           Conecte sua conta Strava
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2 justify-self-end">
+                      <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
                         <Badge className={`${getStatusColor(stravaSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {stravaSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -519,7 +519,7 @@ export function GarminSync() {
                           Conecte sua conta Polar Flow
                         </CardDescription>
                       </div>
-                      <div className="flex flex-col items-end gap-2 justify-self-end">
+                       <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
                         <Badge className={`${getStatusColor(polarSyncStats.syncStatus)} text-xs px-2 py-1`}>
                           {polarSyncStats.syncStatus === 'connected' && (
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -633,7 +633,7 @@ export function GarminSync() {
                             Conecte sua conta Apple Health
                           </CardDescription>
                         </div>
-                        <div className="flex flex-col items-end gap-2 justify-self-end">
+                        <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
                           <Badge className={`${getStatusColor(healthKitSyncStats.syncStatus)} text-xs px-2 py-1`}>
                             {healthKitSyncStats.syncStatus === 'connected' && (
                               <CheckCircle className="h-3 w-3 mr-1" />
