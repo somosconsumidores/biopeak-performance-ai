@@ -71,7 +71,8 @@ const config: CapacitorConfig = {
     CapacitorHealth: {
       syncOnAppStart: true,
       syncInterval: 'hourly'
-    }
+    },
+    BioPeakHealthKit: {}
   },
   android: {
     allowMixedContent: true,
