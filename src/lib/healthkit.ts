@@ -81,6 +81,7 @@ class HealthKitWrapper {
   private readyPromise: Promise<void> | null = null;
 
   constructor() {
+    console.log('[BioPeakHealthKit] JS Wrapper v2.1 loaded');
     this.readyPromise = this.initializeHealthKit();
   }
 
@@ -137,7 +138,19 @@ class HealthKitWrapper {
         return { granted: false, error: error?.message || String(error) };
       }
     } else {
-      // Mock implementation for development
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+        // Attempt late binding once more
+        try {
+          const retry = registerPlugin<any>('BioPeakHealthKit');
+          this.customHealthKit = retry || this.customHealthKit;
+        } catch {}
+        if (this.customHealthKit && typeof this.customHealthKit.requestAuthorization === 'function') {
+          return this.requestAuthorization(options);
+        }
+        console.error('[BioPeakHealthKit] ERROR: Native plugin not available on iOS. Falling back to no-op instead of mock.');
+        return { granted: false, error: 'BioPeakHealthKit native plugin unavailable' };
+      }
+      // Mock implementation for web development
       console.log('[BioPeakHealthKit] Mock: Requesting authorization:', options);
       return { granted: true };
     }
@@ -155,6 +168,10 @@ class HealthKitWrapper {
         return [];
       }
     } else {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+        console.error('[BioPeakHealthKit] ERROR: Native plugin not available on iOS for queryWorkouts(). Returning empty list.');
+        return [];
+      }
       // Mock implementation for development
       console.log('[BioPeakHealthKit] Mock: Querying workouts');
       return [
@@ -185,6 +202,10 @@ class HealthKitWrapper {
         return [];
       }
     } else {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+        console.error('[BioPeakHealthKit] ERROR: Native plugin not available on iOS for queryWorkoutRoute(). Returning empty list.');
+        return [];
+      }
       // Mock GPS data for development
       console.log('[BioPeakHealthKit] Mock: Querying workout route');
       const mockLocations: HealthKitLocation[] = [];
@@ -220,6 +241,10 @@ class HealthKitWrapper {
         return {};
       }
     } else {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+        console.error('[BioPeakHealthKit] ERROR: Native plugin not available on iOS for queryWorkoutSeries(). Returning empty result.');
+        return {};
+      }
       // Mock series data for development
       console.log('[BioPeakHealthKit] Mock: Querying workout series');
       const mockHeartRate = [];

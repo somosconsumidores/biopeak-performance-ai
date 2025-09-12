@@ -27,6 +27,7 @@
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
+		<string>healthkit</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -57,10 +58,18 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>BioPeak pode atualizar seus dados de saúde com informações de atividades.</string>
 	
-	<!-- Required HealthKit capability -->
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>healthkit</string>
-	</array>
+	<!-- iOS Privacy Usage Descriptions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O BioPeak usa sua localização para mapear treinos e calcular métricas de desempenho.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Permita acesso contínuo à localização para registrar rotas com o app em segundo plano.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O BioPeak usa a câmera para capturar fotos dos treinos e compartilhar resultados.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O microfone é usado para comandos de voz e feedback durante os treinos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Permitir salvar imagens e mapas dos seus treinos na sua biblioteca de fotos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Permitir selecionar imagens para compartilhar com seus treinos.</string>
 </dict>
 </plist>
