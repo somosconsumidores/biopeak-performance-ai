@@ -1,0 +1,27 @@
+name: Validate iOS Info.plist
+
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - 'scripts/validate-info-plist.js'
+      - '.github/workflows/validate-info-plist.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'scripts/validate-info-plist.js'
+
+jobs:
+  validate-info-plist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate Info.plist
+        run: node scripts/validate-info-plist.js
