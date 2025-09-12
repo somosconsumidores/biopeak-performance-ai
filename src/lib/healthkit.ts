@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 // BioPeak Custom HealthKit Plugin Interfaces
 export interface HealthKitPermissionRequest {
@@ -78,25 +78,25 @@ export interface HealthKitSample {
 // BioPeak Custom HealthKit wrapper
 class HealthKitWrapper {
   private customHealthKit: any = null;
+  private readyPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeHealthKit();
+    this.readyPromise = this.initializeHealthKit();
   }
 
   private async initializeHealthKit() {
     console.log('[BioPeakHealthKit] Initializing... Platform:', Capacitor.getPlatform(), 'isNative:', Capacitor.isNativePlatform());
-    
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
-        // Use BioPeak custom HealthKit plugin
-        const { BioPeakHealthKit } = Capacitor as any;
-        console.log('[BioPeakHealthKit] Capacitor plugins available:', Object.keys(Capacitor));
-        console.log('[BioPeakHealthKit] BioPeakHealthKit plugin found:', !!BioPeakHealthKit);
-        
+        // Register the native plugin via Capacitor (reliable way)
+        const BioPeakHealthKit = registerPlugin<any>('BioPeakHealthKit');
         this.customHealthKit = BioPeakHealthKit;
-        console.log('[BioPeakHealthKit] Custom HealthKit plugin initialized successfully');
+        console.log('[BioPeakHealthKit] Plugin registered via registerPlugin. Has methods:', {
+          requestAuthorization: typeof this.customHealthKit?.requestAuthorization === 'function',
+          queryWorkouts: typeof this.customHealthKit?.queryWorkouts === 'function',
+        });
       } catch (error) {
-        console.log('[BioPeakHealthKit] Custom plugin not available, using mock:', error);
+        console.log('[BioPeakHealthKit] Failed to register plugin, using mock:', error);
         this.customHealthKit = null;
       }
     } else {
@@ -105,22 +105,29 @@ class HealthKitWrapper {
   }
 
   async requestAuthorization(options: HealthKitPermissionRequest): Promise<HealthKitPermissionResponse> {
+    if (this.readyPromise) await this.readyPromise;
     if (this.customHealthKit) {
       try {
-        console.log('[BioPeakHealthKit] NATIVE: Requesting HealthKit permissions:', options);
-        console.log('[BioPeakHealthKit] NATIVE: Plugin available:', !!this.customHealthKit);
+        const mappedRead = (options.read || []).map((p) => this.mapPermissionToHealthKitType(p));
+        const mappedWrite = (options.write || []).map((p) => this.mapPermissionToHealthKitType(p));
+        console.log('[BioPeakHealthKit] NATIVE: Requesting HealthKit permissions:', {
+          original: options,
+          mappedRead,
+          mappedWrite,
+          hasRequestAuthorization: typeof this.customHealthKit?.requestAuthorization === 'function',
+        });
         
         // Pass the permissions to the native method
         const result = await this.customHealthKit.requestAuthorization({
-          read: options.read,
-          write: options.write
+          read: mappedRead,
+          write: mappedWrite,
         });
         
         console.log('[BioPeakHealthKit] NATIVE: Authorization result:', result);
         return { granted: result.granted, error: result.error };
-      } catch (error) {
+      } catch (error: any) {
         console.error('[BioPeakHealthKit] Error requesting permissions:', error);
-        return { granted: false, error: error.message };
+        return { granted: false, error: error?.message || String(error) };
       }
     } else {
       // Mock implementation for development
@@ -130,6 +137,7 @@ class HealthKitWrapper {
   }
 
   async queryWorkouts(): Promise<HealthKitWorkout[]> {
+    if (this.readyPromise) await this.readyPromise;
     if (this.customHealthKit) {
       try {
         console.log('[BioPeakHealthKit] Querying workouts');
@@ -159,6 +167,7 @@ class HealthKitWrapper {
   }
 
   async queryWorkoutRoute(workoutUUID: string): Promise<HealthKitLocation[]> {
+    if (this.readyPromise) await this.readyPromise;
     if (this.customHealthKit) {
       try {
         console.log('[BioPeakHealthKit] Querying workout route:', workoutUUID);
@@ -189,6 +198,7 @@ class HealthKitWrapper {
   }
 
   async queryWorkoutSeries(workoutUUID: string, startDate: string, endDate: string): Promise<HealthKitSeriesData> {
+    if (this.readyPromise) await this.readyPromise;
     if (this.customHealthKit) {
       try {
         console.log('[BioPeakHealthKit] Querying workout series:', workoutUUID);
@@ -232,7 +242,7 @@ class HealthKitWrapper {
   // Legacy compatibility method
   async queryHKitSampleType(options: HealthKitQueryOptions): Promise<HealthKitQueryResult> {
     console.log('[BioPeakHealthKit] Legacy method called, redirecting to new API');
-    
+    if (this.readyPromise) await this.readyPromise;
     if (options.sampleName === 'HKWorkoutTypeIdentifier' || options.sampleName === 'workouts') {
       const workouts = await this.queryWorkouts();
       return {
