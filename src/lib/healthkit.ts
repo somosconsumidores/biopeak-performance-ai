@@ -89,11 +89,18 @@ class HealthKitWrapper {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
         // Register the native plugin via Capacitor (reliable way)
-        const BioPeakHealthKit = registerPlugin<any>('BioPeakHealthKit');
-        this.customHealthKit = BioPeakHealthKit;
-        console.log('[BioPeakHealthKit] Plugin registered via registerPlugin. Has methods:', {
-          requestAuthorization: typeof this.customHealthKit?.requestAuthorization === 'function',
-          queryWorkouts: typeof this.customHealthKit?.queryWorkouts === 'function',
+        let plugin = registerPlugin<any>('BioPeakHealthKit');
+        // Fallbacks in case registerPlugin doesn't bind for some reason
+        const globalCap: any = (globalThis as any).Capacitor || Capacitor;
+        const fromPlugins = (globalCap?.Plugins && globalCap.Plugins['BioPeakHealthKit']) || null;
+        const direct = (globalCap && (globalCap as any)['BioPeakHealthKit']) || null;
+        this.customHealthKit = plugin || fromPlugins || direct || null;
+        console.log('[BioPeakHealthKit] Plugin detection:', {
+          viaRegisterPlugin: !!plugin,
+          viaCapacitorPlugins: !!fromPlugins,
+          viaDirect: !!direct,
+          hasRequestAuthorization: typeof this.customHealthKit?.requestAuthorization === 'function',
+          hasQueryWorkouts: typeof this.customHealthKit?.queryWorkouts === 'function',
         });
       } catch (error) {
         console.log('[BioPeakHealthKit] Failed to register plugin, using mock:', error);
