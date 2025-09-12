@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { MapPin, Camera, Mic, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { MapPin, Camera, Mic, CheckCircle, XCircle, Clock, Settings } from 'lucide-react';
 import { useNativePermissions } from '../hooks/useNativePermissions';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 interface PermissionOnboardingProps {
   open: boolean;
@@ -17,6 +19,7 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
 }) => {
   const { permissions, requestAllPermissions, isNative, deviceInfo } = useNativePermissions();
   const [isRequesting, setIsRequesting] = useState(false);
+  const [hasTriedRequest, setHasTriedRequest] = useState(false);
 
   const getPermissionIcon = (status: string) => {
     switch (status) {
@@ -42,14 +45,32 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
 
   const handleRequestPermissions = async () => {
     setIsRequesting(true);
+    setHasTriedRequest(true);
     try {
       await requestAllPermissions();
+    } catch (error) {
+      console.error('Permission request failed:', error);
     } finally {
       setIsRequesting(false);
     }
   };
 
+  const handleOpenSettings = async () => {
+    try {
+      if (isNative && Capacitor.isNativePlatform()) {
+        await (App as any).openSettings();
+      } else {
+        // Web fallback - show instructions
+        alert('Por favor, acesse as configurações do navegador para habilitar as permissões.');
+      }
+    } catch (error) {
+      console.error('Error opening settings:', error);
+    }
+  };
+
   const allPermissionsGranted = permissions.location === 'granted';
+  const hasPermissionDenied = permissions.location === 'denied' || permissions.camera === 'denied';
+  const shouldShowOpenSettings = hasTriedRequest && (hasPermissionDenied || (!allPermissionsGranted && !isRequesting));
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -114,13 +135,24 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
           </div>
 
           <div className="flex gap-2">
-            {!allPermissionsGranted && (
+            {!allPermissionsGranted && !shouldShowOpenSettings && (
               <Button 
                 onClick={handleRequestPermissions}
                 disabled={isRequesting}
                 className="flex-1"
               >
                 {isRequesting ? 'Solicitando...' : 'Permitir Acesso'}
+              </Button>
+            )}
+            
+            {shouldShowOpenSettings && (
+              <Button 
+                onClick={handleOpenSettings}
+                variant="outline"
+                className="flex-1"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Abrir Ajustes
               </Button>
             )}
             
