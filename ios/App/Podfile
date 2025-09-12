@@ -17,7 +17,6 @@ def capacitor_pods
   pod 'CapacitorCamera', :path => '../../node_modules/@capacitor/camera'
   pod 'CapacitorDevice', :path => '../../node_modules/@capacitor/device'
   pod 'CapacitorGeolocation', :path => '../../node_modules/@capacitor/geolocation'
-  pod 'CapawesomeTeamCapacitorAndroidForegroundService', :path => '../../node_modules/@capawesome-team/capacitor-android-foreground-service'
 end
 
 target 'App' do
