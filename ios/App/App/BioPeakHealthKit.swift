@@ -58,7 +58,7 @@ public class BioPeakHealthKit: CAPPlugin {
                     "workoutActivityType": workout.workoutActivityType.rawValue,
                     "totalDistance": workout.totalDistance?.doubleValue(for: .meter()) ?? 0,
                     "totalEnergyBurned": workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0,
-                    "sourceName": workout.sourceName,
+                    "sourceName": workout.source.name,
                     "device": workout.device?.name ?? "Unknown"
                 ]
                 workoutData.append(data)
