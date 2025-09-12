@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>BioPeak</string>
+	<string>biopeak-performance-ai</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,12 +22,38 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>UILaunchScreen</key>
-	<dict/>
+	<key>NSCameraUsageDescription</key>
+	<string>O BioPeak usa a câmera para capturar fotos dos seus treinos e criar conteúdo para compartilhamento.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>O BioPeak precisa acessar seus dados de saúde do Apple Health para sincronizar e analisar suas atividades físicas e métricas de desempenho.
+</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>O BioPeak pode atualizar seus dados de saúde com informações detalhadas das suas atividades e treinos.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>O BioPeak precisa de acesso contínuo à localização para registrar automaticamente suas corridas e treinos, mesmo quando o app está em segundo plano.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>O BioPeak precisa de acesso permanente à sua localização para registrar treinos automáticos e fornecer análises precisas de desempenho.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O BioPeak usa sua localização para mapear rotas de treino e calcular métricas de distância e velocidade durante o uso do app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O BioPeak usa o microfone para comandos de voz e feedback durante os treinos em tempo real.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>O BioPeak salva mapas e imagens dos seus treinos na biblioteca de fotos para que você possa acessá-los posteriormente.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O BioPeak precisa acessar sua biblioteca de fotos para selecionar imagens e compartilhar resultados dos treinos.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>processing</string>
+		<string>fetch</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
-		<string>healthkit</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -44,39 +70,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	
-	<!-- Background Modes -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-		<string>background-processing</string>
-		<string>background-fetch</string>
-	</array>
-	
-	<!-- HealthKit Permissions -->
-	<key>NSHealthShareUsageDescription</key>
-	<string>O BioPeak precisa acessar seus dados de saúde do Apple Health para sincronizar e analisar suas atividades físicas e métricas de desempenho.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>O BioPeak pode atualizar seus dados de saúde com informações detalhadas das suas atividades e treinos.</string>
-	
-	<!-- Camera and Photo Library -->
-	<key>NSCameraUsageDescription</key>
-	<string>O BioPeak usa a câmera para capturar fotos dos seus treinos e criar conteúdo para compartilhamento.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>O BioPeak precisa acessar sua biblioteca de fotos para selecionar imagens e compartilhar resultados dos treinos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>O BioPeak salva mapas e imagens dos seus treinos na biblioteca de fotos para que você possa acessá-los posteriormente.</string>
-	
-	<!-- Microphone -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>O BioPeak usa o microfone para comandos de voz e feedback durante os treinos em tempo real.</string>
-	
-	<!-- Location Services -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>O BioPeak usa sua localização para mapear rotas de treino e calcular métricas de distância e velocidade durante o uso do app.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>O BioPeak precisa de acesso contínuo à localização para registrar automaticamente suas corridas e treinos, mesmo quando o app está em segundo plano.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>O BioPeak precisa de acesso permanente à sua localização para registrar treinos automáticos e fornecer análises precisas de desempenho.</string>
 </dict>
 </plist>
