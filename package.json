@@ -56,6 +56,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "cordova-plugin-background-mode": "^0.7.3",
+    "cordova-plugin-device": "^3.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
     "html2canvas": "^1.4.1",
