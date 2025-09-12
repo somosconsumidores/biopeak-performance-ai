@@ -48,6 +48,7 @@
 	<!-- Background Modes -->
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>location</string>
 		<string>background-processing</string>
 		<string>background-fetch</string>
 	</array>
@@ -60,9 +61,11 @@
 	
 	<!-- iOS Privacy Usage Descriptions -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>O BioPeak usa sua localização para mapear treinos e calcular métricas de desempenho.</string>
+	<string>O BioPeak usa sua localização para mapear treinos e calcular métricas de desempenho enquanto o app está em uso.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Permita acesso contínuo à localização para registrar rotas com o app em segundo plano.</string>
+	<string>Permita acesso contínuo à localização para registrar rotas e treinos em segundo plano.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>O BioPeak precisa de acesso sempre à sua localização para registrar treinos e rotas em segundo plano.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>O BioPeak usa a câmera para capturar fotos dos treinos e compartilhar resultados.</string>
 	<key>NSMicrophoneUsageDescription</key>
