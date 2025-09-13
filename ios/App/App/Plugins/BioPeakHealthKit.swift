@@ -3,8 +3,21 @@ import Capacitor
 import HealthKit
 
 @objc(BioPeakHealthKit)
-public class BioPeakHealthKit: CAPPlugin {
+public class BioPeakHealthKit: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "BioPeakHealthKit"
+    public let jsName = "BioPeakHealthKit"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "ping", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "queryWorkouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "queryWorkoutRoute", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "queryWorkoutSeries", returnType: CAPPluginReturnPromise)
+    ]
     private let healthStore = HKHealthStore()
+    
+    @objc public func ping(_ call: CAPPluginCall) {
+        call.resolve(["status": "BioPeakHealthKit plugin is working"])
+    }
     
     @objc public func requestAuthorization(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
