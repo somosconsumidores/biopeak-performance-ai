@@ -6,7 +6,7 @@ import HealthKit
 public class BioPeakHealthKit: CAPPlugin {
     private let healthStore = HKHealthStore()
     
-    @objc(requestAuthorization) public func requestAuthorization(_ call: CAPPluginCall) {
+    @objc(requestAuthorization:) public func requestAuthorization(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
             call.reject("HealthKit not available")
             return
@@ -32,7 +32,7 @@ public class BioPeakHealthKit: CAPPlugin {
         }
     }
     
-    @objc(queryWorkouts) public func queryWorkouts(_ call: CAPPluginCall) {
+    @objc(queryWorkouts:) public func queryWorkouts(_ call: CAPPluginCall) {
         let startDate = Date(timeIntervalSinceNow: -30 * 24 * 60 * 60) // 30 days ago
         let endDate = Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
@@ -72,7 +72,7 @@ public class BioPeakHealthKit: CAPPlugin {
         healthStore.execute(query)
     }
     
-    @objc(queryWorkoutRoute) public func queryWorkoutRoute(_ call: CAPPluginCall) {
+    @objc(queryWorkoutRoute:) public func queryWorkoutRoute(_ call: CAPPluginCall) {
         guard let workoutUUID = call.getString("workoutUUID") else {
             call.reject("Missing workoutUUID parameter")
             return
@@ -121,7 +121,7 @@ public class BioPeakHealthKit: CAPPlugin {
         healthStore.execute(query)
     }
     
-    @objc(queryWorkoutSeries) public func queryWorkoutSeries(_ call: CAPPluginCall) {
+    @objc(queryWorkoutSeries:) public func queryWorkoutSeries(_ call: CAPPluginCall) {
         guard let workoutUUID = call.getString("workoutUUID"),
               let startDateString = call.getString("startDate"),
               let endDateString = call.getString("endDate") else {
