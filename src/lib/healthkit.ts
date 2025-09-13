@@ -135,6 +135,21 @@ class HealthKitWrapper {
         return { granted: result.granted, error: result.error };
       } catch (error: any) {
         console.error('[BioPeakHealthKit] Error requesting permissions:', error);
+        if (error?.code === 'UNIMPLEMENTED') {
+          try {
+            const globalCap: any = (globalThis as any).Capacitor || Capacitor;
+            const pluginList = Object.keys(globalCap?.Plugins || {});
+            console.log('[BioPeakHealthKit] UNIMPLEMENTED debug', {
+              platform: Capacitor.getPlatform(),
+              isNative: Capacitor.isNativePlatform(),
+              availablePlugins: pluginList,
+              customHealthKitKeys: this.customHealthKit ? Object.keys(this.customHealthKit) : [],
+              hasRequestAuthorization: typeof this.customHealthKit?.requestAuthorization === 'function',
+            });
+          } catch (e) {
+            console.log('[BioPeakHealthKit] Debug logging failed:', e);
+          }
+        }
         return { granted: false, error: error?.message || String(error) };
       }
     } else {
