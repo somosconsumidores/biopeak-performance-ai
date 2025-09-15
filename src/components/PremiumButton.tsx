@@ -3,6 +3,7 @@ import { Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { usePlatform } from '@/hooks/usePlatform';
 
 interface PremiumButtonProps {
   children: React.ReactNode;
@@ -23,11 +24,16 @@ export const PremiumButton = ({
 }: PremiumButtonProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isIOS, isNative } = usePlatform();
 
   const handleClick = () => {
+    const message = isIOS && isNative 
+      ? "Este recurso é exclusivo para assinantes do plano premium. Assine através da App Store."
+      : "Este recurso é exclusivo para assinantes do plano premium.";
+    
     toast({
       title: "Recurso Premium",
-      description: "Este recurso é exclusivo para assinantes do plano premium.",
+      description: message,
       duration: 3000,
     });
     navigate('/paywall');

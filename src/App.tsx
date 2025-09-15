@@ -34,7 +34,7 @@ import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
-import { Paywall } from "./pages/Paywall";
+import Paywall from "./pages/Paywall";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 

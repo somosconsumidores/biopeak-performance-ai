@@ -71,6 +71,9 @@ const config: CapacitorConfig = {
     CapacitorHealth: {
       syncOnAppStart: true,
       syncInterval: 'hourly'
+    },
+    PurchasesPlugin: {
+      usesStoreKit2IfAvailable: false
     }
   },
   android: {

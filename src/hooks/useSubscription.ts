@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { usePlatform } from '@/hooks/usePlatform';
+import { revenueCat } from '@/lib/revenuecat';
 
 interface SubscriptionData {
   subscribed: boolean;
@@ -14,6 +16,7 @@ export const useSubscription = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isIOS, isNative } = usePlatform();
 
   const checkSubscription = async () => {
     if (!user) {

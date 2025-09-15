@@ -1,86 +1,198 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Check, X, BarChart3, Brain, Calendar, Activity, Target, TrendingUp, Loader2 } from 'lucide-react';
+import { Check, Crown, Loader2, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { usePlatform } from '@/hooks/usePlatform';
+import { revenueCat, RevenueCatOffering } from '@/lib/revenuecat';
 
-export const Paywall = () => {
+export default function Paywall() {
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [loading, setLoading] = useState(false);
+  const [offerings, setOfferings] = useState<RevenueCatOffering | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(() => {
-    // Inicializar baseado no parâmetro da URL apenas uma vez
-    const planParam = new URLSearchParams(window.location.search).get('plan');
-    return (planParam === 'monthly' || planParam === 'annual') ? planParam : 'annual';
-  });
-  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { isIOS, isNative } = usePlatform();
 
-  // Handle successful payment redirect
   useEffect(() => {
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
-    
-    if (success) {
-      // Refresh subscription status and redirect to dashboard
-      refreshSubscription().then(() => {
-        toast({
-          title: "Pagamento confirmado!",
-          description: "Sua assinatura foi ativada com sucesso. Redirecionando...",
-        });
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 2000);
+
+    if (success === 'true') {
+      toast({
+        title: "Pagamento confirmado!",
+        description: "Sua assinatura foi ativada com sucesso.",
+        duration: 5000,
       });
-    } else if (canceled) {
+      refreshSubscription();
+      navigate('/dashboard');
+    }
+
+    if (canceled === 'true') {
       toast({
         title: "Pagamento cancelado",
-        description: "Você pode tentar novamente quando quiser.",
-        variant: "destructive"
+        description: "Você pode tentar novamente a qualquer momento.",
+        variant: "destructive",
+        duration: 5000,
       });
     }
-  }, [searchParams, refreshSubscription, navigate, toast]);
+  }, [searchParams, navigate, refreshSubscription, toast]);
+
+  // Carrega as ofertas do RevenueCat para iOS
+  useEffect(() => {
+    if (isIOS && isNative && user) {
+      const loadOfferings = async () => {
+        try {
+          await revenueCat.initialize(user.id);
+          const currentOfferings = await revenueCat.getOfferings();
+          setOfferings(currentOfferings);
+        } catch (error) {
+          console.error('Failed to load RevenueCat offerings:', error);
+        }
+      };
+
+      loadOfferings();
+    }
+  }, [isIOS, isNative, user]);
 
   const handleClose = () => {
-    // Navegar para /sync após fechar o paywall
     navigate('/sync');
   };
 
-  const handleStartNow = async () => {
+  const handleRevenueCatPurchase = async () => {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para assinar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
     try {
-      setLoading(true);
+      await revenueCat.initialize(user.id);
+      const packageId = selectedPlan === 'monthly' ? 'monthly' : 'annual';
       
-      const functionName = selectedPlan === 'monthly' ? 'create-monthly-checkout' : 'create-annual-checkout';
+      const customerInfo = await revenueCat.purchasePackage(packageId);
       
-      const { data, error } = await supabase.functions.invoke(functionName);
+      // Verificar se a compra foi bem-sucedida
+      const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
       
-      if (error) {
-        console.error('Error creating checkout:', error);
+      if (hasPremium) {
         toast({
-          title: "Erro",
-          description: "Não foi possível processar o pagamento. Tente novamente.",
-          variant: "destructive"
+          title: "Assinatura ativada!",
+          description: "Sua assinatura foi ativada com sucesso.",
+          duration: 5000,
         });
-        return;
+        refreshSubscription();
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      console.error('RevenueCat purchase failed:', error);
+      
+      // Não mostrar erro se usuário cancelou
+      if (error.code !== '1' && !error.message?.includes('cancelled')) {
+        toast({
+          title: "Erro na compra",
+          description: "Não foi possível processar a compra. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (!isIOS || !isNative) return;
+
+    setLoading(true);
+    
+    try {
+      await revenueCat.initialize(user!.id);
+      const customerInfo = await revenueCat.restorePurchases();
+      
+      const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
+      
+      if (hasPremium) {
+        toast({
+          title: "Compras restauradas!",
+          description: "Suas compras anteriores foram restauradas com sucesso.",
+          duration: 5000,
+        });
+        refreshSubscription();
+        navigate('/dashboard');
+      } else {
+        toast({
+          title: "Nenhuma compra encontrada",
+          description: "Não foram encontradas compras anteriores para restaurar.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to restore purchases:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível restaurar as compras.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartNow = async () => {
+    if (isIOS && isNative) {
+      await handleRevenueCatPurchase();
+      return;
+    }
+
+    // Implementação Stripe para web
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para assinar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const functionName = selectedPlan === 'monthly' 
+        ? 'create-monthly-checkout' 
+        : 'create-annual-checkout';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
       }
 
       if (data?.url) {
-        // Open Stripe checkout in a new tab
         window.open(data.url, '_blank');
-      } else {
-        throw new Error('No checkout URL received');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error creating checkout:', error);
       toast({
         title: "Erro",
         description: "Não foi possível processar o pagamento. Tente novamente.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -89,201 +201,165 @@ export const Paywall = () => {
 
   const benefits = [
     {
-      icon: <Brain className="h-5 w-5 text-primary" />,
       title: "Análises de IA Completas",
-      description: "Treinos individualizados, análise do sono e insights personalizados sobre sua performance"
+      description: "Treinos individualizados, análise do sono e insights personalizados"
     },
     {
-      icon: <BarChart3 className="h-5 w-5 text-primary" />,
       title: "BioPeak Fitness Score",
       description: "Acompanhe sua evolução com métricas avançadas e risco de overtraining"
     },
     {
-      icon: <Calendar className="h-5 w-5 text-primary" />,
       title: "Calendário de Provas",
-      description: "Análise de IA específica sobre sua preparação para objetivos e competições"
+      description: "Análise de IA específica sobre sua preparação para objetivos"
     },
     {
-      icon: <TrendingUp className="h-5 w-5 text-primary" />,
       title: "Painel Estatístico Avançado",
-      description: "Acesso completo a todas as suas estatísticas individuais detalhadas"
+      description: "Acesso completo a todas as suas estatísticas individuais"
     },
     {
-      icon: <Activity className="h-5 w-5 text-primary" />,
       title: "Monitoramento de Overtraining",
       description: "Alertas inteligentes para prevenir lesões e otimizar recuperação"
     },
     {
-      icon: <Target className="h-5 w-5 text-primary" />,
       title: "Insights de Performance",
-      description: "Recomendações personalizadas baseadas nos seus dados e objetivos"
+      description: "Recomendações personalizadas baseadas nos seus dados"
     }
   ];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
-      {/* Close Button */}
       <Button
         variant="ghost"
         size="icon"
         onClick={handleClose}
-        className="absolute top-4 right-4 h-10 w-10 rounded-full bg-muted/20 hover:bg-muted/40 z-10"
+        className="absolute top-4 right-4 h-10 w-10 rounded-full"
       >
         <X className="h-5 w-5" />
       </Button>
 
-      <Card className="glass-card static-dialog w-full max-w-md mx-auto">
-        <CardContent className="p-6 space-y-6">
-          {/* Header */}
-          <div className="text-center space-y-3">
-            <div className="flex justify-center">
-              <div className="p-4 rounded-full bg-gradient-primary">
-                <Crown className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold leading-tight">
-              Desbloqueie seu plano de treino personalizado
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Acesse todas as funcionalidades premium do BioPeak
-            </p>
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 p-3 rounded-full bg-gradient-to-r from-primary to-primary/80">
+            <Crown className="h-8 w-8 text-white" />
           </div>
+          <CardTitle className="text-2xl">
+            Desbloqueie seu Plano Premium
+          </CardTitle>
+          <CardDescription>
+            Acesse todas as funcionalidades avançadas do BioPeak
+          </CardDescription>
+        </CardHeader>
 
-          {/* Benefits */}
+        <CardContent className="space-y-6">
           <div className="space-y-3">
             {benefits.map((benefit, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10">
-                    <Check className="h-3 w-3 text-primary" />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    {benefit.icon}
-                    <h3 className="font-semibold text-sm">{benefit.title}</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {benefit.description}
-                  </p>
+                <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-sm">{benefit.title}</h4>
+                  <p className="text-xs text-muted-foreground">{benefit.description}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Pricing Options */}
-          <div className="space-y-3">
-            <div className="text-center">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Opções de Assinatura
-              </h3>
-            </div>
-
-            {/* Annual Plan */}
-            <Card 
-              className={`cursor-pointer transition-all ${
-                selectedPlan === 'annual' 
-                  ? 'ring-2 ring-primary bg-primary/5' 
-                  : 'hover:bg-muted/20'
-              }`}
-              onClick={() => setSelectedPlan('annual')}
-            >
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-semibold">Anual</span>
-                    <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                      ECONOMIZE 35%
-                    </Badge>
-                  </div>
-                  <div className="flex items-baseline space-x-2">
-                    <span className="text-lg font-bold">R$ 12,90</span>
-                    <span className="text-sm text-muted-foreground">/mês</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Cobrado R$ 154,80 anualmente
-                  </span>
-                </div>
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === 'annual' 
-                    ? 'bg-primary border-primary' 
-                    : 'border-muted-foreground'
-                }`}>
-                  {selectedPlan === 'annual' && (
-                    <div className="w-full h-full rounded-full bg-white scale-50" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Monthly Plan */}
-            <Card 
-              className={`cursor-pointer transition-all ${
-                selectedPlan === 'monthly' 
-                  ? 'ring-2 ring-primary bg-primary/5' 
-                  : 'hover:bg-muted/20'
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                selectedPlan === 'monthly'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/20 hover:border-primary/50'
               }`}
               onClick={() => setSelectedPlan('monthly')}
             >
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-semibold">Mensal</span>
-                  </div>
-                  <div className="flex items-baseline space-x-2">
-                    <span className="text-lg font-bold">R$ 19,90</span>
-                    <span className="text-sm text-muted-foreground">/mês</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Faturado mensalmente
-                  </span>
-                </div>
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === 'monthly' 
-                    ? 'bg-primary border-primary' 
-                    : 'border-muted-foreground'
-                }`}>
-                  {selectedPlan === 'monthly' && (
-                    <div className="w-full h-full rounded-full bg-white scale-50" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold">Mensal</h3>
+              </div>
+              <p className="text-2xl font-bold mb-1">
+                {isIOS && isNative && offerings?.monthly 
+                  ? offerings.monthly.priceString 
+                  : "R$ 29,90"
+                }
+              </p>
+              <p className="text-sm text-muted-foreground">por mês</p>
+            </div>
 
-          {/* CTA Button */}
+            <div
+              className={`p-4 border rounded-lg cursor-pointer transition-colors relative ${
+                selectedPlan === 'annual'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/20 hover:border-primary/50'
+              }`}
+              onClick={() => setSelectedPlan('annual')}
+            >
+              <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">
+                Mais Popular
+              </Badge>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold">Anual</h3>
+              </div>
+              <p className="text-2xl font-bold mb-1">
+                {isIOS && isNative && offerings?.annual 
+                  ? offerings.annual.priceString 
+                  : "R$ 239,90"
+                }
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isIOS && isNative 
+                  ? "por ano" 
+                  : "por ano (R$ 19,99/mês)"
+                }
+              </p>
+              {!(isIOS && isNative) && (
+                <p className="text-xs text-green-600 font-medium">Economize 33%</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-4">
           <Button 
-            onClick={handleStartNow}
+            onClick={handleStartNow} 
             disabled={loading}
-            className="w-full btn-primary text-base font-semibold py-3 h-12"
+            size="lg" 
+            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
           >
             {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processando...
-              </>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
-              'Começar Agora'
+              <Crown className="h-4 w-4 mr-2" />
             )}
+            {loading ? 'Processando...' : 'Começar Agora'}
           </Button>
-
-          {/* Secondary Action - Skip for now */}
+          
+          {isIOS && isNative && (
+            <Button 
+              variant="outline" 
+              onClick={handleRestorePurchases}
+              disabled={loading}
+              className="w-full"
+            >
+              Restaurar Compras
+            </Button>
+          )}
+          
           <Button 
-            variant="ghost"
+            variant="outline" 
             onClick={handleClose}
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
+            disabled={loading}
+            className="w-full"
           >
             Talvez mais tarde
           </Button>
-
-          {/* Footer Text */}
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              Todos os preços em BRL • Cancele a qualquer momento
-            </p>
-          </div>
-        </CardContent>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            {isIOS && isNative 
+              ? "Assinatura gerenciada pela App Store. Pode ser cancelada nas configurações do iOS."
+              : "Assinatura renovada automaticamente. Pode ser cancelada a qualquer momento."
+            }
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
-};
+}
