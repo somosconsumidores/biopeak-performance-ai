@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePlatform } from '@/hooks/usePlatform';
 import { revenueCat, RevenueCatOffering } from '@/lib/revenuecat';
 
-export default function Paywall() {
+function Paywall() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState<RevenueCatOffering | null>(null);
@@ -363,3 +363,5 @@ export default function Paywall() {
     </div>
   );
 }
+
+export default Paywall;
