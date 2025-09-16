@@ -151,8 +151,17 @@ function Paywall() {
     }
   };
 
-  const handleStartNow = async () => {
-    console.log('🔵 handleStartNow called', { selectedPlan, isIOS, isNative, user: !!user });
+  const handlePlanClick = async (plan: 'monthly' | 'annual') => {
+    console.log('🔵 Plan card clicked:', plan);
+    setSelectedPlan(plan);
+    
+    // Chama handleStartNow diretamente com o plano selecionado
+    await handleStartNowWithPlan(plan);
+  };
+
+  const handleStartNowWithPlan = async (planType?: 'monthly' | 'annual') => {
+    const currentPlan = planType || selectedPlan;
+    console.log('🔵 handleStartNow called', { currentPlan, isIOS, isNative, user: !!user });
     
     if (isIOS && isNative) {
       console.log('🔵 iOS Native - calling handleRevenueCatPurchase');
@@ -171,11 +180,11 @@ function Paywall() {
       return;
     }
 
-    console.log('🔵 Starting Stripe checkout', { selectedPlan, userEmail: user.email });
+    console.log('🔵 Starting Stripe checkout', { currentPlan, userEmail: user.email });
     setLoading(true);
     
     try {
-      const functionName = selectedPlan === 'monthly' 
+      const functionName = currentPlan === 'monthly' 
         ? 'create-monthly-checkout' 
         : 'create-annual-checkout';
       
@@ -215,6 +224,8 @@ function Paywall() {
       setLoading(false);
     }
   };
+
+  const handleStartNow = () => handleStartNowWithPlan();
 
   const benefits = [
     {
@@ -287,7 +298,7 @@ function Paywall() {
                   ? 'border-primary bg-primary/5'
                   : 'border-muted-foreground/20 hover:border-primary/50'
               }`}
-              onClick={() => setSelectedPlan('monthly')}
+              onClick={() => handlePlanClick('monthly')}
             >
               <div className="flex justify-between items-center mb-2">
                 <h3 className="font-semibold">Mensal</h3>
@@ -307,7 +318,7 @@ function Paywall() {
                   ? 'border-primary bg-primary/5'
                   : 'border-muted-foreground/20 hover:border-primary/50'
               }`}
-              onClick={() => setSelectedPlan('annual')}
+              onClick={() => handlePlanClick('annual')}
             >
               <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">
                 Mais Popular
