@@ -121,6 +121,15 @@ function AppContent({
 }) {
   const location = useLocation();
 
+  // DEBUG: Monitor route changes
+  useEffect(() => {
+    console.log('🚨 APP_CONTENT: Location changed:', {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash
+    });
+  }, [location]);
+
   return (
     <>
       <Routes>
