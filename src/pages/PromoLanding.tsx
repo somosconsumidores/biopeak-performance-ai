@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
 
 const PromoLanding = () => {
+  console.log('🔍 PROMO_LANDING: Componente executando agora');
+  
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -102,6 +104,11 @@ const PromoLanding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card/20 to-background">
+      {/* TESTE VISUAL */}
+      <div className="w-full bg-red-500 text-white text-center py-4 text-xl font-bold">
+        🎯 PROMO LANDING CARREGADA - TESTE VISUAL
+      </div>
+      
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
