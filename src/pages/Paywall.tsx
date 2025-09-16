@@ -152,13 +152,17 @@ function Paywall() {
   };
 
   const handleStartNow = async () => {
+    console.log('🔵 handleStartNow called', { selectedPlan, isIOS, isNative, user: !!user });
+    
     if (isIOS && isNative) {
+      console.log('🔵 iOS Native - calling handleRevenueCatPurchase');
       await handleRevenueCatPurchase();
       return;
     }
 
     // Implementação Stripe para web
     if (!user) {
+      console.log('🔴 User not authenticated');
       toast({
         title: "Erro",
         description: "Você precisa estar logado para assinar.",
@@ -167,6 +171,7 @@ function Paywall() {
       return;
     }
 
+    console.log('🔵 Starting Stripe checkout', { selectedPlan, userEmail: user.email });
     setLoading(true);
     
     try {
@@ -174,21 +179,33 @@ function Paywall() {
         ? 'create-monthly-checkout' 
         : 'create-annual-checkout';
       
+      console.log('🔵 Calling function:', functionName);
+      
+      const session = await supabase.auth.getSession();
+      console.log('🔵 Session:', { hasSession: !!session.data.session, hasToken: !!session.data.session?.access_token });
+
       const { data, error } = await supabase.functions.invoke(functionName, {
         headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          Authorization: `Bearer ${session.data.session?.access_token}`,
         },
       });
 
+      console.log('🔵 Function response:', { data, error });
+
       if (error) {
+        console.log('🔴 Function error:', error);
         throw error;
       }
 
       if (data?.url) {
+        console.log('🔵 Opening checkout URL:', data.url);
         window.open(data.url, '_blank');
+      } else {
+        console.log('🔴 No URL in response:', data);
+        throw new Error('Nenhuma URL de checkout retornada');
       }
     } catch (error) {
-      console.error('Error creating checkout:', error);
+      console.error('🔴 Error creating checkout:', error);
       toast({
         title: "Erro",
         description: "Não foi possível processar o pagamento. Tente novamente.",
