@@ -62,56 +62,10 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    // Get monthly price ID with environment-aware fallback
-    let monthlyPriceId: string = "";
-    let priceSource = "env";
+    // Get monthly price ID
+    const monthlyPriceId = "price_1S84iyI6QbtlS9WtrK9eXInv"; // BioPeak Pro mensal R$ 19,90
     
-    try {
-      // Try environment-specific price ID first
-      const envSpecificKey = `stripe_price_monthly_id_${stripeMode}`;
-      const { data: envSetting, error: envError } = await supabaseService
-        .from("app_settings")
-        .select("setting_value")
-        .eq("setting_key", envSpecificKey)
-        .maybeSingle();
-      
-      if (!envError && envSetting?.setting_value) {
-        monthlyPriceId = envSetting.setting_value;
-        priceSource = `db-${stripeMode}`;
-      } else {
-        // Fallback to generic price ID
-        const { data: setting, error: settingError } = await supabaseService
-          .from("app_settings")
-          .select("setting_value")
-          .eq("setting_key", "stripe_price_monthly_id")
-          .maybeSingle();
-        
-        if (!settingError && setting?.setting_value) {
-          monthlyPriceId = setting.setting_value;
-          priceSource = "db-generic";
-        }
-      }
-    } catch (e) {
-      console.warn("[CHECKOUT] Failed to read price from app_settings:", e);
-    }
-
-    // Environment variable fallbacks
-    if (!monthlyPriceId) {
-      const envSpecificPriceId = Deno.env.get(`STRIPE_PRICE_MONTHLY_ID_${stripeMode.toUpperCase()}`);
-      if (envSpecificPriceId) {
-        monthlyPriceId = envSpecificPriceId;
-        priceSource = `env-${stripeMode}`;
-      } else {
-        monthlyPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY_ID") || "";
-        priceSource = "env-generic";
-      }
-    }
-
-    console.log(`[CHECKOUT] Using monthly price (${priceSource}): ${monthlyPriceId}`);
-    
-    if (!monthlyPriceId) {
-      throw new Error(`Monthly price ID not configured for ${stripeMode} mode. Please set stripe_price_monthly_id_${stripeMode} in app_settings.`);
-    }
+    console.log(`[CHECKOUT] Using monthly price: ${monthlyPriceId}`);
 
     // Validate price ID before creating checkout session
     try {

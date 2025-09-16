@@ -61,56 +61,10 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    // Get annual price ID with environment-aware fallback
-    let annualPriceId: string = "";
-    let priceSource = "env";
+    // Get annual price ID
+    const annualPriceId = "price_1S84jMI6QbtlS9WtgiHS5isI"; // BioPeak Pro anual R$ 154,80
     
-    try {
-      // Try environment-specific price ID first
-      const envSpecificKey = `stripe_price_annual_id_${stripeMode}`;
-      const { data: envSetting, error: envError } = await supabaseService
-        .from("app_settings")
-        .select("setting_value")
-        .eq("setting_key", envSpecificKey)
-        .maybeSingle();
-      
-      if (!envError && envSetting?.setting_value) {
-        annualPriceId = envSetting.setting_value;
-        priceSource = `db-${stripeMode}`;
-      } else {
-        // Fallback to generic price ID
-        const { data: setting, error: settingError } = await supabaseService
-          .from("app_settings")
-          .select("setting_value")
-          .eq("setting_key", "stripe_price_annual_id")
-          .maybeSingle();
-        
-        if (!settingError && setting?.setting_value) {
-          annualPriceId = setting.setting_value;
-          priceSource = "db-generic";
-        }
-      }
-    } catch (e) {
-      console.warn("[CHECKOUT] Failed to read price from app_settings:", e);
-    }
-
-    // Environment variable fallbacks
-    if (!annualPriceId) {
-      const envSpecificPriceId = Deno.env.get(`STRIPE_PRICE_ANNUAL_ID_${stripeMode.toUpperCase()}`);
-      if (envSpecificPriceId) {
-        annualPriceId = envSpecificPriceId;
-        priceSource = `env-${stripeMode}`;
-      } else {
-        annualPriceId = Deno.env.get("STRIPE_PRICE_ANNUAL_ID") || "";
-        priceSource = "env-generic";
-      }
-    }
-
-    console.log(`[CHECKOUT] Using annual price (${priceSource}): ${annualPriceId}`);
-    
-    if (!annualPriceId) {
-      throw new Error(`Annual price ID not configured for ${stripeMode} mode. Please set stripe_price_annual_id_${stripeMode} in app_settings.`);
-    }
+    console.log(`[CHECKOUT] Using annual price: ${annualPriceId}`);
 
     // Validate price ID before creating checkout session
     try {
