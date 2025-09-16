@@ -278,7 +278,7 @@ function Paywall() {
               <p className="text-2xl font-bold mb-1">
                 {isIOS && isNative && offerings?.monthly 
                   ? offerings.monthly.priceString 
-                  : "R$ 29,90"
+                  : "R$ 19,90"
                 }
               </p>
               <p className="text-sm text-muted-foreground">por mês</p>
@@ -301,13 +301,13 @@ function Paywall() {
               <p className="text-2xl font-bold mb-1">
                 {isIOS && isNative && offerings?.annual 
                   ? offerings.annual.priceString 
-                  : "R$ 239,90"
+                  : "R$ 154,80"
                 }
               </p>
               <p className="text-sm text-muted-foreground">
                 {isIOS && isNative 
                   ? "por ano" 
-                  : "por ano (R$ 19,99/mês)"
+                  : "por ano (R$ 12,90/mês)"
                 }
               </p>
               {!(isIOS && isNative) && (
