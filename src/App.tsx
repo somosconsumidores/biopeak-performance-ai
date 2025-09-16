@@ -198,7 +198,7 @@ function AppRoutes() {
             <PremiumStats />
           </ProtectedRoute>
         } />
-        <Route path="/paywall" element={<Paywall />} />
+        <Route path="/paywall" element={<Paywall2 />} />
         <Route path="/paywall2" element={<Paywall2 />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
