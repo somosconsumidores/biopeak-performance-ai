@@ -4242,6 +4242,14 @@ export type Database = {
         Args: { garmin_user_id_param: string }
         Returns: undefined
       }
+      find_fastest_1km_segment: {
+        Args: {
+          p_activity_id: string
+          p_activity_source?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       find_user_by_garmin_id: {
         Args: { garmin_user_id_param: string }
         Returns: string
