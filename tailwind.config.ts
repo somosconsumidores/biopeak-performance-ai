@@ -69,13 +69,6 @@ export default {
 					bg: 'hsl(var(--glass-bg))',
 					border: 'hsl(var(--glass-border))',
 					hover: 'hsl(var(--glass-bg-hover))'
-				},
-				biopeak: {
-					dark: 'hsl(var(--biopeak-dark))',
-					purple: 'hsl(var(--biopeak-purple))', 
-					green: 'hsl(var(--biopeak-green))',
-					light: 'hsl(var(--biopeak-light))',
-					black: 'hsl(var(--biopeak-black))'
 				}
 			},
 			backgroundImage: {

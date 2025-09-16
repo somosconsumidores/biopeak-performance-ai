@@ -38,13 +38,6 @@ All colors MUST be HSL.
     --conversion-foreground: 0 0% 100%;
     --conversion-glow: 32 95% 65% / 0.3;
 
-    /* BioPeak Brand Colors */
-    --biopeak-dark: 224 45% 20%;
-    --biopeak-purple: 248 85% 70%;
-    --biopeak-green: 145 100% 39%;
-    --biopeak-light: 220 13% 96%;
-    --biopeak-black: 0 0% 7%;
-
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 280 90% 65%;
@@ -110,13 +103,6 @@ All colors MUST be HSL.
     --conversion: 32 90% 60%;
     --conversion-foreground: 0 0% 100%;
     --conversion-glow: 32 90% 60% / 0.4;
-
-    /* BioPeak Brand Colors */
-    --biopeak-dark: 224 45% 20%;
-    --biopeak-purple: 248 85% 70%;
-    --biopeak-green: 145 100% 39%;
-    --biopeak-light: 220 13% 96%;
-    --biopeak-black: 0 0% 7%;
 
     --border: 0 0% 100% / 0.1;
     --input: 0 0% 100% / 0.05;

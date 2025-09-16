@@ -35,11 +35,8 @@ import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
-import { PromoEspecial } from "./pages/PromoEspecial";
-import PromoLanding from "./pages/PromoLanding";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
-import { useLocation } from "react-router-dom";
 
 import RootErrorBoundary from "./components/RootErrorBoundary";
 
@@ -92,46 +89,6 @@ function AppRoutes() {
 
   return (
     <Router>
-      <AppContent 
-        permissionsDialogOpen={permissionsDialogOpen}
-        handlePermissionsComplete={handlePermissionsComplete}
-        currentSurvey={currentSurvey}
-        isSurveyVisible={isSurveyVisible}
-        submitResponse={submitResponse}
-        dismissSurvey={dismissSurvey}
-      />
-    </Router>
-  );
-}
-
-function AppContent({ 
-  permissionsDialogOpen, 
-  handlePermissionsComplete, 
-  currentSurvey, 
-  isSurveyVisible, 
-  submitResponse, 
-  dismissSurvey 
-}: {
-  permissionsDialogOpen: boolean;
-  handlePermissionsComplete: () => void;
-  currentSurvey: any;
-  isSurveyVisible: boolean;
-  submitResponse: any;
-  dismissSurvey: () => void;
-}) {
-  const location = useLocation();
-
-  // DEBUG: Monitor route changes
-  useEffect(() => {
-    console.log('🚨 APP_CONTENT: Location changed:', {
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash
-    });
-  }, [location]);
-
-  return (
-    <>
       <Routes>
         <Route path="/" element={
           <PublicRoute>
@@ -241,67 +198,24 @@ function AppContent({
           </ProtectedRoute>
         } />
         <Route path="/paywall" element={<Paywall />} />
-        <Route path="/promo" element={
-          <>
-            {console.log('🚨 ELEMENTO DA ROTA /PROMO EXECUTANDO AGORA!')}
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              backgroundColor: '#ff0000',
-              color: '#ffffff',
-              padding: '20px',
-              fontSize: '40px',
-              textAlign: 'center',
-              zIndex: 999999,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <h1>🎯 ROTA /PROMO FORÇADA!</h1>
-              <p>URL: {window.location.pathname}</p>
-              <p>Timestamp: {new Date().toLocaleTimeString()}</p>
-              <p>Se você vê esta tela VERMELHA, a rota funciona!</p>
-            </div>
-          </>
-        } />
-        {/* TEMPORARIAMENTE COMENTADA PARA TESTE
-        <Route path="/promoespecial" element={
-          <PublicRoute>
-            <>
-              {console.log('🔍 PROMOESPECIAL ROUTE: Renderizando PromoEspecial')}
-              <PromoEspecial />
-            </>
-          </PublicRoute>
-        } />
-        */}
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <MobileBottomBar />
+      <PermissionOnboarding 
+        open={permissionsDialogOpen} 
+        onComplete={handlePermissionsComplete} 
+      />
       
-      {/* Don't render MobileBottomBar and other global components on promo pages */}
-      {!location.pathname.startsWith('/promo') && (
-        <>
-          <MobileBottomBar />
-          <PermissionOnboarding 
-            open={permissionsDialogOpen} 
-            onComplete={handlePermissionsComplete} 
-          />
-          
-          {/* Survey Popup */}
-          {isSurveyVisible && currentSurvey && (
-            <SurveyPopup
-              survey={currentSurvey}
-              onSubmit={submitResponse}
-              onDismiss={dismissSurvey}
-            />
-          )}
-        </>
+      {/* Survey Popup */}
+      {isSurveyVisible && currentSurvey && (
+        <SurveyPopup
+          survey={currentSurvey}
+          onSubmit={submitResponse}
+          onDismiss={dismissSurvey}
+        />
       )}
-    </>
+    </Router>
   );
 }
 
@@ -378,12 +292,6 @@ function ProtectedRoute({
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
-  console.log('🔍 PUBLIC_ROUTE DEBUG:', {
-    currentPath: window.location.pathname,
-    user: !!user,
-    loading
-  });
-  
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-primary">Carregando...</div>
@@ -399,13 +307,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
   
-  // Allow promotional pages for everyone (logged in or not)
-  if (currentPath === '/promoespecial' || currentPath === '/promo') {
-    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a página promocional:', currentPath);
-    return <>{children}</>;
-  }
-  
-  // If user is authenticated, redirect to dashboard (except for promotional pages)
+  // If user is authenticated, always redirect to dashboard
+  // Don't check onboarding here as it can cause redirect loops
   if (user) {
     console.log('🔍 PUBLIC_ROUTE: Redirecionando usuário autenticado para dashboard');
     return <Navigate to="/dashboard" replace />;
