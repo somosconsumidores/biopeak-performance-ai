@@ -233,23 +233,18 @@ function AppContent({
         } />
         <Route path="/paywall" element={<Paywall />} />
         <Route path="/promo" element={
-          <PublicRoute>
-            <>
-              {console.log('🔍 PROMO ROUTE: Renderizando PromoLanding')}
-              <div style={{
-                minHeight: '100vh',
-                backgroundColor: '#00ff00',
-                color: '#000000',
-                padding: '20px',
-                fontSize: '30px',
-                textAlign: 'center'
-              }}>
-                <h1>🎯 TESTE DIRETO DA ROTA /promo</h1>
-                <p>Se você vê isto, a rota /promo está funcionando!</p>
-                <p>URL: {window.location.pathname}</p>
-              </div>
-            </>
-          </PublicRoute>
+          <div style={{
+            minHeight: '100vh',
+            backgroundColor: '#00ff00',
+            color: '#000000',
+            padding: '20px',
+            fontSize: '30px',
+            textAlign: 'center'
+          }}>
+            <h1>🎯 ROTA /PROMO FUNCIONANDO!</h1>
+            <p>URL: {window.location.pathname}</p>
+            <p>Timestamp: {new Date().toLocaleTimeString()}</p>
+          </div>
         } />
         <Route path="/promoespecial" element={
           <PublicRoute>
