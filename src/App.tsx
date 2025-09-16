@@ -35,6 +35,7 @@ import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
+import { PromoEspecial } from "./pages/PromoEspecial";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -198,6 +199,11 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/paywall" element={<Paywall />} />
+        <Route path="/promoespecial" element={
+          <PublicRoute>
+            <PromoEspecial />
+          </PublicRoute>
+        } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
