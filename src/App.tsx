@@ -36,6 +36,7 @@ import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
 import { PromoEspecial } from "./pages/PromoEspecial";
+import PromoLanding from "./pages/PromoLanding";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 import { useLocation } from "react-router-dom";
@@ -231,6 +232,11 @@ function AppContent({
           </ProtectedRoute>
         } />
         <Route path="/paywall" element={<Paywall />} />
+        <Route path="/promo" element={
+          <PublicRoute>
+            <PromoLanding />
+          </PublicRoute>
+        } />
         <Route path="/promoespecial" element={
           <PublicRoute>
             <>
@@ -244,7 +250,7 @@ function AppContent({
       </Routes>
       
       {/* Don't render MobileBottomBar and other global components on promo pages */}
-      {location.pathname !== '/promoespecial' && (
+      {!location.pathname.startsWith('/promo') && (
         <>
           <MobileBottomBar />
           <PermissionOnboarding 
@@ -361,8 +367,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
   
   // Allow promotional pages for everyone (logged in or not)
-  if (currentPath === '/promoespecial') {
-    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a promoespecial');
+  if (currentPath === '/promoespecial' || currentPath === '/promo') {
+    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a página promocional');
     return <>{children}</>;
   }
   
