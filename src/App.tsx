@@ -199,11 +199,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/paywall" element={<Paywall />} />
-        <Route path="/promoespecial" element={
-          <PublicRoute>
-            <PromoEspecial />
-          </PublicRoute>
-        } />
+        <Route path="/promoespecial" element={<PromoEspecial />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
