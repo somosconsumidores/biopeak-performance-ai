@@ -232,10 +232,12 @@ function AppContent({
         } />
         <Route path="/paywall" element={<Paywall />} />
         <Route path="/promoespecial" element={
-          <>
-            {console.log('🔍 PROMOESPECIAL ROUTE: Renderizando PromoEspecial')}
-            <PromoEspecial />
-          </>
+          <PublicRoute>
+            <>
+              {console.log('🔍 PROMOESPECIAL ROUTE: Renderizando PromoEspecial')}
+              <PromoEspecial />
+            </>
+          </PublicRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
