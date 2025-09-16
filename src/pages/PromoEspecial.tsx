@@ -5,15 +5,25 @@ console.log('🔍 PromoEspecial.tsx FILE LOADING');
 const PromoEspecial = () => {
   console.log('🔍 PromoEspecial FUNCTION EXECUTING - RENDERING NOW');
   
+  // Use useEffect to ensure we override any global styles
+  React.useEffect(() => {
+    // Hide any potential interfering elements
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
+  
   return (
     <div 
+      id="promo-especial-container"
       style={{ 
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         backgroundColor: '#FF0000', 
         color: '#FFFFFF', 
         display: 'flex',
@@ -23,7 +33,11 @@ const PromoEspecial = () => {
         fontSize: '2rem',
         fontWeight: 'bold',
         textAlign: 'center',
-        padding: '2rem'
+        padding: '2rem',
+        fontFamily: 'Arial, sans-serif',
+        boxSizing: 'border-box',
+        width: '100vw',
+        height: '100vh'
       }}
     >
       <div style={{ marginBottom: '2rem', fontSize: '3rem' }}>

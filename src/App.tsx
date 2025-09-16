@@ -38,6 +38,7 @@ import Paywall from "./pages/Paywall";
 import { PromoEspecial } from "./pages/PromoEspecial";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
+import { useLocation } from "react-router-dom";
 
 import RootErrorBoundary from "./components/RootErrorBoundary";
 
@@ -90,6 +91,37 @@ function AppRoutes() {
 
   return (
     <Router>
+      <AppContent 
+        permissionsDialogOpen={permissionsDialogOpen}
+        handlePermissionsComplete={handlePermissionsComplete}
+        currentSurvey={currentSurvey}
+        isSurveyVisible={isSurveyVisible}
+        submitResponse={submitResponse}
+        dismissSurvey={dismissSurvey}
+      />
+    </Router>
+  );
+}
+
+function AppContent({ 
+  permissionsDialogOpen, 
+  handlePermissionsComplete, 
+  currentSurvey, 
+  isSurveyVisible, 
+  submitResponse, 
+  dismissSurvey 
+}: {
+  permissionsDialogOpen: boolean;
+  handlePermissionsComplete: () => void;
+  currentSurvey: any;
+  isSurveyVisible: boolean;
+  submitResponse: any;
+  dismissSurvey: () => void;
+}) {
+  const location = useLocation();
+
+  return (
+    <>
       <Routes>
         <Route path="/" element={
           <PublicRoute>
@@ -208,21 +240,27 @@ function AppRoutes() {
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <MobileBottomBar />
-      <PermissionOnboarding 
-        open={permissionsDialogOpen} 
-        onComplete={handlePermissionsComplete} 
-      />
       
-      {/* Survey Popup */}
-      {isSurveyVisible && currentSurvey && (
-        <SurveyPopup
-          survey={currentSurvey}
-          onSubmit={submitResponse}
-          onDismiss={dismissSurvey}
-        />
+      {/* Don't render MobileBottomBar and other global components on promo pages */}
+      {location.pathname !== '/promoespecial' && (
+        <>
+          <MobileBottomBar />
+          <PermissionOnboarding 
+            open={permissionsDialogOpen} 
+            onComplete={handlePermissionsComplete} 
+          />
+          
+          {/* Survey Popup */}
+          {isSurveyVisible && currentSurvey && (
+            <SurveyPopup
+              survey={currentSurvey}
+              onSubmit={submitResponse}
+              onDismiss={dismissSurvey}
+            />
+          )}
+        </>
       )}
-    </Router>
+    </>
   );
 }
 
