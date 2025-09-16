@@ -167,9 +167,9 @@ const Paywall2 = () => {
     setLoading(true);
     
     try {
-      console.log('🔵 Calling Supabase function: create-monthly-checkout');
+      console.log('🔵 Calling Supabase function: create-flash-checkout');
       
-      const { data, error } = await supabase.functions.invoke('create-monthly-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-flash-checkout', {
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
         }
