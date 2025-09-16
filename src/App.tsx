@@ -236,7 +236,18 @@ function AppContent({
           <PublicRoute>
             <>
               {console.log('🔍 PROMO ROUTE: Renderizando PromoLanding')}
-              <PromoLanding />
+              <div style={{
+                minHeight: '100vh',
+                backgroundColor: '#00ff00',
+                color: '#000000',
+                padding: '20px',
+                fontSize: '30px',
+                textAlign: 'center'
+              }}>
+                <h1>🎯 TESTE DIRETO DA ROTA /promo</h1>
+                <p>Se você vê isto, a rota /promo está funcionando!</p>
+                <p>URL: {window.location.pathname}</p>
+              </div>
             </>
           </PublicRoute>
         } />
