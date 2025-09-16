@@ -241,11 +241,13 @@ function AppContent({
             fontSize: '30px',
             textAlign: 'center'
           }}>
-            <h1>🎯 ROTA /PROMO FUNCIONANDO!</h1>
+            <h1>🎯 ROTA /PROMO ISOLADA FUNCIONANDO!</h1>
             <p>URL: {window.location.pathname}</p>
             <p>Timestamp: {new Date().toLocaleTimeString()}</p>
+            <p>Se você vê esta tela VERDE, a rota /promo está OK!</p>
           </div>
         } />
+        {/* TEMPORARIAMENTE COMENTADA PARA TESTE
         <Route path="/promoespecial" element={
           <PublicRoute>
             <>
@@ -254,6 +256,7 @@ function AppContent({
             </>
           </PublicRoute>
         } />
+        */}
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
