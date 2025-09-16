@@ -233,19 +233,31 @@ function AppContent({
         } />
         <Route path="/paywall" element={<Paywall />} />
         <Route path="/promo" element={
-          <div style={{
-            minHeight: '100vh',
-            backgroundColor: '#00ff00',
-            color: '#000000',
-            padding: '20px',
-            fontSize: '30px',
-            textAlign: 'center'
-          }}>
-            <h1>🎯 ROTA /PROMO ISOLADA FUNCIONANDO!</h1>
-            <p>URL: {window.location.pathname}</p>
-            <p>Timestamp: {new Date().toLocaleTimeString()}</p>
-            <p>Se você vê esta tela VERDE, a rota /promo está OK!</p>
-          </div>
+          <>
+            {console.log('🚨 ELEMENTO DA ROTA /PROMO EXECUTANDO AGORA!')}
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: '#ff0000',
+              color: '#ffffff',
+              padding: '20px',
+              fontSize: '40px',
+              textAlign: 'center',
+              zIndex: 999999,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <h1>🎯 ROTA /PROMO FORÇADA!</h1>
+              <p>URL: {window.location.pathname}</p>
+              <p>Timestamp: {new Date().toLocaleTimeString()}</p>
+              <p>Se você vê esta tela VERMELHA, a rota funciona!</p>
+            </div>
+          </>
         } />
         {/* TEMPORARIAMENTE COMENTADA PARA TESTE
         <Route path="/promoespecial" element={
