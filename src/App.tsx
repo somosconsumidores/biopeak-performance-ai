@@ -234,7 +234,10 @@ function AppContent({
         <Route path="/paywall" element={<Paywall />} />
         <Route path="/promo" element={
           <PublicRoute>
-            <PromoLanding />
+            <>
+              {console.log('🔍 PROMO ROUTE: Renderizando PromoLanding')}
+              <PromoLanding />
+            </>
           </PublicRoute>
         } />
         <Route path="/promoespecial" element={
@@ -368,7 +371,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   
   // Allow promotional pages for everyone (logged in or not)
   if (currentPath === '/promoespecial' || currentPath === '/promo') {
-    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a página promocional');
+    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a página promocional:', currentPath);
     return <>{children}</>;
   }
   
