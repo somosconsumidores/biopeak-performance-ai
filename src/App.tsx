@@ -313,8 +313,12 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
   
-  // If user is authenticated, always redirect to dashboard
-  // Don't check onboarding here as it can cause redirect loops
+  // Allow promotional pages for everyone (logged in or not)
+  if (currentPath === '/promoespecial') {
+    return <>{children}</>;
+  }
+  
+  // If user is authenticated, redirect to dashboard (except for promotional pages)
   if (user) {
     console.log('🔍 PUBLIC_ROUTE: Redirecionando usuário autenticado para dashboard');
     return <Navigate to="/dashboard" replace />;
