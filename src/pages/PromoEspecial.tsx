@@ -1,37 +1,23 @@
 import React from 'react';
 
-export const PromoEspecial = () => {
-  console.log('🔍 PromoEspecial component is rendering!');
+console.log('🔍 PromoEspecial.tsx FILE LOADING');
+
+const PromoEspecial = () => {
+  console.log('🔍 PromoEspecial FUNCTION EXECUTING');
   
-  return (
-    <div style={{ 
+  return React.createElement('div', {
+    style: { 
       minHeight: '100vh', 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
+      backgroundColor: '#FF0000', 
+      color: '#FFFFFF', 
       display: 'flex',
-      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem',
-      textAlign: 'center' 
-    }}>
-      <h1 style={{ fontSize: '4rem', marginBottom: '2rem', color: '#00ff00' }}>
-        ✅ PÁGINA FUNCIONANDO!
-      </h1>
-      <p style={{ fontSize: '2rem', marginBottom: '2rem' }}>
-        PromoEspecial está carregada corretamente
-      </p>
-      <div style={{ 
-        backgroundColor: '#16a34a', 
-        padding: '2rem', 
-        borderRadius: '16px',
-        fontSize: '1.5rem',
-        fontWeight: 'bold'
-      }}>
-        🎯 Oferta Especial BioPeak Pro
-        <br />
-        R$ 12,90/mês
-      </div>
-    </div>
-  );
+      fontSize: '3rem',
+      fontWeight: 'bold'
+    }
+  }, 'PROMO ESPECIAL FUNCIONANDO - FUNDO VERMELHO');
 };
+
+console.log('🔍 Exporting PromoEspecial component');
+export { PromoEspecial };

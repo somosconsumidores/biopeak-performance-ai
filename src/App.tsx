@@ -199,7 +199,12 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/paywall" element={<Paywall />} />
-        <Route path="/promoespecial" element={<PromoEspecial />} />
+        <Route path="/promoespecial" element={
+          <>
+            {console.log('🔍 PROMOESPECIAL ROUTE: Renderizando PromoEspecial')}
+            <PromoEspecial />
+          </>
+        } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -294,6 +299,12 @@ function ProtectedRoute({
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
+  console.log('🔍 PUBLIC_ROUTE DEBUG:', {
+    currentPath: window.location.pathname,
+    user: !!user,
+    loading
+  });
+  
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-primary">Carregando...</div>
@@ -311,6 +322,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   
   // Allow promotional pages for everyone (logged in or not)
   if (currentPath === '/promoespecial') {
+    console.log('🔍 PUBLIC_ROUTE: Permitindo acesso a promoespecial');
     return <>{children}</>;
   }
   
