@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { usePlatform } from "./hooks/usePlatform";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
@@ -85,7 +86,8 @@ function AppRoutes() {
     setPermissionsDialogOpen(false);
   };
 
-  const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor;
+  // Use the platform hook for proper native detection
+  const { isNative } = usePlatform();
   const Router = isNative ? HashRouter : BrowserRouter;
 
   return (
