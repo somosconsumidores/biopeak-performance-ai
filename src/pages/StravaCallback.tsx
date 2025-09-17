@@ -12,7 +12,7 @@ export default function StravaCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { handleCallback } = useStravaAuth();
-  const { syncActivities, isLoading: isSyncing } = useStravaSync();
+  const { syncActivities, syncActivitiesOptimized, isLoading: isSyncing } = useStravaSync();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
@@ -142,14 +142,27 @@ export default function StravaCallback() {
         queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
         queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
         
-        // Redirect to dashboard immediately after successful auth
-        console.log('[StravaCallback] Redirecting to dashboard...');
-        setMessage('Redirecionando para o dashboard...');
+        // Start optimized sync after successful authentication
+        console.log('[StravaCallback] Starting optimized activity sync...');
+        setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
+        setSyncStartTime(Date.now());
         
-        // Use setTimeout to ensure state updates are processed
+        // Use optimized sync for faster processing
+        const syncSuccess = await syncActivitiesOptimized();
+        
+        if (syncSuccess) {
+          setMessage('Atividades sincronizadas com sucesso!');
+          // Refresh queries again after sync
+          queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
+        } else {
+          setMessage('Strava conectado, mas houve erro na sincronização');
+        }
+        
+        console.log('[StravaCallback] Redirecting to dashboard...');
         setTimeout(() => {
           window.location.href = getProductionRedirectUrl('/dashboard');
-        }, 1500);
+        }, 2000);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
@@ -209,6 +222,29 @@ export default function StravaCallback() {
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
+          {status === 'processing' && isSyncing && syncStartTime && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Tempo decorrido: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+                </div>
+                <Progress value={estimatedProgress} className="w-full" />
+                <p className="text-xs text-muted-foreground">
+                  {estimatedProgress < 30 && "Iniciando sincronização..."}
+                  {estimatedProgress >= 30 && estimatedProgress < 60 && "Processando suas atividades..."}
+                  {estimatedProgress >= 60 && estimatedProgress < 90 && "Quase terminando..."}
+                  {estimatedProgress >= 90 && "Finalizando..."}
+                </p>
+              </div>
+              <div className="bg-muted/20 p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  💡 <strong>Dica:</strong> Sincronização otimizada - importando suas atividades mais recentes primeiro!
+                </p>
+              </div>
+            </div>
+          )}
+
           {status === 'processing' && (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
@@ -217,10 +253,10 @@ export default function StravaCallback() {
             </div>
           )}
           
-          {status === 'success' && (
+          {status === 'success' && !isSyncing && (
             <div className="space-y-2">
               <p className="text-sm text-green-600 font-medium">
-                ✅ Autenticação concluída com sucesso!
+                ✅ Todas as atividades foram sincronizadas!
               </p>
               <p className="text-sm text-muted-foreground">
                 Redirecionando para o dashboard...
