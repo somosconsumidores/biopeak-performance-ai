@@ -87,7 +87,11 @@ function AppRoutes() {
   };
 
   // Use the platform hook for proper native detection
-  const { isNative } = usePlatform();
+  const { isNative, platform } = usePlatform();
+  
+  // Debug logging
+  console.log('🔍 Platform detection:', { platform, isNative, capacitor: !!(window as any)?.Capacitor });
+  
   const Router = isNative ? HashRouter : BrowserRouter;
 
   return (
