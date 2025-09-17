@@ -8,7 +8,7 @@ export interface HeartRatePaceData {
   speed_meters_per_second: number;
 }
 
-export const useActivityDetailsChart = (activityId: string | null) => {
+export const useActivityDetailsChart = (activityId: string | null, refreshTrigger?: number) => {
   const [data, setData] = useState<HeartRatePaceData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -402,7 +402,7 @@ export const useActivityDetailsChart = (activityId: string | null) => {
       setError(null);
       setHasRawData(false);
     }
-  }, [activityId]);
+  }, [activityId, refreshTrigger]); // Add refreshTrigger as dependency
 
   const refetch = () => {
     if (activityId) {

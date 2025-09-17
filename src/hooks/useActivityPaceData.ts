@@ -14,7 +14,7 @@ interface UseActivityPaceDataReturn {
   error: string | null;
 }
 
-export const useActivityPaceData = (activityId: string | null): UseActivityPaceDataReturn => {
+export const useActivityPaceData = (activityId: string | null, refreshTrigger?: number): UseActivityPaceDataReturn => {
   const { data: chartData, loading: chartLoading, error: chartError } = useActivityDetailsChart(activityId);
   const [paceData, setPaceData] = useState<PacePoint[] | null>(null);
   const [gpsData, setGpsData] = useState<any[]>([]);
@@ -78,7 +78,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
     };
 
     fetchGPSData();
-  }, [activityId]);
+  }, [activityId, refreshTrigger]); // Add refreshTrigger as dependency
 
   // Combine chart data with GPS data
   useEffect(() => {
@@ -155,7 +155,7 @@ export const useActivityPaceData = (activityId: string | null): UseActivityPaceD
       setError('Erro ao processar dados de pace');
       setPaceData(null);
     }
-  }, [chartData, gpsData, chartLoading, chartError]);
+  }, [chartData, gpsData, chartLoading, chartError, refreshTrigger]); // Add refreshTrigger as dependency
 
   return {
     paceData,

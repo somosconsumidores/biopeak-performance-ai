@@ -8,11 +8,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface HistogramChartProps {
   activityId: string;
+  refreshTrigger?: number;
 }
 
-export const HistogramChart = ({ activityId }: HistogramChartProps) => {
+export const HistogramChart = ({ activityId, refreshTrigger }: HistogramChartProps) => {
   const [activeView, setActiveView] = useState<'heart_rate' | 'pace'>('heart_rate');
-  const { data: chartData, loading, error } = useActivityDetailsChart(activityId);
+  const { data: chartData, loading, error } = useActivityDetailsChart(activityId, refreshTrigger);
 
   if (loading) {
     return (

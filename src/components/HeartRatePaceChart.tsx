@@ -15,10 +15,11 @@ interface HeartRatePaceChartProps {
   activityId: string | null;
   activityStartTime?: number | null;
   activityDate?: string | null;
+  refreshTrigger?: number;
 }
 
-export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate }: HeartRatePaceChartProps) => {
-  const { data, loading, error, hasData, hasRawData, refetch } = useActivityDetailsChart(activityId);
+export const HeartRatePaceChart = ({ activityId, activityStartTime, activityDate, refreshTrigger }: HeartRatePaceChartProps) => {
+  const { data, loading, error, hasData, hasRawData, refetch } = useActivityDetailsChart(activityId, refreshTrigger);
   const { isMobile, isTablet } = useScreenSize();
   const { syncActivityDetails, isLoading: isSyncing } = useGarminActivityDetails();
   const { theme } = useTheme();

@@ -16,12 +16,14 @@ interface UseStravaAnalysisRecoveryReturn {
   isProcessing: boolean;
   error: string | null;
   lastProcessedActivity: string | null;
+  refreshTrigger: number;
 }
 
 export const useStravaAnalysisRecovery = (): UseStravaAnalysisRecoveryReturn => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastProcessedActivity, setLastProcessedActivity] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -73,7 +75,10 @@ export const useStravaAnalysisRecovery = (): UseStravaAnalysisRecoveryReturn => 
         description: `Processados ${result.processed_points || 0} pontos de dados. Atualizando visualizações...`,
       });
 
-      // Invalidate relevant queries to refresh the UI
+      // Force refresh by triggering a re-render of components that depend on this data
+      setRefreshTrigger(prev => prev + 1);
+
+      // Invalidate any React Query cache that might exist
       await queryClient.invalidateQueries({ 
         queryKey: ['activity-chart', activityId] 
       });
@@ -90,7 +95,7 @@ export const useStravaAnalysisRecovery = (): UseStravaAnalysisRecoveryReturn => 
           title: "Visualizações atualizadas",
           description: "A análise da atividade está pronta!",
         });
-      }, 2000);
+      }, 1500);
 
     } catch (err) {
       console.error('❌ Error in triggerAnalysis:', err);
@@ -111,6 +116,7 @@ export const useStravaAnalysisRecovery = (): UseStravaAnalysisRecoveryReturn => 
     triggerAnalysis,
     isProcessing,
     error,
-    lastProcessedActivity
+    lastProcessedActivity,
+    refreshTrigger
   };
 };

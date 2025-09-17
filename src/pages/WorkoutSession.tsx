@@ -101,11 +101,11 @@ export const WorkoutSession = () => {
   // Get workout classification
   const { classification, loading: classificationLoading } = useWorkoutClassification(currentActivity?.activity_id || null);
 
-  // Get pace data for heatmap
-  const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null);
-
   // Strava analysis recovery hook
-  const { triggerAnalysis, isProcessing: isRecoveringAnalysis, error: recoveryError } = useStravaAnalysisRecovery();
+  const { triggerAnalysis, isProcessing: isRecoveringAnalysis, error: recoveryError, refreshTrigger } = useStravaAnalysisRecovery();
+
+  // Get pace data for heatmap
+  const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null, refreshTrigger);
 
   // Check if current activity is Strava and missing analysis data
   const isStravaActivity = (currentActivity as any)?.source === 'STRAVA';
@@ -465,7 +465,7 @@ export const WorkoutSession = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <HistogramChart activityId={currentActivity.activity_id} />
+                <HistogramChart activityId={currentActivity.activity_id} refreshTrigger={refreshTrigger} />
               )}
             </div>
           </ScrollReveal>
@@ -492,6 +492,7 @@ export const WorkoutSession = () => {
                     activityId={currentActivity.activity_id} 
                     activityStartTime={currentActivity.start_time_in_seconds}
                     activityDate={currentActivity.activity_date}
+                    refreshTrigger={refreshTrigger}
                   />
                 )
               )}
