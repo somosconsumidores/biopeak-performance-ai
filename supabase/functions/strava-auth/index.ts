@@ -169,7 +169,10 @@ Deno.serve(async (req) => {
     
     const { error: upsertError } = await serviceRoleClient
       .from('strava_tokens')
-      .upsert(tokenRecord)
+      .upsert(tokenRecord, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      })
 
     if (upsertError) {
       console.log('❌ Strava Auth - Failed to store tokens:', {
