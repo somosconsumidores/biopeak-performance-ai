@@ -5,6 +5,7 @@ import { Activity, Calendar, Clock, Zap } from "lucide-react";
 import { useStravaAuth } from "@/hooks/useStravaAuth";
 import { useStravaStats } from "@/hooks/useStravaStats";
 import { useStravaSync } from "@/hooks/useStravaSync";
+import { useStravaBackgroundSync } from "@/hooks/useStravaBackgroundSync";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,14 +14,14 @@ export const StravaConnectionStatus = () => {
   const { handleStravaConnect, isLoading: isConnecting } = useStravaAuth();
   const { data: stats, isLoading: isLoadingStats, refetch } = useStravaStats();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useStravaSync();
+  const { syncState, startBackgroundSync } = useStravaBackgroundSync();
   const queryClient = useQueryClient();
 
   const handleSync = async () => {
-    const success = await syncActivities();
+    // Use background sync for better UX
+    const success = await startBackgroundSync();
     if (success) {
-      // Refresh stats after successful sync
-      queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
+      // Queries will be refreshed automatically by the background sync hook
       refetch();
     }
   };
@@ -92,10 +93,10 @@ export const StravaConnectionStatus = () => {
           <Badge variant="default" className="bg-green-500">
             Conectado
           </Badge>
-          {stats.syncStatus === 'in_progress' && (
+          {(stats.syncStatus === 'in_progress' || syncState.isRunning) && (
             <Badge variant="secondary">
               <Zap className="w-3 h-3 mr-1" />
-              Sincronizando
+              {syncState.isRunning ? 'Sync em segundo plano' : 'Sincronizando'}
             </Badge>
           )}
         </div>
@@ -135,11 +136,11 @@ export const StravaConnectionStatus = () => {
 
         <Button 
           onClick={handleSync}
-          disabled={isSyncing || stats.syncStatus === 'in_progress'}
+          disabled={isSyncing || stats.syncStatus === 'in_progress' || syncState.isRunning}
           variant="outline"
           className="w-full"
         >
-          {isSyncing ? "Sincronizando..." : "Sincronizar Agora"}
+          {(isSyncing || syncState.isRunning) ? "Sincronizando..." : "Sincronizar Agora"}
         </Button>
       </CardContent>
     </Card>
