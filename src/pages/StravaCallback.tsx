@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaSync } from '@/hooks/useStravaSync';
@@ -20,6 +20,7 @@ export default function StravaCallback() {
   const [syncStartTime, setSyncStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [estimatedProgress, setEstimatedProgress] = useState(0);
+  const processedRef = useRef(false); // Ref to track if we've already processed
 
   // Timer effect for sync progress
   useEffect(() => {
@@ -50,18 +51,29 @@ export default function StravaCallback() {
     if (code && state && !isProdHost) {
       const target = `https://biopeak-ai.com/strava-callback${window.location.search}`;
       console.log('[StravaCallback] Redirecting callback to production domain:', target);
-      window.location.replace(target);
+      window.location.href = target; // Use href instead of replace to avoid browser issues
+      return;
     }
   }, [searchParams]);
 
   useEffect(() => {
-    // Prevent multiple simultaneous executions
-    if (isProcessing) {
-      console.log('[StravaCallback] Already processing, skipping...');
+    // Prevent multiple simultaneous executions using ref
+    if (isProcessing || processedRef.current) {
+      console.log('[StravaCallback] Already processing or processed, skipping...', {
+        isProcessing,
+        processedRef: processedRef.current
+      });
       return;
     }
 
     const processCallback = async () => {
+      // Double-check to prevent race conditions
+      if (processedRef.current) {
+        console.log('[StravaCallback] Already processed in race condition check');
+        return;
+      }
+
+      processedRef.current = true;
       setIsProcessing(true);
       console.log('[StravaCallback] Starting callback processing...');
       
@@ -81,9 +93,9 @@ export default function StravaCallback() {
         console.error('[StravaCallback] OAuth error received:', error);
         setStatus('error');
         setMessage(`Erro na autorização: ${error}`);
-        // Clear URL params before redirect
-        window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
+        setTimeout(() => {
+          window.location.href = getProductionRedirectUrl('/sync');
+        }, 3000);
         return;
       }
 
@@ -91,9 +103,9 @@ export default function StravaCallback() {
         console.error('[StravaCallback] Missing parameters:', { code: !!code, state: !!state });
         setStatus('error');
         setMessage('Parâmetros de autorização ausentes');
-        // Clear URL params before redirect
-        window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
+        setTimeout(() => {
+          window.location.href = getProductionRedirectUrl('/sync');
+        }, 3000);
         return;
       }
 
@@ -111,9 +123,9 @@ export default function StravaCallback() {
           console.error('[StravaCallback] Authentication failed');
           setStatus('error');
           setMessage('Falha na autenticação com o Strava');
-          // Clear URL params before redirect
-          window.history.replaceState({}, '', '/strava-callback');
-          setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
+          setTimeout(() => {
+            window.location.href = getProductionRedirectUrl('/sync');
+          }, 3000);
           return;
         }
 
@@ -130,31 +142,22 @@ export default function StravaCallback() {
         queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
         queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
         
-        // Start automatic sync after successful authentication
-        console.log('[StravaCallback] Starting automatic activity sync...');
-        setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
-        setSyncStartTime(Date.now());
-        
-        const syncSuccess = await syncActivities();
-        if (syncSuccess) {
-          setMessage('Atividades sincronizadas com sucesso!');
-          // Refresh queries again after sync
-          queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
-          queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
-        } else {
-          setMessage('Strava conectado, mas houve erro na sincronização');
-        }
-        
+        // Redirect to dashboard immediately after successful auth
         console.log('[StravaCallback] Redirecting to dashboard...');
-        setTimeout(() => window.location.replace(getProductionRedirectUrl('/dashboard')), 2000);
+        setMessage('Redirecionando para o dashboard...');
+        
+        // Use setTimeout to ensure state updates are processed
+        setTimeout(() => {
+          window.location.href = getProductionRedirectUrl('/dashboard');
+        }, 1500);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
         setStatus('error');
         setMessage('Erro inesperado durante o processamento');
-        // Clear URL params before redirect
-        window.history.replaceState({}, '', '/strava-callback');
-        setTimeout(() => window.location.replace(getProductionRedirectUrl('/sync')), 3000);
+        setTimeout(() => {
+          window.location.href = getProductionRedirectUrl('/sync');
+        }, 3000);
       } finally {
         setIsProcessing(false);
       }
@@ -165,13 +168,18 @@ export default function StravaCallback() {
     const state = searchParams.get('state');
     
     if (code && state) {
-      processCallback();
-    } else if (!isProcessing) {
-      // If no params and not processing, redirect to sync page
+      // Add a small debounce to prevent rapid re-execution
+      const timeoutId = setTimeout(() => {
+        processCallback();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    } else if (!processedRef.current) {
+      // If no params and not processed, redirect to sync page
       console.log('[StravaCallback] No OAuth parameters found, redirecting to sync...');
-      window.location.replace(getProductionRedirectUrl('/sync'));
+      window.location.href = getProductionRedirectUrl('/sync');
     }
-  }, [searchParams, handleCallback, navigate, isProcessing, syncActivities]);
+  }, [searchParams, handleCallback, queryClient]); // Removed dependencies that could cause loops
 
   const getIcon = () => {
     switch (status) {
@@ -201,40 +209,18 @@ export default function StravaCallback() {
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          {status === 'processing' && isSyncing && syncStartTime && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Tempo decorrido: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
-                </div>
-                <Progress value={estimatedProgress} className="w-full" />
-                <p className="text-xs text-muted-foreground">
-                  {estimatedProgress < 30 && "Iniciando sincronização..."}
-                  {estimatedProgress >= 30 && estimatedProgress < 60 && "Processando suas atividades..."}
-                  {estimatedProgress >= 60 && estimatedProgress < 90 && "Quase terminando..."}
-                  {estimatedProgress >= 90 && "Finalizando..."}
-                </p>
-              </div>
-              <div className="bg-muted/20 p-3 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  💡 <strong>Dica:</strong> Quanto mais atividades você tiver, mais tempo levará. 
-                  Estamos importando todo seu histórico do Strava!
-                </p>
-              </div>
+          {status === 'processing' && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Aguarde enquanto processamos sua autenticação...
+              </p>
             </div>
           )}
           
-          {status === 'processing' && !isSyncing && (
-            <p className="text-sm text-muted-foreground">
-              Aguarde enquanto processamos sua autenticação...
-            </p>
-          )}
-          
-          {status === 'success' && !isSyncing && (
+          {status === 'success' && (
             <div className="space-y-2">
               <p className="text-sm text-green-600 font-medium">
-                ✅ Todas as atividades foram sincronizadas!
+                ✅ Autenticação concluída com sucesso!
               </p>
               <p className="text-sm text-muted-foreground">
                 Redirecionando para o dashboard...

@@ -14,7 +14,7 @@ export const useStravaSync = () => {
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const { toast } = useToast();
 
-  const syncActivities = async (): Promise<boolean> => {
+  const syncActivities = async (useOptimized = false): Promise<boolean> => {
     setIsLoading(true);
     setLastSyncResult(null);
 
@@ -30,9 +30,10 @@ export const useStravaSync = () => {
         return false;
       }
 
-      console.log('[useStravaSync] Starting Strava activities sync...');
+      console.log(`[useStravaSync] Starting Strava activities sync (optimized: ${useOptimized})...`);
       
-      const { data, error } = await supabase.functions.invoke('strava-sync');
+      const functionName = useOptimized ? 'strava-sync-optimized' : 'strava-sync';
+      const { data, error } = await supabase.functions.invoke(functionName);
       
       if (error) {
         console.error('[useStravaSync] Sync error:', error);
@@ -85,8 +86,11 @@ export const useStravaSync = () => {
     }
   };
 
+  const syncActivitiesOptimized = () => syncActivities(true);
+
   return {
     syncActivities,
+    syncActivitiesOptimized,
     isLoading,
     lastSyncResult,
   };

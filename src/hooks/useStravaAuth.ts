@@ -170,25 +170,29 @@ export const useStravaAuth = () => {
         url: window.location.href
       });
 
-      // Prevent code reuse by checking if we've already processed this exact code
+      // Check if we're already processing this code to prevent concurrent processing
       const processedCodeKey = `strava_processed_code_${code}`;
-      if (localStorage.getItem(processedCodeKey)) {
-        console.warn('⚠️ [StravaAuth] Code already processed, skipping...');
-        toast({
-          title: "Código já processado",
-          description: "Esta autorização já foi processada",
-          variant: "destructive",
-        });
-        return false;
+      const existingProcess = localStorage.getItem(processedCodeKey);
+      
+      if (existingProcess) {
+        const processTime = parseInt(existingProcess);
+        const timeSinceProcess = Date.now() - processTime;
+        
+        // Only block if it was processed within the last minute (60 seconds)
+        if (timeSinceProcess < 60 * 1000) {
+          console.warn('⚠️ [StravaAuth] Code recently processed, skipping...', {
+            timeSinceProcess,
+            processTime: new Date(processTime).toISOString()
+          });
+          return false;
+        } else {
+          // Clear old processed flag if more than 1 minute old
+          localStorage.removeItem(processedCodeKey);
+        }
       }
 
-      // Mark code as being processed
+      // Mark code as being processed (will be cleared after processing)
       localStorage.setItem(processedCodeKey, Date.now().toString());
-      
-      // Set expiry for the processed code (1 hour)
-      setTimeout(() => {
-        localStorage.removeItem(processedCodeKey);
-      }, 60 * 60 * 1000);
       
       if (!user?.id) {
         console.error('❌ [StravaAuth] User not authenticated in callback');
@@ -410,6 +414,9 @@ export const useStravaAuth = () => {
         athleteId: authData.athlete?.id,
         athleteName: authData.athlete?.firstname
       });
+
+      // Clear the processed code flag on successful completion
+      localStorage.removeItem(processedCodeKey);
 
       // Invalidate Strava stats query to refresh the UI
       console.log('🔄 [StravaAuth] Invalidating strava-stats query...');

@@ -7,12 +7,14 @@ import { useStravaStats } from "@/hooks/useStravaStats";
 import { useStravaSync } from "@/hooks/useStravaSync";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useStravaBackgroundSync } from "@/hooks/useStravaBackgroundSync";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const StravaConnectionStatus = () => {
   const { handleStravaConnect, isLoading: isConnecting } = useStravaAuth();
   const { data: stats, isLoading: isLoadingStats, refetch } = useStravaStats();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useStravaSync();
+  const { startBackgroundSync, isBackgroundSyncing } = useStravaBackgroundSync();
   const queryClient = useQueryClient();
 
   const handleSync = async () => {
@@ -135,11 +137,11 @@ export const StravaConnectionStatus = () => {
 
         <Button 
           onClick={handleSync}
-          disabled={isSyncing || stats.syncStatus === 'in_progress'}
+          disabled={isSyncing || isBackgroundSyncing || stats.syncStatus === 'in_progress'}
           variant="outline"
           className="w-full"
         >
-          {isSyncing ? "Sincronizando..." : "Sincronizar Agora"}
+          {(isSyncing || isBackgroundSyncing) ? "Sincronizando..." : "Sincronizar Agora"}
         </Button>
       </CardContent>
     </Card>
