@@ -24,7 +24,8 @@ import {
   ChevronDown,
   Share2,
   Sparkles,
-  Crown
+  Crown,
+  RefreshCw
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLatestActivity } from '@/hooks/useLatestActivity';
@@ -50,6 +51,7 @@ import { PremiumButton } from '@/components/PremiumButton';
 import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { PaceHeatmap } from '@/components/PaceHeatmap';
 import { WorkoutAIAnalysisDialog } from '@/components/WorkoutAIAnalysisDialog';
+import { useStravaAnalysisRecovery } from '@/hooks/useStravaAnalysisRecovery';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -101,6 +103,14 @@ export const WorkoutSession = () => {
 
   // Get pace data for heatmap
   const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null);
+
+  // Strava analysis recovery hook
+  const { triggerAnalysis, isProcessing: isRecoveringAnalysis, error: recoveryError } = useStravaAnalysisRecovery();
+
+  // Check if current activity is Strava and missing analysis data
+  const isStravaActivity = (currentActivity as any)?.source === 'STRAVA';
+  const hasAnalysisData = paceData && paceData.length > 0;
+  const showRecoveryButton = isStravaActivity && !hasAnalysisData && !paceLoading && !paceError;
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -362,9 +372,31 @@ export const WorkoutSession = () => {
           <ScrollReveal>
             <Card className="glass-card border-glass-border mb-8">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  <span>Mapa de Pace da Atividade</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    <span>Mapa de Pace da Atividade</span>
+                  </div>
+                  {showRecoveryButton && (
+                    <Button
+                      onClick={() => triggerAnalysis(currentActivity?.activity_id)}
+                      disabled={isRecoveringAnalysis}
+                      size="sm"
+                      className="ml-2"
+                    >
+                      {isRecoveringAnalysis ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Recuperar análise
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Visualize seu ritmo ao longo da rota. Verde = mais rápido, Vermelho = mais lento
@@ -376,6 +408,36 @@ export const WorkoutSession = () => {
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
                       <p className="text-muted-foreground">Carregando dados de pace...</p>
+                    </div>
+                  </div>
+                ) : !hasAnalysisData && isStravaActivity ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Análise não disponível</h3>
+                      <p className="text-muted-foreground mb-4 max-w-sm">
+                        Esta atividade do Strava não possui dados de análise detalhada. 
+                        Clique no botão acima para recuperar os dados.
+                      </p>
+                      {showRecoveryButton && (
+                        <Button
+                          onClick={() => triggerAnalysis(currentActivity?.activity_id)}
+                          disabled={isRecoveringAnalysis}
+                          className="mt-2"
+                        >
+                          {isRecoveringAnalysis ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Processando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Recuperar análise da atividade
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ) : (
