@@ -154,7 +154,7 @@ export const useStravaAuth = () => {
   };
 
   const handleCallback = async (code: string, state: string): Promise<boolean> => {
-    // Prevent concurrent processing with a simple flag
+    // Prevent concurrent processing
     if (isProcessing) {
       console.warn('⚠️ [StravaAuth] Already processing callback, skipping...');
       return false;
@@ -169,6 +169,26 @@ export const useStravaAuth = () => {
         state: state?.substring(0, 20) + '...',
         url: window.location.href
       });
+
+      // Prevent code reuse by checking if we've already processed this exact code
+      const processedCodeKey = `strava_processed_code_${code}`;
+      if (localStorage.getItem(processedCodeKey)) {
+        console.warn('⚠️ [StravaAuth] Code already processed, skipping...');
+        toast({
+          title: "Código já processado",
+          description: "Esta autorização já foi processada",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Mark code as being processed
+      localStorage.setItem(processedCodeKey, Date.now().toString());
+      
+      // Set expiry for the processed code (1 hour)
+      setTimeout(() => {
+        localStorage.removeItem(processedCodeKey);
+      }, 60 * 60 * 1000);
       
       if (!user?.id) {
         console.error('❌ [StravaAuth] User not authenticated in callback');
@@ -366,6 +386,9 @@ export const useStravaAuth = () => {
       
       if (authError || !authData?.success) {
         console.error('❌ [StravaAuth] Token exchange error:', authError);
+        
+        // Clean up processed code flag on error
+        localStorage.removeItem(processedCodeKey);
         
         // Check for specific error types
         let errorMessage = "Não foi possível autenticar com o Strava";

@@ -30,16 +30,9 @@ export const useStravaSync = () => {
         return false;
       }
 
-      console.log('[useStravaSync] Starting optimized Strava activities sync...');
+      console.log('[useStravaSync] Starting Strava activities sync...');
       
-      // Use the new optimized sync function
-      const { data, error } = await supabase.functions.invoke('strava-sync-optimized', {
-        body: {
-          maxActivities: 50, // Start with recent activities only
-          maxTimeMinutes: 2, // Limit to 2 minutes max
-          background: false
-        }
-      });
+      const { data, error } = await supabase.functions.invoke('strava-sync');
       
       if (error) {
         console.error('[useStravaSync] Sync error:', error);
@@ -62,8 +55,8 @@ export const useStravaSync = () => {
 
       const result: SyncResult = {
         message: data.isIncremental 
-          ? `Sincronização incremental: ${data.synced} novas atividades`
-          : `Sincronização inicial: ${data.synced} atividades recentes`,
+          ? `Sincronização incremental concluída: ${data.synced} novas atividades`
+          : `Sincronização inicial concluída: ${data.synced} atividades`,
         synced: data.synced,
         total: data.total,
         isIncremental: data.isIncremental
@@ -71,14 +64,9 @@ export const useStravaSync = () => {
 
       setLastSyncResult(result);
       
-      // Show different messages based on sync type
-      const toastMessage = data.isIncremental 
-        ? `${data.synced} novas atividades sincronizadas!`
-        : `${data.synced} atividades recentes sincronizadas! Atividades mais antigas serão sincronizadas gradualmente.`;
-      
       toast({
         title: "Sincronização concluída",
-        description: toastMessage,
+        description: result.message,
       });
 
       console.log('[useStravaSync] Sync completed:', data);
