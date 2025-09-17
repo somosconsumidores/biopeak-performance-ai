@@ -142,59 +142,22 @@ serve(async (req) => {
         break;
       }
 
-      // Process activities in batch
+      // Process activities in batch - only use columns that exist in the table
       const activitiesToInsert = activities.map((activity: any) => ({
         user_id: userId,
-        strava_activity_id: activity.id.toString(),
+        strava_activity_id: activity.id,
         name: activity.name,
+        type: activity.type,
         distance: activity.distance,
         moving_time: activity.moving_time,
         elapsed_time: activity.elapsed_time,
         total_elevation_gain: activity.total_elevation_gain,
-        type: activity.type,
-        sport_type: activity.sport_type,
         start_date: activity.start_date,
-        start_date_local: activity.start_date_local,
-        timezone: activity.timezone,
-        utc_offset: activity.utc_offset,
-        location_city: activity.location_city,
-        location_state: activity.location_state,
-        location_country: activity.location_country,
-        achievement_count: activity.achievement_count,
-        kudos_count: activity.kudos_count,
-        comment_count: activity.comment_count,
-        athlete_count: activity.athlete_count,
-        photo_count: activity.photo_count,
-        trainer: activity.trainer,
-        commute: activity.commute,
-        manual: activity.manual,
-        private: activity.private,
-        visibility: activity.visibility,
-        flagged: activity.flagged,
-        gear_id: activity.gear_id,
-        start_latlng: activity.start_latlng,
-        end_latlng: activity.end_latlng,
         average_speed: activity.average_speed,
         max_speed: activity.max_speed,
-        average_cadence: activity.average_cadence,
-        average_temp: activity.average_temp,
-        average_watts: activity.average_watts,
-        weighted_average_watts: activity.weighted_average_watts,
-        kilojoules: activity.kilojoules,
-        device_watts: activity.device_watts,
-        has_heartrate: activity.has_heartrate,
         average_heartrate: activity.average_heartrate,
         max_heartrate: activity.max_heartrate,
-        heartrate_opt_out: activity.heartrate_opt_out,
-        display_hide_heartrate_option: activity.display_hide_heartrate_option,
-        elev_high: activity.elev_high,
-        elev_low: activity.elev_low,
-        upload_id: activity.upload_id,
-        upload_id_str: activity.upload_id_str,
-        external_id: activity.external_id,
-        from_accepted_tag: activity.from_accepted_tag,
-        pr_count: activity.pr_count,
-        suffer_score: activity.suffer_score,
+        calories: activity.calories,
       }));
 
       // Insert activities with upsert to handle duplicates
@@ -212,12 +175,11 @@ serve(async (req) => {
       page++;
     }
 
-    // Update sync status
+    // Update sync timestamp in strava_tokens (only columns that exist)
     const { error: updateError } = await supabase
       .from('strava_tokens')
       .update({
-        last_sync_at: new Date().toISOString(),
-        sync_status: 'completed',
+        updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId);
 
