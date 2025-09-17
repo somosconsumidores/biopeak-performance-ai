@@ -167,22 +167,26 @@ Deno.serve(async (req) => {
       athleteId: tokenRecord.athlete_id
     })
     
-    const { error: upsertError } = await serviceRoleClient
+    // Delete existing tokens for this user first to avoid duplicates
+    await serviceRoleClient
       .from('strava_tokens')
-      .upsert(tokenRecord, { 
-        onConflict: 'user_id',
-        ignoreDuplicates: false 
-      })
+      .delete()
+      .eq('user_id', user.id)
+    
+    // Insert new token
+    const { error: insertError } = await serviceRoleClient
+      .from('strava_tokens')
+      .insert(tokenRecord)
 
-    if (upsertError) {
+    if (insertError) {
       console.log('❌ Strava Auth - Failed to store tokens:', {
-        error: upsertError.message,
-        code: upsertError.code,
-        details: upsertError.details
+        error: insertError.message,
+        code: insertError.code,
+        details: insertError.details
       })
       return new Response(JSON.stringify({ 
         error: 'Failed to store tokens', 
-        details: upsertError.message
+        details: insertError.message
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
