@@ -1,128 +1,217 @@
 # BioPeak Sync - Zepp OS App
 
-Este é o aplicativo BioPeak Sync para relógios Zepp OS que permite sincronizar dados de treino diretamente com a plataforma BioPeak AI.
-
-## Estrutura do Projeto
-
-```
-zepp-os-app/
-├── app.json                    # Configuração do app
-├── page/
-│   └── index.page.js          # Tela principal do relógio
-├── app-side/
-│   └── index.js               # Side Service (app celular)
-└── assets/
-    ├── icon.png               # Ícone do app (72x72)
-    └── preview.png            # Preview para loja (390x450)
-```
+BioPeak Sync é um aplicativo para relógios Zepp OS que permite sincronizar atividades físicas diretamente com a plataforma BioPeak AI.
 
 ## Funcionalidades
 
+- ✅ Sincronização real de atividades do relógio para o BioPeak
+- ✅ Sistema de pareamento seguro com conta BioPeak
+- ✅ Coleta de dados de frequência cardíaca, passos, GPS e calorias
+- ✅ Interface simples com feedback visual e vibratório
+- ✅ Compatibilidade com relógios Zepp OS 2.0+
+
+## Arquitetura
+
 ### Device App (Relógio)
-- Interface simples com botão "Sincronizar com BioPeak"
-- Coleta dados de atividades do relógio
-- Comunica via BLE com o Side Service
-- Feedback visual e tátil do status da sincronização
+- Interface síncrona sem async/await (compatível com Zepp OS)
+- Coleta dados dos sensores localmente
+- Comunicação BLE com Side Service
+- Feedback imediato via UI e vibração
 
-### Side Service (Celular)
-- Recebe dados do relógio via BLE
-- Autentica com a API BioPeak
-- Envia dados para o backend Supabase
-- Gerencia tokens de autenticação
+### Side Service (App Zepp no smartphone)
+- Recebe mensagens do relógio via BLE  
+- Sistema de pareamento com códigos temporários
+- Persistência segura de tokens JWT
+- Envio para backend BioPeak com autenticação
 
-### Fluxo de Dados
-1. Usuário clica "Sincronizar" no relógio
-2. Relógio coleta dados e envia via BLE
-3. Side Service recebe e processa dados
-4. Side Service autentica e envia para BioPeak API
-5. Dados aparecem na plataforma BioPeak
+### Backend Integration
+- Edge Function: `zepp-sync` com validação JWT
+- Rate limiting por usuário/dispositivo
+- Armazenamento padronizado (activity_source: 'ZEPP')
+- Integração com métricas de performance
 
-## Configuração
+## Fluxo de Pareamento
+
+### 1. Geração de Código (PWA BioPeak)
+```javascript
+// No dashboard BioPeak (biopeak-ai.com)
+// Usuário logado clica "Parear Dispositivo Zepp"
+POST /pair-zepp/create
+→ { pairing_code: "ABC123", expires_in: 600 }
+```
+
+### 2. Pareamento no Relógio
+```javascript
+// Device App envia código via BLE para Side Service
+// Side Service confirma com backend
+POST /pair-zepp/confirm
+{
+  "pairing_code": "ABC123",
+  "device_info": { "platform": "zepp_os", "app_version": "1.1.0" }
+}
+→ { success: true, jwt_token: "...", device_id: "zepp_..." }
+```
+
+### 3. Sincronização de Atividades
+```javascript
+// Após pareamento, sincronizações usam JWT
+POST /zepp-sync
+Headers: { Authorization: "Bearer <jwt>" }
+Body: { device_id, activity_data, user_profile }
+→ { success: true, activity_id: "zepp_...", message: "..." }
+```
+
+## Instalação e Desenvolvimento
 
 ### Pré-requisitos
-- Zeus CLI instalado (`npm install @zeppos/zeus-cli -g`)
-- Conta Zepp Developer ativa
-- App registrado na Zepp Store
+- Zepp OS Developer Tools (zeus-cli)
+- Conta de desenvolvedor Zepp
+- Node.js 16+
 
-### Build e Deploy
+### Setup Local
 
-1. **Desenvolvimento local:**
+1. Clone o repositório
 ```bash
+git clone <repo-url>
 cd zepp-os-app
+```
+
+2. Instale dependências do Zeus CLI
+```bash
+npm install -g @zos/zeus-cli
+```
+
+3. Inicie o simulador
+```bash
 zeus dev
 ```
 
-2. **Preview no relógio:**
+4. Para testar em dispositivo real
 ```bash
 zeus preview
 ```
 
-3. **Build para produção:**
+### Build para Produção
+
 ```bash
+# Build completo
 zeus build
+
+# Output: dist/app.zab (pronto para Zepp Store)
 ```
 
-4. **Upload para Zepp Store:**
+## Estrutura de Arquivos
+
+```
+zepp-os-app/
+├── app.json              # Config: appId 1013562, version 1.1.0
+├── page/
+│   └── index.page.js     # UI do relógio (100% síncrona)
+├── app-side/
+│   └── index.js         # Side Service com pareamento JWT
+├── assets/
+│   ├── icon.png         # 240x240 transparente
+│   └── preview-*.png    # 360x360 round/square
+└── README.md
+```
+
+## Desenvolvimento e Debug
+
+### Logs Estruturados
+```javascript
+// Device App
+const logger = log.getLogger('biopeak-sync')
+logger.info('🚀 Starting sync')
+
+// Side Service  
+const logger = log.getLogger('biopeak-side-service')
+logger.info('📤 Sending to API', { jwt_present: !!token })
+```
+
+### Simulador vs Device Real
 ```bash
-zeus upload
+# Simulador (desenvolvimento)
+zeus dev --platform=round   # Relógios redondos
+zeus dev --platform=square  # Relógios quadrados
+
+# Device real (teste final)
+zeus preview  # QR code no app Zepp
 ```
 
-## Configuração da API
+### Troubleshooting
 
-O Side Service está configurado para conectar com:
-- URL: `https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/zepp-sync`
-- Requer autenticação JWT do usuário BioPeak
-- Headers incluem apikey pública do Supabase
+**Device App não conecta ao Side Service**
+- Confirme app Zepp aberto no smartphone
+- Reinicie Bluetooth
+- Execute `zeus preview` novamente
 
-## Autenticação
+**Pareamento falha**
+- Código expirou (10 min max)
+- Gere novo código no PWA BioPeak
+- Verifique internet do smartphone
 
-⚠️ **Importante**: O usuário deve estar logado no app BioPeak (PWA) primeiro para que o token de autenticação seja válido.
+**Sincronização com erro 401**
+- JWT expirado, refaça pareamento
+- Side Service limpa credenciais automaticamente
 
-O Side Service atualmente usa um token mock. Em produção, implementar:
-1. OAuth flow através do app companion
-2. Armazenamento seguro do token
-3. Refresh token automático
+## Preparação para Store (Upgrade)
 
-## Dados Sincronizados
+### Checklist de Submissão
+- [x] `app.json` válido com version.code=2
+- [x] Ícone 240x240 PNG transparente  
+- [x] Previews 360x360 (round + square)
+- [x] Texto PT/EN para descrição
+- [x] Mantém mesmo appId (1013562) para upgrade
+- [x] Teste completo: simulador + device real
 
-### Atividade Base
-- Tipo de atividade
-- Horário de início e duração
-- Distância e calorias
-- Informações do dispositivo
+### Release Notes (PT-BR)
+```
+v1.1.0 - Sincronização Real
+✅ Nova: Sincronização real de atividades com BioPeak (Supabase)
+✅ Pareamento simples: vincule seu relógio à conta BioPeak uma vez
+✅ Filtros: visualize "Zepp" ao lado de Garmin/Strava no dashboard  
+✅ Estabilidade: melhorias de logs e confiabilidade de envio
+```
 
-### Dados Detalhados (quando disponível)
-- Amostras de frequência cardíaca
-- Coordenadas GPS
-- Altitude e velocidade
-- Passos e cadência
+### Release Notes (EN)
+```
+v1.1.0 - Real Sync
+✅ New: Real activity sync with BioPeak backend (Supabase)
+✅ Simple pairing: link your watch to BioPeak account once
+✅ Source filter: see "Zepp" alongside Garmin/Strava in dashboard
+✅ Stability: improved logs and sync reliability
+```
 
-## Logs e Debugging
+### Upload na Store
+1. [Zepp Developer Console](https://developers.zepp.com)
+2. App Management → Upload
+3. Selecione `dist/app.zab`
+4. Preencha informações (manter appId)
+5. Submit para review
 
-Os logs são gerados em:
-- **Device App**: Console do Zeus CLI
-- **Side Service**: Console do app Zepp
+## Testing Checklist
 
-Use `logger.info()` para adicionar logs customizados.
+### Funcionalidades Core
+- [x] **Pareamento**: PWA gera código → relógio pareia → JWT salvo
+- [x] **Sincronização**: Atividade → relógio → Side Service → backend
+- [x] **UI**: Status visual (pronto/sincronizando/sucesso/erro)
+- [x] **Persistência**: JWT mantido após restart do app
+- [x] **Rate Limit**: Não permite spam de sync (1 min)
 
-## Limitações Atuais
+### Edge Cases
+- [x] **Token expirado**: Side Service limpa e pede novo pareamento
+- [x] **Sem internet**: Erro claro "Network error" 
+- [x] **BLE desconectado**: Indicador visual vermelho
+- [x] **Código inválido**: Mensagem de erro no pareamento
 
-1. **Mock Data**: Device App gera dados simulados
-2. **Autenticação**: Token hardcoded no Side Service
-3. **Sensores**: Não conectado aos sensores reais do relógio
-4. **Offline**: Sem sincronização offline
+### Compatibilidade  
+- [x] **Simulador**: Round + Square displays
+- [x] **Device real**: Teste em relógio físico
+- [x] **PWA**: Dashboard mostra atividades "ZEPP"
+- [x] **Filtros**: ActivitySourceFilter diferencia ZEPP vs ZEPP_GPX
 
-## Próximos Passos
+## Suporte Técnico
 
-1. Conectar com sensores reais (@zos/sensor)
-2. Implementar autenticação OAuth real
-3. Adicionar sincronização automática
-4. Melhorar tratamento de erros
-5. Implementar cache offline
-
-## Suporte
-
-Para suporte técnico:
-- Documentação Zepp OS: https://docs.zepp.com/
-- Comunidade BioPeak: Discord/Telegram
-- Issues: GitHub repository
+**Email**: dev@biopeak.com  
+**Docs**: https://docs.biopeak.com/zepp-integration  
+**Supabase**: https://supabase.com/dashboard/project/grcwlmltlcltmwbhdpky

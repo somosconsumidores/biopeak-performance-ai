@@ -12,7 +12,7 @@ Page({
   state: {
     syncing: false,
     connected: false,
-    clearStatusTimer: null
+    statusNeedsReset: false
   },
 
   build() {
@@ -59,6 +59,7 @@ Page({
       text_size: px(28),
       color: 0x000000,
       click_func: () => {
+        this.resetStatusIfNeeded()
         this.startSync()
       }
     })
@@ -259,8 +260,8 @@ Page({
       vibrator.setMode(VIBRATOR_SCENE_DURATION.SHORT)
       vibrator.start()
       
-      // Reset status on next click
-      this.state.clearStatusTimer = 'success'
+      // Mark status for reset on next click
+      this.state.statusNeedsReset = true
       
     } else {
       this.showError(message || 'Sync failed')
@@ -284,16 +285,16 @@ Page({
     vibrator.setMode(VIBRATOR_SCENE_DURATION.LONG)
     vibrator.start()
     
-    // Reset status on next click
-    this.state.clearStatusTimer = 'error'
+    // Mark status for reset on next click
+    this.state.statusNeedsReset = true
   },
 
   // Handle click to reset status messages
   resetStatusIfNeeded() {
-    if (this.state.clearStatusTimer) {
+    if (this.state.statusNeedsReset && !this.state.syncing) {
       this.statusText.setProperty(prop.TEXT, 'Ready to sync')
       this.statusText.setProperty(prop.COLOR, 0xffffff)
-      this.state.clearStatusTimer = null
+      this.state.statusNeedsReset = false
     }
   },
 

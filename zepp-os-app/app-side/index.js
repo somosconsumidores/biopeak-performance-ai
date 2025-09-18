@@ -43,14 +43,12 @@ App({
   },
 
   loadStoredCredentials() {
-    // Try to load stored JWT token
-    // In production, use proper storage like localStorage or SecureStorage
     logger.info('🔑 Checking for stored credentials')
     
     try {
-      // Mock check - in real implementation, load from secure storage
-      const storedToken = null // localStorage.getItem('biopeak_jwt')
-      const storedDeviceId = null // localStorage.getItem('zepp_device_id')
+      // Load from Zepp OS Side Service storage
+      const storedToken = this.getStoredValue('biopeak_jwt')
+      const storedDeviceId = this.getStoredValue('zepp_device_id')
       
       if (storedToken && storedDeviceId) {
         this.globalData.userToken = storedToken
@@ -65,14 +63,43 @@ App({
     }
   },
 
-  async handleDeviceRequest(ctx) {
+  // Simple storage wrapper for Zepp OS Side Service
+  getStoredValue(key) {
+    try {
+      // Using global storage available in Side Service context
+      return globalThis.storage?.getItem?.(key) || null
+    } catch {
+      return null
+    }
+  },
+
+  setStoredValue(key, value) {
+    try {
+      // Using global storage available in Side Service context
+      globalThis.storage?.setItem?.(key, value)
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  removeStoredValue(key) {
+    try {
+      globalThis.storage?.removeItem?.(key)
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  handleDeviceRequest(ctx) {
     const { payload } = ctx.request
     
     try {
       if (payload.type === 'sync_activity') {
-        await this.handleActivitySync(payload.data, ctx)
+        this.handleActivitySync(payload.data, ctx)
       } else if (payload.type === 'pair_device') {
-        await this.handleDevicePairing(payload.pairing_code, ctx)
+        this.handleDevicePairing(payload.pairing_code, ctx)
       } else {
         logger.warn('❓ Unknown request type:', payload.type)
         ctx.response({
@@ -89,16 +116,16 @@ App({
     }
   },
 
-  async handleDeviceCall(ctx) {
+  handleDeviceCall(ctx) {
     // Handle direct calls from device
     logger.info('📞 Handling device call')
   },
 
-  async handleDevicePairing(pairingCode, ctx) {
+  handleDevicePairing(pairingCode, ctx) {
     logger.info('🔗 Starting device pairing with code:', pairingCode)
     
     try {
-      const response = await fetch(PAIR_API_URL, {
+      fetch(PAIR_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,44 +139,42 @@ App({
           }
         })
       })
-
-      const responseData = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(responseData.error || `Pairing failed: HTTP ${response.status}`)
-      }
-
-      if (responseData.success && responseData.jwt_token) {
+      .then(response => response.json())
+      .then(responseData => {
+        if (responseData.success && responseData.jwt_token) {
         // Store credentials
         this.globalData.userToken = responseData.jwt_token
         this.globalData.deviceId = responseData.device_id
         this.globalData.paired = true
         
-        // In production, store securely
-        // localStorage.setItem('biopeak_jwt', responseData.jwt_token)
-        // localStorage.setItem('zepp_device_id', responseData.device_id)
+        // Persist credentials securely
+        this.setStoredValue('biopeak_jwt', responseData.jwt_token)
+        this.setStoredValue('zepp_device_id', responseData.device_id)
         
         logger.info('✅ Device paired successfully')
         
-        ctx.response({
-          type: 'pairing_complete',
-          success: true,
-          message: 'Device paired with BioPeak!'
-        })
-      } else {
-        throw new Error('Invalid pairing response')
-      }
-
-    } catch (error) {
-      logger.error('❌ Pairing failed:', error)
-      ctx.response({
-        type: 'pairing_error',
-        error: error.message
+          ctx.response({
+            type: 'pairing_complete',
+            success: true,
+            message: 'Device paired with BioPeak!'
+          })
+        } else {
+          ctx.response({
+            type: 'pairing_error',
+            error: 'Invalid pairing response'
+          })
+        }
       })
-    }
+      .catch(error => {
+        logger.error('❌ Pairing failed:', error)
+        ctx.response({
+          type: 'pairing_error',
+          error: error.message
+        })
+      })
   },
 
-  async handleActivitySync(activityData, ctx) {
+  handleActivitySync(activityData, ctx) {
     if (this.globalData.syncing) {
       logger.warn('⏳ Sync already in progress')
       ctx.response({
@@ -174,43 +199,55 @@ App({
     try {
       logger.info('📤 Sending activity data to BioPeak API')
       
-      const response = await this.sendToBioPeak(activityData)
-      
-      if (response.success) {
-        logger.info('✅ Activity synced successfully:', response.activity_id)
-        
-        ctx.response({
-          type: 'sync_complete',
-          success: true,
-          message: 'Activity synced to BioPeak!',
-          activity_id: response.activity_id
+      this.sendToBioPeak(activityData)
+        .then(response => {
+          if (response.success) {
+            logger.info('✅ Activity synced successfully:', response.activity_id)
+            
+            ctx.response({
+              type: 'sync_complete',
+              success: true,
+              message: 'Activity synced to BioPeak!',
+              activity_id: response.activity_id
+            })
+          } else {
+            ctx.response({
+              type: 'sync_error',
+              error: response.error || 'Unknown API error'
+            })
+          }
+          this.globalData.syncing = false
         })
-      } else {
-        throw new Error(response.error || 'Unknown API error')
-      }
+        .catch(error => {
+          logger.error('❌ Activity sync failed:', error)
+          
+          // Check if token expired
+          if (error.message.includes('Invalid authentication') || error.message.includes('401')) {
+            this.globalData.paired = false
+            this.globalData.userToken = null
+            // Clear stored credentials
+            this.removeStoredValue('biopeak_jwt')
+            this.removeStoredValue('zepp_device_id')
+          }
+          
+          ctx.response({
+            type: 'sync_error',
+            error: error.message
+          })
+          this.globalData.syncing = false
+        })
 
     } catch (error) {
-      logger.error('❌ Activity sync failed:', error)
-      
-      // Check if token expired
-      if (error.message.includes('Invalid authentication') || error.message.includes('401')) {
-        this.globalData.paired = false
-        this.globalData.userToken = null
-        // Clear stored credentials
-        // localStorage.removeItem('biopeak_jwt')
-        // localStorage.removeItem('zepp_device_id')
-      }
-      
+      logger.error('❌ Activity sync setup failed:', error)
       ctx.response({
         type: 'sync_error',
         error: error.message
       })
-    } finally {
       this.globalData.syncing = false
     }
   },
 
-  async sendToBioPeak(activityData) {
+  sendToBioPeak(activityData) {
     logger.info('🌐 Making request to BioPeak API')
     
     const requestBody = {
@@ -226,33 +263,34 @@ App({
       jwt_present: !!this.globalData.userToken
     })
 
-    try {
-      const response = await fetch(BIOPEAK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${this.globalData.userToken}`
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      const responseData = await response.json()
-      
+    return fetch(BIOPEAK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${this.globalData.userToken}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+    .then(response => {
       if (!response.ok) {
-        logger.error('❌ API response error:', response.status, responseData)
-        throw new Error(responseData.error || `HTTP ${response.status}`)
+        return response.json().then(errorData => {
+          logger.error('❌ API response error:', response.status, errorData)
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        })
       }
-
+      return response.json()
+    })
+    .then(responseData => {
       logger.info('✅ API response success:', responseData)
       return responseData
-
-    } catch (error) {
+    })
+    .catch(error => {
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         throw new Error('Network error. Check internet connection.')
       }
       throw error
-    }
+    })
   },
 
   // Method to check if device is paired
@@ -267,8 +305,8 @@ App({
     this.globalData.paired = false
     
     // Clear from storage
-    // localStorage.removeItem('biopeak_jwt')
-    // localStorage.removeItem('zepp_device_id')
+    this.removeStoredValue('biopeak_jwt')
+    this.removeStoredValue('zepp_device_id')
     
     logger.info('🧹 Credentials cleared')
   },
