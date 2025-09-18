@@ -65,57 +65,12 @@ Deno.serve(async (req) => {
     }
 
     const { activity_data } = payload
-    const activityId = `zepp_${payload.device_id}_${Date.now()}`
+    
+    // Generate idempotent activity_id using start_time instead of current timestamp
+    const activityId = `zepp_${payload.device_id}_${activity_data.start_time}`
     const startDate = new Date(activity_data.start_time * 1000)
 
-    // Prepare activity data for zepp_activities table
-    const activityRecord = {
-      user_id: user.id,
-      activity_id: activityId,
-      device_id: payload.device_id,
-      activity_type: activity_data.activity_type,
-      start_time: startDate.toISOString(),
-      duration_in_seconds: activity_data.duration,
-      distance_in_meters: activity_data.distance || null,
-      calories: activity_data.calories || null,
-      average_heart_rate_bpm: activity_data.heart_rate?.average || null,
-      max_heart_rate_bpm: activity_data.heart_rate?.max || null,
-      steps: activity_data.steps || null,
-      synced_at: new Date().toISOString()
-    }
-
-    console.log('💾 Inserting activity record:', activityRecord)
-
-    // Insert into zepp_activities
-    const { error: activityError } = await supabase
-      .from('zepp_activities')
-      .insert(activityRecord)
-
-    if (activityError) {
-      console.error('❌ Error inserting activity:', activityError)
-      throw activityError
-    }
-
-    // Insert activity details if we have samples data
-    if (activity_data.heart_rate?.samples || activity_data.gps_data) {
-      const detailsData = {
-        user_id: user.id,
-        activity_id: activityId,
-        heart_rate_samples: activity_data.heart_rate?.samples || [],
-        gps_coordinates: activity_data.gps_data || [],
-        raw_data: activity_data
-      }
-
-      const { error: detailsError } = await supabase
-        .from('zepp_activity_details')
-        .insert(detailsData)
-
-      if (detailsError) {
-        console.warn('⚠️ Error inserting activity details:', detailsError)
-      }
-    }
-
-    // Rate limiting: Check last sync for this user+device
+    // RATE LIMITING: Check before any database inserts
     const { data: rateLimitData } = await supabase
       .from('zepp_sync_control')
       .select('last_sync_at, status')
@@ -150,18 +105,74 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Log sync attempt
+    // Prepare activity data for zepp_activities table
+    const activityRecord = {
+      user_id: user.id,
+      activity_id: activityId,
+      device_id: payload.device_id,
+      activity_type: activity_data.activity_type,
+      start_time: startDate.toISOString(),
+      duration_in_seconds: activity_data.duration,
+      distance_in_meters: activity_data.distance || null,
+      calories: activity_data.calories || null,
+      average_heart_rate_bpm: activity_data.heart_rate?.average || null,
+      max_heart_rate_bpm: activity_data.heart_rate?.max || null,
+      steps: activity_data.steps || null,
+      synced_at: new Date().toISOString()
+    }
+
+    console.log('💾 Upserting activity record:', activityRecord)
+
+    // Upsert into zepp_activities (idempotent)
+    const { error: activityError } = await supabase
+      .from('zepp_activities')
+      .upsert(activityRecord, { 
+        onConflict: 'user_id,activity_id',
+        ignoreDuplicates: false 
+      })
+
+    if (activityError) {
+      console.error('❌ Error upserting activity:', activityError)
+      throw activityError
+    }
+
+    // Insert activity details if we have samples data (use upsert for idempotency)
+    if (activity_data.heart_rate?.samples || activity_data.gps_data) {
+      const detailsData = {
+        user_id: user.id,
+        activity_id: activityId,
+        heart_rate_samples: activity_data.heart_rate?.samples || [],
+        gps_coordinates: activity_data.gps_data || [],
+        raw_data: activity_data
+      }
+
+      const { error: detailsError } = await supabase
+        .from('zepp_activity_details')
+        .upsert(detailsData, { 
+          onConflict: 'user_id,activity_id',
+          ignoreDuplicates: false 
+        })
+
+      if (detailsError) {
+        console.warn('⚠️ Error upserting activity details:', detailsError)
+      }
+    }
+
+    // Log sync attempt (use upsert for sync control)
     await supabase
       .from('zepp_sync_control')
-      .insert({
+      .upsert({
         user_id: user.id,
         device_id: payload.device_id,
         sync_type: 'activity',
         status: 'in_progress',
         last_sync_at: new Date().toISOString()
+      }, { 
+        onConflict: 'user_id,device_id',
+        ignoreDuplicates: false 
       })
 
-    // Insert into all_activities for unified view
+    // Upsert into all_activities for unified view (idempotent)
     const unifiedActivity = {
       user_id: user.id,
       activity_id: activityId,
@@ -179,26 +190,33 @@ Deno.serve(async (req) => {
       device_name: `Zepp Device ${payload.device_id}`
     }
 
-    console.log('🔗 Inserting unified activity:', unifiedActivity)
+    console.log('🔗 Upserting unified activity:', unifiedActivity)
 
     const { error: unifiedError } = await supabase
       .from('all_activities')
-      .insert(unifiedActivity)
+      .upsert(unifiedActivity, { 
+        onConflict: 'user_id,activity_source,activity_id',
+        ignoreDuplicates: false 
+      })
 
     if (unifiedError) {
-      console.error('❌ Error inserting unified activity:', unifiedError)
+      console.error('❌ Error upserting unified activity:', unifiedError)
       throw unifiedError
     }
 
-    // Update sync status to completed
+    // Update sync status to completed (upsert)
     await supabase
       .from('zepp_sync_control')
-      .update({
+      .upsert({
+        user_id: user.id,
+        device_id: payload.device_id,
+        sync_type: 'activity',
         status: 'completed',
         last_sync_at: new Date().toISOString()
+      }, { 
+        onConflict: 'user_id,device_id',
+        ignoreDuplicates: false 
       })
-      .eq('user_id', user.id)
-      .eq('device_id', payload.device_id)
 
     // Trigger activity chart calculation
     try {
