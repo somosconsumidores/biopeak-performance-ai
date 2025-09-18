@@ -46,5 +46,27 @@
       "name": "BioPeak Sync"  
     }
   },
-  "defaultLanguage": "en-US"
+  "defaultLanguage": "en-US",
+  "targets": {
+    "pamir": {
+      "name": "Amazfit GTR 3/GTR 3 Pro/T-Rex 2",
+      "platforms": ["2.0"]
+    },
+    "snowy": {
+      "name": "Amazfit Bip 3/Bip 3 Pro",
+      "platforms": ["2.0"]
+    },
+    "milan": {
+      "name": "Amazfit GTS 3",
+      "platforms": ["2.0"]
+    },
+    "rex": {
+      "name": "Amazfit T-Rex Pro",
+      "platforms": ["2.0"]
+    },
+    "band7": {
+      "name": "Amazfit Band 7",
+      "platforms": ["2.0"]
+    }
+  }
 }
