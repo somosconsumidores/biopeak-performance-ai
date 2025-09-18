@@ -1,6 +1,6 @@
-# BioPeak Sync - Zepp OS App
+# BioPeak Sync - Zepp OS App v1.1.0
 
-BioPeak Sync é um aplicativo para relógios Zepp OS que permite sincronizar atividades físicas diretamente com a plataforma BioPeak AI.
+BioPeak Sync é um aplicativo para relógios Zepp OS que permite sincronizar atividades físicas diretamente com a plataforma BioPeak AI usando autenticação JWT e persistência automática de credenciais.
 
 ## Funcionalidades
 
@@ -30,35 +30,52 @@ BioPeak Sync é um aplicativo para relógios Zepp OS que permite sincronizar ati
 - Armazenamento padronizado (activity_source: 'ZEPP')
 - Integração com métricas de performance
 
-## Fluxo de Pareamento
+## Fluxo de Pareamento com JWT Persistente
 
 ### 1. Geração de Código (PWA BioPeak)
 ```javascript
-// No dashboard BioPeak (biopeak-ai.com)
-// Usuário logado clica "Parear Dispositivo Zepp"
-POST /pair-zepp/create
+// No dashboard BioPeak (usuário já logado)
+// Clica "Parear Dispositivo Zepp" → gera código temporário
+POST /functions/v1/pair-zepp/create
 → { pairing_code: "ABC123", expires_in: 600 }
 ```
 
-### 2. Pareamento no Relógio
+### 2. Pareamento no Relógio (Uma vez apenas)
 ```javascript
-// Device App envia código via BLE para Side Service
-// Side Service confirma com backend
-POST /pair-zepp/confirm
+// Device App coleta código do usuário
+// Envia via BLE para Side Service
+// Side Service confirma com backend e recebe JWT
+POST /functions/v1/pair-zepp/confirm
 {
   "pairing_code": "ABC123",
   "device_info": { "platform": "zepp_os", "app_version": "1.1.0" }
 }
-→ { success: true, jwt_token: "...", device_id: "zepp_..." }
+→ { success: true, jwt_token: "eyJ...", device_id: "zepp_abc123" }
+
+// Side Service salva JWT persistentemente
+storage.setItem('biopeak_jwt', jwt_token)
 ```
 
-### 3. Sincronização de Atividades
+### 3. Sincronizações Automáticas (JWT Persistente)
 ```javascript
-// Após pareamento, sincronizações usam JWT
-POST /zepp-sync
-Headers: { Authorization: "Bearer <jwt>" }
+// A cada treino, usa JWT salvo automaticamente
+POST /functions/v1/zepp-sync
+Headers: { 
+  Authorization: "Bearer <jwt_from_storage>",
+  apikey: "supabase_anon_key"
+}
 Body: { device_id, activity_data, user_profile }
 → { success: true, activity_id: "zepp_...", message: "..." }
+
+// Se JWT expirar → Side Service limpa storage + pede novo pareamento
+```
+
+### 4. Tratamento de Erros de Autenticação
+```javascript
+// Se retornar 401 Unauthorized:
+// Side Service automaticamente limpa credenciais
+storage.removeItem('biopeak_jwt')
+// Usuário precisa refazer pareamento uma única vez
 ```
 
 ## Instalação e Desenvolvimento

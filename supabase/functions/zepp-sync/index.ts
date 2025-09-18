@@ -115,10 +115,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check rate limiting
+    // Rate limiting: Check last sync for this user+device
     const { data: rateLimitData } = await supabase
       .from('zepp_sync_control')
-      .select('last_sync_at')
+      .select('last_sync_at, status')
       .eq('user_id', user.id)
       .eq('device_id', payload.device_id)
       .order('last_sync_at', { ascending: false })
@@ -132,7 +132,21 @@ Deno.serve(async (req) => {
       const minInterval = 60 * 1000 // 1 minute minimum between syncs
       
       if (timeDiff < minInterval) {
-        throw new Error('Rate limit: Please wait before syncing again')
+        console.warn(`⚠️ Rate limit hit for user ${user.id}, device ${payload.device_id}`)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Rate limit exceeded. Please wait 1 minute between syncs.' 
+          }),
+          { 
+            status: 429,
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json',
+              'Retry-After': '60'
+            } 
+          }
+        )
       }
     }
 
@@ -222,13 +236,21 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('💥 Zepp sync error:', error)
     
+    // Determine appropriate HTTP status code
+    let status = 400
+    if (error.message.includes('Invalid authentication') || error.message.includes('authorization')) {
+      status = 401
+    } else if (error.message.includes('Rate limit')) {
+      status = 429
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: error.message 
       }),
       { 
-        status: 400,
+        status,
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json' 

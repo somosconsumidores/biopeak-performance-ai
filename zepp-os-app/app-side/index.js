@@ -43,30 +43,70 @@ App({
   },
 
   loadStoredCredentials() {
-    logger.info('🔑 Checking for stored credentials')
+    logger.info('🔑 Loading stored credentials from persistent storage')
     
     try {
-      // Load from Zepp OS Side Service storage
-      const storedToken = this.getStoredValue('biopeak_jwt')
+      const storedToken = this.loadJWT()
       const storedDeviceId = this.getStoredValue('zepp_device_id')
       
       if (storedToken && storedDeviceId) {
         this.globalData.userToken = storedToken
         this.globalData.deviceId = storedDeviceId
         this.globalData.paired = true
-        logger.info('✅ Found stored credentials')
+        logger.info('✅ JWT credentials restored from storage')
       } else {
-        logger.info('ℹ️ No stored credentials found - pairing required')
+        logger.info('ℹ️ No stored credentials - device pairing required')
+        this.globalData.paired = false
+        this.globalData.userToken = null
+        this.globalData.deviceId = null
       }
     } catch (error) {
-      logger.error('❌ Error loading credentials:', error)
+      logger.error('❌ Error loading stored credentials:', error)
+      this.globalData.paired = false
     }
   },
 
-  // Simple storage wrapper for Zepp OS Side Service
+  // Persistent storage for JWT tokens
+  saveJWT(token) {
+    try {
+      globalThis.storage?.setItem?.('biopeak_jwt', token)
+      logger.info('💾 JWT token saved to storage')
+      return true
+    } catch (error) {
+      logger.error('❌ Failed to save JWT:', error)
+      return false
+    }
+  },
+
+  loadJWT() {
+    try {
+      const token = globalThis.storage?.getItem?.('biopeak_jwt')
+      if (token) {
+        logger.info('🔑 JWT token loaded from storage')
+        return token
+      }
+      return null
+    } catch (error) {
+      logger.error('❌ Failed to load JWT:', error)
+      return null
+    }
+  },
+
+  clearJWT() {
+    try {
+      globalThis.storage?.removeItem?.('biopeak_jwt')
+      globalThis.storage?.removeItem?.('zepp_device_id')
+      logger.info('🧹 JWT credentials cleared from storage')
+      return true
+    } catch (error) {
+      logger.error('❌ Failed to clear JWT:', error)
+      return false
+    }
+  },
+
+  // Legacy storage methods for compatibility
   getStoredValue(key) {
     try {
-      // Using global storage available in Side Service context
       return globalThis.storage?.getItem?.(key) || null
     } catch {
       return null
@@ -75,7 +115,6 @@ App({
 
   setStoredValue(key, value) {
     try {
-      // Using global storage available in Side Service context
       globalThis.storage?.setItem?.(key, value)
       return true
     } catch {
@@ -142,17 +181,17 @@ App({
       .then(response => response.json())
       .then(responseData => {
         if (responseData.success && responseData.jwt_token) {
-        // Store credentials
-        this.globalData.userToken = responseData.jwt_token
-        this.globalData.deviceId = responseData.device_id
-        this.globalData.paired = true
-        
-        // Persist credentials securely
-        this.setStoredValue('biopeak_jwt', responseData.jwt_token)
-        this.setStoredValue('zepp_device_id', responseData.device_id)
-        
-        logger.info('✅ Device paired successfully')
-        
+          // Store credentials in memory
+          this.globalData.userToken = responseData.jwt_token
+          this.globalData.deviceId = responseData.device_id
+          this.globalData.paired = true
+          
+          // Persist JWT securely for future sessions
+          this.saveJWT(responseData.jwt_token)
+          this.setStoredValue('zepp_device_id', responseData.device_id)
+          
+          logger.info('✅ Device paired and JWT persisted successfully')
+          
           ctx.response({
             type: 'pairing_complete',
             success: true,
@@ -221,13 +260,16 @@ App({
         .catch(error => {
           logger.error('❌ Activity sync failed:', error)
           
-          // Check if token expired
-          if (error.message.includes('Invalid authentication') || error.message.includes('401')) {
+          // Check if token expired or invalid (401 Unauthorized)
+          if (error.message.includes('Invalid authentication') || 
+              error.message.includes('401') || 
+              error.message.includes('Unauthorized')) {
+            logger.warn('🔑 JWT token expired or invalid - clearing credentials')
             this.globalData.paired = false
             this.globalData.userToken = null
-            // Clear stored credentials
-            this.removeStoredValue('biopeak_jwt')
-            this.removeStoredValue('zepp_device_id')
+            this.globalData.deviceId = null
+            // Clear persisted credentials
+            this.clearJWT()
           }
           
           ctx.response({
@@ -298,17 +340,18 @@ App({
     return this.globalData.paired && !!this.globalData.userToken
   },
 
-  // Method to clear stored credentials
+  // Method to clear stored credentials completely
   clearCredentials() {
+    logger.info('🧹 Clearing all stored credentials')
+    
     this.globalData.userToken = null
     this.globalData.deviceId = null
     this.globalData.paired = false
     
-    // Clear from storage
-    this.removeStoredValue('biopeak_jwt')
-    this.removeStoredValue('zepp_device_id')
+    // Clear from persistent storage
+    this.clearJWT()
     
-    logger.info('🧹 Credentials cleared')
+    logger.info('✅ All credentials cleared successfully')
   },
 
   onDestroy() {

@@ -289,10 +289,11 @@ Page({
     this.state.statusNeedsReset = true
   },
 
-  // Handle click to reset status messages
+  // Reset status messages on user interaction (no timers)
   resetStatusIfNeeded() {
     if (this.state.statusNeedsReset && !this.state.syncing) {
-      this.statusText.setProperty(prop.TEXT, 'Ready to sync')
+      this.statusText.setProperty(prop.TEXT, 
+        this.state.connected ? 'Connected - Ready to sync' : 'Connecting to phone...')
       this.statusText.setProperty(prop.COLOR, 0xffffff)
       this.state.statusNeedsReset = false
     }
