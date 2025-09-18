@@ -1,5 +1,6 @@
 import { MessageBuilder } from '@zos/ble'
 import { log as Logger } from '@zos/utils'
+import { localStorage } from '@zos/storage'
 
 const logger = Logger.getLogger('biopeak-side-service')
 
@@ -69,7 +70,7 @@ App({
   // Persistent storage for JWT tokens
   saveJWT(token) {
     try {
-      globalThis.storage?.setItem?.('biopeak_jwt', token)
+      localStorage.setItem('biopeak_jwt', token)
       logger.info('💾 JWT token saved to storage')
       return true
     } catch (error) {
@@ -80,7 +81,7 @@ App({
 
   loadJWT() {
     try {
-      const token = globalThis.storage?.getItem?.('biopeak_jwt')
+      const token = localStorage.getItem('biopeak_jwt')
       if (token) {
         logger.info('🔑 JWT token loaded from storage')
         return token
@@ -94,8 +95,8 @@ App({
 
   clearJWT() {
     try {
-      globalThis.storage?.removeItem?.('biopeak_jwt')
-      globalThis.storage?.removeItem?.('zepp_device_id')
+      localStorage.removeItem('biopeak_jwt')
+      localStorage.removeItem('zepp_device_id')
       logger.info('🧹 JWT credentials cleared from storage')
       return true
     } catch (error) {
@@ -107,7 +108,7 @@ App({
   // Legacy storage methods for compatibility
   getStoredValue(key) {
     try {
-      return globalThis.storage?.getItem?.(key) || null
+      return localStorage.getItem(key) || null
     } catch {
       return null
     }
@@ -115,7 +116,7 @@ App({
 
   setStoredValue(key, value) {
     try {
-      globalThis.storage?.setItem?.(key, value)
+      localStorage.setItem(key, value)
       return true
     } catch {
       return false
@@ -124,7 +125,7 @@ App({
 
   removeStoredValue(key) {
     try {
-      globalThis.storage?.removeItem?.(key)
+      localStorage.removeItem(key)
       return true
     } catch {
       return false
@@ -139,6 +140,10 @@ App({
         this.handleActivitySync(payload.data, ctx)
       } else if (payload.type === 'pair_device') {
         this.handleDevicePairing(payload.pairing_code, ctx)
+      } else if (payload.type === 'ping') {
+        // Respond to ping with pong (keep-alive)
+        logger.debug('🏓 Ping received, responding with pong')
+        ctx.response({ type: 'pong', success: true })
       } else {
         logger.warn('❓ Unknown request type:', payload.type)
         ctx.response({
@@ -208,9 +213,17 @@ App({
         logger.error('❌ Pairing failed:', error)
         ctx.response({
           type: 'pairing_error',
-          error: error.message
+          error: error.message || 'Pairing failed unexpectedly'
         })
       })
+    } catch (error) {
+      // Ensure ctx.response is always called, even on unexpected errors
+      logger.error('❌ Pairing setup failed:', error)
+      ctx.response({
+        type: 'pairing_error',
+        error: error.message || 'Pairing failed unexpectedly'
+      })
+    }
   },
 
   handleActivitySync(activityData, ctx) {
