@@ -4,24 +4,24 @@
     "appName": "BioPeak Sync",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
-    "vender": "BioPeak",
+    "vendor": "BioPeak",
     "description": "Sync your workouts with BioPeak AI platform"
   },
   "permissions": [
-    "data:user_data.heart_rate",
-    "data:user_data.step",
-    "data:user_data.distance",
-    "data:user_data.calorie",
+    "data:user.info",
+    "data:exercise",
+    "data:heartrate",
+    "data:steps",
     "device:bluetooth",
     "device:os.bg_service"
   ],
   "runtime": {
     "apiVersion": {
-      "minVersion": "3.0",
+      "minVersion": "2.0",
       "targetVersion": "3.6"
     }
   },

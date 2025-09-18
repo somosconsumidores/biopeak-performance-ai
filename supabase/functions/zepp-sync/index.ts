@@ -115,11 +115,43 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Check rate limiting
+    const { data: rateLimitData } = await supabase
+      .from('zepp_sync_control')
+      .select('last_sync_at')
+      .eq('user_id', user.id)
+      .eq('device_id', payload.device_id)
+      .order('last_sync_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (rateLimitData?.last_sync_at) {
+      const lastSync = new Date(rateLimitData.last_sync_at)
+      const now = new Date()
+      const timeDiff = now.getTime() - lastSync.getTime()
+      const minInterval = 60 * 1000 // 1 minute minimum between syncs
+      
+      if (timeDiff < minInterval) {
+        throw new Error('Rate limit: Please wait before syncing again')
+      }
+    }
+
+    // Log sync attempt
+    await supabase
+      .from('zepp_sync_control')
+      .insert({
+        user_id: user.id,
+        device_id: payload.device_id,
+        sync_type: 'activity',
+        status: 'in_progress',
+        last_sync_at: new Date().toISOString()
+      })
+
     // Insert into all_activities for unified view
     const unifiedActivity = {
       user_id: user.id,
       activity_id: activityId,
-      activity_source: 'zepp',
+      activity_source: 'ZEPP', // Standardized as uppercase
       activity_type: activity_data.activity_type,
       activity_date: startDate.toISOString().split('T')[0],
       total_distance_meters: activity_data.distance || null,
@@ -144,13 +176,23 @@ Deno.serve(async (req) => {
       throw unifiedError
     }
 
+    // Update sync status to completed
+    await supabase
+      .from('zepp_sync_control')
+      .update({
+        status: 'completed',
+        last_sync_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id)
+      .eq('device_id', payload.device_id)
+
     // Trigger activity chart calculation
     try {
       const { error: chartError } = await supabase.functions.invoke('calculate-activity-chart-data', {
         body: {
           user_id: user.id,
           activity_id: activityId,
-          activity_source: 'zepp'
+          activity_source: 'ZEPP'
         }
       })
 

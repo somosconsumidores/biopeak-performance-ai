@@ -5,6 +5,7 @@ const logger = Logger.getLogger('biopeak-side-service')
 
 // BioPeak API configuration
 const BIOPEAK_API_URL = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/zepp-sync'
+const PAIR_API_URL = 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/pair-zepp'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM'
 
 const messageBuilder = new MessageBuilder()
@@ -12,13 +13,15 @@ const messageBuilder = new MessageBuilder()
 App({
   globalData: {
     userToken: null,
-    syncing: false
+    deviceId: null,
+    syncing: false,
+    paired: false
   },
 
   onCreate() {
     logger.info('🚀 BioPeak Side Service started')
     this.initializeBLE()
-    this.loadUserToken()
+    this.loadStoredCredentials()
   },
 
   initializeBLE() {
@@ -39,14 +42,27 @@ App({
     })
   },
 
-  loadUserToken() {
-    // Try to get stored user token for BioPeak
-    // In production, this would be obtained through OAuth flow
-    // For now, we'll prompt user to login through the companion app
-    logger.info('🔑 Checking for stored user token')
+  loadStoredCredentials() {
+    // Try to load stored JWT token
+    // In production, use proper storage like localStorage or SecureStorage
+    logger.info('🔑 Checking for stored credentials')
     
-    // This would be stored after user logs in through companion app
-    this.globalData.userToken = null // Will be set after authentication
+    try {
+      // Mock check - in real implementation, load from secure storage
+      const storedToken = null // localStorage.getItem('biopeak_jwt')
+      const storedDeviceId = null // localStorage.getItem('zepp_device_id')
+      
+      if (storedToken && storedDeviceId) {
+        this.globalData.userToken = storedToken
+        this.globalData.deviceId = storedDeviceId
+        this.globalData.paired = true
+        logger.info('✅ Found stored credentials')
+      } else {
+        logger.info('ℹ️ No stored credentials found - pairing required')
+      }
+    } catch (error) {
+      logger.error('❌ Error loading credentials:', error)
+    }
   },
 
   async handleDeviceRequest(ctx) {
@@ -55,6 +71,8 @@ App({
     try {
       if (payload.type === 'sync_activity') {
         await this.handleActivitySync(payload.data, ctx)
+      } else if (payload.type === 'pair_device') {
+        await this.handleDevicePairing(payload.pairing_code, ctx)
       } else {
         logger.warn('❓ Unknown request type:', payload.type)
         ctx.response({
@@ -76,6 +94,61 @@ App({
     logger.info('📞 Handling device call')
   },
 
+  async handleDevicePairing(pairingCode, ctx) {
+    logger.info('🔗 Starting device pairing with code:', pairingCode)
+    
+    try {
+      const response = await fetch(PAIR_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          pairing_code: pairingCode,
+          device_info: {
+            platform: 'zepp_os',
+            app_version: '1.1.0'
+          }
+        })
+      })
+
+      const responseData = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(responseData.error || `Pairing failed: HTTP ${response.status}`)
+      }
+
+      if (responseData.success && responseData.jwt_token) {
+        // Store credentials
+        this.globalData.userToken = responseData.jwt_token
+        this.globalData.deviceId = responseData.device_id
+        this.globalData.paired = true
+        
+        // In production, store securely
+        // localStorage.setItem('biopeak_jwt', responseData.jwt_token)
+        // localStorage.setItem('zepp_device_id', responseData.device_id)
+        
+        logger.info('✅ Device paired successfully')
+        
+        ctx.response({
+          type: 'pairing_complete',
+          success: true,
+          message: 'Device paired with BioPeak!'
+        })
+      } else {
+        throw new Error('Invalid pairing response')
+      }
+
+    } catch (error) {
+      logger.error('❌ Pairing failed:', error)
+      ctx.response({
+        type: 'pairing_error',
+        error: error.message
+      })
+    }
+  },
+
   async handleActivitySync(activityData, ctx) {
     if (this.globalData.syncing) {
       logger.warn('⏳ Sync already in progress')
@@ -86,15 +159,19 @@ App({
       return
     }
 
+    if (!this.globalData.paired || !this.globalData.userToken) {
+      logger.error('❌ Device not paired with BioPeak')
+      ctx.response({
+        type: 'sync_error',
+        error: 'Device not paired. Please pair with BioPeak first.'
+      })
+      return
+    }
+
     logger.info('🔄 Starting activity sync to BioPeak')
     this.globalData.syncing = true
 
     try {
-      // Check if user is authenticated
-      if (!this.globalData.userToken) {
-        throw new Error('User not authenticated. Please log in to BioPeak first.')
-      }
-
       logger.info('📤 Sending activity data to BioPeak API')
       
       const response = await this.sendToBioPeak(activityData)
@@ -115,6 +192,15 @@ App({
     } catch (error) {
       logger.error('❌ Activity sync failed:', error)
       
+      // Check if token expired
+      if (error.message.includes('Invalid authentication') || error.message.includes('401')) {
+        this.globalData.paired = false
+        this.globalData.userToken = null
+        // Clear stored credentials
+        // localStorage.removeItem('biopeak_jwt')
+        // localStorage.removeItem('zepp_device_id')
+      }
+      
       ctx.response({
         type: 'sync_error',
         error: error.message
@@ -128,13 +214,17 @@ App({
     logger.info('🌐 Making request to BioPeak API')
     
     const requestBody = {
-      device_id: activityData.device_id,
+      device_id: this.globalData.deviceId || activityData.device_id,
       activity_data: activityData.activity_data,
       user_profile: activityData.user_profile,
       sync_timestamp: Date.now()
     }
 
-    logger.info('📦 Request payload:', JSON.stringify(requestBody, null, 2))
+    // Don't log JWT token in plain text
+    logger.info('📦 Request payload (JWT redacted):', {
+      ...requestBody,
+      jwt_present: !!this.globalData.userToken
+    })
 
     try {
       const response = await fetch(BIOPEAK_API_URL, {
@@ -165,18 +255,22 @@ App({
     }
   },
 
-  // Method to set user token (called from companion app)
-  setUserToken(token) {
-    logger.info('🔑 Setting user authentication token')
-    this.globalData.userToken = token
-    
-    // Store token persistently (would use proper storage in production)
-    // For now just keep in memory
+  // Method to check if device is paired
+  isPaired() {
+    return this.globalData.paired && !!this.globalData.userToken
   },
 
-  // Method to check authentication status
-  isAuthenticated() {
-    return !!this.globalData.userToken
+  // Method to clear stored credentials
+  clearCredentials() {
+    this.globalData.userToken = null
+    this.globalData.deviceId = null
+    this.globalData.paired = false
+    
+    // Clear from storage
+    // localStorage.removeItem('biopeak_jwt')
+    // localStorage.removeItem('zepp_device_id')
+    
+    logger.info('🧹 Credentials cleared')
   },
 
   onDestroy() {

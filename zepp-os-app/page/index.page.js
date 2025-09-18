@@ -6,13 +6,13 @@ import { getProfile } from '@zos/user'
 import { getPackageInfo } from '@zos/app'
 
 const logger = Logger.getLogger('biopeak-sync')
-
 const messageBuilder = new MessageBuilder()
 
 Page({
   state: {
     syncing: false,
-    connected: false
+    connected: false,
+    clearStatusTimer: null
   },
 
   build() {
@@ -126,7 +126,7 @@ Page({
     }
   },
 
-  async startSync() {
+  startSync() {
     if (this.state.syncing) {
       logger.info('⏳ Sync already in progress')
       return
@@ -149,28 +149,22 @@ Page({
     vibrator.setMode(VIBRATOR_SCENE_DURATION.VERY_SHORT)
     vibrator.start()
 
-    try {
-      // Collect activity data
-      const activityData = await this.collectActivityData()
-      
-      logger.info('📊 Activity data collected:', activityData)
-      
-      // Send to side service
-      this.statusText.setProperty(prop.TEXT, 'Sending to BioPeak...')
-      
-      messageBuilder.request({
-        type: 'sync_activity',
-        data: activityData,
-        timestamp: Date.now()
-      })
-
-    } catch (error) {
-      logger.error('💥 Sync error:', error)
-      this.onSyncError(error.message)
-    }
+    // Collect activity data (synchronous)
+    const activityData = this.collectActivityData()
+    
+    logger.info('📊 Activity data collected:', activityData)
+    
+    // Send to side service
+    this.statusText.setProperty(prop.TEXT, 'Sending to BioPeak...')
+    
+    messageBuilder.request({
+      type: 'sync_activity',
+      data: activityData,
+      timestamp: Date.now()
+    })
   },
 
-  async collectActivityData() {
+  collectActivityData() {
     logger.info('📊 Collecting activity data from device')
     
     try {
@@ -178,9 +172,8 @@ Page({
       const profile = getProfile()
       const packageInfo = getPackageInfo()
       
-      // Simulate activity data (in real implementation, get from sensors)
-      // Note: Real implementation would use @zos/sensor APIs
-      const mockActivityData = {
+      // Generate activity data (in real implementation, get from sensors)
+      const activityData = {
         device_id: packageInfo?.appId?.toString() || 'zepp_device',
         user_profile: {
           height: profile?.height || null,
@@ -204,7 +197,7 @@ Page({
         }
       }
 
-      return mockActivityData
+      return activityData
       
     } catch (error) {
       logger.error('❌ Error collecting activity data:', error)
@@ -266,13 +259,8 @@ Page({
       vibrator.setMode(VIBRATOR_SCENE_DURATION.SHORT)
       vibrator.start()
       
-      // Reset status after 3 seconds
-      setTimeout(() => {
-        if (this.statusText) {
-          this.statusText.setProperty(prop.TEXT, 'Ready to sync')
-          this.statusText.setProperty(prop.COLOR, 0xffffff)
-        }
-      }, 3000)
+      // Reset status on next click
+      this.state.clearStatusTimer = 'success'
       
     } else {
       this.showError(message || 'Sync failed')
@@ -296,19 +284,23 @@ Page({
     vibrator.setMode(VIBRATOR_SCENE_DURATION.LONG)
     vibrator.start()
     
-    // Reset status after 5 seconds
-    setTimeout(() => {
-      if (this.statusText) {
-        this.statusText.setProperty(prop.TEXT, 'Ready to sync')
-        this.statusText.setProperty(prop.COLOR, 0xffffff)
-      }
-    }, 5000)
+    // Reset status on next click
+    this.state.clearStatusTimer = 'error'
+  },
+
+  // Handle click to reset status messages
+  resetStatusIfNeeded() {
+    if (this.state.clearStatusTimer) {
+      this.statusText.setProperty(prop.TEXT, 'Ready to sync')
+      this.statusText.setProperty(prop.COLOR, 0xffffff)
+      this.state.clearStatusTimer = null
+    }
   },
 
   onDestroy() {
     logger.info('🔚 BioPeak Sync App destroyed')
     if (messageBuilder) {
-      messageBuilder.disConnect()
+      messageBuilder.disconnect() // Fixed: was disConnect()
     }
   }
 })
