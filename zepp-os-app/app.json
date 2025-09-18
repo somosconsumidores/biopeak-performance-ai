@@ -53,7 +53,7 @@
       "platforms": ["2.0"]
     },
     {
-      "name": "snowy", 
+      "name": "snowy",
       "platforms": ["2.0"]
     },
     {
@@ -61,7 +61,11 @@
       "platforms": ["2.0"]
     },
     {
-      "name": "rex",
+      "name": "stanley",
+      "platforms": ["2.0"]
+    },
+    {
+      "name": "everest",
       "platforms": ["2.0"]
     },
     {
