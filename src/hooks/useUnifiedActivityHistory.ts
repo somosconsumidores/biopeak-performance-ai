@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface UnifiedActivity {
   id: string;
   activity_id: string;
-  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'HEALTHKIT';
+  source: 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT';
   activity_type: string | null;
   activity_date: string | null;
   duration_in_seconds: number | null;
@@ -132,6 +132,8 @@ export function useUnifiedActivityHistory(limit?: number) {
       ? 'Strava GPX' 
       : activity.device_name === 'Zepp GPX'
       ? 'Zepp GPX'
+      : activity.source === 'ZEPP'
+      ? 'Zepp Sync'
       : activity.source === 'HEALTHKIT'
       ? 'Apple Watch'
       : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
@@ -171,17 +173,18 @@ export function useUnifiedActivityHistory(limit?: number) {
   };
 
   // Helper function para mapear fonte da atividade
-  const mapActivitySource = (source: string): 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'HEALTHKIT' => {
-    switch (source?.toLowerCase()) {
-      case 'garmin': return 'GARMIN';
-      case 'strava':
-      case 'strava_gpx': return 'STRAVA';
-      case 'polar': return 'POLAR';
-      case 'zepp':
-      case 'zepp_gpx': return 'ZEPP';
-      case 'healthkit': return 'HEALTHKIT';
-      default: return 'GARMIN';
-    }
+  const mapActivitySource = (source: string): 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT' => {
+    const sourceMap: Record<string, 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT'> = {
+      'garmin': 'GARMIN',
+      'strava': 'STRAVA', 
+      'strava_gpx': 'STRAVA',
+      'polar': 'POLAR',
+      'biopeak': 'BIOPEAK',
+      'zepp': 'ZEPP',
+      'zepp_gpx': 'ZEPP_GPX',
+      'healthkit': 'HEALTHKIT'
+    };
+    return sourceMap[source] || 'BIOPEAK';
   };
 
   return {
