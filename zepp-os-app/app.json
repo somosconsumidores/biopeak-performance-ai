@@ -47,26 +47,26 @@
     }
   },
   "defaultLanguage": "en-US",
-  "targets": {
-    "pamir": {
-      "name": "Amazfit GTR 3/GTR 3 Pro/T-Rex 2",
+  "targets": [
+    {
+      "name": "pamir",
       "platforms": ["2.0"]
     },
-    "snowy": {
-      "name": "Amazfit Bip 3/Bip 3 Pro",
+    {
+      "name": "snowy", 
       "platforms": ["2.0"]
     },
-    "milan": {
-      "name": "Amazfit GTS 3",
+    {
+      "name": "milan",
       "platforms": ["2.0"]
     },
-    "rex": {
-      "name": "Amazfit T-Rex Pro",
+    {
+      "name": "rex",
       "platforms": ["2.0"]
     },
-    "band7": {
-      "name": "Amazfit Band 7",
+    {
+      "name": "band7",
       "platforms": ["2.0"]
     }
-  }
+  ]
 }
