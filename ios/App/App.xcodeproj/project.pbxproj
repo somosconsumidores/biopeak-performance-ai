@@ -15,7 +15,6 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		6989684D2E74C20D00229971 /* BioPeakHealthKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */; };
-		6989684E2E74C20D00229971 /* BioPeakHealthKit.m in Sources */ = {isa = PBXBuildFile; fileRef = 6989684B2E74C20D00229971 /* BioPeakHealthKit.m */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
 /* End PBXBuildFile section */
 
@@ -30,7 +29,6 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		695826A12E744D0C00F03165 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
-		6989684B2E74C20D00229971 /* BioPeakHealthKit.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BioPeakHealthKit.m; sourceTree = "<group>"; };
 		6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BioPeakHealthKit.swift; sourceTree = "<group>"; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
@@ -78,7 +76,6 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				6989684B2E74C20D00229971 /* BioPeakHealthKit.m */,
 				6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */,
 				695826A12E744D0C00F03165 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -232,7 +229,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				6989684D2E74C20D00229971 /* BioPeakHealthKit.swift in Sources */,
-				6989684E2E74C20D00229971 /* BioPeakHealthKit.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
