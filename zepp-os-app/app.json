@@ -46,5 +46,38 @@
       "name": "BioPeak Sync"
     }
   },
-  "targets": ["gtr_4", "gts_4"]
+  "targets": {
+    "gtr_4": {
+      "module": {
+        "page": {
+          "pages": ["page/index"]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "pamir",
+          "deviceSource": 7995648
+        }
+      ]
+    },
+    "gts_4": {
+      "module": {
+        "page": {
+          "pages": ["page/index"]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "snowy",
+          "deviceSource": 7995649
+        }
+      ]
+    }
+  }
 }
