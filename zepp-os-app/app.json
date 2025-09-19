@@ -1,7 +1,7 @@
 {
   "configVersion": "v3.0",
   "app": {
-    "appId": 1013562,
+    "appId": 1088977,
     "appName": "BioPeak Sync",
     "appType": "app",
     "version": {
@@ -28,123 +28,23 @@
       "compatible": "3.6"
     }
   },
+  "pages": ["page/index"],
+  "module": {
+    "page": {
+      "pages": ["page/index"]
+    },
+    "app-side": {
+      "path": "app-side/index"
+    }
+  },
+  "defaultLanguage": "en-US",
   "i18n": {
     "en-US": {
       "name": "BioPeak Sync"
     },
     "pt-BR": {
-      "name": "BioPeak Sync"  
+      "name": "BioPeak Sync"
     }
   },
-  "defaultLanguage": "en-US",
-  "targets": {
-    "gtr_4": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "pamir",
-          "deviceSource": 7995648
-        }
-      ]
-    },
-    "gts_4": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "snowy",
-          "deviceSource": 7995649
-        }
-      ]
-    },
-    "gts_4_mini": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "milan",
-          "deviceSource": 7995650
-        }
-      ]
-    },
-    "t_rex_2": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "stanley",
-          "deviceSource": 7995651
-        }
-      ]
-    },
-    "gtr_3": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "everest",
-          "deviceSource": 7995652
-        }
-      ]
-    },
-    "band_7": {
-      "module": {
-        "page": {
-          "pages": [
-            "page/index"
-          ]
-        },
-        "app-side": {
-          "path": "app-side/index"
-        }
-      },
-      "platforms": [
-        {
-          "name": "band7",
-          "deviceSource": 260
-        }
-      ]
-    }
-  }
+  "targets": ["gtr_4", "gts_4"]
 }
