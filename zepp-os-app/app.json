@@ -51,27 +51,27 @@
   "targets": [
     {
       "name": "pamir",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     },
     {
       "name": "snowy",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     },
     {
       "name": "milan",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     },
     {
       "name": "stanley",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     },
     {
       "name": "everest",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     },
     {
       "name": "band7",
-      "platforms": ["2.0"]
+      "platforms": ["3.0"]
     }
   ]
 }
