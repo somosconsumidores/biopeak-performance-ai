@@ -11,6 +11,7 @@
     },
     "icon": "icon.png",
     "vendor": "BioPeak",
+    "vender": "BioPeak",
     "description": "Sync your workouts with BioPeak AI platform"
   },
   "permissions": [
