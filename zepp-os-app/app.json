@@ -26,19 +26,6 @@
       "targetVersion": "3.6"
     }
   },
-  "pages": [
-    "page/index"
-  ],
-  "module": {
-    "page": {
-      "pages": [
-        "page/index"
-      ]
-    },
-    "app-side": {
-      "path": "app-side/index"
-    }
-  },
   "i18n": {
     "en-US": {
       "name": "BioPeak Sync"
@@ -48,30 +35,114 @@
     }
   },
   "defaultLanguage": "en-US",
-  "targets": [
-    {
-      "name": "pamir",
-      "platforms": ["3.0"]
+  "targets": {
+    "gtr_4": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "pamir",
+          "deviceSource": 7995648
+        }
+      ]
     },
-    {
-      "name": "snowy",
-      "platforms": ["3.0"]
+    "gts_4": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "snowy",
+          "deviceSource": 7995649
+        }
+      ]
     },
-    {
-      "name": "milan",
-      "platforms": ["3.0"]
+    "gts_4_mini": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "milan",
+          "deviceSource": 7995650
+        }
+      ]
     },
-    {
-      "name": "stanley",
-      "platforms": ["3.0"]
+    "t_rex_2": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "stanley",
+          "deviceSource": 7995651
+        }
+      ]
     },
-    {
-      "name": "everest",
-      "platforms": ["3.0"]
+    "gtr_3": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "everest",
+          "deviceSource": 7995652
+        }
+      ]
     },
-    {
-      "name": "band7",
-      "platforms": ["3.0"]
+    "band_7": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "band7",
+          "deviceSource": 260
+        }
+      ]
     }
-  ]
+  }
 }
