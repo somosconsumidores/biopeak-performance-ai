@@ -10,6 +10,7 @@
     },
     "icon": "icon.png",
     "vendor": "BioPeak",
+    "vender": "BioPeak",
     "description": "Sync your workouts with BioPeak AI platform"
   },
   "permissions": [
@@ -22,8 +23,9 @@
   ],
   "runtime": {
     "apiVersion": {
-      "minVersion": "3.0",
-      "targetVersion": "3.6"
+      "minVersion": "2.0",
+      "target": "3.6",
+      "compatible": "3.6"
     }
   },
   "i18n": {
