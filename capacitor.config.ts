@@ -98,6 +98,11 @@ const config: CapacitorConfig = {
     ]
   },
   ios: {
+    webSecurity: true,
+    allowsLinkPreview: false,
+    allowsInlineMediaPlayback: true,
+    allowsBackForwardNavigationGestures: true,
+    scrollEnabled: true,
     permissions: [
       "NSLocationWhenInUseUsageDescription",
       "NSLocationAlwaysAndWhenInUseUsageDescription", 

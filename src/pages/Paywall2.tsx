@@ -140,8 +140,15 @@ const Paywall2 = () => {
       return;
     }
 
-    console.log('🔵 Starting Stripe checkout', { userEmail: user.email });
+    console.log('🔵 Starting Stripe checkout', { userEmail: user.email, isPWA, isIOS });
     setLoading(true);
+    
+    // Pre-open window for iOS PWA to avoid popup blocker
+    let checkoutWindow: Window | null = null;
+    if (isPWA && isIOS) {
+      console.log('🔵 Pre-opening window for iOS PWA');
+      checkoutWindow = window.open('about:blank', '_blank');
+    }
     
     try {
       console.log('🔵 Calling Supabase function: create-flash-checkout');
@@ -156,18 +163,45 @@ const Paywall2 = () => {
 
       if (error) {
         console.error('🔴 Supabase function error:', error);
+        // Close pre-opened window on error
+        if (checkoutWindow) {
+          checkoutWindow.close();
+        }
         throw new Error(error.message || 'Erro ao criar sessão de checkout');
       }
 
       if (data?.url) {
         console.log('🔵 Redirecting to checkout URL:', data.url);
-        window.open(data.url, '_blank');
+        
+        // Handle different redirect methods based on platform
+        if (isPWA && isIOS) {
+          // For iOS PWA, use direct redirect to avoid popup blocker
+          if (checkoutWindow && !checkoutWindow.closed) {
+            checkoutWindow.location.href = data.url;
+          } else {
+            // Fallback: direct redirect in same window
+            window.location.href = data.url;
+          }
+        } else {
+          // For other platforms, use new tab
+          window.open(data.url, '_blank');
+        }
       } else {
         console.error('🔴 No URL returned from function:', data);
+        // Close pre-opened window on error
+        if (checkoutWindow) {
+          checkoutWindow.close();
+        }
         throw new Error('URL de checkout não retornada');
       }
     } catch (error) {
       console.error('🔴 Error in handleStripeCheckout:', error);
+      
+      // Close pre-opened window on error
+      if (checkoutWindow) {
+        checkoutWindow.close();
+      }
+      
       toast({
         title: "Erro no checkout",
         description: error instanceof Error ? error.message : "Erro desconhecido",
