@@ -7,19 +7,21 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Purchases } from '@revenuecat/purchases-capacitor';
+import { usePlatform } from "@/hooks/usePlatform";
+import { revenueCat, RevenueCatOffering } from '@/lib/revenuecat';
 
 const Paywall2 = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isIOS, isNative, isWeb } = usePlatform();
   const [selectedPlan, setSelectedPlan] = useState<'monthly'>('monthly');
   const [loading, setLoading] = useState(false);
-  const [offerings, setOfferings] = useState<any>(null);
+  const [offerings, setOfferings] = useState<RevenueCatOffering | null>(null);
+  const [revenueCatInitialized, setRevenueCatInitialized] = useState(false);
 
-  // Check if it's iOS and native
-  const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor;
+  // Detect if running as PWA
+  const isPWA = isWeb && window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(() => {
     // Check for payment success/cancel from URL params
@@ -45,116 +47,91 @@ const Paywall2 = () => {
     }
   }, [toast, navigate]);
 
-  // RevenueCat setup for iOS native
+  // RevenueCat setup for iOS native only (not PWA)
   useEffect(() => {
-    if (isIOS && isNative) {
+    if (isIOS && isNative && !isPWA && user) {
       const setupRevenueCat = async () => {
         try {
-          await Purchases.configure({ apiKey: 'appl_CFaOBXjJvboUQakGWvqECJqHwEj' });
-          const offerings = await Purchases.getOfferings();
-          console.log('RevenueCat offerings:', offerings);
-          setOfferings(offerings);
+          console.log('🔵 Initializing RevenueCat for iOS native user:', user.id);
+          await revenueCat.initialize(user.id);
+          setRevenueCatInitialized(true);
+          
+          const currentOfferings = await revenueCat.getOfferings();
+          console.log('🔵 RevenueCat offerings loaded:', currentOfferings);
+          setOfferings(currentOfferings);
         } catch (error) {
-          console.error('RevenueCat setup error:', error);
+          console.error('🔴 RevenueCat setup error:', error);
+          // Don't set error state - we'll fallback to Stripe
+          setRevenueCatInitialized(false);
         }
       };
       setupRevenueCat();
+    } else {
+      console.log('🔵 Skipping RevenueCat setup:', { isIOS, isNative, isPWA, hasUser: !!user });
     }
-  }, [isIOS, isNative]);
+  }, [isIOS, isNative, isPWA, user]);
 
   const handleClose = () => {
     navigate('/');
   };
 
   const handleRevenueCatPurchase = async () => {
-    if (!offerings?.current) {
-      console.error('No offerings available');
+    if (!user) {
       toast({
         title: "Erro",
-        description: "Ofertas não disponíveis no momento. Tente novamente.",
+        description: "Você precisa estar logado para assinar.",
         variant: "destructive"
       });
       return;
     }
 
+    if (!revenueCatInitialized || !offerings) {
+      console.error('🔴 RevenueCat not properly initialized or no offerings');
+      // Fallback to Stripe
+      await handleStripeCheckout();
+      return;
+    }
+
     setLoading(true);
     try {
-      const packageToPurchase = offerings.current.monthly;
-        
-      if (!packageToPurchase) {
+      console.log('🔵 Attempting RevenueCat purchase with offerings:', offerings);
+      
+      if (!offerings.monthly) {
         throw new Error('Pacote mensal não encontrado');
       }
 
-      const purchaseResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
-      console.log('Purchase successful:', purchaseResult);
+      const customerInfo = await revenueCat.purchasePackage('monthly');
+      console.log('🔵 Purchase successful:', customerInfo);
       
-      toast({
-        title: "🎉 Compra realizada com sucesso!",
-        description: "Bem-vindo ao BioPeak Premium!",
-      });
+      // Verify purchase was successful
+      const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
       
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Purchase error:', error);
-      toast({
-        title: "Erro na compra",
-        description: "Não foi possível processar a compra. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestorePurchases = async () => {
-    if (!isIOS || !isNative) return;
-    
-    setLoading(true);
-    try {
-      const restoredPurchases = await Purchases.restorePurchases();
-      console.log('Restored purchases:', restoredPurchases);
-      
-      if (restoredPurchases.customerInfo.activeSubscriptions.length > 0) {
+      if (hasPremium) {
         toast({
-          title: "✅ Compras restauradas!",
-          description: "Suas assinaturas foram restauradas com sucesso.",
+          title: "🎉 Compra realizada com sucesso!",
+          description: "Bem-vindo ao BioPeak Premium!",
         });
         navigate('/dashboard');
       } else {
-        toast({
-          title: "Nenhuma compra encontrada",
-          description: "Não encontramos assinaturas ativas para restaurar.",
-        });
+        throw new Error('Purchase completed but premium not activated');
       }
-    } catch (error) {
-      console.error('Restore error:', error);
-      toast({
-        title: "Erro ao restaurar",
-        description: "Não foi possível restaurar as compras.",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      console.error('🔴 RevenueCat purchase error:', error);
+      
+      // Don't show error if user cancelled
+      if (error.code !== '1' && !error.message?.includes('cancelled')) {
+        // Fallback to Stripe on error
+        console.log('🔵 Falling back to Stripe checkout');
+        await handleStripeCheckout();
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartNow = async () => {
-    console.log('🔵 handleStartNow called', { selectedPlan, isIOS, isNative, user: !!user });
-    
-    if (isIOS && isNative) {
-      console.log('🔵 iOS Native - calling handleRevenueCatPurchase');
-      await handleRevenueCatPurchase();
-      return;
-    }
-
-    if (!user) {
-      console.log('🔵 No user, redirecting to auth with plan');
-      navigate('/auth?plan=monthly');
-      return;
-    }
-
-    if (!user.email) {
-      console.log('🔵 No email, cannot proceed');
+  const handleStripeCheckout = async () => {
+    if (!user?.email) {
+      console.log('🔴 No user email, cannot proceed with Stripe');
       toast({
         title: "Erro de autenticação",
         description: "Email do usuário não encontrado",
@@ -163,7 +140,7 @@ const Paywall2 = () => {
       return;
     }
 
-    console.log('🔵 Starting Stripe checkout', { selectedPlan, userEmail: user.email });
+    console.log('🔵 Starting Stripe checkout', { userEmail: user.email });
     setLoading(true);
     
     try {
@@ -190,7 +167,7 @@ const Paywall2 = () => {
         throw new Error('URL de checkout não retornada');
       }
     } catch (error) {
-      console.error('🔴 Error in handleStartNow:', error);
+      console.error('🔴 Error in handleStripeCheckout:', error);
       toast({
         title: "Erro no checkout",
         description: error instanceof Error ? error.message : "Erro desconhecido",
@@ -199,6 +176,86 @@ const Paywall2 = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (!isIOS || !isNative || isPWA) return;
+
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para restaurar compras.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await revenueCat.initialize(user.id);
+      const customerInfo = await revenueCat.restorePurchases();
+      console.log('🔵 Restored purchases:', customerInfo);
+      
+      const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
+      
+      if (hasPremium) {
+        toast({
+          title: "✅ Compras restauradas!",
+          description: "Suas assinaturas foram restauradas com sucesso.",
+        });
+        navigate('/dashboard');
+      } else {
+        toast({
+          title: "Nenhuma compra encontrada",
+          description: "Não encontramos assinaturas ativas para restaurar.",
+        });
+      }
+    } catch (error) {
+      console.error('🔴 Restore error:', error);
+      toast({
+        title: "Erro ao restaurar",
+        description: "Não foi possível restaurar as compras.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartNow = async () => {
+    console.log('🔵 handleStartNow called', { 
+      selectedPlan, 
+      isIOS, 
+      isNative, 
+      isPWA, 
+      user: !!user,
+      revenueCatInitialized,
+      hasOfferings: !!offerings 
+    });
+    
+    // Always use Stripe for PWA, regardless of platform
+    if (isPWA) {
+      console.log('🔵 PWA detected - using Stripe checkout');
+      await handleStripeCheckout();
+      return;
+    }
+    
+    // Use RevenueCat only for native iOS apps
+    if (isIOS && isNative && !isPWA) {
+      console.log('🔵 iOS Native - attempting RevenueCat purchase');
+      await handleRevenueCatPurchase();
+      return;
+    }
+
+    // Default to Stripe for web and other platforms
+    if (!user) {
+      console.log('🔵 No user, redirecting to auth with plan');
+      navigate('/auth?plan=monthly');
+      return;
+    }
+
+    console.log('🔵 Using Stripe checkout for web/other platforms');
+    await handleStripeCheckout();
   };
 
   const benefits = [
@@ -277,7 +334,7 @@ const Paywall2 = () => {
                 <h3 className="font-semibold">Plano Mensal</h3>
               </div>
               <p className="text-2xl font-bold mb-1">
-                {isIOS && isNative && offerings?.monthly 
+                {isIOS && isNative && !isPWA && offerings?.monthly 
                   ? offerings.monthly.priceString 
                   : "R$ 12,90"
                 }
@@ -303,7 +360,7 @@ const Paywall2 = () => {
             {loading ? 'Processando...' : 'Começar Agora'}
           </Button>
           
-          {isIOS && isNative && (
+          {isIOS && isNative && !isPWA && (
             <Button 
               variant="outline" 
               onClick={handleRestorePurchases}
@@ -324,7 +381,7 @@ const Paywall2 = () => {
           </Button>
           
           <p className="text-xs text-muted-foreground text-center">
-            {isIOS && isNative 
+            {isIOS && isNative && !isPWA
               ? "Assinatura gerenciada pela App Store. Pode ser cancelada nas configurações do iOS."
               : "Assinatura renovada automaticamente. Pode ser cancelada a qualquer momento."
             }
