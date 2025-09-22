@@ -107,8 +107,8 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         let heartRates: number[] = [];
         let paces: number[] = [];
 
-        // PRIORITY 1: Try activity_chart_data for Garmin and Strava
-        if (activity.source === 'GARMIN' || activity.source === 'STRAVA') {
+        // PRIORITY 1: Try activity_chart_data for Garmin, Strava, and HealthKit
+        if (activity.source === 'GARMIN' || activity.source === 'STRAVA' || activity.source === 'HEALTHKIT') {
           console.log(`🔍 [Variation] Trying activity_chart_data for ${activity.source} activity ${activity.activity_id} (attempt ${attempt})`);
           
           const chartDataResult = await fetchFromActivityChartData(activity.activity_id);
