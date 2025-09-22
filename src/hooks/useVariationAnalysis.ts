@@ -19,55 +19,144 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // NEW: Fetch from activity_chart_data (prioritized for Garmin and Strava)
-  const fetchFromActivityChartData = async (activityId: string): Promise<{ heartRates: number[], paces: number[] } | null> => {
+  // NEW: Fallback to HealthKit raw data for native apps
+  const fetchHealthKitRawData = async (activityId: string): Promise<{ heartRates: number[], paces: number[] } | null> => {
     try {
-      console.log('🔍 [Variation] Fetching from activity_chart_data for activity:', activityId);
+      console.log('🔍 [Variation] Fetching HealthKit raw data for activity:', activityId);
       
-      const { data: chartData, error } = await supabase
-        .from('activity_chart_data')
-        .select('series_data, activity_source, data_points_count')
-        .eq('activity_id', activityId)
+      const { data: rawData, error } = await supabase
+        .from('healthkit_raw_workout_data')
+        .select('heart_rate_data, distance_data, duration_seconds')
+        .eq('healthkit_uuid', activityId)
         .single();
 
-      if (error) {
-        console.log('❌ [Variation] No data in activity_chart_data:', error.message);
+      if (error || !rawData) {
+        console.log('❌ [Variation] No HealthKit raw data found:', error?.message);
         return null;
       }
-
-      if (!chartData || !chartData.series_data || !Array.isArray(chartData.series_data)) {
-        console.log('❌ [Variation] Invalid series_data in activity_chart_data');
-        return null;
-      }
-
-      console.log(`✅ [Variation] Found ${chartData.data_points_count} data points from activity_chart_data (${chartData.activity_source})`);
 
       const heartRates: number[] = [];
       const paces: number[] = [];
 
-      chartData.series_data.forEach((point: any) => {
-        // Extract heart rate
-        const hr = point.heart_rate || point.hr || 0;
-        if (hr > 0) {
-          heartRates.push(hr);
-        }
+      // Extract heart rate data
+      if (rawData.heart_rate_data && Array.isArray(rawData.heart_rate_data)) {
+        rawData.heart_rate_data.forEach((hrPoint: any) => {
+          if (hrPoint.value && hrPoint.value > 0) {
+            heartRates.push(hrPoint.value);
+          }
+        });
+      }
 
-        // Extract pace
-        let pace = null;
-        if (point.pace_min_km !== undefined && point.pace_min_km > 0) {
-          pace = point.pace_min_km;
-        } else if (point.speed_ms !== undefined && point.speed_ms > 0) {
-          pace = (1000 / point.speed_ms) / 60;
+      // Calculate pace from distance data
+      if (rawData.distance_data && Array.isArray(rawData.distance_data) && rawData.duration_seconds) {
+        const totalDistance = rawData.distance_data.reduce((sum: number, point: any) => sum + (point.value || 0), 0);
+        if (totalDistance > 0) {
+          const avgPaceMinPerKm = (rawData.duration_seconds / 60) / (totalDistance / 1000);
+          // Create synthetic pace data points
+          for (let i = 0; i < Math.min(heartRates.length, 100); i++) {
+            paces.push(avgPaceMinPerKm);
+          }
         }
+      }
 
-        if (pace && pace > 0) {
-          paces.push(pace);
-        }
+      console.log(`✅ [Variation] HealthKit raw data: ${heartRates.length} HR, ${paces.length} pace samples`);
+      return heartRates.length >= 10 ? { heartRates, paces } : null;
+    } catch (err) {
+      console.error('❌ [Variation] Error fetching HealthKit raw data:', err);
+      return null;
+    }
+  };
+
+  // NEW: Fetch from activity_chart_data (prioritized for Garmin and Strava)
+  const fetchFromActivityChartData = async (activityId: string): Promise<{ heartRates: number[], paces: number[] } | null> => {
+    try {
+      console.log('🔍 [Variation] Fetching from activity_chart_data for activity:', activityId);
+      console.log('🔍 [Variation] Platform info:', {
+        platform: window.navigator?.platform,
+        isNative: (window as any).Capacitor?.isNativePlatform?.(),
+        userAgent: window.navigator?.userAgent
       });
-
-      console.log(`✅ [Variation] Extracted ${heartRates.length} HR samples, ${paces.length} pace samples`);
       
-      return heartRates.length >= 10 || paces.length >= 10 ? { heartRates, paces } : null;
+      // Add retry logic specifically for native platforms
+      const maxRetries = (window as any).Capacitor?.isNativePlatform?.() ? 5 : 3;
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔍 [Variation] Attempt ${attempt}/${maxRetries} to fetch activity_chart_data`);
+          
+          const { data: chartData, error } = await supabase
+            .from('activity_chart_data')
+            .select('series_data, activity_source, data_points_count')
+            .eq('activity_id', activityId)
+            .single();
+
+          if (error) {
+            console.log(`❌ [Variation] No data in activity_chart_data (attempt ${attempt}):`, error.message);
+            lastError = error;
+            
+            // If it's an auth error, wait longer before retry
+            if (error.message?.includes('JWT') || error.message?.includes('auth')) {
+              console.log('🔍 [Variation] Auth error detected, waiting longer before retry...');
+              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+              continue;
+            }
+            
+            // For non-auth errors, fail fast on first attempt
+            if (attempt === 1) {
+              return null;
+            }
+            continue;
+          }
+
+          if (!chartData || !chartData.series_data || !Array.isArray(chartData.series_data)) {
+            console.log('❌ [Variation] Invalid series_data in activity_chart_data');
+            return null;
+          }
+
+          console.log(`✅ [Variation] Found ${chartData.data_points_count} data points from activity_chart_data (${chartData.activity_source})`);
+
+          const heartRates: number[] = [];
+          const paces: number[] = [];
+
+          chartData.series_data.forEach((point: any) => {
+            // Extract heart rate
+            const hr = point.heart_rate || point.hr || 0;
+            if (hr > 0) {
+              heartRates.push(hr);
+            }
+
+            // Extract pace
+            let pace = null;
+            if (point.pace_min_km !== undefined && point.pace_min_km > 0) {
+              pace = point.pace_min_km;
+            } else if (point.speed_ms !== undefined && point.speed_ms > 0) {
+              pace = (1000 / point.speed_ms) / 60;
+            }
+
+            if (pace && pace > 0) {
+              paces.push(pace);
+            }
+          });
+
+          console.log(`✅ [Variation] Extracted ${heartRates.length} HR samples, ${paces.length} pace samples`);
+          
+          return heartRates.length >= 10 || paces.length >= 10 ? { heartRates, paces } : null;
+          
+        } catch (attemptError) {
+          console.error(`❌ [Variation] Error on attempt ${attempt}:`, attemptError);
+          lastError = attemptError;
+          
+          if (attempt < maxRetries) {
+            const backoffDelay = attempt * 1000;
+            console.log(`🔍 [Variation] Waiting ${backoffDelay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          }
+        }
+      }
+      
+      console.error('❌ [Variation] All attempts failed, last error:', lastError);
+      return null;
     } catch (err) {
       console.error('❌ [Variation] Error fetching from activity_chart_data:', err);
       return null;
@@ -110,18 +199,42 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         // PRIORITY 1: Try activity_chart_data for Garmin, Strava, and HealthKit
         if (activity.source === 'GARMIN' || activity.source === 'STRAVA' || activity.source === 'HEALTHKIT') {
           console.log(`🔍 [Variation] Trying activity_chart_data for ${activity.source} activity ${activity.activity_id} (attempt ${attempt})`);
+          console.log('🔍 [Variation] Auth status:', {
+            hasUser: !!user,
+            userId: user?.id?.substring(0, 8) + '...',
+            isNative: (window as any).Capacitor?.isNativePlatform?.()
+          });
           
           const chartDataResult = await fetchFromActivityChartData(activity.activity_id);
           if (chartDataResult) {
             heartRates = chartDataResult.heartRates;
             paces = chartDataResult.paces;
             console.log(`✅ [Variation] Using activity_chart_data: ${heartRates.length} HR, ${paces.length} pace samples`);
+          } else {
+            console.log(`❌ [Variation] No chart data available for ${activity.source} activity ${activity.activity_id}`);
+            
+            // For HealthKit on native, try to use raw HealthKit data as fallback
+            if (activity.source === 'HEALTHKIT' && (window as any).Capacitor?.isNativePlatform?.()) {
+              console.log('🔍 [Variation] Trying HealthKit raw data fallback...');
+              const healthkitFallback = await fetchHealthKitRawData(activity.activity_id);
+              if (healthkitFallback) {
+                heartRates = healthkitFallback.heartRates;
+                paces = healthkitFallback.paces;
+                console.log(`✅ [Variation] Using HealthKit raw data: ${heartRates.length} HR, ${paces.length} pace samples`);
+              }
+            }
           }
         }
 
         // FALLBACK: Use legacy data sources for other sources or if chart data not available
         if (heartRates.length < 10 && paces.length < 10) {
           console.log(`🔍 [Variation] Fallback to legacy sources for ${activity.source} activity ${activity.activity_id} (attempt ${attempt})`);
+          console.log('🔍 [Variation] Current data state:', {
+            heartRatesCount: heartRates.length,
+            pacesCount: paces.length,
+            source: activity.source,
+            isNative: (window as any).Capacitor?.isNativePlatform?.()
+          });
           
           let activityDetails: any[] = [];
           let detailsError: any = null;
