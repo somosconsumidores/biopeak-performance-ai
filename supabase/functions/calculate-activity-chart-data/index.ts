@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-type Source = 'garmin' | 'strava' | 'polar' | 'strava_gpx' | 'zepp_gpx'
+type Source = 'garmin' | 'strava' | 'polar' | 'strava_gpx' | 'zepp_gpx' | 'healthkit'
 
 interface CalcBody {
   user_id?: string
@@ -150,6 +150,9 @@ Deno.serve(async (req) => {
         case 'zepp_gpx':
           query = supabase.from('zepp_gpx_activity_details').select('user_id').eq('activity_id', activity_id).limit(1)
           break
+        case 'healthkit':
+          query = supabase.from('healthkit_activities').select('user_id').eq('healthkit_uuid', activity_id).limit(1)
+          break
       }
       if (query) {
         const { data, error } = await query
@@ -161,6 +164,7 @@ Deno.serve(async (req) => {
       if (activity_source === 'garmin') summaryLookups.push({ table: 'garmin_activities', column: 'activity_id', value: activity_id })
       if (activity_source === 'polar') summaryLookups.push({ table: 'polar_activities', column: 'activity_id', value: activity_id })
       if (activity_source === 'strava') summaryLookups.push({ table: 'strava_activities', column: 'strava_activity_id', value: Number(activity_id) })
+      if (activity_source === 'healthkit') summaryLookups.push({ table: 'healthkit_activities', column: 'healthkit_uuid', value: activity_id })
       for (const s of summaryLookups) {
         const { data, error } = await supabase.from(s.table).select('user_id').eq(s.column, s.value).limit(1)
         if (!error && data && data.length > 0 && data[0]?.user_id) return data[0].user_id
@@ -213,6 +217,48 @@ Deno.serve(async (req) => {
         { user_id: uid, activity_id },
         { column: 'sample_timestamp', ascending: true }
       )
+    } else if (activity_source === 'healthkit') {
+      // HealthKit data structure is different - stored in healthkit_activities with raw_data JSONB
+      const { data: healthkitActivity, error } = await supabase
+        .from('healthkit_activities')
+        .select('raw_data, start_time, duration_seconds, distance_meters, average_heart_rate, max_heart_rate')
+        .eq('user_id', uid)
+        .eq('healthkit_uuid', activity_id)
+        .maybeSingle()
+      
+      if (error) throw error
+      if (!healthkitActivity?.raw_data?.series) {
+        return new Response(JSON.stringify({ success: false, message: 'No HealthKit series data found' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Convert HealthKit JSONB series data to normalized format
+      const heartRateData = healthkitActivity.raw_data.series.heartRate || []
+      const energyData = healthkitActivity.raw_data.series.energy || []
+      
+      // Create synthetic rows by combining heart rate data with activity summary
+      rows = heartRateData.map((hr: any, index: number) => {
+        const timestamp = new Date(hr.timestamp).getTime() / 1000 // Convert to Unix timestamp
+        const activityStartTime = new Date(healthkitActivity.start_time).getTime() / 1000
+        const relativeTime = timestamp - activityStartTime
+        
+        // Estimate distance based on time progression and total distance
+        const progressRatio = relativeTime / (healthkitActivity.duration_seconds || 1)
+        const estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio))
+        
+        // Calculate speed from distance progression
+        const speed = index > 0 && relativeTime > 0 ? estimatedDistance / relativeTime : null
+        
+        return {
+          sample_timestamp: timestamp,
+          timer_duration_in_seconds: relativeTime,
+          heart_rate: hr.value,
+          total_distance_in_meters: estimatedDistance,
+          speed_meters_per_second: speed,
+        }
+      }).filter((row: any) => row.sample_timestamp && row.heart_rate)
     }
 
     if (!rows || rows.length === 0) {
