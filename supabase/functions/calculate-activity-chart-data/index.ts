@@ -269,93 +269,106 @@ Deno.serve(async (req) => {
         return minDiff <= 30000 ? closest.value : null
       }
       
-      // First pass: Create base rows with timestamps and distances
-      const baseRows = primaryData.map((dataPoint: any, index: number) => {
-        const timestamp = new Date(dataPoint.timestamp).getTime() / 1000
+      // Calculate time intervals and realistic speeds based on energy expenditure
+      let cumulativeDistance = 0
+      const totalDistance = healthkitActivity.distance_meters || 0
+      const totalDuration = healthkitActivity.duration_seconds || 1
+      
+      // Create realistic speed profile using energy data
+      const energyBasedSpeeds = energyData.map((energyPoint: any, index: number) => {
+        const currentEnergy = energyPoint.value || 0
+        const timestamp = new Date(energyPoint.timestamp).getTime() / 1000
+        const endTimestamp = energyPoint.endTimestamp ? new Date(energyPoint.endTimestamp).getTime() / 1000 : timestamp + 1
+        const duration = Math.max(0.1, endTimestamp - timestamp) // Minimum 0.1 second duration
+        
+        // Calculate speed based on energy expenditure
+        // Higher energy = higher speed (but not linearly)
+        const baseSpeed = totalDistance / totalDuration // Average speed for the activity
+        
+        // Normalize energy to create speed variation
+        const maxEnergy = Math.max(...energyData.map((e: any) => e.value || 0))
+        const minEnergy = Math.min(...energyData.map((e: any) => e.value || 0))
+        const energyRange = maxEnergy - minEnergy
+        
+        let speedMultiplier = 1.0 // Default to average speed
+        if (energyRange > 0) {
+          // Normalize current energy (0 to 1)
+          const normalizedEnergy = (currentEnergy - minEnergy) / energyRange
+          // Create speed variation: energy 0.0 = 70% of base speed, energy 1.0 = 150% of base speed
+          speedMultiplier = 0.7 + (normalizedEnergy * 0.8)
+        }
+        
+        const speed = baseSpeed * speedMultiplier
+        
+        return {
+          timestamp,
+          endTimestamp,
+          duration,
+          speed: Math.max(0.5, Math.min(10, speed)), // Reasonable bounds
+          energy: currentEnergy
+        }
+      })
+      
+      // Build data points based on energy timestamps
+      rows = energyBasedSpeeds.map((energySpeed: any, index: number) => {
+        const timestamp = energySpeed.timestamp
         const relativeTime = timestamp - activityStartTime
         
-        // Calculate distance based on energy consumption pattern
-        let estimatedDistance = 0
-        if (energyData.length > 0 && healthkitActivity.distance_meters) {
-          // Use energy variance to create more realistic distance progression
-          const currentEnergy = dataPoint.value || 0
-          const cumulativeEnergy = energyData.slice(0, index + 1).reduce((sum: number, e: any) => sum + (e.value || 0), 0)
-          const totalEnergy = energyData.reduce((sum: number, e: any) => sum + (e.value || 0), 0)
-          
-          if (totalEnergy > 0) {
-            // Add small random variance based on energy level to simulate natural pace variation
-            const baseProgress = cumulativeEnergy / totalEnergy
-            const energyVariance = (currentEnergy / (totalEnergy / energyData.length)) - 1 // Deviation from average
-            const varianceAdjustment = energyVariance * 0.05 // 5% max adjustment
-            const adjustedProgress = Math.max(0, Math.min(1, baseProgress + varianceAdjustment))
-            
-            estimatedDistance = healthkitActivity.distance_meters * adjustedProgress
-          } else {
-            // Fallback to time-based with slight variation
-            const progressRatio = relativeTime / (healthkitActivity.duration_seconds || 1)
-            const timeVariance = Math.sin(index * 0.1) * 0.02 // Small sinusoidal variation
-            estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio + timeVariance))
-          }
+        // Calculate distance for this segment
+        const segmentDistance = energySpeed.speed * energySpeed.duration
+        cumulativeDistance += segmentDistance
+        
+        // Ensure we don't exceed total distance
+        if (cumulativeDistance > totalDistance) {
+          cumulativeDistance = totalDistance
         }
         
         return {
           sample_timestamp: timestamp,
           timer_duration_in_seconds: relativeTime,
           heart_rate: interpolateHeartRate(timestamp),
-          total_distance_in_meters: estimatedDistance,
-          speed_meters_per_second: null, // Will be calculated in second pass
+          total_distance_in_meters: cumulativeDistance,
+          speed_meters_per_second: energySpeed.speed,
         }
       }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
       
-      // Second pass: Calculate speeds with smoothing
-      rows = baseRows.map((row: any, index: number) => {
-        let speed: number | null = null
-        
-        if (index > 0) {
-          const prevRow = baseRows[index - 1]
-          const distanceChange = row.total_distance_in_meters - prevRow.total_distance_in_meters
-          const timeChange = row.timer_duration_in_seconds - prevRow.timer_duration_in_seconds
+      // If we have fewer energy points than desired, interpolate additional points
+      if (rows.length < 20 && heartRateData.length > rows.length) {
+        // Use heart rate data to fill gaps with interpolated speeds
+        const additionalRows = heartRateData.map((hr: any) => {
+          const timestamp = new Date(hr.timestamp).getTime() / 1000
+          const relativeTime = timestamp - activityStartTime
           
-          if (timeChange > 0 && distanceChange >= 0) {
-            const instantSpeed = distanceChange / timeChange
-            
-            // Apply smoothing using neighboring points
-            if (index >= 2 && index < baseRows.length - 1) {
-              const speeds = []
-              
-              // Calculate speeds from neighboring points
-              for (let i = Math.max(0, index - 2); i <= Math.min(baseRows.length - 2, index + 1); i++) {
-                const curr = baseRows[i + 1]
-                const prev = baseRows[i]
-                const dt = curr.timer_duration_in_seconds - prev.timer_duration_in_seconds
-                const dd = curr.total_distance_in_meters - prev.total_distance_in_meters
-                
-                if (dt > 0 && dd >= 0) {
-                  speeds.push(dd / dt)
-                }
-              }
-              
-              if (speeds.length > 0) {
-                // Use weighted average with current speed having higher weight
-                const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length
-                speed = (instantSpeed * 0.6) + (avgSpeed * 0.4) // Weighted blend
-              } else {
-                speed = instantSpeed
-              }
-            } else {
-              speed = instantSpeed
+          if (relativeTime < 0 || relativeTime > totalDuration) return null
+          
+          // Find closest energy-based speed
+          let closestSpeed = totalDistance / totalDuration // Default to average
+          let minTimeDiff = Infinity
+          
+          for (const energySpeed of energyBasedSpeeds) {
+            const timeDiff = Math.abs(timestamp - energySpeed.timestamp)
+            if (timeDiff < minTimeDiff) {
+              minTimeDiff = timeDiff
+              closestSpeed = energySpeed.speed
             }
-            
-            // Ensure reasonable speed bounds (0.5 to 10 m/s for running/walking)
-            speed = Math.max(0.5, Math.min(10, speed))
           }
-        }
+          
+          // Calculate interpolated distance
+          const progressRatio = relativeTime / totalDuration
+          const interpolatedDistance = totalDistance * progressRatio
+          
+          return {
+            sample_timestamp: timestamp,
+            timer_duration_in_seconds: relativeTime,
+            heart_rate: hr.value,
+            total_distance_in_meters: interpolatedDistance,
+            speed_meters_per_second: closestSpeed,
+          }
+        }).filter(Boolean)
         
-        return {
-          ...row,
-          speed_meters_per_second: speed,
-        }
-      })
+        // Merge and sort by time
+        rows = [...rows, ...additionalRows].sort((a, b) => a.sample_timestamp - b.sample_timestamp)
+      }
     }
 
     if (!rows || rows.length === 0) {
