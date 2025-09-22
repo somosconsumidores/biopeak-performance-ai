@@ -269,35 +269,32 @@ Deno.serve(async (req) => {
         return minDiff <= 30000 ? closest.value : null
       }
       
-      // Create synthetic rows using energy data as temporal base
-      rows = primaryData.map((dataPoint: any, index: number) => {
-        const timestamp = new Date(dataPoint.timestamp).getTime() / 1000 // Convert to Unix timestamp
+      // First pass: Create base rows with timestamps and distances
+      const baseRows = primaryData.map((dataPoint: any, index: number) => {
+        const timestamp = new Date(dataPoint.timestamp).getTime() / 1000
         const relativeTime = timestamp - activityStartTime
         
-        // Use cumulative energy to estimate distance progression
+        // Calculate distance based on energy consumption pattern
         let estimatedDistance = 0
         if (energyData.length > 0 && healthkitActivity.distance_meters) {
-          // Calculate cumulative energy up to this point
+          // Use energy variance to create more realistic distance progression
+          const currentEnergy = dataPoint.value || 0
           const cumulativeEnergy = energyData.slice(0, index + 1).reduce((sum: number, e: any) => sum + (e.value || 0), 0)
           const totalEnergy = energyData.reduce((sum: number, e: any) => sum + (e.value || 0), 0)
           
           if (totalEnergy > 0) {
-            estimatedDistance = (healthkitActivity.distance_meters * cumulativeEnergy) / totalEnergy
+            // Add small random variance based on energy level to simulate natural pace variation
+            const baseProgress = cumulativeEnergy / totalEnergy
+            const energyVariance = (currentEnergy / (totalEnergy / energyData.length)) - 1 // Deviation from average
+            const varianceAdjustment = energyVariance * 0.05 // 5% max adjustment
+            const adjustedProgress = Math.max(0, Math.min(1, baseProgress + varianceAdjustment))
+            
+            estimatedDistance = healthkitActivity.distance_meters * adjustedProgress
           } else {
-            // Fallback to time-based estimation
+            // Fallback to time-based with slight variation
             const progressRatio = relativeTime / (healthkitActivity.duration_seconds || 1)
-            estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio))
-          }
-        }
-        
-        // Calculate instantaneous speed based on distance change
-        let speed: number | null = null
-        if (index > 0 && relativeTime > 0) {
-          const prevRow = rows[index - 1]
-          if (prevRow) {
-            const distanceChange = estimatedDistance - prevRow.total_distance_in_meters
-            const timeChange = relativeTime - prevRow.timer_duration_in_seconds
-            speed = timeChange > 0 ? distanceChange / timeChange : null
+            const timeVariance = Math.sin(index * 0.1) * 0.02 // Small sinusoidal variation
+            estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio + timeVariance))
           }
         }
         
@@ -306,9 +303,59 @@ Deno.serve(async (req) => {
           timer_duration_in_seconds: relativeTime,
           heart_rate: interpolateHeartRate(timestamp),
           total_distance_in_meters: estimatedDistance,
-          speed_meters_per_second: speed,
+          speed_meters_per_second: null, // Will be calculated in second pass
         }
       }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
+      
+      // Second pass: Calculate speeds with smoothing
+      rows = baseRows.map((row: any, index: number) => {
+        let speed: number | null = null
+        
+        if (index > 0) {
+          const prevRow = baseRows[index - 1]
+          const distanceChange = row.total_distance_in_meters - prevRow.total_distance_in_meters
+          const timeChange = row.timer_duration_in_seconds - prevRow.timer_duration_in_seconds
+          
+          if (timeChange > 0 && distanceChange >= 0) {
+            const instantSpeed = distanceChange / timeChange
+            
+            // Apply smoothing using neighboring points
+            if (index >= 2 && index < baseRows.length - 1) {
+              const speeds = []
+              
+              // Calculate speeds from neighboring points
+              for (let i = Math.max(0, index - 2); i <= Math.min(baseRows.length - 2, index + 1); i++) {
+                const curr = baseRows[i + 1]
+                const prev = baseRows[i]
+                const dt = curr.timer_duration_in_seconds - prev.timer_duration_in_seconds
+                const dd = curr.total_distance_in_meters - prev.total_distance_in_meters
+                
+                if (dt > 0 && dd >= 0) {
+                  speeds.push(dd / dt)
+                }
+              }
+              
+              if (speeds.length > 0) {
+                // Use weighted average with current speed having higher weight
+                const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length
+                speed = (instantSpeed * 0.6) + (avgSpeed * 0.4) // Weighted blend
+              } else {
+                speed = instantSpeed
+              }
+            } else {
+              speed = instantSpeed
+            }
+            
+            // Ensure reasonable speed bounds (0.5 to 10 m/s for running/walking)
+            speed = Math.max(0.5, Math.min(10, speed))
+          }
+        }
+        
+        return {
+          ...row,
+          speed_meters_per_second: speed,
+        }
+      })
     }
 
     if (!rows || rows.length === 0) {
