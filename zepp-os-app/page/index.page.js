@@ -1,4 +1,4 @@
-import { log as Logger } from '@zos/utils'
+import { log as Logger, px } from '@zos/utils'
 import { MessageBuilder } from '@zos/ble'
 import { createWidget, widget, align, prop, text_style, event } from '@zos/ui'
 import { Vibrator, VIBRATOR_SCENE_DURATION, HeartRate } from '@zos/sensor'
