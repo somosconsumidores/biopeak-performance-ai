@@ -234,31 +234,81 @@ Deno.serve(async (req) => {
         })
       }
 
-      // Convert HealthKit JSONB series data to normalized format
+      // Extract both energy and heart rate data from HealthKit series
       const heartRateData = healthkitActivity.raw_data.series.heartRate || []
       const energyData = healthkitActivity.raw_data.series.energy || []
       
-      // Create synthetic rows by combining heart rate data with activity summary
-      rows = heartRateData.map((hr: any, index: number) => {
-        const timestamp = new Date(hr.timestamp).getTime() / 1000 // Convert to Unix timestamp
-        const activityStartTime = new Date(healthkitActivity.start_time).getTime() / 1000
+      // Use energy data as primary temporal base (usually more data points)
+      const primaryData = energyData.length > 0 ? energyData : heartRateData
+      const activityStartTime = new Date(healthkitActivity.start_time).getTime() / 1000
+      
+      if (primaryData.length === 0) {
+        return new Response(JSON.stringify({ success: false, message: 'No HealthKit temporal data found' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Helper function to interpolate heart rate data to match primary timestamps
+      const interpolateHeartRate = (targetTimestamp: number): number | null => {
+        if (heartRateData.length === 0) return null
+        
+        const targetTime = new Date(targetTimestamp * 1000)
+        let closest = heartRateData[0]
+        let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetTime.getTime())
+        
+        for (const hr of heartRateData) {
+          const diff = Math.abs(new Date(hr.timestamp).getTime() - targetTime.getTime())
+          if (diff < minDiff) {
+            minDiff = diff
+            closest = hr
+          }
+        }
+        
+        // Only use if within 30 seconds
+        return minDiff <= 30000 ? closest.value : null
+      }
+      
+      // Create synthetic rows using energy data as temporal base
+      rows = primaryData.map((dataPoint: any, index: number) => {
+        const timestamp = new Date(dataPoint.timestamp).getTime() / 1000 // Convert to Unix timestamp
         const relativeTime = timestamp - activityStartTime
         
-        // Estimate distance based on time progression and total distance
-        const progressRatio = relativeTime / (healthkitActivity.duration_seconds || 1)
-        const estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio))
+        // Use cumulative energy to estimate distance progression
+        let estimatedDistance = 0
+        if (energyData.length > 0 && healthkitActivity.distance_meters) {
+          // Calculate cumulative energy up to this point
+          const cumulativeEnergy = energyData.slice(0, index + 1).reduce((sum: number, e: any) => sum + (e.value || 0), 0)
+          const totalEnergy = energyData.reduce((sum: number, e: any) => sum + (e.value || 0), 0)
+          
+          if (totalEnergy > 0) {
+            estimatedDistance = (healthkitActivity.distance_meters * cumulativeEnergy) / totalEnergy
+          } else {
+            // Fallback to time-based estimation
+            const progressRatio = relativeTime / (healthkitActivity.duration_seconds || 1)
+            estimatedDistance = (healthkitActivity.distance_meters || 0) * Math.max(0, Math.min(1, progressRatio))
+          }
+        }
         
-        // Calculate speed from distance progression
-        const speed = index > 0 && relativeTime > 0 ? estimatedDistance / relativeTime : null
+        // Calculate instantaneous speed based on distance change
+        let speed: number | null = null
+        if (index > 0 && relativeTime > 0) {
+          const prevRow = rows[index - 1]
+          if (prevRow) {
+            const distanceChange = estimatedDistance - prevRow.total_distance_in_meters
+            const timeChange = relativeTime - prevRow.timer_duration_in_seconds
+            speed = timeChange > 0 ? distanceChange / timeChange : null
+          }
+        }
         
         return {
           sample_timestamp: timestamp,
           timer_duration_in_seconds: relativeTime,
-          heart_rate: hr.value,
+          heart_rate: interpolateHeartRate(timestamp),
           total_distance_in_meters: estimatedDistance,
           speed_meters_per_second: speed,
         }
-      }).filter((row: any) => row.sample_timestamp && row.heart_rate)
+      }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
     }
 
     if (!rows || rows.length === 0) {
