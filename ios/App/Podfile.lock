@@ -17,6 +17,12 @@ PODS:
     - CapacitorCordova
   - CordovaPluginsResources (0.0.105)
   - IONGeolocationLib (1.0.1)
+  - PurchasesHybridCommon (17.6.0):
+    - RevenueCat (= 5.38.2)
+  - RevenueCat (5.38.2)
+  - RevenuecatPurchasesCapacitor (11.2.1):
+    - Capacitor
+    - PurchasesHybridCommon (= 17.6.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -28,10 +34,13 @@ DEPENDENCIES:
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
   - CordovaPluginsResources (from `../capacitor-cordova-ios-plugins`)
+  - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
 
 SPEC REPOS:
   trunk:
     - IONGeolocationLib
+    - PurchasesHybridCommon
+    - RevenueCat
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -52,6 +61,8 @@ EXTERNAL SOURCES:
     :path: "../capacitor-cordova-ios-plugins"
   CordovaPluginsResources:
     :path: "../capacitor-cordova-ios-plugins"
+  RevenuecatPurchasesCapacitor:
+    :path: "../../node_modules/@revenuecat/purchases-capacitor"
 
 SPEC CHECKSUMS:
   Capacitor: 9d9e481b79ffaeacaf7a85d6a11adec32bd33b59
@@ -64,7 +75,10 @@ SPEC CHECKSUMS:
   CordovaPlugins: 95eac86853855a619c56ec3f9c9f200edf89e8e7
   CordovaPluginsResources: da93847212bf7b16ba770e4d6c3e7dba820174c7
   IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
+  PurchasesHybridCommon: 3e27aec7bccba3d3d34cd66a7033ba9b268caa5e
+  RevenueCat: f6b7c7e55f548a2bf304a3abbed0cc2447364427
+  RevenuecatPurchasesCapacitor: c1a8efe0e1ae92085010a4ce16b7bfe23860ea04
 
-PODFILE CHECKSUM: 6fd1dc93d1ec89931b2a1c696ba1099306a40f11
+PODFILE CHECKSUM: 810fd531f5fbfb09859b266d46737e7e17d2eedf
 
 COCOAPODS: 1.16.2
