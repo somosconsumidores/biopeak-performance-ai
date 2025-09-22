@@ -102,16 +102,7 @@ const config: CapacitorConfig = {
     allowsLinkPreview: false,
     allowsInlineMediaPlayback: true,
     allowsBackForwardNavigationGestures: true,
-    scrollEnabled: true,
-    permissions: [
-      "NSLocationWhenInUseUsageDescription",
-      "NSLocationAlwaysAndWhenInUseUsageDescription", 
-      "NSCameraUsageDescription",
-      "NSMicrophoneUsageDescription",
-      "NSPhotoLibraryUsageDescription",
-      "NSHealthShareUsageDescription",
-      "NSHealthUpdateUsageDescription"
-    ]
+    scrollEnabled: true
   },
 };
 
