@@ -9,7 +9,7 @@
       "code": 2,
       "name": "1.1.0"
     },
-    "icon": "assets/icon.png",
+    "icon": "icon.png",
     "vendor": "BioPeak",
     "vender": "BioPeak",
     "description": "Sync your workouts with BioPeak AI platform"
