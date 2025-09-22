@@ -1,4 +1,4 @@
-import UIKit  
+import UIKit
 import Capacitor
 
 class ViewController: CAPBridgeViewController {
