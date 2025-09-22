@@ -99,7 +99,9 @@ export const useHealthKitSync = () => {
           console.log(`[HealthKitSync] Processing workout ${workout.uuid}`);
           
           // Get GPS route if available
+          console.log(`[HealthKitSync] Querying GPS route for workout ${workout.uuid}`);
           const locations = await HealthKit.queryWorkoutRoute(workout.uuid);
+          console.log(`[HealthKitSync] Found ${locations?.length || 0} GPS points for workout ${workout.uuid}`);
           
           // Get time series data (HR, energy)
           const series = await HealthKit.queryWorkoutSeries(
@@ -136,6 +138,9 @@ export const useHealthKitSync = () => {
       let syncedCount = 0;
       for (const workout of processedWorkouts) {
         try {
+          console.log(`[HealthKitSync] Saving workout ${workout.uuid} with ${workout.locations?.length || 0} GPS points to raw_data`);
+          console.log(`[HealthKitSync] Saving workout ${workout.uuid} with ${workout.locations?.length || 0} GPS points to raw_data`);
+          
           // Insert into healthkit_activities table (using existing structure)
           const { error: insertError } = await supabase
             .from('healthkit_activities')
@@ -168,9 +173,10 @@ export const useHealthKitSync = () => {
 
           // Save GPS coordinates if available
           if (workout.locations && workout.locations.length > 0) {
+            console.log(`[HealthKitSync] Saving ${workout.locations.length} GPS coordinates for workout ${workout.uuid}`);
             const coordinates = workout.locations.map(loc => [loc.longitude, loc.latitude]);
             
-            await supabase
+            const { error: coordError } = await supabase
               .from('activity_coordinates')
               .upsert({
                 user_id: user.id,
@@ -184,6 +190,14 @@ export const useHealthKitSync = () => {
               }, {
                 onConflict: 'user_id,activity_id,activity_source'
               });
+
+            if (coordError) {
+              console.error(`[HealthKitSync] Error saving GPS coordinates:`, coordError);
+            } else {
+              console.log(`[HealthKitSync] Successfully saved GPS coordinates for workout ${workout.uuid}`);
+            }
+          } else {
+            console.log(`[HealthKitSync] No GPS coordinates available for workout ${workout.uuid}`);
           }
 
           syncedCount++;

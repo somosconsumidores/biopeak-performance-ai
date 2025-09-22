@@ -166,8 +166,10 @@ class HealthKitWrapper {
   async queryWorkoutRoute(workoutUUID: string): Promise<HealthKitLocation[]> {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       try {
-        console.log('[BioPeakHealthKit] Querying workout route:', workoutUUID);
+        console.log('[BioPeakHealthKit] Querying workout route for:', workoutUUID);
         const result = await this.plugin.queryWorkoutRoute({ workoutUUID });
+        console.log('[BioPeakHealthKit] Route query result:', result);
+        console.log('[BioPeakHealthKit] Found', result.locations?.length || 0, 'GPS points');
         return result.locations || [];
       } catch (error) {
         console.error('[BioPeakHealthKit] Error querying workout route:', error);
