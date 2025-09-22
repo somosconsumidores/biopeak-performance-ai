@@ -1,4 +1,4 @@
-import { log as Logger, px } from '@zos/utils'
+import { log as Logger } from '@zos/utils'
 import { MessageBuilder } from '@zos/ble'
 import { createWidget, widget, align, prop, text_style, event } from '@zos/ui'
 import { Vibrator, VIBRATOR_SCENE_DURATION, HeartRate } from '@zos/sensor'
@@ -27,10 +27,10 @@ Page({
     createWidget(widget.TEXT, {
       x: 0,
       y: 100,
-      w: px(480),
-      h: px(60),
+      w: 480,
+      h: 60,
       color: 0x00ff00,
-      text_size: px(36),
+      text_size: 36,
       align_h: align.CENTER_H,
       align_v: align.CENTER_V,
       text_style: text_style.NONE,
@@ -41,10 +41,10 @@ Page({
     this.statusText = createWidget(widget.TEXT, {
       x: 0,
       y: 180,
-      w: px(480),
-      h: px(40),
+      w: 480,
+      h: 40,
       color: 0xffffff,
-      text_size: px(24),
+      text_size: 24,
       align_h: align.CENTER_H,
       align_v: align.CENTER_V,
       text_style: text_style.NONE,
@@ -53,15 +53,15 @@ Page({
 
     // Sync button
     this.syncButton = createWidget(widget.BUTTON, {
-      x: px(140),
-      y: px(250),
-      w: px(200),
-      h: px(80),
-      radius: px(40),
+      x: 140,
+      y: 250,
+      w: 200,
+      h: 80,
+      radius: 40,
       normal_color: 0x00ff00,
       press_color: 0x00aa00,
       text: 'SYNC NOW',
-      text_size: px(28),
+      text_size: 28,
       color: 0x000000,
       click_func: () => {
         this.resetStatusIfNeeded()
@@ -71,20 +71,20 @@ Page({
 
     // Connection status indicator
     this.connectionIndicator = createWidget(widget.CIRCLE, {
-      center_x: px(50),
-      y: px(50),
-      radius: px(15),
+      center_x: 50,
+      y: 50,
+      radius: 15,
       color: this.state.connected ? 0x00ff00 : 0xff0000
     })
 
     // Instructions
     createWidget(widget.TEXT, {
-      x: px(20),
-      y: px(380),
-      w: px(440),
-      h: px(100),
+      x: 20,
+      y: 380,
+      w: 440,
+      h: 100,
       color: 0xcccccc,
-      text_size: px(18),
+      text_size: 18,
       align_h: align.CENTER_H,
       text_style: text_style.WRAP,
       text: 'Open BioPeak app on your phone first, then tap SYNC NOW to send your activity data.'
