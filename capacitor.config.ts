@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.biopeak-ai.performance',
-  appName: 'biopeak-performance-ai',
+  appName: 'BioPeak-ai',
   webDir: 'dist',
   // Force offline/local mode - NO server configuration
   bundledWebRuntime: false,
