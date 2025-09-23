@@ -44,6 +44,8 @@ class RevenueCatService {
       // RevenueCat API Key from environment
       const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY || 'appl_YOUR_REVENUECAT_API_KEY_HERE';
       
+      console.log('🔵 RevenueCat API Key check:', apiKey ? 'Key found' : 'Key missing', apiKey?.substring(0, 10) + '...');
+      
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       await Purchases.configure({ apiKey, appUserID: userId });
       
