@@ -3000,6 +3000,8 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          metadata: Json | null
+          revenuecat_user_id: string | null
           stripe_customer_id: string | null
           subscribed: boolean
           subscription_end: string | null
@@ -3013,6 +3015,8 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          metadata?: Json | null
+          revenuecat_user_id?: string | null
           stripe_customer_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
@@ -3026,6 +3030,8 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          metadata?: Json | null
+          revenuecat_user_id?: string | null
           stripe_customer_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null

@@ -28,6 +28,31 @@ export const useSubscription = () => {
     try {
       setLoading(true);
       
+      // For iOS native, check RevenueCat first, then fall back to Stripe/server
+      if (isIOS && isNative) {
+        try {
+          await revenueCat.initialize(user.id);
+          const customerInfo = await revenueCat.getCustomerInfo();
+          
+          if (customerInfo?.entitlements?.active) {
+            const activeEntitlements = Object.keys(customerInfo.entitlements.active);
+            if (activeEntitlements.length > 0) {
+              const entitlement = customerInfo.entitlements.active[activeEntitlements[0]];
+              setSubscriptionData({
+                subscribed: entitlement.isActive,
+                subscription_tier: 'premium',
+                subscription_end: entitlement.expirationDate || null,
+              });
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (rcError) {
+          console.log('RevenueCat check failed, falling back to server:', rcError);
+        }
+      }
+      
+      // Server-side check (Stripe or cached data)
       // Tenta obter um token válido (refresca se necessário)
       let token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) {
