@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.lovable.biopeak',
+  appId: 'com.biopeak-ai.performance',
   appName: 'biopeak-performance-ai',
   webDir: 'dist',
   // Force offline/local mode - NO server configuration
