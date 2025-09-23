@@ -41,8 +41,8 @@ class RevenueCatService {
     }
 
     try {
-      // RevenueCat API Key (você precisa configurar isso no App Store Connect)
-      const apiKey = 'appl_YOUR_REVENUECAT_API_KEY_HERE';
+      // RevenueCat API Key from environment
+      const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY || 'appl_YOUR_REVENUECAT_API_KEY_HERE';
       
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       await Purchases.configure({ apiKey, appUserID: userId });
