@@ -46,6 +46,12 @@
 		<string>processing</string>
 		<string>fetch</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.biopeak-ai.performance.backgroundtask</string>
+		<string>com.biopeak-ai.performance.geolocation</string>
+		<string>com.biopeak-ai.performance.refresh</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
