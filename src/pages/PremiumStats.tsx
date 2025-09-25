@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Header } from '@/components/Header';
+import { useNavigate } from 'react-router-dom';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +45,7 @@ const PREMIUM_ALLOWED_EMAILS = [
 ];
 
 export const PremiumStats = () => {
+  const navigate = useNavigate();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
   const { 
     weeklyStats, 
@@ -76,12 +78,20 @@ export const PremiumStats = () => {
         <div className="text-center max-w-md mx-auto p-6">
           <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Acesso Premium Necessário</h2>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-muted-foreground mb-6">
             Este conteúdo é exclusivo para assinantes premium.
           </p>
-          <Button onClick={() => window.location.href = '/paywall'}>
-            Assinar Agora
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => navigate('/paywall')}>
+              Assinar Agora
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/dashboard')}
+            >
+              Talvez mais tarde
+            </Button>
+          </div>
         </div>
       </div>
     );
