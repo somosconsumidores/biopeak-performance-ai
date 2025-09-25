@@ -59,22 +59,34 @@ function Paywall() {
           setOfferings(fetchedOfferings);
           
           if (!fetchedOfferings) {
-            console.warn('🟠 Paywall: No offerings found - check RevenueCat configuration');
+            console.warn('🟠 Paywall: No offerings found - produtos podem estar aguardando aprovação da Apple');
             toast({
-              title: "Erro",
-              description: "Não foi possível carregar os planos. Tente novamente.",
-              variant: "destructive"
+              title: "Usando pagamento via cartão",
+              description: "Pagamentos via App Store temporariamente indisponíveis.",
+              duration: 3000,
             });
           } else if (!fetchedOfferings.monthly) {
             console.warn('🟠 Paywall: No monthly product found - check product ID configuration');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('🔴 Paywall: Failed to initialize RevenueCat:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível inicializar pagamentos. Tente novamente.",
-            variant: "destructive"
-          });
+          
+          // Check if it's a product approval issue
+          if (error.message?.includes('WAITING_FOR_REVIEW') || 
+              error.message?.includes('None of the products registered') ||
+              error.code === '23') {
+            toast({
+              title: "Pagamento via cartão disponível",
+              description: "Produtos da App Store aguardando aprovação. Use nosso checkout seguro.",
+              duration: 4000,
+            });
+          } else {
+            toast({
+              title: "Usando checkout alternativo",
+              description: "Sistema de pagamento seguro via cartão disponível.",
+              duration: 3000,
+            });
+          }
         }
       } else {
         console.log('🔵 Paywall: Skipping RevenueCat init - not native iOS or no user');

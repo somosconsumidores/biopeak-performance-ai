@@ -136,8 +136,18 @@ class RevenueCatService {
           currencyCode: annualPackage.product.currencyCode,
         } : undefined,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('🔴 RevenueCat: Failed to get offerings:', error);
+      
+      // Check for specific error types related to product approval status
+      if (error.message?.includes('WAITING_FOR_REVIEW') || 
+          error.message?.includes('None of the products registered') ||
+          error.code === '23') {
+        console.log('🟠 RevenueCat: Products are waiting for App Store approval');
+        // Return null instead of throwing - let the app fallback to Stripe gracefully
+        return null;
+      }
+      
       throw error;
     }
   }

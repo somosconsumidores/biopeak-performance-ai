@@ -62,22 +62,36 @@ const Paywall2 = () => {
           setOfferings(currentOfferings);
           
           if (!currentOfferings) {
-            console.warn('🟠 Paywall2: No offerings found - check RevenueCat configuration');
+            console.warn('🟠 Paywall2: No offerings found - produtos podem estar aguardando aprovação da Apple');
             toast({
-              title: "Aviso",
-              description: "Não foi possível carregar ofertas do RevenueCat. Usando Stripe.",
+              title: "Usando pagamento via cartão",
+              description: "Pagamentos via App Store temporariamente indisponíveis.",
+              duration: 3000,
             });
           } else if (!currentOfferings.monthly) {
             console.warn('🟠 Paywall2: No monthly product found - check product ID configuration');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('🔴 Paywall2: RevenueCat setup error:', error);
           // Don't set error state - we'll fallback to Stripe
           setRevenueCatInitialized(false);
-          toast({
-            title: "Informação",
-            description: "Usando sistema de pagamento alternativo.",
-          });
+          
+          // Check if it's a product approval issue
+          if (error.message?.includes('WAITING_FOR_REVIEW') || 
+              error.message?.includes('None of the products registered') ||
+              error.code === '23') {
+            toast({
+              title: "Pagamento via cartão disponível",
+              description: "Produtos da App Store aguardando aprovação. Use nosso checkout seguro.",
+              duration: 4000,
+            });
+          } else {
+            toast({
+              title: "Usando checkout alternativo",
+              description: "Sistema de pagamento seguro via cartão disponível.",
+              duration: 3000,
+            });
+          }
         }
       };
       setupRevenueCat();
@@ -102,6 +116,11 @@ const Paywall2 = () => {
 
     if (!revenueCatInitialized || !offerings) {
       console.error('🔴 Paywall2: RevenueCat not properly initialized or no offerings');
+      toast({
+        title: "Redirecionando para checkout",
+        description: "Usando sistema de pagamento seguro via cartão.",
+        duration: 2000,
+      });
       // Fallback to Stripe
       await handleStripeCheckout();
       return;
@@ -155,10 +174,23 @@ const Paywall2 = () => {
       if (error.code !== '1' && !error.message?.includes('cancelled')) {
         // Fallback to Stripe on error
         console.log('🔵 Paywall2: Falling back to Stripe checkout');
-        toast({
-          title: "Método alternativo",
-          description: "Tentando sistema de pagamento alternativo...",
-        });
+        
+        // Check if it's a product approval issue
+        if (error.message?.includes('WAITING_FOR_REVIEW') || 
+            error.message?.includes('None of the products registered') ||
+            error.code === '23') {
+          toast({
+            title: "Redirecionando para checkout",
+            description: "Produto aguardando aprovação. Usando checkout via cartão.",
+            duration: 3000,
+          });
+        } else {
+          toast({
+            title: "Usando método alternativo",
+            description: "Redirecionando para checkout seguro via cartão.",
+            duration: 2000,
+          });
+        }
         await handleStripeCheckout();
       }
     } finally {
