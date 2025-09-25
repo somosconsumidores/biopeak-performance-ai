@@ -176,3 +176,6 @@ verify_jwt = true
 
 [functions.classify-workouts-from-series]
 verify_jwt = true
+
+[functions.revenuecat-webhook]
+verify_jwt = false
