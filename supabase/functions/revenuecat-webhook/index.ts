@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,25 +69,23 @@ serve(async (req) => {
         });
     }
 
-    console.log('💾 Attempting to upsert subscriber with data:', {
+    console.log('💾 Attempting to update subscriber with data:', {
       user_id: app_user_id,
       subscribed,
       subscription_tier,
       subscription_end
     });
 
-    // Atualizar status de assinatura no Supabase
+    // Usar UPDATE direto em vez de upsert
     const { data, error } = await supabase
       .from('subscribers')
-      .upsert({
-        user_id: app_user_id,
+      .update({
         subscribed,
         subscription_tier,
         subscription_end,
         updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
       })
+      .eq('user_id', app_user_id)
       .select();
 
     if (error) {
