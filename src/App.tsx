@@ -7,6 +7,7 @@ import { usePlatform } from "./hooks/usePlatform";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { PlatformDebugger } from "./components/PlatformDebugger";
 import { PermissionOnboarding } from "./components/PermissionOnboarding";
 import { SurveyPopup } from "./components/SurveyPopup";
 import { useSurveyPopup } from "./hooks/useSurveyPopup";
@@ -55,6 +56,7 @@ const App = () => {
             <Sonner />
             <AuthProvider>
               <AppRoutes />
+              <PlatformDebugger />
               <PWAInstallPrompt />
             </AuthProvider>
           </TooltipProvider>
