@@ -6,6 +6,7 @@ import { Activity, CheckCircle, XCircle, Loader2, Watch, Heart } from 'lucide-re
 import { useHealthKitAuth } from '@/hooks/useHealthKitAuth';
 import { useHealthKitSync } from '@/hooks/useHealthKitSync';
 import { useQueryClient } from '@tanstack/react-query';
+import { AppleHealthIcon } from './AppleHealthIcon';
 
 export const HealthKitConnectionStatus: React.FC = () => {
   const { 
@@ -56,14 +57,14 @@ export const HealthKitConnectionStatus: React.FC = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Watch className="h-4 w-4 text-muted-foreground" />
-            HealthKit
+            <AppleHealthIcon className="h-4 w-4 text-red-500" />
+            Apple Health (HealthKit)
           </CardTitle>
           <Badge variant="secondary">Não disponível</Badge>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground">
-            HealthKit está disponível apenas em dispositivos iOS.
+            Integração com Apple Health está disponível apenas em dispositivos iOS.
           </p>
         </CardContent>
       </Card>
@@ -75,8 +76,8 @@ export const HealthKitConnectionStatus: React.FC = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Watch className="h-4 w-4 text-muted-foreground" />
-            HealthKit
+            <AppleHealthIcon className="h-4 w-4 text-red-500" />
+            Apple Health (HealthKit)
           </CardTitle>
           <Badge variant="destructive">
             <XCircle className="h-3 w-3 mr-1" />
@@ -87,7 +88,7 @@ export const HealthKitConnectionStatus: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Heart className="h-4 w-4" />
-              <span>Conecte seu Apple Watch para sincronizar atividades</span>
+              <span>Conecte ao Apple Health para sincronizar atividades do Apple Watch</span>
             </div>
             
             <Button 
@@ -99,18 +100,18 @@ export const HealthKitConnectionStatus: React.FC = () => {
               {authLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Conectando...
+                  Conectando ao Apple Health...
                 </>
               ) : (
                 <>
                   <Watch className="h-4 w-4 mr-2" />
-                  Conectar HealthKit
+                  Conectar ao Apple Health
                 </>
               )}
             </Button>
             
             <p className="text-xs text-muted-foreground">
-              Sincronize atividades do seu Apple Watch automaticamente.
+              Integração com Apple Health para sincronizar dados do Apple Watch automaticamente.
             </p>
           </div>
         </CardContent>
@@ -122,12 +123,12 @@ export const HealthKitConnectionStatus: React.FC = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Watch className="h-4 w-4 text-green-600" />
-          HealthKit
+          <AppleHealthIcon className="h-4 w-4 text-green-600" />
+          Apple Health (HealthKit)
         </CardTitle>
         <Badge variant="default" className="bg-green-100 text-green-800">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Conectado
+          Conectado ao Apple Health
         </Badge>
       </CardHeader>
       <CardContent>
@@ -135,11 +136,11 @@ export const HealthKitConnectionStatus: React.FC = () => {
           {lastSyncResult && (
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Atividades sincronizadas:</span>
+                <span className="text-muted-foreground">Atividades do Apple Health:</span>
                 <span className="font-medium">{lastSyncResult.syncedCount}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Última sincronização: {new Date(lastSyncResult.lastSyncAt).toLocaleString('pt-BR')}
+                Última sincronização com Apple Health: {new Date(lastSyncResult.lastSyncAt).toLocaleString('pt-BR')}
               </div>
             </div>
           )}
@@ -154,12 +155,12 @@ export const HealthKitConnectionStatus: React.FC = () => {
               {syncLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sincronizando...
+                  Sincronizando Apple Health...
                 </>
               ) : (
                 <>
                   <Activity className="h-4 w-4 mr-2" />
-                  Sincronizar
+                  Sincronizar Apple Health
                 </>
               )}
             </Button>
@@ -175,7 +176,7 @@ export const HealthKitConnectionStatus: React.FC = () => {
           </div>
           
           <p className="text-xs text-muted-foreground">
-            Dados do Apple Watch são sincronizados automaticamente.
+            Dados do Apple Watch sincronizados via Apple Health automaticamente.
           </p>
         </div>
       </CardContent>

@@ -19,7 +19,7 @@ const sourceLabels: Record<ActivitySource, string> = {
   POLAR: 'Polar',
   ZEPP: 'Zepp Sync',
   ZEPP_GPX: 'Zepp GPX',
-  HEALTHKIT: 'HealthKit',
+  HEALTHKIT: 'Apple Health',
   BIOPEAK: 'BioPeak'
 }
 

@@ -139,9 +139,9 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
               <Button 
                 onClick={handleRequestPermissions}
                 disabled={isRequesting}
-                className="flex-1"
+                className="w-full"
               >
-                {isRequesting ? 'Solicitando...' : 'Permitir Acesso'}
+                {isRequesting ? 'Solicitando...' : 'Continuar'}
               </Button>
             )}
             
@@ -149,20 +149,21 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
               <Button 
                 onClick={handleOpenSettings}
                 variant="outline"
-                className="flex-1"
+                className="w-full"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Abrir Ajustes
               </Button>
             )}
             
-            <Button 
-              variant={allPermissionsGranted ? "default" : "outline"}
-              onClick={onComplete}
-              className={allPermissionsGranted ? "flex-1" : ""}
-            >
-              {allPermissionsGranted ? 'Continuar' : 'Pular'}
-            </Button>
+            {allPermissionsGranted && (
+              <Button 
+                onClick={onComplete}
+                className="w-full"
+              >
+                Continuar
+              </Button>
+            )}
           </div>
 
           {!isNative && (
