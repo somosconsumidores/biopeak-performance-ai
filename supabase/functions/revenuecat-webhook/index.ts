@@ -19,14 +19,17 @@ serve(async (req) => {
     );
 
     const webhook = await req.json();
-    console.log('RevenueCat webhook received:', JSON.stringify(webhook, null, 2));
+    console.log('🔔 RevenueCat webhook received:', JSON.stringify(webhook, null, 2));
 
     const { event } = webhook;
     const app_user_id = event?.app_user_id;
 
+    console.log('📱 Processing for app_user_id:', app_user_id);
+    console.log('🎯 Event type:', event?.type);
+
     if (!app_user_id) {
-      console.log('No app_user_id found in webhook');
-      return new Response(JSON.stringify({ success: true }), {
+      console.log('❌ No app_user_id found in webhook');
+      return new Response(JSON.stringify({ success: true, message: 'No user ID found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
@@ -47,6 +50,7 @@ serve(async (req) => {
         if (event.expiration_at_ms) {
           subscription_end = new Date(event.expiration_at_ms).toISOString();
         }
+        console.log('✅ Setting subscription to active');
         break;
 
       case 'CANCELLATION':
@@ -54,18 +58,26 @@ serve(async (req) => {
         subscribed = false;
         subscription_tier = null;
         subscription_end = null;
+        console.log('❌ Setting subscription to inactive');
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
-        return new Response(JSON.stringify({ success: true }), {
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        return new Response(JSON.stringify({ success: true, message: `Unhandled event: ${event.type}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         });
     }
 
+    console.log('💾 Attempting to upsert subscriber with data:', {
+      user_id: app_user_id,
+      subscribed,
+      subscription_tier,
+      subscription_end
+    });
+
     // Atualizar status de assinatura no Supabase
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('subscribers')
       .upsert({
         user_id: app_user_id,
@@ -73,14 +85,18 @@ serve(async (req) => {
         subscription_tier,
         subscription_end,
         updated_at: new Date().toISOString()
-      });
+      }, {
+        onConflict: 'user_id'
+      })
+      .select();
 
     if (error) {
-      console.error('Error updating subscription:', error);
+      console.error('❌ Error updating subscription:', error);
       throw error;
     }
 
-    console.log(`Updated subscription for user ${app_user_id}:`, {
+    console.log('✅ Database update successful:', data);
+    console.log(`🎉 Updated subscription for user ${app_user_id}:`, {
       subscribed,
       subscription_tier,
       subscription_end
@@ -89,7 +105,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: `Subscription updated for user ${app_user_id}`
+        message: `Subscription updated for user ${app_user_id}`,
+        data: { subscribed, subscription_tier, subscription_end }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -98,7 +115,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error processing RevenueCat webhook:', error);
+    console.error('💥 Error processing RevenueCat webhook:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
