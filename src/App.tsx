@@ -56,7 +56,7 @@ const App = () => {
             <Sonner />
             <AuthProvider>
               <AppRoutes />
-              <PlatformDebugger />
+              {import.meta.env.DEV && <PlatformDebugger />}
               <PWAInstallPrompt />
             </AuthProvider>
           </TooltipProvider>
