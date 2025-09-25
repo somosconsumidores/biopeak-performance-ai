@@ -36,7 +36,13 @@ class RevenueCatService {
   private initialized = false;
 
   async initialize(userId: string): Promise<void> {
-    if (!Capacitor.isNativePlatform() || this.initialized) {
+    if (!Capacitor.isNativePlatform()) {
+      console.log('🔵 RevenueCat: Not on native platform, skipping initialization');
+      return;
+    }
+    
+    if (this.initialized) {
+      console.log('🔵 RevenueCat: Already initialized');
       return;
     }
 
@@ -44,53 +50,94 @@ class RevenueCatService {
       // RevenueCat API Key from environment
       const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY || 'appl_YOUR_REVENUECAT_API_KEY_HERE';
       
-      console.log('🔵 RevenueCat API Key check:', apiKey ? 'Key found' : 'Key missing', apiKey?.substring(0, 10) + '...');
+      console.log('🔵 RevenueCat: Initializing with API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'Missing');
+      console.log('🔵 RevenueCat: User ID:', userId);
       
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       await Purchases.configure({ apiKey, appUserID: userId });
       
       this.initialized = true;
-      console.log('RevenueCat initialized successfully');
+      console.log('🟢 RevenueCat: Successfully initialized');
+      
+      // Test fetching offerings immediately after initialization
+      const offerings = await Purchases.getOfferings();
+      console.log('🔵 RevenueCat: Post-init offerings test:', offerings?.current ? 'Success' : 'No offerings');
+      
     } catch (error) {
-      console.error('Failed to initialize RevenueCat:', error);
+      console.error('🔴 RevenueCat: Failed to initialize:', error);
       throw error;
     }
   }
 
   async getOfferings(): Promise<RevenueCatOffering | null> {
     if (!Capacitor.isNativePlatform() || !this.initialized) {
+      console.log('🔵 RevenueCat getOfferings: Not on native platform or not initialized');
       return null;
     }
 
     try {
+      console.log('🔵 RevenueCat: Fetching offerings...');
       const offerings = await Purchases.getOfferings();
+      console.log('🔵 RevenueCat: Raw offerings received:', offerings);
+      
       const currentOffering = offerings.current;
       
       if (!currentOffering) {
+        console.log('🔵 RevenueCat: No current offering found');
         return null;
       }
 
-      const monthly = currentOffering.monthly;
-      const annual = currentOffering.annual;
+      console.log('🔵 RevenueCat: Current offering identifier:', currentOffering.identifier);
+      console.log('🔵 RevenueCat: Available packages:', Object.keys(currentOffering.availablePackages || {}));
+
+      // Look for our specific product by identifier
+      let monthlyPackage = null;
+      let annualPackage = null;
+
+      // Check all available packages for our products
+      if (currentOffering.availablePackages) {
+        for (const packageObj of currentOffering.availablePackages) {
+          console.log('🔵 RevenueCat: Checking package:', packageObj.identifier, 'Product ID:', packageObj.product?.identifier);
+          
+          if (packageObj.product?.identifier === 'biopeak_pro_monthly') {
+            monthlyPackage = packageObj;
+            console.log('🔵 RevenueCat: Found monthly product!', packageObj);
+          }
+          if (packageObj.product?.identifier === 'biopeak_pro_annual') {
+            annualPackage = packageObj;
+            console.log('🔵 RevenueCat: Found annual product!', packageObj);
+          }
+        }
+      }
+
+      // Fallback to the legacy monthly/annual properties
+      if (!monthlyPackage && currentOffering.monthly) {
+        monthlyPackage = currentOffering.monthly;
+        console.log('🔵 RevenueCat: Using fallback monthly package');
+      }
+      if (!annualPackage && currentOffering.annual) {
+        annualPackage = currentOffering.annual;
+        console.log('🔵 RevenueCat: Using fallback annual package');
+      }
 
       return {
         identifier: currentOffering.identifier,
         serverDescription: currentOffering.serverDescription,
-        monthly: monthly ? {
-          identifier: monthly.identifier,
-          price: monthly.product.price,
-          priceString: monthly.product.priceString,
-          currencyCode: monthly.product.currencyCode,
+        monthly: monthlyPackage ? {
+          identifier: monthlyPackage.identifier,
+          price: monthlyPackage.product.price,
+          priceString: monthlyPackage.product.priceString,
+          currencyCode: monthlyPackage.product.currencyCode,
         } : undefined,
-        annual: annual ? {
-          identifier: annual.identifier,
-          price: annual.product.price,
-          priceString: annual.product.priceString,
-          currencyCode: annual.product.currencyCode,
+        annual: annualPackage ? {
+          identifier: annualPackage.identifier,
+          price: annualPackage.product.price,
+          priceString: annualPackage.product.priceString,
+          currencyCode: annualPackage.product.currencyCode,
         } : undefined,
       };
     } catch (error) {
-      console.error('Failed to get offerings:', error);
+      console.error('🔴 RevenueCat: Failed to get offerings:', error);
       throw error;
     }
   }
@@ -101,6 +148,8 @@ class RevenueCatService {
     }
 
     try {
+      console.log('🔵 RevenueCat: Starting purchase for package:', packageIdentifier);
+      
       const offerings = await Purchases.getOfferings();
       const currentOffering = offerings.current;
       
@@ -109,23 +158,52 @@ class RevenueCatService {
       }
 
       let packageToPurchase;
-      if (packageIdentifier === 'monthly' && currentOffering.monthly) {
-        packageToPurchase = currentOffering.monthly;
-      } else if (packageIdentifier === 'annual' && currentOffering.annual) {
-        packageToPurchase = currentOffering.annual;
+      
+      // Look for the specific product by product identifier
+      if (currentOffering.availablePackages) {
+        for (const packageObj of currentOffering.availablePackages) {
+          console.log('🔵 RevenueCat: Checking package for purchase:', packageObj.identifier, 'Product ID:', packageObj.product?.identifier);
+          
+          if (packageIdentifier === 'monthly' && packageObj.product?.identifier === 'biopeak_pro_monthly') {
+            packageToPurchase = packageObj;
+            console.log('🔵 RevenueCat: Found monthly package for purchase!');
+            break;
+          }
+          if (packageIdentifier === 'annual' && packageObj.product?.identifier === 'biopeak_pro_annual') {
+            packageToPurchase = packageObj;
+            console.log('🔵 RevenueCat: Found annual package for purchase!');
+            break;
+          }
+        }
+      }
+
+      // Fallback to legacy approach
+      if (!packageToPurchase) {
+        if (packageIdentifier === 'monthly' && currentOffering.monthly) {
+          packageToPurchase = currentOffering.monthly;
+          console.log('🔵 RevenueCat: Using fallback monthly package for purchase');
+        } else if (packageIdentifier === 'annual' && currentOffering.annual) {
+          packageToPurchase = currentOffering.annual;
+          console.log('🔵 RevenueCat: Using fallback annual package for purchase');
+        }
       }
 
       if (!packageToPurchase) {
-        throw new Error(`Package ${packageIdentifier} not found`);
+        const availablePackages = currentOffering.availablePackages?.map(p => p.identifier).join(', ') || 'none';
+        console.error('🔴 RevenueCat: Package not found. Available:', availablePackages);
+        throw new Error(`Package ${packageIdentifier} not found. Available: ${availablePackages}`);
       }
 
+      console.log('🔵 RevenueCat: Initiating purchase for package:', packageToPurchase.identifier);
+      
       const purchaseResult = await Purchases.purchasePackage({ 
         aPackage: packageToPurchase 
       });
 
+      console.log('🟢 RevenueCat: Purchase successful!', purchaseResult);
       return purchaseResult.customerInfo;
     } catch (error) {
-      console.error('Purchase failed:', error);
+      console.error('🔴 RevenueCat: Purchase failed:', error);
       throw error;
     }
   }

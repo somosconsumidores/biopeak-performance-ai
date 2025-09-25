@@ -48,20 +48,41 @@ function Paywall() {
 
   // Carrega as ofertas do RevenueCat para iOS
   useEffect(() => {
-    if (isIOS && isNative && user) {
-      const loadOfferings = async () => {
+    const initRevenueCat = async () => {
+      if (isIOS && isNative && user) {
+        console.log('🔵 Paywall: Initializing RevenueCat for user:', user.id);
         try {
           await revenueCat.initialize(user.id);
-          const currentOfferings = await revenueCat.getOfferings();
-          setOfferings(currentOfferings);
+          console.log('🔵 Paywall: RevenueCat initialized, fetching offerings...');
+          const fetchedOfferings = await revenueCat.getOfferings();
+          console.log('🔵 Paywall: Offerings received:', fetchedOfferings);
+          setOfferings(fetchedOfferings);
+          
+          if (!fetchedOfferings) {
+            console.warn('🟠 Paywall: No offerings found - check RevenueCat configuration');
+            toast({
+              title: "Erro",
+              description: "Não foi possível carregar os planos. Tente novamente.",
+              variant: "destructive"
+            });
+          } else if (!fetchedOfferings.monthly) {
+            console.warn('🟠 Paywall: No monthly product found - check product ID configuration');
+          }
         } catch (error) {
-          console.error('Failed to load RevenueCat offerings:', error);
+          console.error('🔴 Paywall: Failed to initialize RevenueCat:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível inicializar pagamentos. Tente novamente.",
+            variant: "destructive"
+          });
         }
-      };
+      } else {
+        console.log('🔵 Paywall: Skipping RevenueCat init - not native iOS or no user');
+      }
+    };
 
-      loadOfferings();
-    }
-  }, [isIOS, isNative, user]);
+    initRevenueCat();
+  }, [isIOS, isNative, user, toast]);
 
   const handleClose = () => {
     navigate('/sync');
@@ -77,18 +98,35 @@ function Paywall() {
       return;
     }
 
+    console.log('🔵 Paywall: Starting RevenueCat purchase for plan:', selectedPlan);
     setLoading(true);
     
+    // Add timeout to prevent infinite loading
+    const purchaseTimeout = setTimeout(() => {
+      console.error('🔴 Paywall: Purchase timeout after 30 seconds');
+      setLoading(false);
+      toast({
+        title: "Tempo esgotado",
+        description: "A compra demorou muito. Tente novamente.",
+        variant: "destructive"
+      });
+    }, 30000);
+    
     try {
+      console.log('🔵 Paywall: Initializing RevenueCat...');
       await revenueCat.initialize(user.id);
       const packageId = selectedPlan === 'monthly' ? 'monthly' : 'annual';
       
+      console.log('🔵 Paywall: Calling RevenueCat purchasePackage...');
       const customerInfo = await revenueCat.purchasePackage(packageId);
+      
+      clearTimeout(purchaseTimeout);
       
       // Verificar se a compra foi bem-sucedida
       const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
       
       if (hasPremium) {
+        console.log('🟢 Paywall: Purchase successful!');
         toast({
           title: "Assinatura ativada!",
           description: "Sua assinatura foi ativada com sucesso.",
@@ -98,13 +136,14 @@ function Paywall() {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      console.error('RevenueCat purchase failed:', error);
+      clearTimeout(purchaseTimeout);
+      console.error('🔴 Paywall: Purchase failed:', error);
       
       // Não mostrar erro se usuário cancelou
       if (error.code !== '1' && !error.message?.includes('cancelled')) {
         toast({
           title: "Erro na compra",
-          description: "Não foi possível processar a compra. Tente novamente.",
+          description: `Não foi possível processar a compra: ${error.message || 'Erro desconhecido'}`,
           variant: "destructive",
         });
       }

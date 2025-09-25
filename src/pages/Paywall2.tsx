@@ -51,25 +51,40 @@ const Paywall2 = () => {
   useEffect(() => {
     if (isIOS && isNative && !isPWA && user) {
       const setupRevenueCat = async () => {
+        console.log('🔵 Paywall2: Initializing RevenueCat for user:', user.id);
         try {
-          console.log('🔵 Initializing RevenueCat for iOS native user:', user.id);
           await revenueCat.initialize(user.id);
+          console.log('🔵 Paywall2: RevenueCat initialized, fetching offerings...');
           setRevenueCatInitialized(true);
           
           const currentOfferings = await revenueCat.getOfferings();
-          console.log('🔵 RevenueCat offerings loaded:', currentOfferings);
+          console.log('🔵 Paywall2: Offerings received:', currentOfferings);
           setOfferings(currentOfferings);
+          
+          if (!currentOfferings) {
+            console.warn('🟠 Paywall2: No offerings found - check RevenueCat configuration');
+            toast({
+              title: "Aviso",
+              description: "Não foi possível carregar ofertas do RevenueCat. Usando Stripe.",
+            });
+          } else if (!currentOfferings.monthly) {
+            console.warn('🟠 Paywall2: No monthly product found - check product ID configuration');
+          }
         } catch (error) {
-          console.error('🔴 RevenueCat setup error:', error);
+          console.error('🔴 Paywall2: RevenueCat setup error:', error);
           // Don't set error state - we'll fallback to Stripe
           setRevenueCatInitialized(false);
+          toast({
+            title: "Informação",
+            description: "Usando sistema de pagamento alternativo.",
+          });
         }
       };
       setupRevenueCat();
     } else {
-      console.log('🔵 Skipping RevenueCat setup:', { isIOS, isNative, isPWA, hasUser: !!user });
+      console.log('🔵 Paywall2: Skipping RevenueCat setup:', { isIOS, isNative, isPWA, hasUser: !!user });
     }
-  }, [isIOS, isNative, isPWA, user]);
+  }, [isIOS, isNative, isPWA, user, toast]);
 
   const handleClose = () => {
     navigate('/');
@@ -86,22 +101,39 @@ const Paywall2 = () => {
     }
 
     if (!revenueCatInitialized || !offerings) {
-      console.error('🔴 RevenueCat not properly initialized or no offerings');
+      console.error('🔴 Paywall2: RevenueCat not properly initialized or no offerings');
       // Fallback to Stripe
       await handleStripeCheckout();
       return;
     }
 
+    console.log('🔵 Paywall2: Starting RevenueCat purchase');
     setLoading(true);
+    
+    // Add timeout to prevent infinite loading
+    const purchaseTimeout = setTimeout(() => {
+      console.error('🔴 Paywall2: Purchase timeout after 30 seconds');
+      setLoading(false);
+      toast({
+        title: "Tempo esgotado",
+        description: "A compra demorou muito. Tentando método alternativo...",
+        variant: "destructive"
+      });
+      handleStripeCheckout();
+    }, 30000);
+    
     try {
-      console.log('🔵 Attempting RevenueCat purchase with offerings:', offerings);
+      console.log('🔵 Paywall2: Attempting RevenueCat purchase with offerings:', offerings);
       
       if (!offerings.monthly) {
         throw new Error('Pacote mensal não encontrado');
       }
 
+      console.log('🔵 Paywall2: Calling RevenueCat purchasePackage...');
       const customerInfo = await revenueCat.purchasePackage('monthly');
-      console.log('🔵 Purchase successful:', customerInfo);
+      console.log('🟢 Paywall2: Purchase successful:', customerInfo);
+      
+      clearTimeout(purchaseTimeout);
       
       // Verify purchase was successful
       const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
@@ -116,12 +148,17 @@ const Paywall2 = () => {
         throw new Error('Purchase completed but premium not activated');
       }
     } catch (error: any) {
-      console.error('🔴 RevenueCat purchase error:', error);
+      clearTimeout(purchaseTimeout);
+      console.error('🔴 Paywall2: RevenueCat purchase error:', error);
       
       // Don't show error if user cancelled
       if (error.code !== '1' && !error.message?.includes('cancelled')) {
         // Fallback to Stripe on error
-        console.log('🔵 Falling back to Stripe checkout');
+        console.log('🔵 Paywall2: Falling back to Stripe checkout');
+        toast({
+          title: "Método alternativo",
+          description: "Tentando sistema de pagamento alternativo...",
+        });
         await handleStripeCheckout();
       }
     } finally {
