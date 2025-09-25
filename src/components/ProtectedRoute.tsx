@@ -21,7 +21,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!isSubscribed) {
-    return <Navigate to="/paywall" replace />;
+    return <Navigate to="/paywall2" replace />;
   }
 
   return <>{children}</>;
