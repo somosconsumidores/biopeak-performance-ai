@@ -440,6 +440,66 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_stats: {
+        Row: {
+          affiliate_login: string
+          conversion_rate: number
+          created_at: string
+          id: string
+          last_calculated_at: string
+          paid_athletes: number
+          total_athletes: number
+          total_commission: number
+          updated_at: string
+        }
+        Insert: {
+          affiliate_login: string
+          conversion_rate?: number
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          paid_athletes?: number
+          total_athletes?: number
+          total_commission?: number
+          updated_at?: string
+        }
+        Update: {
+          affiliate_login?: string
+          conversion_rate?: number
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          paid_athletes?: number
+          total_athletes?: number
+          total_commission?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      affiliates_login: {
+        Row: {
+          created_at: string
+          id: string
+          login: string
+          password: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          login: string
+          password: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          login?: string
+          password?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json
@@ -571,6 +631,60 @@ export type Database = {
           setting_key?: string
           setting_value?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      faturamento: {
+        Row: {
+          created_at: string
+          data_pagamento: string
+          descricao: string | null
+          id: string
+          metadata: Json | null
+          moeda: string
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_payment_id: string
+          tipo_pagamento: string
+          updated_at: string
+          user_id: string
+          valor_centavos: number
+        }
+        Insert: {
+          created_at?: string
+          data_pagamento: string
+          descricao?: string | null
+          id?: string
+          metadata?: Json | null
+          moeda?: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_payment_id: string
+          tipo_pagamento: string
+          updated_at?: string
+          user_id: string
+          valor_centavos: number
+        }
+        Update: {
+          created_at?: string
+          data_pagamento?: string
+          descricao?: string | null
+          id?: string
+          metadata?: Json | null
+          moeda?: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_payment_id?: string
+          tipo_pagamento?: string
+          updated_at?: string
+          user_id?: string
+          valor_centavos?: number
         }
         Relationships: []
       }
@@ -4195,6 +4309,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_affiliate_stats: {
+        Args: { affiliate_login_param: string }
+        Returns: undefined
+      }
       calculate_variation_analysis: {
         Args: {
           p_activity_id: string
@@ -4360,6 +4478,10 @@ export type Database = {
         Returns: string
       }
       populate_garmin_user_mapping: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_initial_affiliate_stats: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
