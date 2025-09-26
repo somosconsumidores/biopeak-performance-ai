@@ -27,7 +27,6 @@ import { PricingPlans } from '@/components/PricingPlans';
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
 import heroLogoLight from '@/assets/biopeak-logo-light.png';
-import heroVideo from '@/assets/hero-video.mp4';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
@@ -158,15 +157,7 @@ export const LandingPage = () => {
               {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
-              <video 
-                src={heroVideo}
-                autoPlay 
-                muted 
-                loop 
-                playsInline
-                className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain rounded-xl shadow-lg"
-                aria-label="BioPeak - Demonstração da plataforma de análise de performance"
-              />
+              <img src="/lovable-uploads/d6369016-de44-4236-b4dd-a28816ff2041.png" alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
