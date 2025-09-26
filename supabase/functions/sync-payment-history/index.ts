@@ -1,7 +1,5 @@
-// Updated: Force redeploy to check if function appears in Supabase dashboard
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+// Updated: Force redeploy with simplified dependencies
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,35 +33,52 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Initialize Supabase client with service role for database operations
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    // Get Stripe secret key
+    // Get environment variables
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    
+    if (!supabaseUrl || !supabaseServiceKey || !stripeKey) {
+      throw new Error("Missing required environment variables");
+    }
+    logStep("Environment variables verified");
 
     // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
+    
+    // Get user from Supabase auth using direct API call
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseServiceKey,
+      }
+    });
+    
+    if (!userResponse.ok) {
+      throw new Error("Authentication failed");
+    }
+    
+    const user = await userResponse.json();
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    // Find Stripe customer by email
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
+    // Find Stripe customer by email using direct API call
+    const customersResponse = await fetch(`https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`, {
+      headers: {
+        'Authorization': `Bearer ${stripeKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
+    });
+    
+    if (!customersResponse.ok) {
+      throw new Error("Failed to fetch Stripe customers");
+    }
+    
+    const customersData = await customersResponse.json();
+    if (customersData.data.length === 0) {
       logStep("No Stripe customer found for this user");
       return new Response(JSON.stringify({ 
         success: true, 
@@ -77,33 +92,46 @@ serve(async (req) => {
       });
     }
 
-    const customerId = customers.data[0].id;
+    const customerId = customersData.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Get existing payment records from database
-    const { data: existingPayments, error: dbError } = await supabaseClient
-      .from('faturamento')
-      .select('stripe_payment_id')
-      .eq('user_id', user.id);
-
-    if (dbError) throw new Error(`Database error: ${dbError.message}`);
+    // Get existing payment records from database using direct API call
+    const existingPaymentsResponse = await fetch(`${supabaseUrl}/rest/v1/faturamento?user_id=eq.${user.id}&select=stripe_payment_id`, {
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'apikey': supabaseServiceKey,
+        'Content-Type': 'application/json',
+      }
+    });
     
-    const existingPaymentIds = new Set(existingPayments?.map(p => p.stripe_payment_id) || []);
+    if (!existingPaymentsResponse.ok) {
+      throw new Error("Failed to fetch existing payments");
+    }
+    
+    const existingPayments = await existingPaymentsResponse.json();
+    const existingPaymentIds = new Set(existingPayments.map((p: any) => p.stripe_payment_id) || []);
     logStep("Existing payments in DB", { count: existingPaymentIds.size });
 
     const paymentsToInsert: PaymentRecord[] = [];
     let totalProcessed = 0;
     let newPayments = 0;
 
-    // 1. Fetch subscription payments (invoices)
+    // 1. Fetch subscription payments (invoices) using direct API call
     logStep("Fetching subscription invoices");
-    const invoices = await stripe.invoices.list({
-      customer: customerId,
-      status: 'paid',
-      limit: 100, // Adjust as needed
+    const invoicesResponse = await fetch(`https://api.stripe.com/v1/invoices?customer=${customerId}&status=paid&limit=100`, {
+      headers: {
+        'Authorization': `Bearer ${stripeKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
     });
+    
+    if (!invoicesResponse.ok) {
+      throw new Error("Failed to fetch invoices");
+    }
+    
+    const invoicesData = await invoicesResponse.json();
 
-    for (const invoice of invoices.data) {
+    for (const invoice of invoicesData.data) {
       totalProcessed++;
       
       if (!existingPaymentIds.has(invoice.id)) {
@@ -135,14 +163,22 @@ serve(async (req) => {
       }
     }
 
-    // 2. Fetch one-time payments (payment intents)
+    // 2. Fetch one-time payments (payment intents) using direct API call
     logStep("Fetching payment intents");
-    const paymentIntents = await stripe.paymentIntents.list({
-      customer: customerId,
-      limit: 100, // Adjust as needed
+    const paymentIntentsResponse = await fetch(`https://api.stripe.com/v1/payment_intents?customer=${customerId}&limit=100`, {
+      headers: {
+        'Authorization': `Bearer ${stripeKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
     });
+    
+    if (!paymentIntentsResponse.ok) {
+      throw new Error("Failed to fetch payment intents");
+    }
+    
+    const paymentIntentsData = await paymentIntentsResponse.json();
 
-    for (const paymentIntent of paymentIntents.data) {
+    for (const paymentIntent of paymentIntentsData.data) {
       totalProcessed++;
       
       if (paymentIntent.status === 'succeeded' && !existingPaymentIds.has(paymentIntent.id)) {
@@ -165,7 +201,7 @@ serve(async (req) => {
 
     logStep("Payments to insert", { count: paymentsToInsert.length });
 
-    // Insert new payments into database
+    // Insert new payments into database using direct API call
     let insertedCount = 0;
     if (paymentsToInsert.length > 0) {
       const paymentsWithUserId = paymentsToInsert.map(payment => ({
@@ -174,13 +210,21 @@ serve(async (req) => {
         stripe_customer_id: customerId
       }));
 
-      const { error: insertError } = await supabaseClient
-        .from('faturamento')
-        .insert(paymentsWithUserId);
+      const insertResponse = await fetch(`${supabaseUrl}/rest/v1/faturamento`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'apikey': supabaseServiceKey,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(paymentsWithUserId)
+      });
 
-      if (insertError) {
-        logStep("Insert error", { error: insertError });
-        throw new Error(`Failed to insert payments: ${insertError.message}`);
+      if (!insertResponse.ok) {
+        const errorData = await insertResponse.text();
+        logStep("Insert error", { error: errorData });
+        throw new Error(`Failed to insert payments: ${errorData}`);
       }
 
       insertedCount = paymentsToInsert.length;
