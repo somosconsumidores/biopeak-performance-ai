@@ -1,5 +1,8 @@
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.delete-user-account]
+verify_jwt = true
+
 [functions.check-subscription]
 verify_jwt = true
 
