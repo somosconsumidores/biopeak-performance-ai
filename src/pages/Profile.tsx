@@ -114,7 +114,10 @@ export const Profile = () => {
         description: 'Sua conta foi excluída completamente do sistema.'
       });
 
-      // Redirecionar imediatamente já que o usuário foi deletado
+      // Fazer logout do usuário após exclusão bem-sucedida
+      await signOut();
+      
+      // Redirecionar para a página inicial
       navigate('/');
     } catch (error) {
       console.error('Erro ao deletar conta:', error);
