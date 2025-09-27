@@ -89,26 +89,38 @@ export const Profile = () => {
     if (!profile?.user_id) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', profile.user_id);
+      // Chama a Edge Function que deleta o usuário completamente do sistema
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Usuário não autenticado');
+      }
 
-      if (error) throw error;
+      const response = await fetch('https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/delete-user-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao deletar conta');
+      }
 
       toast({
         title: 'Conta excluída',
-        description: 'Sua conta foi excluída com sucesso.'
+        description: 'Sua conta foi excluída completamente do sistema.'
       });
 
-      // Fazer logout após excluir a conta
-      await signOut();
+      // Redirecionar imediatamente já que o usuário foi deletado
       navigate('/');
     } catch (error) {
       console.error('Erro ao deletar conta:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível excluir sua conta. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Não foi possível excluir sua conta. Tente novamente.',
         variant: 'destructive'
       });
     }
