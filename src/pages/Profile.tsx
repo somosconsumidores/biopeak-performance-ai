@@ -1,3 +1,4 @@
+import { EulaDialog } from '@/components/EulaDialog';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
@@ -572,6 +573,19 @@ export const Profile = () => {
               </CardContent>
             </Card>
           </ScrollReveal>
+
+          {/* Footer Links */}
+          <div className="mt-12 pt-6 border-t border-glass-border">
+            <div className="flex justify-center">
+              <EulaDialog 
+                trigger={
+                  <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Contrato de Licença de Usuário Final
+                  </button>
+                }
+              />
+            </div>
+          </div>
 
         </div>
       </div>
