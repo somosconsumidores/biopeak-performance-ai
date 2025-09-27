@@ -11,6 +11,10 @@ import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { AchievementSection } from '@/components/AchievementSection';
 import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { StravaConnectionStatus } from '@/components/StravaConnectionStatus';
@@ -31,7 +35,8 @@ import {
   Clock,
   Flame,
   Loader,
-  Crown
+  Crown,
+  Trash2
 } from 'lucide-react';
 
 export const Profile = () => {
@@ -39,6 +44,8 @@ export const Profile = () => {
   const { profile, loading: profileLoading, age } = useProfile();
   const { onboardingData } = useOnboarding();
   const { isSubscribed, subscriptionTier, subscriptionEnd, loading: subscriptionLoading } = useSubscription();
+  const { signOut } = useAuth();
+  const { toast } = useToast();
   const { 
     stats, 
     personalBests, 
@@ -77,6 +84,35 @@ export const Profile = () => {
   };
 
   const performanceLevel = calculatePerformanceLevel();
+
+  const handleDeleteAccount = async () => {
+    if (!profile?.user_id) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', profile.user_id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Conta excluída',
+        description: 'Sua conta foi excluída com sucesso.'
+      });
+
+      // Fazer logout após excluir a conta
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao deletar conta:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir sua conta. Tente novamente.',
+        variant: 'destructive'
+      });
+    }
+  };
 
   // Achievements baseados em dados reais
   const achievements = [
@@ -233,13 +269,46 @@ export const Profile = () => {
                     </div>
                   </div>
                   
-                  <Button 
-                    className="btn-primary"
-                    onClick={() => navigate('/profile/edit')}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Editar Perfil
-                  </Button>
+                  <div className="flex flex-col space-y-3">
+                    <Button 
+                      className="btn-primary"
+                      onClick={() => navigate('/profile/edit')}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Editar Perfil
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive"
+                          size="sm"
+                          className="w-full"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Deletar Minha Conta
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir conta permanentemente?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente 
+                            da nossa plataforma, incluindo seu perfil, atividades e estatísticas.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteAccount}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Excluir Todos os Dados
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </CardContent>
             </Card>
