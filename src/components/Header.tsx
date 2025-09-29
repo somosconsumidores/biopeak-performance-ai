@@ -3,6 +3,7 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -17,6 +18,7 @@ const bioPeakLogoLight = `${BASE}lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { isSubscribed } = useSubscription();
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -156,6 +158,15 @@ export const Header = () => {
                   >
                     {t('syncActivities')}
                   </Link>
+                  {!isSubscribed && (
+                    <Link
+                      to="/paywall2"
+                      className="block px-3 py-3 text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 touch-manipulation border-t border-glass-border mt-2 pt-4"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      BioPeak Plano Pro
+                    </Link>
+                  )}
                   <div className="pt-4 pb-2">
                     <Button 
                       onClick={handleSignOut} 
