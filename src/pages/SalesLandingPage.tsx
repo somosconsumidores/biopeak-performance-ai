@@ -109,7 +109,7 @@ export const SalesLandingPage = () => {
     { number: "+ 32K", label: "Treinos Analisados" },
     { number: "+ 600", label: "Atletas Ativos" },
     { number: "+2.5K", label: "Insights Fornecidos" },
-    { number: "+ 1K", label: "Metas Atribuídas" }
+    { number: "+ 1.2 K", label: "Metas Atribuídas" }
   ];
 
   const whyBioPeakSlides = [
