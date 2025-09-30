@@ -164,7 +164,7 @@ export const SalesLandingPage = () => {
               🚀 Agora com IA Avançada
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Leve sua corrida para o
+              Leve seu treino para o
               <span className="bg-gradient-primary bg-clip-text text-transparent"> próximo nível</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
