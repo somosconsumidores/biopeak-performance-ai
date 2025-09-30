@@ -26,7 +26,10 @@ import {
 } from 'lucide-react';
 import { useWorkoutComparison, type ActivityComparison } from '@/hooks/useWorkoutComparison';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAnalysisPurchases } from '@/hooks/useAnalysisPurchases';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface WorkoutAIAnalysisDialogProps {
   open: boolean;
@@ -41,13 +44,47 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
 }) => {
   const { comparison, loading, error, analyzeWorkout } = useWorkoutComparison();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const { hasPurchased, loading: purchaseCheckLoading } = useAnalysisPurchases(activityId);
   const navigate = useNavigate();
+  const [purchaseLoading, setPurchaseLoading] = React.useState(false);
+
+  const canAccessAnalysis = isSubscribed || hasPurchased;
 
   React.useEffect(() => {
-    if (open && activityId && !comparison && !loading && !subscriptionLoading && isSubscribed) {
+    if (open && activityId && !comparison && !loading && !subscriptionLoading && !purchaseCheckLoading && canAccessAnalysis) {
       analyzeWorkout(activityId);
     }
-  }, [open, activityId, comparison, loading, subscriptionLoading, isSubscribed, analyzeWorkout]);
+  }, [open, activityId, comparison, loading, subscriptionLoading, purchaseCheckLoading, canAccessAnalysis, analyzeWorkout]);
+
+  const handlePurchaseAnalysis = async () => {
+    if (!activityId) return;
+
+    setPurchaseLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-single-analysis-payment', {
+        body: { activityId }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+        toast({
+          title: "Redirecionando para pagamento",
+          description: "Você será redirecionado para o Stripe para concluir a compra.",
+        });
+      }
+    } catch (err) {
+      console.error('Error purchasing analysis:', err);
+      toast({
+        title: "Erro ao processar pagamento",
+        description: err instanceof Error ? err.message : "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return '--';
@@ -142,14 +179,16 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </DialogTitle>
         </DialogHeader>
 
-        {subscriptionLoading && (
+        {(subscriptionLoading || purchaseCheckLoading) && (
           <div className="py-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Verificando sua assinatura...</p>
+            <p className="text-muted-foreground">
+              {subscriptionLoading ? 'Verificando sua assinatura...' : 'Verificando compras...'}
+            </p>
           </div>
         )}
 
-        {!subscriptionLoading && !isSubscribed && (
+        {!subscriptionLoading && !purchaseCheckLoading && !canAccessAnalysis && (
           <Card className="glass-card border-glass-border">
             <CardContent className="py-12 text-center">
               <div className="flex justify-center mb-6">
@@ -193,6 +232,14 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
                   Assinar Agora
                 </Button>
                 <Button 
+                  onClick={handlePurchaseAnalysis}
+                  disabled={purchaseLoading}
+                  variant="secondary"
+                  className="min-w-[140px]"
+                >
+                  {purchaseLoading ? 'Processando...' : 'Compre esta Análise por R$ 4,99'}
+                </Button>
+                <Button 
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   className="min-w-[140px]"
@@ -204,7 +251,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </Card>
         )}
 
-        {!subscriptionLoading && isSubscribed && loading && (
+        {!subscriptionLoading && !purchaseCheckLoading && canAccessAnalysis && loading && (
           <div className="py-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Analisando seu treino com IA...</p>
@@ -214,7 +261,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </div>
         )}
 
-        {!subscriptionLoading && isSubscribed && error && (
+        {!subscriptionLoading && !purchaseCheckLoading && canAccessAnalysis && error && (
           <Card className="glass-card border-glass-border">
             <CardContent className="py-8 text-center">
               <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -230,7 +277,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
           </Card>
         )}
 
-        {!subscriptionLoading && isSubscribed && comparison && (
+        {!subscriptionLoading && !purchaseCheckLoading && canAccessAnalysis && comparison && (
           <div className="space-y-6">
             {/* Activity Overview */}
             <Card className="glass-card border-glass-border">

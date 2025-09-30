@@ -500,6 +500,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_analysis_purchases: {
+        Row: {
+          activity_id: string
+          activity_source: string
+          amount_cents: number
+          created_at: string
+          id: string
+          purchased_at: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_source?: string
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          purchased_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_source?: string
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          purchased_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json
