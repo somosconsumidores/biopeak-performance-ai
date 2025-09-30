@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PricingPlans } from '@/components/PricingPlans';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -363,94 +364,7 @@ export const SalesLandingPage = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Escolha o plano ideal para você
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Comece grátis e evolua quando estiver pronto
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Free Plan */}
-            <ScrollReveal delay={100}>
-              <Card className="glass-card relative">
-                <CardContent className="p-8">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold mb-2">Gratuito</h3>
-                    <div className="text-4xl font-bold mb-6">R$ 0<span className="text-lg text-muted-foreground">/mês</span></div>
-                  </div>
-                  
-                  <ul className="space-y-3 mb-8">
-                    {[
-                      "Até 5 treinos por mês",
-                      "Análises básicas",
-                      "Sincronização manual",
-                      "Suporte por email"
-                    ].map((feature, i) => (
-                      <li key={i} className="flex items-center">
-                        <CheckCircle className="h-5 w-5 text-primary mr-3" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <Link to="/auth" className="block">
-                    <Button variant="outline" className="w-full" size="lg">
-                      Começar Grátis
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-
-            {/* Pro Plan */}
-            <ScrollReveal delay={200}>
-              <Card className="glass-card relative border-primary/50">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-gradient-primary text-white border-0 px-4 py-1">
-                    Mais Popular
-                  </Badge>
-                </div>
-                <CardContent className="p-8">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold mb-2">BioPeak Pro</h3>
-                    <div className="text-4xl font-bold mb-6">R$ 29<span className="text-lg text-muted-foreground">/mês</span></div>
-                  </div>
-                  
-                  <ul className="space-y-3 mb-8">
-                    {[
-                      "Treinos ilimitados",
-                      "IA Coaching avançada",
-                      "Sincronização automática",
-                      "Analytics profissionais",
-                      "Planos personalizados",
-                      "Suporte prioritário"
-                    ].map((feature, i) => (
-                      <li key={i} className="flex items-center">
-                        <CheckCircle className="h-5 w-5 text-primary mr-3" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <Link to="/auth?plan=pro" className="block">
-                    <Button className="w-full btn-primary" size="lg">
-                      Começar Pro
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
+      <PricingPlans />
 
       {/* FAQ Section */}
       <section className="py-20 px-4">
