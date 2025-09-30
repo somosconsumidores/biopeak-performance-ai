@@ -23,13 +23,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const SalesLandingPage = () => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -114,23 +108,31 @@ export const SalesLandingPage = () => {
 
   const whyBioPeakSlides = [
     {
+      id: "overtraining",
       image: "/lovable-uploads/fd514276-aa01-465a-954c-580e5641de95.png",
-      title: "Risco de Overtraining",
+      title: "Overtraining",
+      fullTitle: "Risco de Overtraining",
       description: "Monitore sinais de fadiga excessiva e previna lesões antes que aconteçam. Nossa IA analisa variabilidade da frequência cardíaca, qualidade do sono e percepção de esforço para alertar quando você precisa de mais recuperação."
     },
     {
+      id: "fitness-score",
       image: "/lovable-uploads/617223a4-cfde-4217-9adf-12facb3501aa.png",
       title: "BioPeak Fitness Score",
+      fullTitle: "BioPeak Fitness Score",
       description: "Uma métrica única que consolida todos os seus dados de treino em um score compreensível. Acompanhe sua evolução de forma global e entenda como cada treino contribui para seu desenvolvimento atlético."
     },
     {
+      id: "calendario",
       image: "/lovable-uploads/01d672b4-2333-4e3e-b726-36dfe80c93d3.png",
-      title: "Calendário de Provas + IA Avançada",
+      title: "Calendário de Provas",
+      fullTitle: "Calendário de Provas + IA Avançada",
       description: "Planeje suas provas e deixe nossa IA criar a periodização perfeita. Analise sua preparação em tempo real, ajuste cargas de treino e chegue no dia da prova no seu melhor momento de forma."
     },
     {
+      id: "insights",
       image: "/lovable-uploads/38a689f7-74f6-4a67-aa7c-b06d82048f9c.png",
-      title: "Insights sobre Performance Geral",
+      title: "Insights",
+      fullTitle: "Insights sobre Performance Geral",
       description: "Descubra padrões ocultos nos seus dados que só uma IA avançada pode identificar. Receba recomendações personalizadas sobre ritmo, zonas de treino e estratégias para maximizar seus resultados."
     }
   ];
@@ -274,33 +276,41 @@ export const SalesLandingPage = () => {
 
           <ScrollReveal delay={200}>
             <div className="max-w-6xl mx-auto">
-              <Carousel className="w-full">
-                <CarouselContent>
-                  {whyBioPeakSlides.map((slide, index) => (
-                    <CarouselItem key={index}>
-                      <div className="grid lg:grid-cols-2 gap-8 items-center">
-                        <div className="order-2 lg:order-1">
-                          <img
-                            src={slide.image}
-                            alt={slide.title}
-                            className="w-full rounded-lg shadow-lg"
-                          />
-                        </div>
-                        <div className="order-1 lg:order-2 space-y-6">
-                          <h3 className="text-2xl md:text-3xl font-bold text-primary">
-                            {slide.title}
-                          </h3>
-                          <p className="text-lg text-muted-foreground leading-relaxed">
-                            {slide.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CarouselItem>
+              <Tabs defaultValue="overtraining" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 bg-muted/50 p-2 mb-8">
+                  {whyBioPeakSlides.map((slide) => (
+                    <TabsTrigger 
+                      key={slide.id} 
+                      value={slide.id}
+                      className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white text-sm md:text-base py-3 px-4 rounded-lg transition-all"
+                    >
+                      {slide.title}
+                    </TabsTrigger>
                   ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-4" />
-                <CarouselNext className="right-4" />
-              </Carousel>
+                </TabsList>
+                
+                {whyBioPeakSlides.map((slide) => (
+                  <TabsContent key={slide.id} value={slide.id} className="mt-0">
+                    <div className="grid lg:grid-cols-2 gap-8 items-center animate-fade-in">
+                      <div className="order-2 lg:order-1">
+                        <img
+                          src={slide.image}
+                          alt={slide.fullTitle}
+                          className="w-full rounded-lg shadow-lg"
+                        />
+                      </div>
+                      <div className="order-1 lg:order-2 space-y-6">
+                        <h3 className="text-2xl md:text-3xl font-bold text-primary">
+                          {slide.fullTitle}
+                        </h3>
+                        <p className="text-lg text-muted-foreground leading-relaxed">
+                          {slide.description}
+                        </p>
+                      </div>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
             </div>
           </ScrollReveal>
         </div>
