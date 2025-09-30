@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 
 export const PricingPlans = () => {
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const navigate = useNavigate();
   const freePlanFeatures = [
     {
@@ -69,7 +68,7 @@ export const PricingPlans = () => {
   const handleCheckout = async () => {
     // Redirecionar para auth com parâmetro do plano selecionado
     // Depois o auth vai redirecionar para paywall
-    navigate(`/auth?plan=${selectedPlan}`);
+    navigate(`/auth?plan=monthly`);
   };
 
   return (
@@ -152,45 +151,11 @@ export const PricingPlans = () => {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">BioPeak Pro</h3>
                 
-                {/* Toggle between Annual and Monthly */}
-                <div className="flex items-center justify-center bg-muted/20 rounded-full p-1 mb-4 max-w-[280px] mx-auto">
-                  <button
-                    onClick={() => setSelectedPlan('annual')}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      selectedPlan === 'annual'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Anual
-                    {selectedPlan === 'annual' && (
-                      <Badge className="absolute -top-2 -right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 border-0">
-                        Economize 35%
-                      </Badge>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setSelectedPlan('monthly')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      selectedPlan === 'monthly'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Mensal
-                  </button>
-                </div>
-
                 <div className="mb-4">
                   <span className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                    R$ {selectedPlan === 'annual' ? '12,90' : '19,90'}
+                    R$ 12,90
                   </span>
                   <span className="text-muted-foreground">/mês</span>
-                  {selectedPlan === 'annual' && (
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Cobrado R$ 154,80 anualmente
-                    </div>
-                  )}
                 </div>
                 <p className="text-muted-foreground">
                   Análises avançadas com inteligência artificial
