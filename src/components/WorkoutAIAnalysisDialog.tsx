@@ -237,8 +237,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
                 <Button 
                   onClick={handlePurchaseAnalysis}
                   disabled={purchaseLoading}
-                  variant="secondary"
-                  className="min-w-[140px]"
+                  className="min-w-[140px] bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
                 >
                   {purchaseLoading ? 'Processando...' : 'Compre esta Análise por R$ 4,99'}
                 </Button>
