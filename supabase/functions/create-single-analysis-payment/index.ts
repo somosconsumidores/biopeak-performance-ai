@@ -13,6 +13,11 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
   try {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -34,7 +39,7 @@ serve(async (req) => {
     console.log('Creating payment for single AI analysis:', { userId: user.id, activityId, activitySource });
 
     // Check if already purchased
-    const { data: existingPurchase } = await supabaseClient
+    const { data: existingPurchase } = await supabaseAdmin
       .from('ai_analysis_purchases')
       .select('*')
       .eq('user_id', user.id)
@@ -88,7 +93,7 @@ serve(async (req) => {
     });
 
     // Record pending purchase
-    const { error: insertError } = await supabaseClient
+    const { error: insertError } = await supabaseAdmin
       .from('ai_analysis_purchases')
       .insert({
         user_id: user.id,
