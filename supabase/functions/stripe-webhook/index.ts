@@ -40,7 +40,11 @@ serve(async (req) => {
     // Handle checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log('Processing checkout session:', session.id);
+      console.log('Processing checkout session:', {
+        sessionId: session.id,
+        paymentIntent: session.payment_intent,
+        metadata: session.metadata,
+      });
 
       // Update ai_analysis_purchases if this is an AI analysis purchase
       if (session.metadata?.purchase_type === 'ai_analysis') {
@@ -49,7 +53,6 @@ serve(async (req) => {
           .update({
             status: 'completed',
             purchased_at: new Date().toISOString(),
-            stripe_payment_intent_id: session.payment_intent as string,
           })
           .eq('stripe_payment_intent_id', session.id);
 
@@ -91,29 +94,57 @@ serve(async (req) => {
     // Handle payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log('Payment intent succeeded:', paymentIntent.id);
+      console.log('Payment intent succeeded:', {
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount,
+        metadata: paymentIntent.metadata,
+      });
 
-      // Update ai_analysis_purchases if not already updated
-      const { data: existingPurchase } = await supabaseAdmin
-        .from('ai_analysis_purchases')
-        .select('*')
-        .eq('stripe_payment_intent_id', paymentIntent.id)
-        .maybeSingle();
+      // Get the checkout session associated with this payment intent
+      try {
+        const sessions = await stripe.checkout.sessions.list({
+          payment_intent: paymentIntent.id,
+          limit: 1,
+        });
 
-      if (existingPurchase && existingPurchase.status === 'pending') {
-        const { error } = await supabaseAdmin
-          .from('ai_analysis_purchases')
-          .update({
-            status: 'completed',
-            purchased_at: new Date().toISOString(),
-          })
-          .eq('stripe_payment_intent_id', paymentIntent.id);
+        if (sessions.data.length > 0) {
+          const session = sessions.data[0];
+          console.log('Found associated session:', session.id);
 
-        if (error) {
-          console.error('Error updating ai_analysis_purchases:', error);
+          // Update ai_analysis_purchases using the session ID
+          const { data: existingPurchase } = await supabaseAdmin
+            .from('ai_analysis_purchases')
+            .select('*')
+            .eq('stripe_payment_intent_id', session.id)
+            .maybeSingle();
+
+          if (existingPurchase && existingPurchase.status === 'pending') {
+            const { error } = await supabaseAdmin
+              .from('ai_analysis_purchases')
+              .update({
+                status: 'completed',
+                purchased_at: new Date().toISOString(),
+              })
+              .eq('stripe_payment_intent_id', session.id);
+
+            if (error) {
+              console.error('Error updating ai_analysis_purchases via payment_intent:', error);
+            } else {
+              console.log('AI analysis purchase completed via payment_intent:', {
+                paymentIntentId: paymentIntent.id,
+                sessionId: session.id,
+              });
+            }
+          } else if (!existingPurchase) {
+            console.log('No pending purchase found for session:', session.id);
+          } else {
+            console.log('Purchase already completed for session:', session.id);
+          }
         } else {
-          console.log('AI analysis purchase completed via payment_intent:', paymentIntent.id);
+          console.log('No checkout session found for payment intent:', paymentIntent.id);
         }
+      } catch (error) {
+        console.error('Error fetching checkout session for payment intent:', error);
       }
     }
 
