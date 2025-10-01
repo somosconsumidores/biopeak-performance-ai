@@ -23,7 +23,9 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { activityId, activitySource = 'garmin' } = await req.json();
+    const body = await req.json();
+    const activityId = body.activityId;
+    const activitySource = body.activitySource || 'strava';
 
     if (!activityId) {
       throw new Error("Activity ID is required");

@@ -62,7 +62,10 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
     setPurchaseLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-single-analysis-payment', {
-        body: { activityId }
+        body: { 
+          activityId,
+          activitySource: 'strava' // Default to strava for now
+        }
       });
 
       if (error) throw error;
