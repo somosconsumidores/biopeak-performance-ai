@@ -229,7 +229,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button 
                   onClick={() => navigate('/paywall')}
-                  className="min-w-[140px]"
+                  className="min-w-[140px] bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   <Crown className="h-4 w-4 mr-2" />
                   Assinar Agora
