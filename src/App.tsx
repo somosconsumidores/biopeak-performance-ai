@@ -30,6 +30,7 @@ import PolarCallback from "./pages/PolarCallback";
 import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import { TermosCondicoes } from "./pages/TermosCondicoes";
 import { AdminPanel } from "./pages/AdminPanel";
 import { AdminSubscriptions } from "./pages/AdminSubscriptions";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
@@ -175,7 +176,8 @@ function AppRoutes() {
             <ProfileEdit />
           </ProtectedRoute>
         } />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/termos-condicoes" element={<TermosCondicoes />} />
         <Route path="/training" element={
           <ProtectedRoute>
             <TrainingSession />
