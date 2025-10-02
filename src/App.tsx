@@ -38,6 +38,7 @@ import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
+import { AICoach } from "./pages/AICoach";
 import Paywall from "./pages/Paywall";
 import Paywall2 from "./pages/Paywall2";
 import MobileBottomBar from "./components/MobileBottomBar";
@@ -183,6 +184,11 @@ function AppRoutes() {
         <Route path="/training" element={
           <ProtectedRoute>
             <TrainingSession />
+          </ProtectedRoute>
+        } />
+        <Route path="/ai-coach" element={
+          <ProtectedRoute>
+            <AICoach />
           </ProtectedRoute>
         } />
         <Route path="/admin" element={

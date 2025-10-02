@@ -9,6 +9,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
+import { usePlatform } from '@/hooks/usePlatform';
 import AchievementBadge from '@/components/AchievementBadge';
 // Logo imports
 const BASE = import.meta.env.BASE_URL || '';
@@ -22,6 +23,7 @@ export const Header = () => {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { isIOS, isNative } = usePlatform();
 
   // Get current logo based on theme
   const getEffectiveTheme = () => {
@@ -59,6 +61,7 @@ export const Header = () => {
     }
   };
 
+  // Build navigation array conditionally
   const navigation = [
     { name: t('dashboard'), href: '/dashboard' },
     { name: 'Painel Estatístico', href: '/premium-stats' },
@@ -67,6 +70,8 @@ export const Header = () => {
     { name: 'Calendário de Provas', href: '/training-plan' },
     { name: 'Feedbacks de Sono', href: '/sleep-feedbacks' },
     { name: t('profile'), href: '/profile' },
+    // Show AI Coach only on iOS native
+    ...(isIOS && isNative ? [{ name: 'BioPeak AI Coach', href: '/ai-coach' }] : []),
   ];
 
   return (

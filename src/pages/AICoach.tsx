@@ -5,14 +5,16 @@ import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
 import DanielsVo2MaxCard from '@/components/DanielsVo2MaxCard';
 import { AICoachChat } from '@/components/AICoachChat';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlatform } from '@/hooks/usePlatform';
 import { Card, CardContent } from '@/components/ui/card';
-import { Brain, Sparkles, Lock, Construction } from 'lucide-react';
+import { Brain, Sparkles, Smartphone } from 'lucide-react';
 
 export const AICoach = () => {
   const { user, loading } = useAuth();
+  const { isIOS, isNative } = usePlatform();
 
-  // Check if user has premium access
-  const hasAdminAccess = user?.email === 'admin@biopeak.com' || user?.email === 'garminteste07@teste.com';
+  // Show feature only for iOS native app
+  const hasAccess = isIOS && isNative;
 
   if (loading) {
     return (
@@ -54,7 +56,7 @@ export const AICoach = () => {
           </ScrollReveal>
 
           {/* Content - Show based on access */}
-          {hasAdminAccess ? (
+          {hasAccess ? (
             <div className="space-y-6">
               <ScrollReveal delay={100}>
                 <WeeklyAIPlanCard />
@@ -75,15 +77,14 @@ export const AICoach = () => {
                   <div className="text-center space-y-6">
                     <div className="flex items-center justify-center gap-3 mb-6">
                       <div className="p-4 rounded-full bg-primary/10">
-                        <Construction className="h-12 w-12 text-primary" />
+                        <Smartphone className="h-12 w-12 text-primary" />
                       </div>
-                      <Lock className="h-8 w-8 text-muted-foreground" />
                     </div>
                     
                     <div className="space-y-3">
-                      <h2 className="text-2xl font-bold">Feature em desenvolvimento</h2>
+                      <h2 className="text-2xl font-bold">Feature exclusiva do app iOS</h2>
                       <p className="text-lg text-muted-foreground max-w-md mx-auto">
-                        Aguarde novidades!
+                        Os treinos com GPS em background estão disponíveis apenas no aplicativo nativo iOS.
                       </p>
                     </div>
                     
@@ -91,7 +92,7 @@ export const AICoach = () => {
                       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
                         <Sparkles className="h-4 w-4 text-primary" />
                         <span className="text-sm text-primary font-medium">
-                          Funcionalidade exclusiva em breve
+                          Baixe o app iOS para acessar
                         </span>
                       </div>
                     </div>
