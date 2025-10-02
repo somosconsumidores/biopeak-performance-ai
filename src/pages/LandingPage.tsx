@@ -4,7 +4,6 @@ import { ScrollReveal } from '@/components/ScrollReveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { EulaDialog } from '@/components/EulaDialog';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { 
@@ -443,13 +442,9 @@ export const LandingPage = () => {
                 <li>{t('about')}</li>
                 <li>{t('blog')}</li>
                 <li>
-                  <EulaDialog 
-                    trigger={
-                      <button className="hover:text-foreground transition-colors cursor-pointer text-left">
-                        Contrato de Licença de Usuário Final
-                      </button>
-                    }
-                  />
+                  <a href="/contrato-licenca" className="hover:text-foreground transition-colors">
+                    Contrato de Licença de Usuário Final
+                  </a>
                 </li>
                 <li><a href="/privacy-policy" className="hover:text-foreground transition-colors">{t('privacy')}</a></li>
               </ul>

@@ -31,6 +31,7 @@ import StravaCallback from "./pages/StravaCallback";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { TermosCondicoes } from "./pages/TermosCondicoes";
+import { ContratoLicenca } from "./pages/ContratoLicenca";
 import { AdminPanel } from "./pages/AdminPanel";
 import { AdminSubscriptions } from "./pages/AdminSubscriptions";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
@@ -178,6 +179,7 @@ function AppRoutes() {
         } />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/termos-condicoes" element={<TermosCondicoes />} />
+          <Route path="/contrato-licenca" element={<ContratoLicenca />} />
         <Route path="/training" element={
           <ProtectedRoute>
             <TrainingSession />
