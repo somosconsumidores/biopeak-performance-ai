@@ -462,7 +462,7 @@ const Paywall2 = () => {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4 safe-pb-8">
+        <CardFooter className="flex flex-col gap-6 safe-pb-8">
           <Button 
             onClick={handleStartNow} 
             disabled={loading}
@@ -504,17 +504,17 @@ const Paywall2 = () => {
             }
           </p>
           
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-2 mb-2">
             <button
               onClick={() => openDialog('https://biopeak-ai.com/privacy-policy', 'Política de Privacidade', 'iframe')}
-              className="hover:underline cursor-pointer"
+              className="hover:underline cursor-pointer hover:text-primary transition-colors"
             >
               Política de Privacidade
             </button>
             <span>•</span>
             <button
               onClick={() => openDialog('', 'Contrato de Licença de Usuário Final', 'eula')}
-              className="hover:underline cursor-pointer"
+              className="hover:underline cursor-pointer hover:text-primary transition-colors"
             >
               Contrato de Licença
             </button>
