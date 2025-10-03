@@ -177,6 +177,21 @@ All colors MUST be HSL.
   touch-action: manipulation;
   /* Prevent overscroll bounce on iOS */
   overscroll-behavior: none;
+  /* Safe area support for iOS bottom (home indicator) */
+  padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Safe area utilities for iOS bottom padding */
+  .safe-pb-4 {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  
+  .safe-pb-6 {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  
+  .safe-pb-8 {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
   }
 }
 

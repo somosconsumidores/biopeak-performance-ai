@@ -410,7 +410,7 @@ function Paywall() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4">
+        <CardFooter className="flex flex-col gap-4 safe-pb-8">
           <Button 
             onClick={handleStartNow} 
             disabled={loading}
