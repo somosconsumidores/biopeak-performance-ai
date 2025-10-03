@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ interface SaveStrategyDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (name: string) => Promise<void>;
   isLoading: boolean;
+  isUpdate?: boolean;
+  currentName?: string;
 }
 
 export function SaveStrategyDialog({
@@ -17,8 +19,15 @@ export function SaveStrategyDialog({
   onOpenChange,
   onSave,
   isLoading,
+  isUpdate = false,
+  currentName = "",
 }: SaveStrategyDialogProps) {
-  const [strategyName, setStrategyName] = useState("");
+  const [strategyName, setStrategyName] = useState(currentName);
+
+  // Update strategy name when currentName changes
+  useEffect(() => {
+    setStrategyName(currentName);
+  }, [currentName]);
 
   const handleSave = async () => {
     if (!strategyName.trim()) return;
@@ -30,9 +39,12 @@ export function SaveStrategyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Salvar Estratégia</DialogTitle>
+          <DialogTitle>{isUpdate ? 'Atualizar Estratégia' : 'Salvar Estratégia'}</DialogTitle>
           <DialogDescription>
-            Dê um nome para sua estratégia de corrida. Você poderá acessá-la depois na área de perfil.
+            {isUpdate 
+              ? 'Atualize o nome da sua estratégia de corrida.'
+              : 'Dê um nome para sua estratégia de corrida. Você poderá acessá-la depois na área de perfil.'
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -61,7 +73,7 @@ export function SaveStrategyDialog({
             disabled={!strategyName.trim() || isLoading}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar
+            {isUpdate ? 'Atualizar' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>

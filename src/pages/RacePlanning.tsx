@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RaceInputs } from "@/components/race-planning/RaceInputs";
@@ -8,10 +9,92 @@ import { PaceChart } from "@/components/race-planning/PaceChart";
 import { SaveStrategyDialog } from "@/components/race-planning/SaveStrategyDialog";
 import { useRacePlanning } from "@/hooks/useRacePlanning";
 import { useRaceStrategies } from "@/hooks/useRaceStrategies";
-import { AlertCircle, Trophy, Download, Share2 } from "lucide-react";
+import { AlertCircle, Trophy, Download, Share2, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RacePlanning() {
+  const [searchParams] = useSearchParams();
+  const strategyId = searchParams.get('id');
+  const { toast } = useToast();
+  const { loadStrategy, saveStrategy, updateStrategy, isLoading: isSaving } = useRaceStrategies();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [loadedStrategyId, setLoadedStrategyId] = useState<string | null>(null);
+  const [loadedStrategyName, setLoadedStrategyName] = useState<string>('');
+  const [initialData, setInitialData] = useState<any>(null);
+
+  // Load strategy if ID is present in URL
+  useEffect(() => {
+    if (strategyId) {
+      loadExistingStrategy(strategyId);
+    }
+  }, [strategyId]);
+
+  const loadExistingStrategy = async (id: string) => {
+    const strategy = await loadStrategy(id);
+    if (strategy) {
+      setLoadedStrategyId(id);
+      setLoadedStrategyName(strategy.strategy_name);
+      
+      // Convert distance to proper format
+      const distanceKm = Number(strategy.distance_km);
+      let distanceType: 'constant' | 'negative' | 'positive' = 'constant';
+      let customDist = 10;
+      
+      if (distanceKm === 5) distanceType = 'constant' as any; // Will be corrected below
+      else if (distanceKm === 10) distanceType = 'constant' as any;
+      else if (distanceKm === 21.0975) distanceType = 'constant' as any;
+      else if (distanceKm === 42.195) distanceType = 'constant' as any;
+      else {
+        distanceType = 'constant' as any;
+        customDist = distanceKm;
+      }
+
+      // Determine proper distance format
+      let dist: 'constant' | 'negative' | 'positive' | 'custom' = 'custom';
+      if (distanceKm === 5) dist = '5k' as any;
+      else if (distanceKm === 10) dist = '10k' as any;
+      else if (Math.abs(distanceKm - 21.0975) < 0.01) dist = '21k' as any;
+      else if (Math.abs(distanceKm - 42.195) < 0.01) dist = '42k' as any;
+
+      const formatTimeFromSeconds = (seconds: number) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      };
+
+      const formatPaceFromSeconds = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      };
+
+      const targetTimeStr = strategy.target_time_seconds 
+        ? formatTimeFromSeconds(strategy.target_time_seconds)
+        : '01:00:00';
+      
+      const targetPaceStr = strategy.target_pace_seconds
+        ? formatPaceFromSeconds(strategy.target_pace_seconds)
+        : '06:00';
+
+      setInitialData({
+        distance: dist,
+        customDistance: customDist,
+        objectiveType: strategy.objective_type,
+        targetTime: targetTimeStr,
+        targetPace: targetPaceStr,
+        strategy: strategy.strategy_type,
+        intensity: strategy.intensity_percentage,
+      });
+
+      toast({
+        title: "Estratégia Carregada",
+        description: `"${strategy.strategy_name}" foi carregada com sucesso.`,
+      });
+    }
+  };
+
   const {
     distance,
     setDistance,
@@ -34,10 +117,7 @@ export default function RacePlanning() {
     formatTime,
     formatPace,
     getCoachingMessage,
-  } = useRacePlanning();
-
-  const { saveStrategy, isLoading: isSaving } = useRaceStrategies();
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  } = useRacePlanning(initialData);
 
   const handleSave = async (strategyName: string) => {
     const targetTimeInSeconds = objectiveType === 'time' 
@@ -48,18 +128,46 @@ export default function RacePlanning() {
       ? avgPaceSeconds
       : null;
 
-    const result = await saveStrategy(
-      strategyName,
-      distanceInKm,
-      objectiveType,
-      targetTimeInSeconds,
-      targetPaceInSeconds,
-      strategy,
-      intensity,
-      kmDistribution,
-      totalTimeSeconds,
-      avgPaceSeconds
-    );
+    let result;
+    
+    // If we have a loaded strategy, update it instead of creating new
+    if (loadedStrategyId) {
+      result = await updateStrategy(
+        loadedStrategyId,
+        strategyName,
+        distanceInKm,
+        objectiveType,
+        targetTimeInSeconds,
+        targetPaceInSeconds,
+        strategy,
+        intensity,
+        kmDistribution,
+        totalTimeSeconds,
+        avgPaceSeconds
+      );
+      
+      if (result) {
+        setLoadedStrategyName(strategyName);
+      }
+    } else {
+      result = await saveStrategy(
+        strategyName,
+        distanceInKm,
+        objectiveType,
+        targetTimeInSeconds,
+        targetPaceInSeconds,
+        strategy,
+        intensity,
+        kmDistribution,
+        totalTimeSeconds,
+        avgPaceSeconds
+      );
+      
+      if (result) {
+        setLoadedStrategyId(result.id);
+        setLoadedStrategyName(strategyName);
+      }
+    }
 
     if (result) {
       setShowSaveDialog(false);
@@ -81,14 +189,28 @@ export default function RacePlanning() {
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-6 sm:mb-8 text-center px-2">
+          {loadedStrategyId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.history.back()}
+              className="mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para Minhas Estratégias
+            </Button>
+          )}
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
             <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Planejador de Prova
+              {loadedStrategyId ? loadedStrategyName : 'Planejador de Prova'}
             </h1>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.
+            {loadedStrategyId 
+              ? 'Visualize e edite sua estratégia de corrida salva.'
+              : 'Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.'
+            }
           </p>
         </div>
 
@@ -160,7 +282,7 @@ export default function RacePlanning() {
                 disabled={isSaving}
               >
                 <Trophy className="h-4 w-4 mr-2" />
-                Salvar Estratégia
+                {loadedStrategyId ? 'Atualizar Estratégia' : 'Salvar Estratégia'}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleExport} className="h-11 sm:h-10 text-xs sm:text-sm">
@@ -224,6 +346,8 @@ export default function RacePlanning() {
         onOpenChange={setShowSaveDialog}
         onSave={handleSave}
         isLoading={isSaving}
+        isUpdate={!!loadedStrategyId}
+        currentName={loadedStrategyName}
       />
     </div>
   );

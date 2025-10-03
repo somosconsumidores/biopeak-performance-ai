@@ -167,10 +167,7 @@ export default function SavedStrategies() {
                   <Button 
                     className="w-full mt-4" 
                     variant="outline"
-                    onClick={() => {
-                      // TODO: Implement view/edit functionality
-                      console.log('View strategy:', strategy.id);
-                    }}
+                    onClick={() => navigate(`/race-planning?id=${strategy.id}`)}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     Ver Detalhes

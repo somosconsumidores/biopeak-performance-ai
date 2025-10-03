@@ -201,9 +201,35 @@ export function useRaceStrategies() {
     }
   };
 
+  const loadStrategy = async (id: string): Promise<SavedRaceStrategy | null> => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('race_strategies')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error loading strategy:', error);
+      toast({
+        title: "Erro ao carregar",
+        description: "Não foi possível carregar a estratégia.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     saveStrategy,
     loadStrategies,
+    loadStrategy,
     deleteStrategy,
     updateStrategy,
     isLoading,

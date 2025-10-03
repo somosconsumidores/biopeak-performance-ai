@@ -11,14 +11,22 @@ export interface KmData {
   accumulatedTime: number; // tempo acumulado em segundos
 }
 
-export function useRacePlanning() {
-  const [distance, setDistance] = useState<RaceDistance>('10k');
-  const [customDistance, setCustomDistance] = useState<number>(10);
-  const [objectiveType, setObjectiveType] = useState<ObjectiveType>('time');
-  const [targetTime, setTargetTime] = useState<string>('01:00:00'); // HH:MM:SS
-  const [targetPace, setTargetPace] = useState<string>('06:00'); // MM:SS
-  const [strategy, setStrategy] = useState<StrategyType>('constant');
-  const [intensity, setIntensity] = useState<number>(10); // 0-20% variation
+export function useRacePlanning(initialData?: {
+  distance: RaceDistance;
+  customDistance: number;
+  objectiveType: ObjectiveType;
+  targetTime: string;
+  targetPace: string;
+  strategy: StrategyType;
+  intensity: number;
+}) {
+  const [distance, setDistance] = useState<RaceDistance>(initialData?.distance || '10k');
+  const [customDistance, setCustomDistance] = useState<number>(initialData?.customDistance || 10);
+  const [objectiveType, setObjectiveType] = useState<ObjectiveType>(initialData?.objectiveType || 'time');
+  const [targetTime, setTargetTime] = useState<string>(initialData?.targetTime || '01:00:00'); // HH:MM:SS
+  const [targetPace, setTargetPace] = useState<string>(initialData?.targetPace || '06:00'); // MM:SS
+  const [strategy, setStrategy] = useState<StrategyType>(initialData?.strategy || 'constant');
+  const [intensity, setIntensity] = useState<number>(initialData?.intensity || 10); // 0-20% variation
 
   const distanceInKm = useMemo(() => {
     switch (distance) {
