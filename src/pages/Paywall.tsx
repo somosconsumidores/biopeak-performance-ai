@@ -437,6 +437,26 @@ function Paywall() {
               : "Assinatura renovada automaticamente. Pode ser cancelada a qualquer momento."
             }
           </p>
+          
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <a 
+              href="https://biopeak-ai.com/privacy-policy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              Política de Privacidade
+            </a>
+            <span>•</span>
+            <a 
+              href="https://biopeak-ai.com/contrato-licenca" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              Contrato de Licença
+            </a>
+          </div>
         </CardFooter>
       </Card>
     </div>
