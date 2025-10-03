@@ -367,7 +367,9 @@ const Paywall2 = () => {
   };
 
   const openDialog = (url: string, title: string, contentType: 'iframe' | 'eula' = 'iframe') => {
-    setDialogUrl(url);
+    // Adiciona parâmetro para indicar que está em popup
+    const finalUrl = contentType === 'iframe' && url ? `${url}?popup=true` : url;
+    setDialogUrl(finalUrl);
     setDialogTitle(title);
     setDialogContent(contentType);
     setDialogOpen(true);
@@ -521,7 +523,7 @@ const Paywall2 = () => {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" hideClose={dialogContent === 'iframe'}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
           </DialogHeader>
