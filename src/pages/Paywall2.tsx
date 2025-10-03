@@ -411,7 +411,7 @@ const Paywall2 = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+    <div className={`min-h-screen bg-background flex justify-center p-4 pt-8 relative ${isIOS && isNative ? 'pb-32' : 'pb-24'}`}>
       <Button
         variant="ghost"
         size="icon"
@@ -421,7 +421,7 @@ const Paywall2 = () => {
         <X className="h-5 w-5" />
       </Button>
 
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md h-fit">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 p-3 rounded-full bg-gradient-to-r from-primary to-primary/80">
             <Crown className="h-8 w-8 text-white" />
@@ -470,7 +470,7 @@ const Paywall2 = () => {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-6 safe-pb-8">
+        <CardFooter className={`flex flex-col gap-6 safe-pb-8 ${isIOS && isNative ? 'pb-6' : ''}`}>
           <Button 
             onClick={handleStartNow} 
             disabled={loading}
