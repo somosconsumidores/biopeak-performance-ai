@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import { useRealtimeSession, TrainingGoal } from '@/hooks/useRealtimeSession';
 import { BackgroundTrainingSession } from './BackgroundTrainingSession';
@@ -273,12 +274,13 @@ const TrainingSession: React.FC = () => {
 
   if (!sessionData) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="min-h-screen bg-background relative flex flex-col">
         <ParticleBackground />
         <Header />
         
-      <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <ScrollArea className="flex-1">
+          <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto space-y-6">
             {/* Header */}
             <div className="text-center space-y-4">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -426,19 +428,21 @@ const TrainingSession: React.FC = () => {
               </Button>
             </CardContent>
             </Card>
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative flex flex-col">
       <ParticleBackground />
       <Header />
       
-      <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <ScrollArea className="flex-1">
+        <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto space-y-6">
           {/* Session Header */}
           <Card className="bg-card/80 backdrop-blur border-primary/20">
             <CardContent className="p-6">
@@ -614,8 +618,9 @@ const TrainingSession: React.FC = () => {
           sessionData={pendingRecovery?.sessionData || null}
           hibernationDuration={hibernationDuration}
         />
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 };
