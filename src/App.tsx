@@ -41,6 +41,7 @@ import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
 import Paywall2 from "./pages/Paywall2";
 import RacePlanning from "./pages/RacePlanning";
+import SavedStrategies from "./pages/SavedStrategies";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -216,6 +217,11 @@ function AppRoutes() {
         <Route path="/race-planning" element={
           <ProtectedRoute>
             <RacePlanning />
+          </ProtectedRoute>
+        } />
+        <Route path="/saved-strategies" element={
+          <ProtectedRoute>
+            <SavedStrategies />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

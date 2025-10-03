@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RaceInputs } from "@/components/race-planning/RaceInputs";
 import { StrategyControls } from "@/components/race-planning/StrategyControls";
 import { PaceDistributionTable } from "@/components/race-planning/PaceDistributionTable";
 import { PaceChart } from "@/components/race-planning/PaceChart";
+import { SaveStrategyDialog } from "@/components/race-planning/SaveStrategyDialog";
 import { useRacePlanning } from "@/hooks/useRacePlanning";
+import { useRaceStrategies } from "@/hooks/useRaceStrategies";
 import { AlertCircle, Trophy, Download, Share2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -33,9 +36,34 @@ export default function RacePlanning() {
     getCoachingMessage,
   } = useRacePlanning();
 
-  const handleSave = () => {
-    // TODO: Implement save to user profile
-    console.log('Saving race plan...');
+  const { saveStrategy, isLoading: isSaving } = useRaceStrategies();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+  const handleSave = async (strategyName: string) => {
+    const targetTimeInSeconds = objectiveType === 'time' 
+      ? totalTimeSeconds 
+      : null;
+    
+    const targetPaceInSeconds = objectiveType === 'pace'
+      ? avgPaceSeconds
+      : null;
+
+    const result = await saveStrategy(
+      strategyName,
+      distanceInKm,
+      objectiveType,
+      targetTimeInSeconds,
+      targetPaceInSeconds,
+      strategy,
+      intensity,
+      kmDistribution,
+      totalTimeSeconds,
+      avgPaceSeconds
+    );
+
+    if (result) {
+      setShowSaveDialog(false);
+    }
   };
 
   const handleExport = () => {
@@ -126,7 +154,11 @@ export default function RacePlanning() {
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-2">
-              <Button onClick={handleSave} className="w-full h-11 sm:h-10 text-sm sm:text-base">
+              <Button 
+                onClick={() => setShowSaveDialog(true)} 
+                className="w-full h-11 sm:h-10 text-sm sm:text-base"
+                disabled={isSaving}
+              >
                 <Trophy className="h-4 w-4 mr-2" />
                 Salvar Estratégia
               </Button>
@@ -186,6 +218,13 @@ export default function RacePlanning() {
           </div>
         </div>
       </div>
+
+      <SaveStrategyDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSave={handleSave}
+        isLoading={isSaving}
+      />
     </div>
   );
 }

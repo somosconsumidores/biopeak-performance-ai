@@ -2588,6 +2588,57 @@ export type Database = {
           },
         ]
       }
+      race_strategies: {
+        Row: {
+          avg_pace_seconds: number
+          created_at: string
+          distance_km: number
+          id: string
+          intensity_percentage: number
+          km_distribution: Json
+          objective_type: string
+          strategy_name: string
+          strategy_type: string
+          target_pace_seconds: number | null
+          target_time_seconds: number | null
+          total_time_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_pace_seconds: number
+          created_at?: string
+          distance_km: number
+          id?: string
+          intensity_percentage?: number
+          km_distribution?: Json
+          objective_type: string
+          strategy_name: string
+          strategy_type: string
+          target_pace_seconds?: number | null
+          target_time_seconds?: number | null
+          total_time_seconds: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_pace_seconds?: number
+          created_at?: string
+          distance_km?: number
+          id?: string
+          intensity_percentage?: number
+          km_distribution?: Json
+          objective_type?: string
+          strategy_name?: string
+          strategy_type?: string
+          target_pace_seconds?: number | null
+          target_time_seconds?: number | null
+          total_time_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       realtime_feedbacks: {
         Row: {
           audio_url: string | null
