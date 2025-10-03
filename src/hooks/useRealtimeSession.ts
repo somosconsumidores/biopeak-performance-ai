@@ -841,25 +841,21 @@ export const useRealtimeSession = () => {
       
       console.log('📝 Update payload:', updateData);
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('training_sessions')
         .update(updateData)
-        .eq('id', sessionData.sessionId)
-        .select()
-        .single();
+        .eq('id', sessionData.sessionId);
 
       if (error) {
         console.error('❌ Supabase error updating session:', error);
-        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error details:', error.details);
+        console.error('❌ Error hint:', error.hint);
         throw new Error(`Erro ao salvar treino: ${error.message}`);
       }
-
-      if (!data) {
-        console.error('❌ No data returned from update');
-        throw new Error('Nenhum dado retornado ao atualizar sessão');
-      }
       
-      console.log('✅ Session completed successfully in database:', data);
+      console.log('✅ Session completed successfully in database with ID:', sessionData.sessionId);
       setSessionData(current => current ? { ...current, status: 'completed' } : null);
       
     } catch (error) {

@@ -205,10 +205,22 @@ const TrainingSession: React.FC = () => {
 
   // Handle session completion
   const handleCompleteSession = async () => {
+    console.log('🔴 [COMPLETION] User clicked Finalizar button');
+    console.log('🔴 [COMPLETION] Current session data:', {
+      sessionId: sessionData?.sessionId,
+      distance: sessionData?.currentDistance,
+      duration: sessionData?.currentDuration,
+      status: sessionData?.status
+    });
+    console.log('🔴 [COMPLETION] Subjective feedback:', subjectiveFeedback);
+    
     try {
       console.log('🎯 User requested session completion');
       await completeSession({ feeling: subjectiveFeedback });
+      
+      console.log('✅ [COMPLETION] completeSession finished successfully');
       setShowCompletionDialog(false);
+      
       toast({
         title: "Treino concluído!",
         description: "Parabéns! Seus dados foram salvos. Redirecionando...",
@@ -216,10 +228,16 @@ const TrainingSession: React.FC = () => {
       
       // Redirect to workouts page to see session analysis with the completed session ID
       setTimeout(() => {
+        console.log('🔴 [COMPLETION] Redirecting to workouts page');
         window.location.href = `/workouts?activityId=${sessionData.sessionId}`;
       }, 1500);
     } catch (error) {
-      console.error('❌ Error completing session:', error);
+      console.error('❌ [COMPLETION] Error completing session:', error);
+      console.error('❌ [COMPLETION] Error type:', typeof error);
+      console.error('❌ [COMPLETION] Error instanceof Error:', error instanceof Error);
+      console.error('❌ [COMPLETION] Error message:', error instanceof Error ? error.message : 'Unknown');
+      console.error('❌ [COMPLETION] Error stack:', error instanceof Error ? error.stack : 'No stack');
+      
       toast({
         title: "Erro ao finalizar treino",
         description: error instanceof Error ? error.message : "Houve um problema ao salvar os dados.",
