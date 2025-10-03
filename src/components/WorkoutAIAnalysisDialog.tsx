@@ -46,7 +46,6 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
   const { hasPurchased, loading: purchaseCheckLoading } = useAnalysisPurchases(activityId);
   const navigate = useNavigate();
-  const [purchaseLoading, setPurchaseLoading] = React.useState(false);
 
   const canAccessAnalysis = isSubscribed || hasPurchased;
 
@@ -55,39 +54,6 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
       analyzeWorkout(activityId);
     }
   }, [open, activityId, comparison, loading, subscriptionLoading, purchaseCheckLoading, canAccessAnalysis, analyzeWorkout]);
-
-  const handlePurchaseAnalysis = async () => {
-    if (!activityId) return;
-
-    setPurchaseLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-single-analysis-payment', {
-        body: { 
-          activityId,
-          activitySource: 'strava' // Default to strava for now
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.open(data.url, '_blank');
-        toast({
-          title: "Redirecionando para pagamento",
-          description: "Você será redirecionado para o Stripe para concluir a compra.",
-        });
-      }
-    } catch (err) {
-      console.error('Error purchasing analysis:', err);
-      toast({
-        title: "Erro ao processar pagamento",
-        description: err instanceof Error ? err.message : "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
-    } finally {
-      setPurchaseLoading(false);
-    }
-  };
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return '--';
@@ -233,13 +199,6 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
                 >
                   <Crown className="h-4 w-4 mr-2" />
                   Assinar Agora
-                </Button>
-                <Button 
-                  onClick={handlePurchaseAnalysis}
-                  disabled={purchaseLoading}
-                  className="min-w-[140px] bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                >
-                  {purchaseLoading ? 'Processando...' : 'Compre esta Análise por R$ 4,99'}
                 </Button>
                 <Button 
                   variant="outline"
