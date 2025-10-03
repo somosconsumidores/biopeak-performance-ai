@@ -71,7 +71,7 @@ export const Header = () => {
     { name: 'Feedbacks de Sono', href: '/sleep-feedbacks' },
     { name: t('profile'), href: '/profile' },
     // Show AI Coach only on iOS native
-    ...(isIOS && isNative ? [{ name: 'BioPeak AI Coach', href: '/ai-coach' }] : []),
+    ...(isIOS && isNative ? [{ name: 'BioPeak AI Coach', href: '/training' }] : []),
   ];
 
   return (
