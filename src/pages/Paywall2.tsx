@@ -23,7 +23,7 @@ const Paywall2 = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogUrl, setDialogUrl] = useState('');
   const [dialogTitle, setDialogTitle] = useState('');
-  const [dialogContent, setDialogContent] = useState<'iframe' | 'eula'>('iframe');
+  const [dialogContent, setDialogContent] = useState<'iframe' | 'eula' | 'privacy'>('iframe');
 
   // Detect if running as PWA
   const isPWA = isWeb && window.matchMedia('(display-mode: standalone)').matches;
@@ -366,7 +366,15 @@ const Paywall2 = () => {
     await handleStripeCheckout();
   };
 
-  const openDialog = (url: string, title: string, contentType: 'iframe' | 'eula' = 'iframe') => {
+  const openDialog = (url: string, title: string, contentType: 'iframe' | 'eula' | 'privacy' = 'iframe') => {
+    // Para iOS nativo, sempre usar conteúdo estático para política de privacidade
+    if (contentType === 'iframe' && isIOS && isNative && !isPWA) {
+      setDialogTitle(title);
+      setDialogContent('privacy');
+      setDialogOpen(true);
+      return;
+    }
+    
     // Adiciona parâmetro para indicar que está em popup
     const finalUrl = contentType === 'iframe' && url ? `${url}?popup=true` : url;
     setDialogUrl(finalUrl);
@@ -534,6 +542,184 @@ const Paywall2 = () => {
                 className="w-full h-full min-h-[60vh]"
                 title={dialogTitle}
               />
+            ) : dialogContent === 'privacy' ? (
+              <div className="prose prose-sm max-w-none dark:prose-invert space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold mb-4">Política de Privacidade do BioPeak</h2>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Introdução</h3>
+                  <p className="mb-4">
+                    Esta Política de Privacidade descreve como o BioPeak coleta, utiliza, compartilha e protege suas informações pessoais. Também explica os seus direitos e as opções disponíveis para controlar a sua privacidade. Ao utilizar o BioPeak, você concorda com os termos aqui descritos. Recomendamos também a leitura dos nossos Termos de Uso, que regulam o uso dos nossos serviços.
+                  </p>
+                  <p className="mb-4">
+                    O BioPeak é um aplicativo voltado para o monitoramento e aprimoramento da performance esportiva com base em dados biométricos. Nós levamos a sua privacidade a sério e adotamos medidas para protegê-la.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Resumo de Privacidade</h3>
+                  
+                  <h4 className="text-base font-semibold mb-3">Coleta, uso e compartilhamento de dados</h4>
+                  <div className="overflow-x-auto mb-6">
+                    <table className="w-full border-collapse border border-border text-xs">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="border border-border p-2 text-left">Declaração</th>
+                          <th className="border border-border p-2 text-left">Resposta</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-border p-2">Vendemos suas informações pessoais por valor monetário?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Vendemos informações agregadas por valor monetário?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Compartilhamos suas informações pessoais com terceiros que não sejam prestadores de serviços?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Compartilhamos suas informações pessoais para publicidade direcionada?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Usamos categorias de dados confidenciais, como informações de saúde?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Oferecemos proteções de privacidade adicionais para menores de idade (usuários menores de 18 anos)?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Usamos sua lista de contatos?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Excluímos suas informações pessoais quando você solicita a exclusão da conta?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, a menos que necessário por lei</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Reteremos seus dados após a exclusão da conta?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não, exceto se exigido por lei</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 className="text-base font-semibold mb-3">Controles de Privacidade</h4>
+                  <div className="overflow-x-auto mb-6">
+                    <table className="w-full border-collapse border border-border text-xs">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="border border-border p-2 text-left">Declaração</th>
+                          <th className="border border-border p-2 text-left">Resposta</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-border p-2">Você pode controlar quem vê sua atividade e conteúdo?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Você pode controlar quem vê sua atividade baseada em localização?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Seus controles de privacidade de atividade e perfil são públicos (definidos como "Todos") por padrão?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, se tiver 18 anos ou mais</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Você pode baixar e excluir suas informações pessoais?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Todos os usuários têm o mesmo conjunto de controles de privacidade?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 className="text-base font-semibold mb-3">Rastreamento e Cookies</h4>
+                  <div className="overflow-x-auto mb-6">
+                    <table className="w-full border-collapse border border-border text-xs">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="border border-border p-2 text-left">Declaração</th>
+                          <th className="border border-border p-2 text-left">Resposta</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-border p-2">Rastrearemos a localização do seu dispositivo enquanto você não estiver usando o app?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Rastrearemos a localização do seu dispositivo para oferecer os serviços do BioPeak?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Usamos cookies e tecnologias semelhantes não essenciais?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Rastrearemos suas atividades de navegação em outros sites?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Ouvimos você usando o microfone do dispositivo?</td>
+                          <td className="border border-border p-2 font-semibold text-red-600">Não</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 className="text-base font-semibold mb-3">Comunicação com Usuários</h4>
+                  <div className="overflow-x-auto mb-6">
+                    <table className="w-full border-collapse border border-border text-xs">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="border border-border p-2 text-left">Declaração</th>
+                          <th className="border border-border p-2 text-left">Resposta</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-border p-2">Avisaremos antes de fazer alterações importantes nesta Política de Privacidade?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Enviaremos comunicações de marketing para você?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, exceto se recusado ou mediante consentimento expresso</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-border p-2">Enviaremos notificações push em dispositivos móveis?</td>
+                          <td className="border border-border p-2 font-semibold text-green-600">Sim, com o seu consentimento</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Contato</h3>
+                  <p>
+                    Se você tiver dúvidas sobre esta Política de Privacidade ou quiser exercer seus direitos de privacidade, entre em contato com nossa equipe de suporte através do e-mail: <a href="mailto:relacionamento@consumo-inteligente.com" className="text-primary underline">relacionamento@consumo-inteligente.com</a>
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Atualizações</h3>
+                  <p>
+                    Esta Política poderá ser atualizada periodicamente. Caso façamos mudanças significativas, você será informado por meio do aplicativo ou por outros meios apropriados.
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 <h2 className="text-lg font-bold mb-4">CONTRATO DE LICENÇA DE USUÁRIO FINAL DE APLICATIVO LICENCIADO</h2>
