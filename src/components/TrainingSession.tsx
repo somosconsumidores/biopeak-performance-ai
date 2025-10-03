@@ -216,7 +216,7 @@ const TrainingSession: React.FC = () => {
     
     try {
       console.log('🎯 User requested session completion');
-      await completeSession({ feeling: subjectiveFeedback });
+      await completeSession(subjectiveFeedback);
       
       console.log('✅ [COMPLETION] completeSession finished successfully');
       setShowCompletionDialog(false);
