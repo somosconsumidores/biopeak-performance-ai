@@ -40,6 +40,7 @@ import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
 import Paywall2 from "./pages/Paywall2";
+import RacePlanning from "./pages/RacePlanning";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 
@@ -212,6 +213,11 @@ function AppRoutes() {
         } />
         <Route path="/paywall" element={<Paywall2 />} />
         <Route path="/paywall2" element={<Paywall2 />} />
+        <Route path="/race-planning" element={
+          <ProtectedRoute>
+            <RacePlanning />
+          </ProtectedRoute>
+        } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
