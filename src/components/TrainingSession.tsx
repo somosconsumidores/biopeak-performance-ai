@@ -278,9 +278,9 @@ const TrainingSession: React.FC = () => {
         <ParticleBackground />
         <Header />
         
-        <ScrollArea className="flex-1">
-          <div className="safe-pt-20 sm:safe-pt-24 pb-40 md:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex-1 overflow-auto">
+          <div className="safe-pt-20 sm:safe-pt-24 px-3 sm:px-4 md:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto space-y-6 pb-6">
             {/* Header */}
             <div className="text-center space-y-4">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -429,8 +429,10 @@ const TrainingSession: React.FC = () => {
             </CardContent>
             </Card>
             </div>
+            {/* Spacer for mobile bottom bar */}
+            <div className="h-24 md:hidden" />
           </div>
-        </ScrollArea>
+        </div>
       </div>
     );
   }
@@ -440,9 +442,9 @@ const TrainingSession: React.FC = () => {
       <ParticleBackground />
       <Header />
       
-      <ScrollArea className="flex-1">
-        <div className="safe-pt-20 sm:safe-pt-24 pb-40 md:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-auto">
+        <div className="safe-pt-20 sm:safe-pt-24 px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto space-y-6 pb-6">
           {/* Session Header */}
           <Card className="bg-card/80 backdrop-blur border-primary/20">
             <CardContent className="p-6">
@@ -619,8 +621,10 @@ const TrainingSession: React.FC = () => {
           hibernationDuration={hibernationDuration}
         />
           </div>
+          {/* Spacer for mobile bottom bar */}
+          <div className="h-24 md:hidden" />
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };
