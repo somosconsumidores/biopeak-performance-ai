@@ -35,33 +35,35 @@ export function PaceDistributionTable({
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-16">Km</TableHead>
-            <TableHead>Pace</TableHead>
-            <TableHead>Tempo</TableHead>
-            <TableHead>Acumulado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row) => (
-            <TableRow key={row.km}>
-              <TableCell className="font-medium">{row.km}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {getPaceIndicator(row.pace)}
-                  <span className={`font-mono ${getPaceColor(row.pace)}`}>
-                    {formatPace(row.pace)}/km
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell className="font-mono">{formatTime(row.time)}</TableCell>
-              <TableCell className="font-mono font-medium">{formatTime(row.accumulatedTime)}</TableCell>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12 sm:w-16 text-xs sm:text-sm">Km</TableHead>
+              <TableHead className="text-xs sm:text-sm">Pace</TableHead>
+              <TableHead className="text-xs sm:text-sm">Tempo</TableHead>
+              <TableHead className="text-xs sm:text-sm">Acumulado</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {data.map((row) => (
+              <TableRow key={row.km}>
+                <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">{row.km}</TableCell>
+                <TableCell className="py-2 sm:py-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    {getPaceIndicator(row.pace)}
+                    <span className={`font-mono text-xs sm:text-sm ${getPaceColor(row.pace)}`}>
+                      {formatPace(row.pace)}/km
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-4">{formatTime(row.time)}</TableCell>
+                <TableCell className="font-mono font-medium text-xs sm:text-sm py-2 sm:py-4">{formatTime(row.accumulatedTime)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

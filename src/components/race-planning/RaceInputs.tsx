@@ -30,11 +30,11 @@ export function RaceInputs({
   onTargetPaceChange,
 }: RaceInputsProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="distance">Distância da Prova</Label>
+        <Label htmlFor="distance" className="text-sm sm:text-base">Distância da Prova</Label>
         <Select value={distance} onValueChange={(value) => onDistanceChange(value as RaceDistance)}>
-          <SelectTrigger id="distance">
+          <SelectTrigger id="distance" className="h-11 sm:h-10 text-base sm:text-sm">
             <SelectValue placeholder="Selecione a distância" />
           </SelectTrigger>
           <SelectContent>
@@ -56,48 +56,49 @@ export function RaceInputs({
               max={100}
               step={0.1}
               placeholder="Distância em km"
+              className="h-11 sm:h-10 text-base"
             />
           </div>
         )}
       </div>
 
       <div className="space-y-3">
-        <Label>Tipo de Objetivo</Label>
+        <Label className="text-sm sm:text-base">Tipo de Objetivo</Label>
         <RadioGroup value={objectiveType} onValueChange={(value) => onObjectiveTypeChange(value as ObjectiveType)}>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="time" id="time" />
-            <Label htmlFor="time" className="font-normal cursor-pointer">Tempo Total</Label>
+          <div className="flex items-center space-x-3 py-1">
+            <RadioGroupItem value="time" id="time" className="h-5 w-5" />
+            <Label htmlFor="time" className="font-normal cursor-pointer text-base sm:text-sm">Tempo Total</Label>
           </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="pace" id="pace" />
-            <Label htmlFor="pace" className="font-normal cursor-pointer">Pace Médio</Label>
+          <div className="flex items-center space-x-3 py-1">
+            <RadioGroupItem value="pace" id="pace" className="h-5 w-5" />
+            <Label htmlFor="pace" className="font-normal cursor-pointer text-base sm:text-sm">Pace Médio</Label>
           </div>
         </RadioGroup>
       </div>
 
       {objectiveType === 'time' ? (
         <div className="space-y-2">
-          <Label htmlFor="target-time">Tempo Alvo (HH:MM:SS)</Label>
+          <Label htmlFor="target-time" className="text-sm sm:text-base">Tempo Alvo (HH:MM:SS)</Label>
           <Input
             id="target-time"
             type="text"
             value={targetTime}
             onChange={(e) => onTargetTimeChange(e.target.value)}
             placeholder="01:00:00"
-            className="font-mono"
+            className="font-mono h-11 sm:h-10 text-base"
           />
           <p className="text-xs text-muted-foreground">Formato: horas:minutos:segundos</p>
         </div>
       ) : (
         <div className="space-y-2">
-          <Label htmlFor="target-pace">Pace Alvo (MM:SS/km)</Label>
+          <Label htmlFor="target-pace" className="text-sm sm:text-base">Pace Alvo (MM:SS/km)</Label>
           <Input
             id="target-pace"
             type="text"
             value={targetPace}
             onChange={(e) => onTargetPaceChange(e.target.value)}
             placeholder="06:00"
-            className="font-mono"
+            className="font-mono h-11 sm:h-10 text-base"
           />
           <p className="text-xs text-muted-foreground">Formato: minutos:segundos por km</p>
         </div>

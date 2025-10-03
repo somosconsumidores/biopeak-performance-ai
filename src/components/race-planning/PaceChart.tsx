@@ -17,27 +17,29 @@ export function PaceChart({ data, formatPace, avgPaceSeconds }: PaceChartProps) 
   const avgPaceDisplay = formatPace(avgPaceSeconds);
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[250px] sm:h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis 
             dataKey="km" 
             className="text-xs"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            interval="preserveStartEnd"
           />
           <YAxis 
             domain={['dataMin - 10', 'dataMax + 10']}
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
             tickFormatter={(value) => formatPace(value)}
+            width={45}
           />
           <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
-                  <div className="bg-popover border rounded-lg p-3 shadow-lg">
-                    <p className="font-medium">{payload[0].payload.km}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="bg-popover border rounded-lg p-2 sm:p-3 shadow-lg">
+                    <p className="font-medium text-xs sm:text-sm">{payload[0].payload.km}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Pace: <span className="font-mono text-primary">{payload[0].payload.paceDisplay}/km</span>
                     </p>
                   </div>
@@ -53,16 +55,17 @@ export function PaceChart({ data, formatPace, avgPaceSeconds }: PaceChartProps) 
             label={{ 
               value: `Média: ${avgPaceDisplay}/km`, 
               position: 'insideTopRight',
-              fill: 'hsl(var(--primary))'
+              fill: 'hsl(var(--primary))',
+              fontSize: 11
             }}
           />
           <Line
             type="monotone"
             dataKey="pace"
             stroke="hsl(var(--primary))"
-            strokeWidth={3}
-            dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-            activeDot={{ r: 6 }}
+            strokeWidth={2}
+            dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5 }}
           />
         </LineChart>
       </ResponsiveContainer>
