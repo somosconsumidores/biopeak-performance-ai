@@ -497,14 +497,7 @@ const Paywall2 = () => {
             Talvez mais tarde
           </Button>
           
-          <p className="text-xs text-muted-foreground text-center">
-            {isIOS && isNative && !isPWA
-              ? "Assinatura gerenciada pela App Store. Pode ser cancelada nas configurações do iOS."
-              : "Assinatura renovada automaticamente. Pode ser cancelada a qualquer momento."
-            }
-          </p>
-          
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-2 mb-2">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <button
               onClick={() => openDialog('https://biopeak-ai.com/privacy-policy', 'Política de Privacidade', 'iframe')}
               className="hover:underline cursor-pointer hover:text-primary transition-colors"
@@ -519,6 +512,13 @@ const Paywall2 = () => {
               Contrato de Licença
             </button>
           </div>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            {isIOS && isNative && !isPWA
+              ? "Assinatura gerenciada pela App Store. Pode ser cancelada nas configurações do iOS."
+              : "Assinatura renovada automaticamente. Pode ser cancelada a qualquer momento."
+            }
+          </p>
         </CardFooter>
       </Card>
 
