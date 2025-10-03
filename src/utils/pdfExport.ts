@@ -18,17 +18,17 @@ export async function exportStrategyToPDF(
   const margin = 20;
   let yPosition = margin;
 
-  // Add BioPeak logo - centered at the top
+  // Pre-load template image
+  let templateImg: string | null = null;
   try {
-    const logoImg = await loadImage('/src/assets/biopeak-logo.png');
-    const logoWidth = 50;
-    const logoHeight = 37.5;
-    const logoX = (pageWidth - logoWidth) / 2;
-    pdf.addImage(logoImg, 'PNG', logoX, yPosition, logoWidth, logoHeight);
-    yPosition += logoHeight + 10;
+    templateImg = await loadImage('/src/assets/biopeak-pdf-template.png');
+    pdf.addImage(templateImg, 'PNG', 0, 0, pageWidth, pageHeight);
   } catch (error) {
-    console.error('Error loading logo:', error);
+    console.error('Error loading template:', error);
   }
+
+  // Position content below the logo area (logo is in the template)
+  yPosition = 80; // Start content below the template logo
 
   // Add title
   pdf.setFontSize(20);
@@ -68,6 +68,10 @@ export async function exportStrategyToPDF(
   kmDistribution.forEach((row, index) => {
     if (yPosition > pageHeight - 20) {
       pdf.addPage();
+      // Add template to new page
+      if (templateImg) {
+        pdf.addImage(templateImg, 'PNG', 0, 0, pageWidth, pageHeight);
+      }
       yPosition = margin;
     }
 
