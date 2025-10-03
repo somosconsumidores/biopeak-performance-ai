@@ -779,56 +779,6 @@ export const useRealtimeSession = () => {
     }
   }, [sessionData, calculateCalories]);
 
-  // Complete session
-  const completeSession = useCallback(async (subjectiveFeedback?: any) => {
-    if (!sessionData) return;
-
-    setIsRecording(false);
-    stopLocationTracking();
-    
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    try {
-      const goalAchieved = checkGoalAchievement(sessionData);
-      
-      console.log('🏁 Completing session:', sessionData.sessionId);
-      console.log('📊 Session data:', {
-        distance: sessionData.currentDistance,
-        duration: sessionData.currentDuration,
-        pace: sessionData.averagePace,
-        calories: sessionData.calories
-      });
-      
-      const { data, error } = await supabase
-        .from('training_sessions')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          total_distance_meters: sessionData.currentDistance,
-          total_duration_seconds: sessionData.currentDuration,
-          average_pace_min_km: sessionData.averagePace,
-          calories_burned: sessionData.calories,
-          goal_achieved: goalAchieved,
-          subjective_feedback: subjectiveFeedback
-        })
-        .eq('id', sessionData.sessionId);
-
-      if (error) {
-        console.error('❌ Error updating session:', error);
-        throw error;
-      }
-      
-      console.log('✅ Session completed successfully:', data);
-      setSessionData(current => current ? { ...current, status: 'completed' } : null);
-    } catch (error) {
-      console.error('Error completing session:', error);
-      throw error; // Re-throw to allow TrainingSession component to handle
-    }
-  }, [sessionData, stopLocationTracking]);
-
   // Check if goal was achieved
   const checkGoalAchievement = useCallback((session: SessionData): boolean => {
     const { goal } = session;
@@ -846,6 +796,78 @@ export const useRealtimeSession = () => {
         return true; // Free run is always "achieved"
     }
   }, []);
+
+  // Complete session
+  const completeSession = useCallback(async (subjectiveFeedback?: any) => {
+    if (!sessionData) {
+      console.error('❌ Cannot complete session: sessionData is null');
+      throw new Error('Dados da sessão não encontrados');
+    }
+
+    console.log('🏁 Starting session completion...');
+    console.log('📊 Session ID:', sessionData.sessionId);
+    console.log('📊 Session data before completion:', {
+      distance: sessionData.currentDistance,
+      duration: sessionData.currentDuration,
+      pace: sessionData.averagePace,
+      calories: sessionData.calories,
+      status: sessionData.status
+    });
+
+    setIsRecording(false);
+    stopLocationTracking();
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    try {
+      const goalAchieved = checkGoalAchievement(sessionData);
+      
+      console.log('🎯 Goal achieved:', goalAchieved);
+      console.log('💾 Updating training_sessions table...');
+      
+      const updateData = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        total_distance_meters: sessionData.currentDistance,
+        total_duration_seconds: sessionData.currentDuration,
+        average_pace_min_km: sessionData.averagePace,
+        calories_burned: sessionData.calories,
+        goal_achieved: goalAchieved,
+        subjective_feedback: subjectiveFeedback
+      };
+      
+      console.log('📝 Update payload:', updateData);
+      
+      const { data, error } = await supabase
+        .from('training_sessions')
+        .update(updateData)
+        .eq('id', sessionData.sessionId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase error updating session:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        throw new Error(`Erro ao salvar treino: ${error.message}`);
+      }
+
+      if (!data) {
+        console.error('❌ No data returned from update');
+        throw new Error('Nenhum dado retornado ao atualizar sessão');
+      }
+      
+      console.log('✅ Session completed successfully in database:', data);
+      setSessionData(current => current ? { ...current, status: 'completed' } : null);
+      
+    } catch (error) {
+      console.error('❌ Fatal error completing session:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      throw error; // Re-throw to allow TrainingSession component to handle
+    }
+  }, [sessionData, stopLocationTracking, checkGoalAchievement]);
 
   // Check for pending recovery on mount
   useEffect(() => {
