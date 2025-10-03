@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Check, Crown, Loader2, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,9 @@ function Paywall() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState<RevenueCatOffering | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogUrl, setDialogUrl] = useState('');
+  const [dialogTitle, setDialogTitle] = useState('');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refreshSubscription } = useSubscription();
@@ -278,6 +282,12 @@ function Paywall() {
 
   const handleStartNow = () => handleStartNowWithPlan();
 
+  const openDialog = (url: string, title: string) => {
+    setDialogUrl(url);
+    setDialogTitle(title);
+    setDialogOpen(true);
+  };
+
   const benefits = [
     {
       title: "Análises de IA Completas",
@@ -439,26 +449,37 @@ function Paywall() {
           </p>
           
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <a 
-              href="https://biopeak-ai.com/privacy-policy" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:underline"
+            <button
+              onClick={() => openDialog('https://biopeak-ai.com/privacy-policy', 'Política de Privacidade')}
+              className="hover:underline cursor-pointer"
             >
               Política de Privacidade
-            </a>
+            </button>
             <span>•</span>
-            <a 
-              href="https://biopeak-ai.com/contrato-licenca" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:underline"
+            <button
+              onClick={() => openDialog('https://biopeak-ai.com/contrato-licenca', 'Contrato de Licença de Usuário Final')}
+              className="hover:underline cursor-pointer"
             >
               Contrato de Licença
-            </a>
+            </button>
           </div>
         </CardFooter>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <iframe
+              src={dialogUrl}
+              className="w-full h-full min-h-[60vh]"
+              title={dialogTitle}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
