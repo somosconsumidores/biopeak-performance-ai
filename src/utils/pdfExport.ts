@@ -18,11 +18,14 @@ export async function exportStrategyToPDF(
   const margin = 20;
   let yPosition = margin;
 
-  // Add BioPeak logo
+  // Add BioPeak logo - centered at the top
   try {
     const logoImg = await loadImage('/src/assets/biopeak-logo.png');
-    pdf.addImage(logoImg, 'PNG', margin, yPosition, 40, 30);
-    yPosition += 35;
+    const logoWidth = 50;
+    const logoHeight = 37.5;
+    const logoX = (pageWidth - logoWidth) / 2;
+    pdf.addImage(logoImg, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+    yPosition += logoHeight + 10;
   } catch (error) {
     console.error('Error loading logo:', error);
   }
