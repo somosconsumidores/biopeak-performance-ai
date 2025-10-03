@@ -12,6 +12,8 @@ import { useRaceStrategies } from "@/hooks/useRaceStrategies";
 import { AlertCircle, Trophy, Download, Share2, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { exportStrategyToPDF } from "@/utils/pdfExport";
+import { shareStrategyNative } from "@/utils/shareStrategy";
 
 export default function RacePlanning() {
   const [searchParams] = useSearchParams();
@@ -174,14 +176,57 @@ export default function RacePlanning() {
     }
   };
 
-  const handleExport = () => {
-    // TODO: Implement PDF export
-    console.log('Exporting to PDF...');
+  const handleExport = async () => {
+    try {
+      await exportStrategyToPDF(
+        loadedStrategyName || 'Minha_Estrategia',
+        distanceInKm,
+        formatTime(totalTimeSeconds),
+        formatPace(avgPaceSeconds),
+        strategy,
+        kmDistribution,
+        formatTime,
+        formatPace
+      );
+      
+      toast({
+        title: "PDF Exportado",
+        description: "Sua estratégia foi exportada com sucesso!",
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar o PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    console.log('Sharing race plan...');
+  const handleShare = async () => {
+    try {
+      const success = await shareStrategyNative(
+        loadedStrategyName || 'Minha Estratégia',
+        distanceInKm,
+        formatTime(totalTimeSeconds),
+        formatPace(avgPaceSeconds),
+        strategy
+      );
+      
+      if (success) {
+        toast({
+          title: "Compartilhado!",
+          description: "Sua estratégia foi compartilhada com sucesso.",
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Erro ao compartilhar",
+        description: "Não foi possível compartilhar a estratégia. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
