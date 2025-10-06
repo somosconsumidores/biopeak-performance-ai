@@ -23,10 +23,14 @@ export default defineConfig(({ mode }) => ({
   build: {
     // Optimize bundle size
     rollupOptions: {
+      external: ['jspdf'],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-slot'],
+        },
+        globals: {
+          jspdf: 'jspdf',
         },
       },
     },
