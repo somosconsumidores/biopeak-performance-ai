@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 export type RaceDistance = '5k' | '10k' | '21k' | '42k' | 'custom';
 export type ObjectiveType = 'time' | 'pace';
@@ -27,6 +27,19 @@ export function useRacePlanning(initialData?: {
   const [targetPace, setTargetPace] = useState<string>(initialData?.targetPace || '06:00'); // MM:SS
   const [strategy, setStrategy] = useState<StrategyType>(initialData?.strategy || 'constant');
   const [intensity, setIntensity] = useState<number>(initialData?.intensity || 10); // 0-20% variation
+
+  // Update states when initialData changes (when loading a saved strategy)
+  useEffect(() => {
+    if (initialData) {
+      setDistance(initialData.distance);
+      setCustomDistance(initialData.customDistance);
+      setObjectiveType(initialData.objectiveType);
+      setTargetTime(initialData.targetTime);
+      setTargetPace(initialData.targetPace);
+      setStrategy(initialData.strategy);
+      setIntensity(initialData.intensity);
+    }
+  }, [initialData]);
 
   const distanceInKm = useMemo(() => {
     switch (distance) {
