@@ -64,18 +64,30 @@ export default function RacePlanning() {
       };
 
       const formatPaceFromSeconds = (seconds: number) => {
-        const minutes = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-      };
+      const minutes = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
 
-      const targetTimeStr = strategy.target_time_seconds 
-        ? formatTimeFromSeconds(strategy.target_time_seconds)
-        : '01:00:00';
-      
-      const targetPaceStr = strategy.target_pace_seconds
-        ? formatPaceFromSeconds(strategy.target_pace_seconds)
-        : '06:00';
+    // Calculate target time and pace based on objective type
+    let targetTimeStr: string;
+    let targetPaceStr: string;
+
+    if (strategy.objective_type === 'pace' && strategy.target_pace_seconds) {
+      // If objective is pace, calculate time from pace and distance
+      const totalSeconds = strategy.target_pace_seconds * distanceKm;
+      targetTimeStr = formatTimeFromSeconds(totalSeconds);
+      targetPaceStr = formatPaceFromSeconds(strategy.target_pace_seconds);
+    } else if (strategy.objective_type === 'time' && strategy.target_time_seconds) {
+      // If objective is time, calculate pace from time and distance
+      const paceSeconds = strategy.target_time_seconds / distanceKm;
+      targetTimeStr = formatTimeFromSeconds(strategy.target_time_seconds);
+      targetPaceStr = formatPaceFromSeconds(paceSeconds);
+    } else {
+      // Fallback defaults
+      targetTimeStr = '01:00:00';
+      targetPaceStr = '06:00';
+    }
 
       setInitialData({
         distance: dist,
