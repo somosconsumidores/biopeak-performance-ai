@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
@@ -84,7 +84,10 @@ export const Dashboard = () => {
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
   const { t } = useTranslation();
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  
+  // Memoize subscription status to prevent unnecessary re-renders
+  const memoizedIsSubscribed = useMemo(() => isSubscribed, [isSubscribed]);
 
   // Verificar conquistas quando o dashboard carrega
   useEffect(() => {
@@ -361,7 +364,7 @@ export const Dashboard = () => {
           <ScrollReveal delay={40}>
             <div className="mb-6 md:mb-8">
               {activeSection === 'fitness-score' && (
-                isSubscribed ? (
+                memoizedIsSubscribed ? (
                   <BioPeakFitnessCard />
                 ) : (
                   <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
@@ -371,7 +374,7 @@ export const Dashboard = () => {
               )}
               
               {activeSection === 'overtraining-risk' && overtrainingRisk && (
-                isSubscribed ? (
+                memoizedIsSubscribed ? (
                 <Card className="glass-card border-glass-border">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">

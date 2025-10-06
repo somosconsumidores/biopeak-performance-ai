@@ -13,7 +13,8 @@ interface SubscriptionData {
 }
 
 const CACHE_KEY = 'subscription_cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const SESSION_SUBSCRIPTION_KEY = 'session_subscription_verified';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (increased from 5)
 
 export const useSubscription = () => {
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
@@ -31,7 +32,22 @@ export const useSubscription = () => {
         return;
       }
 
-      // Try to load from cache first
+      // Check session lock first - if verified in this session, trust it
+      const sessionVerified = sessionStorage.getItem(SESSION_SUBSCRIPTION_KEY);
+      if (sessionVerified) {
+        try {
+          const sessionData = JSON.parse(sessionVerified);
+          debugLog('Using session-verified subscription data', sessionData);
+          setSubscriptionData(sessionData);
+          setLoading(false);
+          return; // Don't re-verify during active session
+        } catch (e) {
+          debugError('Session data parse error:', e);
+          sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
+        }
+      }
+
+      // Try to load from cache
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         try {
@@ -174,7 +190,15 @@ export const useSubscription = () => {
 
       if (error) {
         debugError('Erro ao verificar assinatura:', error);
-        // Tenta buscar dados em cache no banco como fallback
+        
+        // CRITICAL FIX: In background mode, don't reset to false on error
+        if (background) {
+          debugWarn('Background check failed, keeping current subscription status');
+          clearTimeout(timeoutId);
+          return; // Don't modify state on background check failure
+        }
+        
+        // Only for foreground checks: Try fallback to database cache
         const { data: cachedData } = await Promise.race([
           supabase
             .from('subscribers')
@@ -196,6 +220,11 @@ export const useSubscription = () => {
           setSubscriptionData(data);
           // Cache result
           localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+          
+          // Set session lock if subscribed
+          if (data.subscribed) {
+            sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
+          }
         } else {
           clearTimeout(timeoutId);
           setSubscriptionData({ subscribed: false });
@@ -203,13 +232,23 @@ export const useSubscription = () => {
       } else {
         clearTimeout(timeoutId);
         setSubscriptionData(data);
+        
         // Cache result
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+        
+        // Set session lock if subscribed (prevents re-checks during session)
+        if (data.subscribed) {
+          sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
+        }
       }
     } catch (error) {
       debugError('Erro na verificação de assinatura:', error);
       clearTimeout(timeoutId);
-      setSubscriptionData({ subscribed: false });
+      
+      // CRITICAL FIX: Don't reset to false in background mode
+      if (!background) {
+        setSubscriptionData({ subscribed: false });
+      }
     } finally {
       clearTimeout(timeoutId);
       if (!background) setLoading(false);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { debugLog, debugError } from '@/lib/debug';
 
 interface FitnessScore {
   fitness_score: number;
@@ -18,6 +19,9 @@ interface FitnessScoreHistory {
   score: number;
 }
 
+const CACHE_KEY = 'fitness_score_cache';
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 export const useFitnessScore = () => {
   const [currentScore, setCurrentScore] = useState<FitnessScore | null>(null);
   const [scoreHistory, setScoreHistory] = useState<FitnessScoreHistory[]>([]);
@@ -27,6 +31,24 @@ export const useFitnessScore = () => {
 
   const fetchFitnessScores = async () => {
     if (!user) return;
+
+    // Check cache first
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          debugLog('Using cached fitness score data', data);
+          setCurrentScore(data.currentScore);
+          setScoreHistory(data.scoreHistory);
+          setLoading(false);
+          return; // Don't fetch if cache is valid
+        }
+      } catch (e) {
+        debugError('Fitness score cache parse error:', e);
+        localStorage.removeItem(CACHE_KEY);
+      }
+    }
 
     try {
       setLoading(true);
@@ -72,10 +94,20 @@ export const useFitnessScore = () => {
           score: item.fitness_score
         }));
         setScoreHistory(history);
+        
+        // Cache the results
+        const cacheData = {
+          currentScore: currentData && currentData.length > 0 ? currentData[0] : null,
+          scoreHistory: history,
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ 
+          data: cacheData, 
+          timestamp: Date.now() 
+        }));
       }
 
     } catch (err) {
-      console.error('Error in fetchFitnessScores:', err);
+      debugError('Error in fetchFitnessScores:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch fitness scores');
     } finally {
       setLoading(false);
@@ -100,14 +132,15 @@ export const useFitnessScore = () => {
         throw functionError;
       }
 
-      console.log('✅ Fitness score calculated successfully:', data);
+      debugLog('✅ Fitness score calculated successfully:', data);
       
-      // Refresh the data
+      // Invalidate cache and refresh
+      localStorage.removeItem(CACHE_KEY);
       await fetchFitnessScores();
       
       return true;
     } catch (err) {
-      console.error('Error in calculateFitnessScore:', err);
+      debugError('Error in calculateFitnessScore:', err);
       setError(err instanceof Error ? err.message : 'Failed to calculate fitness score');
       return false;
     }
