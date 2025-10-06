@@ -205,19 +205,15 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
             </Alert>
           )}
 
-          {/* Browser Instructions */}
-          {currentStatus === 'denied' && !isEmulator && (
-            <div className="space-y-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <Chrome className="h-4 w-4" />
-                Como permitir no {deviceInfo.browser}:
-              </h4>
-              <ol className="text-sm space-y-1 list-decimal list-inside pl-4">
-                {getBrowserSpecificInstructions().map((step, index) => (
-                  <li key={index}>{step}</li>
-                ))}
-              </ol>
-            </div>
+          {/* Permission Denied Info */}
+          {currentStatus === 'denied' && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                <strong>Permissão Negada:</strong> Para usar recursos de GPS, você pode habilitar 
+                a permissão nas configurações do seu dispositivo ou usar o modo simulação para testes.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Troubleshooting */}
@@ -235,24 +231,26 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            <Button 
-              onClick={handleRetry} 
-              disabled={isRetrying}
-              className="w-full"
-              variant="default"
-            >
-              {isRetrying ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Tentando...
-                </>
-              ) : (
-                <>
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Solicitar Permissão GPS
-                </>
-              )}
-            </Button>
+            {currentStatus !== 'denied' && (
+              <Button 
+                onClick={handleRetry} 
+                disabled={isRetrying}
+                className="w-full"
+                variant="default"
+              >
+                {isRetrying ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Tentando...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Solicitar Permissão GPS
+                  </>
+                )}
+              </Button>
+            )}
 
             <Button 
               onClick={onUseSimulation}

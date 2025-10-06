@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { MapPin, Camera, Mic, CheckCircle, XCircle, Clock, Settings } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { MapPin } from 'lucide-react';
 import { useNativePermissions } from '../hooks/useNativePermissions';
-import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
 
 interface PermissionOnboardingProps {
   open: boolean;
@@ -17,37 +14,19 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
   open,
   onComplete
 }) => {
-  const { permissions, requestAllPermissions, isNative, deviceInfo } = useNativePermissions();
+  const { permissions, requestAllPermissions } = useNativePermissions();
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasTriedRequest, setHasTriedRequest] = useState(false);
-
-  const getPermissionIcon = (status: string) => {
-    switch (status) {
-      case 'granted':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'denied':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      default:
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-    }
-  };
-
-  const getPermissionBadge = (status: string) => {
-    switch (status) {
-      case 'granted':
-        return <Badge variant="default" className="bg-green-500">Permitido</Badge>;
-      case 'denied':
-        return <Badge variant="destructive">Negado</Badge>;
-      default:
-        return <Badge variant="secondary">Pendente</Badge>;
-    }
-  };
 
   const handleRequestPermissions = async () => {
     setIsRequesting(true);
     setHasTriedRequest(true);
     try {
       await requestAllPermissions();
+      // If location is granted, complete onboarding
+      if (permissions.location === 'granted') {
+        onComplete();
+      }
     } catch (error) {
       console.error('Permission request failed:', error);
     } finally {
@@ -55,121 +34,54 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
     }
   };
 
-  const handleOpenSettings = async () => {
-    try {
-      if (isNative && Capacitor.isNativePlatform()) {
-        await (App as any).openSettings();
-      } else {
-        // Web fallback - show instructions
-        alert('Por favor, acesse as configurações do navegador para habilitar as permissões.');
-      }
-    } catch (error) {
-      console.error('Error opening settings:', error);
-    }
-  };
-
   const allPermissionsGranted = permissions.location === 'granted';
-  const hasPermissionDenied = permissions.location === 'denied' || permissions.camera === 'denied';
-  const shouldShowOpenSettings = hasTriedRequest && (hasPermissionDenied || (!allPermissionsGranted && !isRequesting));
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onComplete()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Permissões do Aplicativo</DialogTitle>
+          <DialogTitle>Bem-vindo ao BioPeak</DialogTitle>
           <DialogDescription>
-            Para uma melhor experiência, precisamos de algumas permissões.
+            Para rastrear seus treinos, precisamos acessar sua localização.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {deviceInfo && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Dispositivo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground">
-                  {isNative ? deviceInfo.model : 'Navegador Web'} - {deviceInfo.operatingSystem || deviceInfo.platform}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Permissão de Localização</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Usamos sua localização apenas durante os treinos para:
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside pl-2">
+                <li>Rastrear distância e percurso</li>
+                <li>Calcular velocidade e ritmo</li>
+                <li>Registrar altitude e elevação</li>
+              </ul>
+              <p className="text-xs text-muted-foreground mt-3">
+                Seus dados são privados e nunca compartilhados.
+              </p>
+            </CardContent>
+          </Card>
 
-          <div className="space-y-3">
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <CardTitle className="text-sm">Localização (GPS)</CardTitle>
-                  </div>
-                  {getPermissionIcon(permissions.location)}
-                </div>
-                <CardDescription className="text-xs">
-                  Necessário para rastrear treinos e atividades físicas
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {getPermissionBadge(permissions.location)}
-              </CardContent>
-            </Card>
+          <Button 
+            onClick={handleRequestPermissions}
+            disabled={isRequesting}
+            className="w-full"
+            size="lg"
+          >
+            {isRequesting ? 'Solicitando...' : 'Continuar'}
+          </Button>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Camera className="h-4 w-4" />
-                    <CardTitle className="text-sm">Câmera</CardTitle>
-                  </div>
-                  {getPermissionIcon(permissions.camera)}
-                </div>
-                <CardDescription className="text-xs">
-                  Para compartilhar fotos dos seus treinos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {getPermissionBadge(permissions.camera)}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex gap-2">
-            {!allPermissionsGranted && !shouldShowOpenSettings && (
-              <Button 
-                onClick={handleRequestPermissions}
-                disabled={isRequesting}
-                className="w-full"
-              >
-                {isRequesting ? 'Solicitando...' : 'Continuar'}
-              </Button>
-            )}
-            
-            {shouldShowOpenSettings && (
-              <Button 
-                onClick={handleOpenSettings}
-                variant="outline"
-                className="w-full"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Abrir Ajustes
-              </Button>
-            )}
-            
-            {allPermissionsGranted && (
-              <Button 
-                onClick={onComplete}
-                className="w-full"
-              >
-                Continuar
-              </Button>
-            )}
-          </div>
-
-          {!isNative && (
-            <div className="text-xs text-muted-foreground text-center">
-              💡 Para melhor experiência, instale o app no seu dispositivo
-            </div>
+          {hasTriedRequest && !allPermissionsGranted && (
+            <p className="text-xs text-center text-muted-foreground">
+              Você pode fechar e usar o app com funcionalidade limitada
+            </p>
           )}
         </div>
       </DialogContent>

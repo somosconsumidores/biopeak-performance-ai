@@ -19,7 +19,6 @@ interface GPSStatusIndicatorProps {
   accuracy?: number;
   lastUpdate?: number;
   onRequestPermission?: () => void;
-  onOpenSettings?: () => void;
 }
 
 export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
@@ -28,8 +27,7 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
   isSimulationMode,
   accuracy,
   lastUpdate,
-  onRequestPermission,
-  onOpenSettings
+  onRequestPermission
 }) => {
   const getStatusInfo = () => {
     if (isSimulationMode) {
@@ -58,7 +56,7 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
         text: 'Negado',
         color: 'bg-red-500',
         variant: 'destructive' as const,
-        description: 'Permissão de GPS negada - clique para configurar'
+        description: 'Permissão de GPS negada - habilite nas configurações do dispositivo'
       };
     }
 
@@ -98,11 +96,10 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
   const StatusIcon = statusInfo.icon;
 
   const handleClick = () => {
-    if (status === 'denied' || status === 'prompt') {
+    if (status === 'prompt') {
       onRequestPermission?.();
-    } else {
-      onOpenSettings?.();
     }
+    // Don't do anything for 'denied' - user must go to Settings manually
   };
 
   return (
@@ -131,9 +128,9 @@ export const GPSStatusIndicator: React.FC<GPSStatusIndicatorProps> = ({
         </TooltipTrigger>
         <TooltipContent side="bottom">
           <p>{statusInfo.description}</p>
-          {(status === 'denied' || status === 'prompt') && (
+          {status === 'prompt' && (
             <p className="text-xs text-muted-foreground mt-1">
-              Clique para configurar permissões
+              Clique para solicitar permissão
             </p>
           )}
         </TooltipContent>
