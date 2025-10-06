@@ -242,9 +242,7 @@ export const useSubscription = () => {
             setSubscriptionData(data);
             setLoading(false);
             initializingRef.current = false;
-            // Verify in background
-            checkSubscription(true);
-            return;
+            return; // Don't verify in background to prevent loops
           }
         } catch (e) {
           debugError('Cache parse error:', e);
@@ -258,7 +256,12 @@ export const useSubscription = () => {
     };
 
     initializeSubscription();
-  }, [user?.id, checkSubscription]);
+    
+    // Cleanup to prevent memory leaks
+    return () => {
+      initializingRef.current = false;
+    };
+  }, [user?.id]); // Only depend on user?.id, checkSubscription is stable via useCallback
 
   const refreshSubscription = useCallback(async () => {
     await checkSubscription(false);
