@@ -18,18 +18,20 @@ export const ScrollReveal = ({ children, className = '', delay = 0 }: ScrollReve
     }
 
     let observer: IntersectionObserver | null = null;
+    let timeoutId: NodeJS.Timeout;
+    
     try {
       observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            const t = window.setTimeout(() => {
+            timeoutId = setTimeout(() => {
               setIsVisible(true);
             }, delay);
           }
         },
         {
-          threshold: 0.1,
-          rootMargin: '0px 0px -50px 0px',
+          threshold: 0.05, // Reduced from 0.1 for faster trigger
+          rootMargin: '0px 0px -30px 0px', // Reduced from -50px
         }
       );
     } catch (err) {
@@ -43,6 +45,7 @@ export const ScrollReveal = ({ children, className = '', delay = 0 }: ScrollReve
     }
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       if (ref.current && observer) {
         try {
           observer.unobserve(ref.current);

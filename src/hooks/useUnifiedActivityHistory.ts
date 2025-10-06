@@ -34,7 +34,7 @@ export interface UnifiedActivity {
   detected_workout_type?: string | null;
 }
 
-export function useUnifiedActivityHistory(limit?: number) {
+export function useUnifiedActivityHistory(limit: number = 20) {
   const [activities, setActivities] = useState<UnifiedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,15 +58,12 @@ export function useUnifiedActivityHistory(limit?: number) {
       setError(null);
 
       // Usar a tabela unificada all_activities para máxima performance
-      let query = supabase
+      const query = supabase
         .from('all_activities')
         .select('*')
         .eq('user_id', user.id)
-        .order('activity_date', { ascending: false });
-
-      if (limit) {
-        query = query.limit(limit);
-      }
+        .order('activity_date', { ascending: false })
+        .limit(limit);
 
       const { data: activities, error } = await query;
 

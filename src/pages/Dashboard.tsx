@@ -81,16 +81,6 @@ export const Dashboard = () => {
   } = useGarminVo2Max();
 
   const { checkAchievements } = useAchievementSystem();
-  
-  console.log('🔍 DASHBOARD VO2MAX DEBUG:', { 
-    currentVo2Max, 
-    vo2Change, 
-    vo2Trend, 
-    lastRecordDate, 
-    vo2Loading, 
-    vo2Error 
-  });
-  
   const { user } = useAuth();
   const { isMobile, isTablet } = useScreenSize();
   const { t } = useTranslation();
@@ -246,7 +236,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Section Toggle */}
-          <ScrollReveal delay={80}>
+          <ScrollReveal delay={20}>
             <div className="mb-6 md:mb-8">
               {/* Mobile: Grid layout with icons */}
               <div className="md:hidden grid grid-cols-4 gap-2">
@@ -368,7 +358,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Dynamic Section Content */}
-          <ScrollReveal delay={100}>
+          <ScrollReveal delay={40}>
             <div className="mb-6 md:mb-8">
               {activeSection === 'fitness-score' && (
                 isSubscribed ? (
@@ -513,7 +503,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Race Planning Card */}
-          <ScrollReveal delay={120}>
+          <ScrollReveal delay={60}>
             <div className="mb-6 md:mb-8">
               <Card className="glass-card border-glass-border">
                 <CardHeader>
@@ -547,7 +537,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Training Agenda Widget */}
-          <ScrollReveal delay={140}>
+          <ScrollReveal delay={80}>
             <div className="mb-6 md:mb-8">
               <TrainingAgendaWidget />
             </div>
@@ -555,14 +545,14 @@ export const Dashboard = () => {
 
 
           {/* Race Calendar */}
-          <ScrollReveal delay={160}>
+          <ScrollReveal delay={100}>
             <div className="mb-6 md:mb-8">
               <RaceCalendar />
             </div>
           </ScrollReveal>
 
           {/* Alerts */}
-          <ScrollReveal delay={180}>
+          <ScrollReveal delay={120}>
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2 mb-6 md:mb-8">
               {alerts.map((alert, index) => {
                 const IconComponent = alert.type === 'warning' ? AlertTriangle : 

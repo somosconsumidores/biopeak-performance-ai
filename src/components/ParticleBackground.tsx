@@ -11,11 +11,14 @@ interface Particle {
 
 export const ParticleBackground = () => {
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const generateParticles = () => {
+    // Lazy load particles after 1 second
+    const timer = setTimeout(() => {
+      setIsVisible(true);
       const newParticles: Particle[] = [];
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 30; i++) { // Reduced from 50 to 30
         newParticles.push({
           id: i,
           x: Math.random() * 100,
@@ -26,10 +29,12 @@ export const ParticleBackground = () => {
         });
       }
       setParticles(newParticles);
-    };
+    }, 1000);
 
-    generateParticles();
+    return () => clearTimeout(timer);
   }, []);
+
+  if (!isVisible) return null;
 
   return (
     <div className="particles fixed inset-0 pointer-events-none z-0">

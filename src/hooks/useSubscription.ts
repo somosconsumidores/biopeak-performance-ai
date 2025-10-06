@@ -4,12 +4,16 @@ import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
 import { revenueCat } from '@/lib/revenuecat';
+import { debugLog, debugError, debugWarn } from '@/lib/debug';
 
 interface SubscriptionData {
   subscribed: boolean;
   subscription_tier?: string;
   subscription_end?: string;
 }
+
+const CACHE_KEY = 'subscription_cache';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const useSubscription = () => {
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
@@ -18,22 +22,41 @@ export const useSubscription = () => {
   const { toast } = useToast();
   const { isIOS, isNative } = usePlatform();
 
-  const checkSubscription = async () => {
+  // Load from cache on mount
+  useEffect(() => {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setSubscriptionData(data);
+          setLoading(false);
+          // Verify in background
+          if (user) checkSubscription(true);
+          return;
+        }
+      } catch (e) {
+        localStorage.removeItem(CACHE_KEY);
+      }
+    }
+  }, []);
+
+  const checkSubscription = async (background = false) => {
     if (!user) {
       setSubscriptionData({ subscribed: false });
       setLoading(false);
       return;
     }
 
-    // Add timeout to prevent infinite loading
+    // Reduced timeout from 30s to 10s
     const timeoutId = setTimeout(() => {
-      console.error('❌ Subscription check timed out after 30 seconds');
+      debugError('❌ Subscription check timed out after 10 seconds');
       setSubscriptionData({ subscribed: false });
       setLoading(false);
-    }, 30000);
+    }, 10000);
 
     try {
-      setLoading(true);
+      if (!background) setLoading(true);
       
       // For iOS native, check RevenueCat first, then fall back to Stripe/server
       if (isIOS && isNative) {
@@ -41,14 +64,14 @@ export const useSubscription = () => {
           await Promise.race([
             revenueCat.initialize(user.id),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('RevenueCat initialization timeout')), 10000)
+              setTimeout(() => reject(new Error('RevenueCat initialization timeout')), 5000)
             )
           ]);
           
           const customerInfo = await Promise.race([
             revenueCat.getCustomerInfo(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('RevenueCat getCustomerInfo timeout')), 10000)
+              setTimeout(() => reject(new Error('RevenueCat getCustomerInfo timeout')), 5000)
             )
           ]) as any;
           
@@ -57,17 +80,20 @@ export const useSubscription = () => {
             if (activeEntitlements.length > 0) {
               const entitlement = customerInfo.entitlements.active[activeEntitlements[0]];
               clearTimeout(timeoutId);
-              setSubscriptionData({
+              const data = {
                 subscribed: entitlement.isActive,
                 subscription_tier: 'premium',
                 subscription_end: entitlement.expirationDate || null,
-              });
+              };
+              setSubscriptionData(data);
+              // Cache result
+              localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
               setLoading(false);
               return;
             }
           }
         } catch (rcError) {
-          console.log('RevenueCat check failed, falling back to server:', rcError);
+          debugLog('RevenueCat check failed, falling back to server:', rcError);
         }
       }
       
@@ -85,7 +111,7 @@ export const useSubscription = () => {
       }
 
       if (!token) {
-        console.warn('No valid session token available after refresh');
+        debugWarn('No valid session token available after refresh');
         clearTimeout(timeoutId);
         setSubscriptionData({ subscribed: false });
         setLoading(false);
@@ -101,7 +127,7 @@ export const useSubscription = () => {
             },
           }),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Function invoke timeout')), 15000)
+            setTimeout(() => reject(new Error('Function invoke timeout')), 8000)
           )
         ]) as any;
 
@@ -131,7 +157,7 @@ export const useSubscription = () => {
       }
 
       if (error) {
-        console.error('Erro ao verificar assinatura:', error);
+        debugError('Erro ao verificar assinatura:', error);
         // Tenta buscar dados em cache no banco como fallback
         const { data: cachedData } = await Promise.race([
           supabase
@@ -140,17 +166,20 @@ export const useSubscription = () => {
             .eq('user_id', user.id)
             .single(),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Cache query timeout')), 5000)
+            setTimeout(() => reject(new Error('Cache query timeout')), 3000)
           )
         ]) as any;
         
         if (cachedData) {
           clearTimeout(timeoutId);
-          setSubscriptionData({
+          const data = {
             subscribed: cachedData.subscribed,
             subscription_tier: cachedData.subscription_tier,
             subscription_end: cachedData.subscription_end
-          });
+          };
+          setSubscriptionData(data);
+          // Cache result
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
         } else {
           clearTimeout(timeoutId);
           setSubscriptionData({ subscribed: false });
@@ -158,14 +187,16 @@ export const useSubscription = () => {
       } else {
         clearTimeout(timeoutId);
         setSubscriptionData(data);
+        // Cache result
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
       }
     } catch (error) {
-      console.error('Erro na verificação de assinatura:', error);
+      debugError('Erro na verificação de assinatura:', error);
       clearTimeout(timeoutId);
       setSubscriptionData({ subscribed: false });
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
