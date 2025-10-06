@@ -230,62 +230,8 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
-          {/* Training Agenda Widget - First Widget */}
-          <ScrollReveal delay={80}>
-            <div className="mb-6 md:mb-8">
-              <TrainingAgendaWidget />
-            </div>
-          </ScrollReveal>
-
-
-          {/* Race Calendar */}
-          <ScrollReveal delay={90}>
-            <div className="mb-6 md:mb-8">
-              <RaceCalendar />
-            </div>
-          </ScrollReveal>
-
-          {/* Alerts */}
-          <ScrollReveal delay={100}>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 mb-6 md:mb-8">
-              {alerts.map((alert, index) => {
-                const IconComponent = alert.type === 'warning' ? AlertTriangle : 
-                                    alert.type === 'success' ? TrendingUp : 
-                                    Activity;
-                
-                return (
-                  <Card key={index} className="glass-card border-glass-border">
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex items-start space-x-2 sm:space-x-3">
-                        <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
-                          alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                          alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                          'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-1 gap-2">
-                            <h3 className="font-semibold text-sm sm:text-base leading-tight">{alert.title}</h3>
-                            <Badge 
-                              variant={alert.priority === 'high' ? 'destructive' : 'secondary'}
-                              className="text-xs flex-shrink-0"
-                            >
-                              {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
-                            </Badge>
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{alert.message}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollReveal>
-
           {/* Section Toggle */}
-          <ScrollReveal delay={120}>
+          <ScrollReveal delay={80}>
             <div className="mb-6 md:mb-8">
               {/* Mobile: Grid layout with icons */}
               <div className="md:hidden grid grid-cols-4 gap-2">
@@ -407,7 +353,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Dynamic Section Content */}
-          <ScrollReveal delay={140}>
+          <ScrollReveal delay={100}>
             <div className="mb-6 md:mb-8">
               {activeSection === 'fitness-score' && (
                 isSubscribed ? (
@@ -551,8 +497,62 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
+          {/* Training Agenda Widget */}
+          <ScrollReveal delay={120}>
+            <div className="mb-6 md:mb-8">
+              <TrainingAgendaWidget />
+            </div>
+          </ScrollReveal>
+
+
+          {/* Race Calendar */}
+          <ScrollReveal delay={140}>
+            <div className="mb-6 md:mb-8">
+              <RaceCalendar />
+            </div>
+          </ScrollReveal>
+
+          {/* Alerts */}
+          <ScrollReveal delay={160}>
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 mb-6 md:mb-8">
+              {alerts.map((alert, index) => {
+                const IconComponent = alert.type === 'warning' ? AlertTriangle : 
+                                    alert.type === 'success' ? TrendingUp : 
+                                    Activity;
+                
+                return (
+                  <Card key={index} className="glass-card border-glass-border">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start space-x-2 sm:space-x-3">
+                        <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
+                          alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                          alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-1 gap-2">
+                            <h3 className="font-semibold text-sm sm:text-base leading-tight">{alert.title}</h3>
+                            <Badge 
+                              variant={alert.priority === 'high' ? 'destructive' : 'secondary'}
+                              className="text-xs flex-shrink-0"
+                            >
+                              {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{alert.message}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </ScrollReveal>
+
           {/* Main Metrics */}
-          <ScrollReveal delay={200}>
+          <ScrollReveal delay={180}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
               {formattedMetrics.map((metric, index) => {
                 const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
