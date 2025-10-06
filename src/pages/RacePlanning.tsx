@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { Header } from "@/components/Header";
 import { ParticleBackground } from "@/components/ParticleBackground";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,6 @@ import { useRaceStrategies } from "@/hooks/useRaceStrategies";
 import { AlertCircle, Trophy, Download, Share2, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { exportStrategyToPDF } from "@/utils/pdfExport";
 import { shareStrategyNative } from "@/utils/shareStrategy";
 
 export default function RacePlanning() {
@@ -130,6 +130,8 @@ export default function RacePlanning() {
     getCoachingMessage,
   } = useRacePlanning(initialData);
 
+  const isIOSNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+
   const handleSave = async (strategyName: string) => {
     const targetTimeInSeconds = objectiveType === 'time' 
       ? totalTimeSeconds 
@@ -186,7 +188,10 @@ export default function RacePlanning() {
   };
 
   const handleExport = async () => {
+    if (isIOSNative) return;
+    
     try {
+      const { exportStrategyToPDF } = await import('@/utils/pdfExport');
       await exportStrategyToPDF(
         loadedStrategyName || 'Minha_Estrategia',
         distanceInKm,
@@ -341,11 +346,13 @@ export default function RacePlanning() {
                 <Trophy className="h-4 w-4 mr-2" />
                 {loadedStrategyId ? 'Atualizar Estratégia' : 'Salvar Estratégia'}
               </Button>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={handleExport} className="h-11 sm:h-10 text-xs sm:text-sm">
-                  <Download className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden xs:inline">Exportar </span>PDF
-                </Button>
+              <div className={`grid ${isIOSNative ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+                {!isIOSNative && (
+                  <Button variant="outline" onClick={handleExport} className="h-11 sm:h-10 text-xs sm:text-sm">
+                    <Download className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Exportar </span>PDF
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleShare} className="h-11 sm:h-10 text-xs sm:text-sm">
                   <Share2 className="h-4 w-4 mr-1 sm:mr-2" />
                   Compartilhar
