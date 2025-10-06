@@ -42,24 +42,19 @@ export default function RacePlanning() {
       
       // Convert distance to proper format
       const distanceKm = Number(strategy.distance_km);
-      let distanceType: 'constant' | 'negative' | 'positive' = 'constant';
-      let customDist = 10;
+      let dist: '5k' | '10k' | '21k' | '42k' | 'custom' = 'custom';
+      let customDist = distanceKm;
       
-      if (distanceKm === 5) distanceType = 'constant' as any; // Will be corrected below
-      else if (distanceKm === 10) distanceType = 'constant' as any;
-      else if (distanceKm === 21.0975) distanceType = 'constant' as any;
-      else if (distanceKm === 42.195) distanceType = 'constant' as any;
-      else {
-        distanceType = 'constant' as any;
-        customDist = distanceKm;
+      // Determine if it's a standard distance
+      if (Math.abs(distanceKm - 5) < 0.01) {
+        dist = '5k';
+      } else if (Math.abs(distanceKm - 10) < 0.01) {
+        dist = '10k';
+      } else if (Math.abs(distanceKm - 21.0975) < 0.01) {
+        dist = '21k';
+      } else if (Math.abs(distanceKm - 42.195) < 0.01) {
+        dist = '42k';
       }
-
-      // Determine proper distance format
-      let dist: 'constant' | 'negative' | 'positive' | 'custom' = 'custom';
-      if (distanceKm === 5) dist = '5k' as any;
-      else if (distanceKm === 10) dist = '10k' as any;
-      else if (Math.abs(distanceKm - 21.0975) < 0.01) dist = '21k' as any;
-      else if (Math.abs(distanceKm - 42.195) < 0.01) dist = '42k' as any;
 
       const formatTimeFromSeconds = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
