@@ -497,8 +497,35 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
-          {/* Training Agenda Widget */}
+          {/* Race Planning Card */}
           <ScrollReveal delay={120}>
+            <Link to="/race-planning" className="block mb-6 md:mb-8">
+              <Card className="glass-card border-glass-border hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="h-5 w-5 text-primary" />
+                      <span>Planejador de Prova</span>
+                    </div>
+                    <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                      →
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.
+                  </p>
+                  <div className="flex items-center text-sm text-primary font-medium">
+                    Começar planejamento
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </ScrollReveal>
+
+          {/* Training Agenda Widget */}
+          <ScrollReveal delay={140}>
             <div className="mb-6 md:mb-8">
               <TrainingAgendaWidget />
             </div>
@@ -506,14 +533,14 @@ export const Dashboard = () => {
 
 
           {/* Race Calendar */}
-          <ScrollReveal delay={140}>
+          <ScrollReveal delay={160}>
             <div className="mb-6 md:mb-8">
               <RaceCalendar />
             </div>
           </ScrollReveal>
 
           {/* Alerts */}
-          <ScrollReveal delay={160}>
+          <ScrollReveal delay={180}>
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2 mb-6 md:mb-8">
               {alerts.map((alert, index) => {
                 const IconComponent = alert.type === 'warning' ? AlertTriangle : 
@@ -552,7 +579,7 @@ export const Dashboard = () => {
           </ScrollReveal>
 
           {/* Main Metrics */}
-          <ScrollReveal delay={180}>
+          <ScrollReveal delay={200}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
               {formattedMetrics.map((metric, index) => {
                 const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
@@ -615,7 +642,7 @@ export const Dashboard = () => {
           {/* Charts Section */}
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 mb-6 md:mb-8">
             {/* Activity Distribution */}
-            <ScrollReveal delay={300}>
+            <ScrollReveal delay={220}>
               <Card className="glass-card border-glass-border">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -710,7 +737,7 @@ export const Dashboard = () => {
             </ScrollReveal>
 
             {/* Peak Performance Indicator */}
-            <ScrollReveal delay={400}>
+            <ScrollReveal delay={240}>
               <Card className="glass-card border-glass-border">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -768,7 +795,7 @@ export const Dashboard = () => {
 
           {/* Sleep Analytics */}
           {sleepAnalytics && (
-            <ScrollReveal delay={450}>
+            <ScrollReveal delay={260}>
               <Card className="glass-card border-glass-border mb-6 md:mb-8">
                  <CardHeader>
                    <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
@@ -901,7 +928,7 @@ export const Dashboard = () => {
           )}
 
           {/* Recent Workouts */}
-          <ScrollReveal delay={500}>
+          <ScrollReveal delay={280}>
             <Card className="glass-card border-glass-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
