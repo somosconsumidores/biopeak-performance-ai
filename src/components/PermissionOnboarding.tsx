@@ -34,7 +34,18 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
     }
   };
 
+  const handleContinue = () => {
+    // If user already tried and permissions were denied, allow them to continue without permissions
+    if (hasTriedRequest && permissions.location !== 'granted') {
+      onComplete();
+    } else {
+      // First attempt - request permissions
+      handleRequestPermissions();
+    }
+  };
+
   const allPermissionsGranted = permissions.location === 'granted';
+  const showContinueWithoutPermissions = hasTriedRequest && !allPermissionsGranted;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onComplete()}>
@@ -70,12 +81,12 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
           </Card>
 
           <Button 
-            onClick={handleRequestPermissions}
+            onClick={handleContinue}
             disabled={isRequesting}
             className="w-full"
             size="lg"
           >
-            {isRequesting ? 'Solicitando...' : 'Continuar'}
+            {isRequesting ? 'Solicitando...' : showContinueWithoutPermissions ? 'Continuar sem Permissões' : 'Continuar'}
           </Button>
 
           {hasTriedRequest && !allPermissionsGranted && (
