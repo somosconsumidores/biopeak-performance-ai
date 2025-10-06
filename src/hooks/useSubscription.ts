@@ -23,57 +23,8 @@ export const useSubscription = () => {
   const { toast } = useToast();
   const { isIOS, isNative } = usePlatform();
 
-  // Consolidated effect: Load from cache first, then verify if needed
-  useEffect(() => {
-    const initializeSubscription = async () => {
-      if (!user) {
-        setSubscriptionData({ subscribed: false });
-        setLoading(false);
-        return;
-      }
-
-      // Check session lock first - if verified in this session, trust it
-      const sessionVerified = sessionStorage.getItem(SESSION_SUBSCRIPTION_KEY);
-      if (sessionVerified) {
-        try {
-          const sessionData = JSON.parse(sessionVerified);
-          debugLog('Using session-verified subscription data', sessionData);
-          setSubscriptionData(sessionData);
-          setLoading(false);
-          return; // Don't re-verify during active session
-        } catch (e) {
-          debugError('Session data parse error:', e);
-          sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
-        }
-      }
-
-      // Try to load from cache
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        try {
-          const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < CACHE_DURATION) {
-            debugLog('Using cached subscription data', data);
-            setSubscriptionData(data);
-            setLoading(false);
-            // Verify in background to ensure data is fresh
-            checkSubscription(true);
-            return;
-          }
-        } catch (e) {
-          debugError('Cache parse error:', e);
-          localStorage.removeItem(CACHE_KEY);
-        }
-      }
-
-      // No valid cache, perform full check
-      await checkSubscription(false);
-    };
-
-    initializeSubscription();
-  }, [user?.id]); // Only depend on user.id to avoid unnecessary re-checks
-
   const checkSubscription = async (background = false) => {
+
     if (!user) {
       setSubscriptionData({ subscribed: false });
       setLoading(false);
@@ -254,6 +205,56 @@ export const useSubscription = () => {
       if (!background) setLoading(false);
     }
   };
+
+  // Consolidated effect: Load from cache first, then verify if needed
+  useEffect(() => {
+    const initializeSubscription = async () => {
+      if (!user) {
+        setSubscriptionData({ subscribed: false });
+        setLoading(false);
+        return;
+      }
+
+      // Check session lock first - if verified in this session, trust it
+      const sessionVerified = sessionStorage.getItem(SESSION_SUBSCRIPTION_KEY);
+      if (sessionVerified) {
+        try {
+          const sessionData = JSON.parse(sessionVerified);
+          debugLog('Using session-verified subscription data', sessionData);
+          setSubscriptionData(sessionData);
+          setLoading(false);
+          return; // Don't re-verify during active session
+        } catch (e) {
+          debugError('Session data parse error:', e);
+          sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
+        }
+      }
+
+      // Try to load from cache
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            debugLog('Using cached subscription data', data);
+            setSubscriptionData(data);
+            setLoading(false);
+            // Verify in background to ensure data is fresh
+            checkSubscription(true);
+            return;
+          }
+        } catch (e) {
+          debugError('Cache parse error:', e);
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+
+      // No valid cache, perform full check
+      await checkSubscription(false);
+    };
+
+    initializeSubscription();
+  }, [user?.id]); // Only depend on user.id to avoid unnecessary re-checks
 
   const refreshSubscription = async () => {
     await checkSubscription();
