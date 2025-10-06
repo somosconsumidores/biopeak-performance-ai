@@ -37,12 +37,17 @@ export const useFitnessScore = () => {
     if (cached) {
       try {
         const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
+        // Validate cache: must have valid currentScore and not be expired
+        if (data.currentScore && Date.now() - timestamp < CACHE_DURATION) {
           debugLog('Using cached fitness score data', data);
           setCurrentScore(data.currentScore);
           setScoreHistory(data.scoreHistory);
           setLoading(false);
           return; // Don't fetch if cache is valid
+        } else {
+          // Invalid cache (null currentScore or expired) - remove it
+          debugLog('Removing invalid fitness score cache', data);
+          localStorage.removeItem(CACHE_KEY);
         }
       } catch (e) {
         debugError('Fitness score cache parse error:', e);
@@ -95,15 +100,20 @@ export const useFitnessScore = () => {
         }));
         setScoreHistory(history);
         
-        // Cache the results
-        const cacheData = {
-          currentScore: currentData && currentData.length > 0 ? currentData[0] : null,
-          scoreHistory: history,
-        };
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ 
-          data: cacheData, 
-          timestamp: Date.now() 
-        }));
+        // Only cache if we have valid data (don't cache empty results)
+        if (currentData && currentData.length > 0) {
+          const cacheData = {
+            currentScore: currentData[0],
+            scoreHistory: history,
+          };
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ 
+            data: cacheData, 
+            timestamp: Date.now() 
+          }));
+          debugLog('Fitness score data cached successfully', cacheData);
+        } else {
+          debugLog('No fitness score data to cache (currentData is empty)');
+        }
       }
 
     } catch (err) {
@@ -119,6 +129,7 @@ export const useFitnessScore = () => {
 
     try {
       setError(null);
+      setLoading(true);
       
       const { data, error: functionError } = await supabase.functions.invoke('calculate-fitness-score', {
         body: {
@@ -128,20 +139,27 @@ export const useFitnessScore = () => {
       });
 
       if (functionError) {
-        console.error('Error calculating fitness score:', functionError);
+        debugError('Error calculating fitness score:', functionError);
+        setLoading(false);
         throw functionError;
       }
 
       debugLog('✅ Fitness score calculated successfully:', data);
       
-      // Invalidate cache and refresh
+      // Invalidate cache
       localStorage.removeItem(CACHE_KEY);
+      
+      // Wait a moment for database to update, then fetch fresh data
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Force fresh fetch without cache
       await fetchFitnessScores();
       
       return true;
     } catch (err) {
       debugError('Error in calculateFitnessScore:', err);
       setError(err instanceof Error ? err.message : 'Failed to calculate fitness score');
+      setLoading(false);
       return false;
     }
   };
