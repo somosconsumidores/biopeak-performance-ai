@@ -8,6 +8,7 @@ import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
 import { AchievementSection } from '@/components/AchievementSection';
 import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
 import { RaceCalendar } from '@/components/RaceCalendar';
+import { useRaceStrategies } from '@/hooks/useRaceStrategies';
 
 
 
@@ -56,6 +57,8 @@ export const Dashboard = () => {
   const { toast } = useToast();
   const [filters, setFilters] = useState({ period: '30d', activityType: 'all' });
   const [activeSection, setActiveSection] = useState('fitness-score');
+  const [hasStrategies, setHasStrategies] = useState(false);
+  const { loadStrategies } = useRaceStrategies();
   const { 
     metrics, 
     activityDistribution, 
@@ -99,6 +102,18 @@ export const Dashboard = () => {
       checkAchievements();
     }
   }, [user, checkAchievements]);
+
+  // Check if user has saved strategies
+  useEffect(() => {
+    const checkStrategies = async () => {
+      const strategies = await loadStrategies();
+      setHasStrategies(strategies.length > 0);
+    };
+    
+    if (user) {
+      checkStrategies();
+    }
+  }, [user, loadStrategies]);
 
   // Handle successful subscription
   useEffect(() => {
@@ -499,29 +514,36 @@ export const Dashboard = () => {
 
           {/* Race Planning Card */}
           <ScrollReveal delay={120}>
-            <Link to="/race-planning" className="block mb-6 md:mb-8">
-              <Card className="glass-card border-glass-border hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+            <div className="mb-6 md:mb-8">
+              <Card className="glass-card border-glass-border">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Trophy className="h-5 w-5 text-primary" />
-                      <span>Planejador de Prova</span>
-                    </div>
-                    <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                      →
-                    </div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    <span>Planejador de Prova</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
                     Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.
                   </p>
-                  <div className="flex items-center text-sm text-primary font-medium">
-                    Começar planejamento
+                  <div className={`flex ${hasStrategies ? 'flex-col sm:flex-row' : ''} gap-2`}>
+                    <Link to="/race-planning" className={hasStrategies ? 'flex-1' : 'w-full'}>
+                      <Button className="w-full">
+                        <Trophy className="h-4 w-4 mr-2" />
+                        Nova Estratégia
+                      </Button>
+                    </Link>
+                    {hasStrategies && (
+                      <Link to="/saved-strategies" className="flex-1">
+                        <Button variant="outline" className="w-full">
+                          Minhas Estratégias
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            </Link>
+            </div>
           </ScrollReveal>
 
           {/* Training Agenda Widget */}
