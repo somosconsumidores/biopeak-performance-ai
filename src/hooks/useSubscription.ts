@@ -22,24 +22,40 @@ export const useSubscription = () => {
   const { toast } = useToast();
   const { isIOS, isNative } = usePlatform();
 
-  // Load from cache on mount
+  // Consolidated effect: Load from cache first, then verify if needed
   useEffect(() => {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setSubscriptionData(data);
-          setLoading(false);
-          // Verify in background
-          if (user) checkSubscription(true);
-          return;
-        }
-      } catch (e) {
-        localStorage.removeItem(CACHE_KEY);
+    const initializeSubscription = async () => {
+      if (!user) {
+        setSubscriptionData({ subscribed: false });
+        setLoading(false);
+        return;
       }
-    }
-  }, []);
+
+      // Try to load from cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            debugLog('Using cached subscription data', data);
+            setSubscriptionData(data);
+            setLoading(false);
+            // Verify in background to ensure data is fresh
+            checkSubscription(true);
+            return;
+          }
+        } catch (e) {
+          debugError('Cache parse error:', e);
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+
+      // No valid cache, perform full check
+      await checkSubscription(false);
+    };
+
+    initializeSubscription();
+  }, [user?.id]); // Only depend on user.id to avoid unnecessary re-checks
 
   const checkSubscription = async (background = false) => {
     if (!user) {
@@ -204,14 +220,6 @@ export const useSubscription = () => {
     await checkSubscription();
   };
 
-  useEffect(() => {
-    if (user) {
-      checkSubscription();
-    } else {
-      setSubscriptionData({ subscribed: false });
-      setLoading(false);
-    }
-  }, [user]);
 
   return {
     isSubscribed: subscriptionData?.subscribed || false,
