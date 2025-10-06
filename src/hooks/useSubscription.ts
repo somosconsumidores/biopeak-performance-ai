@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ interface SubscriptionData {
 
 const CACHE_KEY = 'subscription_cache';
 const SESSION_SUBSCRIPTION_KEY = 'session_subscription_verified';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (increased from 5)
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 export const useSubscription = () => {
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
@@ -22,26 +22,28 @@ export const useSubscription = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isIOS, isNative } = usePlatform();
+  const initializingRef = useRef(false);
 
-  const checkSubscription = async (background = false) => {
-
+  // Memoize checkSubscription with useCallback to prevent re-renders
+  const checkSubscription = useCallback(async (background = false) => {
     if (!user) {
       setSubscriptionData({ subscribed: false });
       setLoading(false);
       return;
     }
 
-    // Reduced timeout from 30s to 10s
     const timeoutId = setTimeout(() => {
       debugError('❌ Subscription check timed out after 10 seconds');
-      setSubscriptionData({ subscribed: false });
-      setLoading(false);
+      if (!background) {
+        setSubscriptionData({ subscribed: false });
+        setLoading(false);
+      }
     }, 10000);
 
     try {
       if (!background) setLoading(true);
       
-      // For iOS native, check RevenueCat first, then fall back to Stripe/server
+      // For iOS native, check RevenueCat first
       if (isIOS && isNative) {
         try {
           await Promise.race([
@@ -69,8 +71,10 @@ export const useSubscription = () => {
                 subscription_end: entitlement.expirationDate || null,
               };
               setSubscriptionData(data);
-              // Cache result
               localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+              if (data.subscribed) {
+                sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
+              }
               setLoading(false);
               return;
             }
@@ -80,8 +84,7 @@ export const useSubscription = () => {
         }
       }
       
-      // Server-side check (Stripe or cached data)
-      // Tenta obter um token válido (refresca se necessário)
+      // Server-side check (Stripe)
       let token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) {
         const { data: refreshed } = await Promise.race([
@@ -96,28 +99,26 @@ export const useSubscription = () => {
       if (!token) {
         debugWarn('No valid session token available after refresh');
         clearTimeout(timeoutId);
-        setSubscriptionData({ subscribed: false });
-        setLoading(false);
+        if (!background) {
+          setSubscriptionData({ subscribed: false });
+          setLoading(false);
+        }
         return;
       }
 
-      // Função para invocar a edge function com o token atual
       const invokeCheck = async (accessToken: string) =>
         Promise.race([
           supabase.functions.invoke('check-subscription', {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
+            headers: { Authorization: `Bearer ${accessToken}` },
           }),
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Function invoke timeout')), 8000)
           )
         ]) as any;
 
-      // 1ª tentativa
       let { data, error } = await invokeCheck(token);
 
-      // Se falhar por problema de autenticação, tenta 1 refresh e re-tenta
+      // Retry on auth error
       const authErrorMsg = error?.message || '';
       if (
         error && (
@@ -142,14 +143,14 @@ export const useSubscription = () => {
       if (error) {
         debugError('Erro ao verificar assinatura:', error);
         
-        // CRITICAL FIX: In background mode, don't reset to false on error
+        // CRITICAL: In background mode, don't reset to false
         if (background) {
           debugWarn('Background check failed, keeping current subscription status');
           clearTimeout(timeoutId);
-          return; // Don't modify state on background check failure
+          return;
         }
         
-        // Only for foreground checks: Try fallback to database cache
+        // Fallback to database cache
         const { data: cachedData } = await Promise.race([
           supabase
             .from('subscribers')
@@ -163,18 +164,16 @@ export const useSubscription = () => {
         
         if (cachedData) {
           clearTimeout(timeoutId);
-          const data = {
+          const fallbackData = {
             subscribed: cachedData.subscribed,
             subscription_tier: cachedData.subscription_tier,
             subscription_end: cachedData.subscription_end
           };
-          setSubscriptionData(data);
-          // Cache result
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+          setSubscriptionData(fallbackData);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fallbackData, timestamp: Date.now() }));
           
-          // Set session lock if subscribed
-          if (data.subscribed) {
-            sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
+          if (fallbackData.subscribed) {
+            sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(fallbackData));
           }
         } else {
           clearTimeout(timeoutId);
@@ -183,11 +182,8 @@ export const useSubscription = () => {
       } else {
         clearTimeout(timeoutId);
         setSubscriptionData(data);
-        
-        // Cache result
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
         
-        // Set session lock if subscribed (prevents re-checks during session)
         if (data.subscribed) {
           sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
         }
@@ -196,7 +192,6 @@ export const useSubscription = () => {
       debugError('Erro na verificação de assinatura:', error);
       clearTimeout(timeoutId);
       
-      // CRITICAL FIX: Don't reset to false in background mode
       if (!background) {
         setSubscriptionData({ subscribed: false });
       }
@@ -204,18 +199,24 @@ export const useSubscription = () => {
       clearTimeout(timeoutId);
       if (!background) setLoading(false);
     }
-  };
+  }, [user, isIOS, isNative]); // Stable dependencies
 
-  // Consolidated effect: Load from cache first, then verify if needed
+  // Initialize subscription on mount and user change
   useEffect(() => {
+    // Prevent double initialization
+    if (initializingRef.current) return;
+    
     const initializeSubscription = async () => {
+      initializingRef.current = true;
+      
       if (!user) {
         setSubscriptionData({ subscribed: false });
         setLoading(false);
+        initializingRef.current = false;
         return;
       }
 
-      // Check session lock first - if verified in this session, trust it
+      // Check session lock first
       const sessionVerified = sessionStorage.getItem(SESSION_SUBSCRIPTION_KEY);
       if (sessionVerified) {
         try {
@@ -223,14 +224,15 @@ export const useSubscription = () => {
           debugLog('Using session-verified subscription data', sessionData);
           setSubscriptionData(sessionData);
           setLoading(false);
-          return; // Don't re-verify during active session
+          initializingRef.current = false;
+          return;
         } catch (e) {
           debugError('Session data parse error:', e);
           sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
         }
       }
 
-      // Try to load from cache
+      // Try cache
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         try {
@@ -239,7 +241,8 @@ export const useSubscription = () => {
             debugLog('Using cached subscription data', data);
             setSubscriptionData(data);
             setLoading(false);
-            // Verify in background to ensure data is fresh
+            initializingRef.current = false;
+            // Verify in background
             checkSubscription(true);
             return;
           }
@@ -249,17 +252,17 @@ export const useSubscription = () => {
         }
       }
 
-      // No valid cache, perform full check
+      // Full check
       await checkSubscription(false);
+      initializingRef.current = false;
     };
 
     initializeSubscription();
-  }, [user?.id]); // Only depend on user.id to avoid unnecessary re-checks
+  }, [user?.id, checkSubscription]);
 
-  const refreshSubscription = async () => {
-    await checkSubscription();
-  };
-
+  const refreshSubscription = useCallback(async () => {
+    await checkSubscription(false);
+  }, [checkSubscription]);
 
   return {
     isSubscribed: subscriptionData?.subscribed || false,
