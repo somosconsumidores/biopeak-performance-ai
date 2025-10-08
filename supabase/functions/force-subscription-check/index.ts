@@ -34,10 +34,8 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     // Get user from Supabase
-    const { data: users, error } = await supabaseClient.auth.admin.listUsers();
-    if (error) throw error;
-    
-    const user = users.users.find(u => u.email === email);
+    const { data: user, error } = await supabaseClient.auth.admin.getUserByEmail(email);
+    if (error) throw new Error(`Failed to get user: ${error.message}`);
     if (!user) throw new Error("User not found");
     
     logStep("User found", { userId: user.id, email: user.email });
