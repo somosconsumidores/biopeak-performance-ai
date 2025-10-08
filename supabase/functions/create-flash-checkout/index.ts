@@ -100,6 +100,11 @@ serve(async (req) => {
       success_url: `${req.headers.get("origin")}/paywall2?success=true`,
       cancel_url: `${req.headers.get("origin")}/paywall2?canceled=true`,
       billing_address_collection: 'required',
+      metadata: {
+        user_id: user.id,
+        purchase_type: 'subscription',
+        plan: 'flash'
+      },
     });
 
     logStep("Checkout session created successfully", { sessionId: session.id, url: session.url });

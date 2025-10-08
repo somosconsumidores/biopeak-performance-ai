@@ -103,6 +103,75 @@ serve(async (req) => {
         metadata: session.metadata,
       });
 
+      // Strategy to find user_id with fallback mechanisms
+      let userId = session.metadata?.user_id;
+      
+      if (!userId) {
+        logStep('No user_id in metadata, attempting fallback strategies', {
+          customerId: session.customer as string,
+          customerEmail: session.customer_details?.email
+        });
+
+        // Fallback 1: Try to find user by stripe_customer_id in profiles
+        if (session.customer) {
+          const { data: profileByCustomer } = await supabaseAdmin
+            .from('profiles')
+            .select('user_id')
+            .eq('stripe_customer_id', session.customer as string)
+            .maybeSingle();
+          
+          if (profileByCustomer?.user_id) {
+            userId = profileByCustomer.user_id;
+            logStep('Found user via stripe_customer_id', { userId, method: 'stripe_customer_id' });
+          }
+        }
+
+        // Fallback 2: Try to find user by email
+        if (!userId && session.customer_details?.email) {
+          const { data: profileByEmail } = await supabaseAdmin
+            .from('profiles')
+            .select('user_id')
+            .eq('email', session.customer_details.email)
+            .maybeSingle();
+          
+          if (profileByEmail?.user_id) {
+            userId = profileByEmail.user_id;
+            logStep('Found user via email', { userId, email: session.customer_details.email, method: 'email' });
+          }
+        }
+
+        // Fallback 3: If still no user_id, try to get email from Stripe customer
+        if (!userId && session.customer) {
+          try {
+            const customer = await stripe.customers.retrieve(session.customer as string);
+            if (customer && !customer.deleted && customer.email) {
+              const { data: profileByCustomerEmail } = await supabaseAdmin
+                .from('profiles')
+                .select('user_id')
+                .eq('email', customer.email)
+                .maybeSingle();
+              
+              if (profileByCustomerEmail?.user_id) {
+                userId = profileByCustomerEmail.user_id;
+                logStep('Found user via Stripe customer email', { userId, email: customer.email, method: 'stripe_customer_email' });
+              }
+            }
+          } catch (stripeError) {
+            logStep('Error retrieving Stripe customer', { error: stripeError instanceof Error ? stripeError.message : String(stripeError) });
+          }
+        }
+
+        if (!userId) {
+          logStep('ERROR: Could not find user_id after all fallback attempts', {
+            sessionId: session.id,
+            customer: session.customer,
+            email: session.customer_details?.email
+          });
+        }
+      } else {
+        logStep('Using user_id from metadata', { userId });
+      }
+
       // Update ai_analysis_purchases if this is an AI analysis purchase
       if (session.metadata?.purchase_type === 'ai_analysis') {
         const { error } = await supabaseAdmin
@@ -126,25 +195,32 @@ serve(async (req) => {
       }
 
       // Update faturamento table for subscription or payment tracking
-      const { error: faturamentoError } = await supabaseAdmin
-        .from('faturamento')
-        .insert({
-          user_id: session.metadata?.user_id,
-          stripe_customer_id: session.customer as string,
-          stripe_payment_id: (session.payment_intent || session.id) as string,
-          tipo_pagamento: session.mode === 'subscription' ? 'subscription' : 'one_time',
-          status: 'paid',
-          valor_centavos: session.amount_total || 0,
-          moeda: session.currency?.toUpperCase() || 'BRL',
-          data_pagamento: new Date().toISOString(),
-          descricao: session.metadata?.purchase_type === 'ai_analysis' 
-            ? 'Análise de IA' 
-            : 'Pagamento',
-          metadata: session.metadata || {},
-        });
+      // Only insert if we have a user_id
+      if (userId) {
+        const { error: faturamentoError } = await supabaseAdmin
+          .from('faturamento')
+          .insert({
+            user_id: userId,
+            stripe_customer_id: session.customer as string,
+            stripe_payment_id: (session.payment_intent || session.id) as string,
+            tipo_pagamento: session.mode === 'subscription' ? 'subscription' : 'one_time',
+            status: 'paid',
+            valor_centavos: session.amount_total || 0,
+            moeda: session.currency?.toUpperCase() || 'BRL',
+            data_pagamento: new Date().toISOString(),
+            descricao: session.metadata?.purchase_type === 'ai_analysis' 
+              ? 'Análise de IA' 
+              : 'Pagamento',
+            metadata: session.metadata || {},
+          });
 
-      if (faturamentoError) {
-        console.error('Error inserting faturamento:', faturamentoError);
+        if (faturamentoError) {
+          console.error('Error inserting faturamento:', faturamentoError);
+        } else {
+          logStep('Successfully inserted faturamento record', { userId, sessionId: session.id });
+        }
+      } else {
+        logStep('Skipping faturamento insert - no user_id found', { sessionId: session.id });
       }
     }
 

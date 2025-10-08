@@ -94,6 +94,11 @@ serve(async (req) => {
       cancel_url: `${origin}/paywall?canceled=true`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',
+      metadata: {
+        user_id: user.id,
+        purchase_type: 'subscription',
+        plan: 'annual'
+      },
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
