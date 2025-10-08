@@ -73,7 +73,7 @@ serve(async (req) => {
     
     // Verify webhook signature
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
         webhookSecret
