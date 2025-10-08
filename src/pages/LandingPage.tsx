@@ -27,6 +27,7 @@ import { PricingPlans } from '@/components/PricingPlans';
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
 import heroLogoLight from '@/assets/biopeak-logo-light.png';
+import appStoreBadge from '@/assets/app-store-badge.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
@@ -322,6 +323,34 @@ export const LandingPage = () => {
               </ScrollReveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* App Store Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto">
+          <ScrollReveal>
+            <div className="glass-card p-8 md:p-12 lg:p-16 text-center max-w-4xl mx-auto">
+              <h2 className="text-3xl md:text-5xl font-bold mb-6">
+                Leve o <span className="bg-gradient-primary bg-clip-text text-transparent">BioPeak</span> com você
+              </h2>
+              <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone ou Apple Watch
+              </p>
+              <a 
+                href="https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=cta&mt=homepage"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block transition-transform hover:scale-105"
+              >
+                <img 
+                  src={appStoreBadge} 
+                  alt="Disponível na App Store" 
+                  className="h-16 md:h-20 w-auto mx-auto"
+                />
+              </a>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
