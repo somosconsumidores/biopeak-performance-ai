@@ -204,7 +204,7 @@ serve(async (req) => {
             stripe_customer_id: session.customer as string,
             stripe_payment_id: (session.payment_intent || session.id) as string,
             tipo_pagamento: session.mode === 'subscription' ? 'subscription' : 'one_time',
-            status: 'paid',
+            status: 'succeeded',
             valor_centavos: session.amount_total || 0,
             moeda: session.currency?.toUpperCase() || 'BRL',
             data_pagamento: new Date().toISOString(),
