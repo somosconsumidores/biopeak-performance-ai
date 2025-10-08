@@ -335,7 +335,7 @@ export const LandingPage = () => {
                 Leve o <span className="bg-gradient-primary bg-clip-text text-transparent">BioPeak</span> com você
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone ou Apple Watch
+                Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone
               </p>
               <a 
                 href="https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=cta&mt=homepage"
