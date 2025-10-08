@@ -332,7 +332,7 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="glass-card p-8 md:p-12 lg:p-16 text-center max-w-4xl mx-auto">
               <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                Leve o <span className="bg-gradient-primary bg-clip-text text-transparent">BioPeak</span> com você
+                BioPeak também está disponível na <span className="bg-gradient-primary bg-clip-text text-transparent">App Store</span>
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
                 Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone
