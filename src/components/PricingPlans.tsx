@@ -85,57 +85,9 @@ export const PricingPlans = () => {
           </div>
         </ScrollReveal>
 
-        <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Free Plan */}
-          <ScrollReveal delay={100}>
-            <Card className="glass-card border-glass-border relative h-full">
-              <CardHeader className="text-center pb-8">
-                <div className="flex justify-center mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-muted to-muted/80 rounded-full">
-                    <Activity className="h-8 w-8 text-foreground" />
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Plano Gratuito</h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold">R$ 0</span>
-                  <span className="text-muted-foreground">/mês</span>
-                </div>
-                <p className="text-muted-foreground">
-                  Perfeito para começar sua jornada de evolução
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {freePlanFeatures.map((feature, index) => (
-                  <div key={index} className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="inline-flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
-                        <feature.icon className="h-4 w-4 text-primary" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium mb-1">{feature.title}</h4>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
-                  </div>
-                ))}
-                <div className="pt-6">
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="w-full border-primary/20 hover:bg-primary/5"
-                    asChild
-                  >
-                    <Link to="/auth">
-                      Começar Grátis
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </ScrollReveal>
-
+        <div className="flex justify-center max-w-2xl mx-auto">
           {/* Pro Plan */}
-          <ScrollReveal delay={200}>
+          <ScrollReveal delay={100}>
             <Card className="glass-card border-primary/20 relative h-full bg-gradient-to-br from-primary/5 via-transparent to-primary/5">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <Badge className="bg-gradient-primary text-white border-0 px-4 py-1">
