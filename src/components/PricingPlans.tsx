@@ -80,7 +80,7 @@ export const PricingPlans = () => {
               Benefícios do <span className="bg-gradient-primary bg-clip-text text-transparent">Plano Pro</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comece gratuitamente e evolua com funcionalidades premium powered by IA
+              Desbloqueie todas as análises de IA e evolua de forma contínua e consistente
             </p>
           </div>
         </ScrollReveal>
