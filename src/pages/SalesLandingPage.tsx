@@ -150,11 +150,6 @@ export const SalesLandingPage = () => {
             <img src={bioPeakIcon} alt="BioPeak Logo" className="w-8 h-8" />
             <span className="text-xl font-bold">BioPeak</span>
           </div>
-          <Link to="/auth">
-            <Button variant="outline" size="sm">
-              Entrar
-            </Button>
-          </Link>
         </div>
       </header>
 
