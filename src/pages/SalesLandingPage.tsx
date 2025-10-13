@@ -26,6 +26,7 @@ import {
 import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import bioPeakIcon from '@/assets/biopeak-icon.png';
+import integrationsBanner from '@/assets/integrations-banner.png';
 
 export const SalesLandingPage = () => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -167,6 +168,13 @@ export const SalesLandingPage = () => {
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Análises inteligentes, coaching personalizado e insights profissionais para transformar sua performance na corrida.
             </p>
+            <div className="flex justify-center mb-8">
+              <img 
+                src={integrationsBanner} 
+                alt="Integrações: Garmin Connect, Strava, Apple Health e Polar" 
+                className="max-w-3xl w-full px-4"
+              />
+            </div>
           </ScrollReveal>
 
           <ScrollReveal delay={200}>
