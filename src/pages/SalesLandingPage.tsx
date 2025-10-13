@@ -177,25 +177,6 @@ export const SalesLandingPage = () => {
             </div>
           </ScrollReveal>
 
-          <ScrollReveal delay={200}>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link to="/auth?plan=pro">
-                <Button size="lg" className="btn-primary min-w-[200px]">
-                  Começar Agora
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                onClick={() => window.open('https://video.wixstatic.com/video/a025ad_37605819401f4233b39d36a53b392514/720p/mp4/file.mp4', '_blank')}
-                className="min-w-[180px]"
-              >
-                <Play className="mr-2 h-5 w-5" />
-                Ver Demo
-              </Button>
-            </div>
-          </ScrollReveal>
 
           {/* Hero Image/Mockup */}
           <ScrollReveal delay={400}>
