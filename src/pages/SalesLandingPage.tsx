@@ -165,10 +165,10 @@ export const SalesLandingPage = () => {
               Leve seu treino para o
               <span className="bg-gradient-primary bg-clip-text text-transparent"> próximo nível</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               Análises inteligentes, coaching personalizado e insights profissionais para transformar sua performance na corrida.
             </p>
-            <div className="flex justify-center mb-8">
+            <div className="flex justify-center my-4">
               <img 
                 src={integrationsBanner} 
                 alt="Integrações: Garmin Connect, Strava, Apple Health e Polar" 
