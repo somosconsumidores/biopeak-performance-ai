@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import bioPeakIcon from '@/assets/biopeak-icon.png';
 
 export const SalesLandingPage = () => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -146,9 +147,7 @@ export const SalesLandingPage = () => {
       <header className="fixed top-0 w-full z-50 glass-card border-0 rounded-none">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Activity className="h-5 w-5 text-white" />
-            </div>
+            <img src={bioPeakIcon} alt="BioPeak Logo" className="w-8 h-8" />
             <span className="text-xl font-bold">BioPeak</span>
           </div>
           <Link to="/auth">
