@@ -28,6 +28,7 @@ import { PricingPlans } from '@/components/PricingPlans';
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
 import heroLogoLight from '@/assets/biopeak-logo-light.png';
 import appStoreBadge from '@/assets/app-store-badge.png';
+import integrationsLanding from '@/assets/integrations-landing.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
@@ -159,6 +160,13 @@ export const LandingPage = () => {
             </p>
             <div className="flex justify-center mb-8">
               <img src="/lovable-uploads/d6369016-de44-4236-b4dd-a28816ff2041.png" alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
+            </div>
+            <div className="flex justify-center mb-8">
+              <img 
+                src={integrationsLanding} 
+                alt="Integrações: Garmin Connect, Strava, Apple Health e Polar" 
+                className="max-w-3xl w-full px-4"
+              />
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[3rem]" asChild>
