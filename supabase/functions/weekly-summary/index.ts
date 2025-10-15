@@ -1,4 +1,5 @@
 // Edge function to get weekly summary statistics for all users
+// Processes weekly activity data and returns aggregated metrics
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
