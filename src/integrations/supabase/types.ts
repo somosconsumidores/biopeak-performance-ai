@@ -4611,6 +4611,38 @@ export type Database = {
           user_id: string
         }[]
       }
+      weekly_summary_stats_v2: {
+        Args: {
+          end_date: string
+          previous_end_date: string
+          previous_start_date: string
+          start_date: string
+        }
+        Returns: {
+          active_days: number
+          activities_change: number
+          activities_count: number
+          activity_types: Json
+          avg_heart_rate: number
+          avg_km_per_activity: number
+          avg_pace_min_km: number
+          best_pace_min_km: number
+          calories: number
+          consistency_score: number
+          display_name: string
+          distance_change_percent: number
+          email: string
+          longest_distance_km: number
+          longest_duration_hours: number
+          max_heart_rate_week: number
+          prev_activities_count: number
+          prev_total_km: number
+          total_elevation_gain: number
+          total_hours: number
+          total_km: number
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
