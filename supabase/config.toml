@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.fix-pending-purchase]
 verify_jwt = true
+
+[functions.weekly-summary]
+verify_jwt = true

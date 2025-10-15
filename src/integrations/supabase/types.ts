@@ -4599,6 +4599,18 @@ export type Database = {
         Args: { status_param: string; sync_id_param: string }
         Returns: undefined
       }
+      weekly_summary_stats: {
+        Args: { end_date: string; start_date: string }
+        Returns: {
+          active_days: number
+          activities_count: number
+          calories: number
+          display_name: string
+          email: string
+          total_km: number
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
