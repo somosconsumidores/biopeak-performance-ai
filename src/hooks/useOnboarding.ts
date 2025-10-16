@@ -137,19 +137,22 @@ export const useOnboarding = () => {
 
       // Notify N8N about new user (fire and forget)
       try {
-        console.log('📞 Notifying N8N about new user...');
-        const { error: n8nError } = await supabase.functions.invoke('notify-n8n-new-user', {
-          body: {
-            user_id: user.id,
-            name: data.goal === 'other' ? data.goal_other : null,
-            phone: data.phone,
-          },
+        const notificationPayload = {
+          user_id: user.id,
+          name: user.user_metadata?.display_name || null,
+          phone: data.phone || null,
+        };
+        
+        console.log('📞 Calling N8N webhook with:', notificationPayload);
+        
+        const { data: n8nData, error: n8nError } = await supabase.functions.invoke('notify-n8n-new-user', {
+          body: notificationPayload,
         });
         
         if (n8nError) {
           console.error('⚠️ N8N notification failed (non-blocking):', n8nError);
         } else {
-          console.log('✅ N8N notified successfully');
+          console.log('✅ N8N notified successfully:', n8nData);
         }
       } catch (n8nError) {
         console.error('⚠️ N8N notification error (non-blocking):', n8nError);
