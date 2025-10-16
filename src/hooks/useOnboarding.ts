@@ -130,6 +130,8 @@ export const useOnboarding = () => {
       // Set local state immediately to prevent race condition
       setLocalOnboardingCompleted(true);
       
+      console.log('🎯 ONBOARDING SAVE: About to notify N8N...', { userId: user.id });
+      
       toast({
         title: "Sucesso!",
         description: "Perfil configurado com sucesso",
@@ -157,6 +159,8 @@ export const useOnboarding = () => {
       } catch (n8nError) {
         console.error('⚠️ N8N notification error (non-blocking):', n8nError);
       }
+      
+      console.log('🎯 ONBOARDING SAVE: N8N notification attempt completed');
 
       // Add a small delay to ensure database propagation
       await new Promise(resolve => setTimeout(resolve, 500));
