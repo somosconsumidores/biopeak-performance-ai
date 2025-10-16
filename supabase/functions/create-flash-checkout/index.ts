@@ -63,14 +63,34 @@ serve(async (req) => {
 
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Fetch user's phone from profiles table
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('phone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    const userPhone = profile?.phone || null;
+    logStep("User phone fetched", { phone: userPhone ? "present" : "not found" });
+
     // Check if a Stripe customer record exists for this user
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       logStep("Found existing customer", { customerId });
+      
+      // Update customer phone if we have it and it's different
+      if (userPhone && customers.data[0].phone !== userPhone) {
+        try {
+          await stripe.customers.update(customerId, { phone: userPhone });
+          logStep("Updated customer phone", { customerId });
+        } catch (updateError) {
+          logStep("Failed to update customer phone", { error: updateError.message });
+        }
+      }
     } else {
-      logStep("No existing customer found");
+      logStep("No existing customer found, will create new customer with phone in session");
     }
 
     // Flash sale price ID
@@ -90,6 +110,8 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
+      phone_number_collection: { enabled: false },
+      customer_update: userPhone ? { address: 'auto', name: 'auto', shipping: 'auto' } : undefined,
       line_items: [
         {
           price: flashPriceId,
@@ -103,7 +125,8 @@ serve(async (req) => {
       metadata: {
         user_id: user.id,
         purchase_type: 'subscription',
-        plan: 'flash'
+        plan: 'flash',
+        ...(userPhone && { phone: userPhone })
       },
     });
 
