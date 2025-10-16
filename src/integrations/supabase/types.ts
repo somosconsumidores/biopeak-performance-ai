@@ -2494,6 +2494,7 @@ export type Database = {
           id: string
           last_login_at: string | null
           onboarding_completed: boolean | null
+          phone: string | null
           updated_at: string
           user_id: string
           utm_source: string | null
@@ -2511,6 +2512,7 @@ export type Database = {
           id?: string
           last_login_at?: string | null
           onboarding_completed?: boolean | null
+          phone?: string | null
           updated_at?: string
           user_id: string
           utm_source?: string | null
@@ -2528,6 +2530,7 @@ export type Database = {
           id?: string
           last_login_at?: string | null
           onboarding_completed?: boolean | null
+          phone?: string | null
           updated_at?: string
           user_id?: string
           utm_source?: string | null
