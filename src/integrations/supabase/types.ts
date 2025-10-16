@@ -1735,6 +1735,39 @@ export type Database = {
         }
         Relationships: []
       }
+      n8n_notification_queue: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          processed_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          processed_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       oauth_states: {
         Row: {
           created_at: string

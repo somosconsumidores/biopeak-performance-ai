@@ -17,75 +17,154 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { user_id, name, phone } = await req.json();
+    // Processar fila de notificações pendentes
+    const { data: pendingNotifications, error: queueError } = await supabaseClient
+      .from('n8n_notification_queue')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(10);
 
-    if (!user_id) {
-      console.error('❌ Missing user_id in request');
+    if (queueError) {
+      console.error('❌ Error fetching queue:', queueError);
       return new Response(
-        JSON.stringify({ error: 'user_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('📞 Notifying N8N for new user:', { user_id, name, phone: phone ? 'provided' : 'not provided' });
-
-    // Get N8N webhook URL from app settings
-    const { data: settings, error: settingsError } = await supabaseClient
-      .from('app_settings')
-      .select('setting_value')
-      .eq('setting_key', 'n8n_webhook_url')
-      .maybeSingle();
-
-    if (settingsError) {
-      console.error('❌ Error fetching N8N webhook URL:', settingsError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch webhook configuration' }),
+        JSON.stringify({ error: 'Failed to fetch notification queue' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!settings || !settings.setting_value) {
-      console.warn('⚠️ N8N webhook URL not configured');
+    if (!pendingNotifications || pendingNotifications.length === 0) {
+      console.log('ℹ️ No pending notifications in queue');
       return new Response(
-        JSON.stringify({ message: 'N8N webhook not configured - skipping notification' }),
+        JSON.stringify({ message: 'No pending notifications' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const webhookUrl = settings.setting_value;
+    console.log(`📋 Processing ${pendingNotifications.length} pending notifications`);
+    
+    const results = [];
+    
+    for (const notification of pendingNotifications) {
+      const { id, user_id, name, phone } = notification;
 
-    // Send data to N8N
-    const payload = {
-      user_id,
-      name: name || 'Não informado',
-      phone: phone || 'Não informado',
-      timestamp: new Date().toISOString(),
-      source: 'BioPeak Onboarding',
-    };
+      if (!user_id) {
+        console.error('❌ Missing user_id in notification:', id);
+        await supabaseClient
+          .from('n8n_notification_queue')
+          .update({ 
+            status: 'error',
+            error_message: 'Missing user_id',
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', id);
+        continue;
+      }
 
-    console.log('📤 Sending to N8N:', { url: webhookUrl, payload });
+      console.log(`📞 Processing notification ${id} for user:`, { user_id, name, phone: phone ? 'provided' : 'not provided' });
 
-    const n8nResponse = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+      // Get N8N webhook URL from app settings
+      const { data: settings, error: settingsError } = await supabaseClient
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', 'n8n_webhook_url')
+        .maybeSingle();
 
-    if (!n8nResponse.ok) {
-      const errorText = await n8nResponse.text();
-      console.error('❌ N8N webhook failed:', { status: n8nResponse.status, error: errorText });
-      return new Response(
-        JSON.stringify({ error: 'Failed to notify N8N', details: errorText }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (settingsError) {
+        console.error('❌ Error fetching N8N webhook URL:', settingsError);
+        await supabaseClient
+          .from('n8n_notification_queue')
+          .update({ 
+            status: 'error',
+            error_message: 'Failed to fetch webhook configuration',
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', id);
+        continue;
+      }
+
+      if (!settings || !settings.setting_value) {
+        console.warn('⚠️ N8N webhook URL not configured');
+        await supabaseClient
+          .from('n8n_notification_queue')
+          .update({ 
+            status: 'error',
+            error_message: 'N8N webhook not configured',
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', id);
+        continue;
+      }
+
+      const webhookUrl = settings.setting_value;
+
+      // Send data to N8N
+      const payload = {
+        user_id,
+        name: name || 'Não informado',
+        phone: phone || 'Não informado',
+        timestamp: new Date().toISOString(),
+        source: 'BioPeak Onboarding',
+      };
+
+      console.log('📤 Sending to N8N:', { url: webhookUrl, payload });
+
+      try {
+        const n8nResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!n8nResponse.ok) {
+          const errorText = await n8nResponse.text();
+          console.error('❌ N8N webhook failed:', { status: n8nResponse.status, error: errorText });
+          await supabaseClient
+            .from('n8n_notification_queue')
+            .update({ 
+              status: 'error',
+              error_message: `HTTP ${n8nResponse.status}: ${errorText}`,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', id);
+          results.push({ id, status: 'error', error: errorText });
+          continue;
+        }
+
+        console.log(`✅ Successfully notified N8N for notification ${id}`);
+        
+        // Marcar como processado
+        await supabaseClient
+          .from('n8n_notification_queue')
+          .update({ 
+            status: 'completed',
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', id);
+          
+        results.push({ id, status: 'completed' });
+        
+      } catch (fetchError) {
+        console.error('❌ Error calling N8N:', fetchError);
+        await supabaseClient
+          .from('n8n_notification_queue')
+          .update({ 
+            status: 'error',
+            error_message: fetchError.message,
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', id);
+        results.push({ id, status: 'error', error: fetchError.message });
+      }
     }
 
-    console.log('✅ Successfully notified N8N');
-
     return new Response(
-      JSON.stringify({ message: 'N8N notified successfully' }),
+      JSON.stringify({ 
+        message: 'Queue processing completed',
+        results
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
