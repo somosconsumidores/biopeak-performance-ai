@@ -110,8 +110,10 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
+      customer_creation: 'always',
+      customer_update: { phone: 'auto', name: 'auto' },
       phone_number_collection: { enabled: false },
-      customer_update: userPhone ? { address: 'auto', name: 'auto', shipping: 'auto' } : undefined,
+      ...(userPhone && !customerId ? { customer_data: { phone: userPhone } } : {}),
       line_items: [
         {
           price: flashPriceId,
