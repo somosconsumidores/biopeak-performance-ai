@@ -135,6 +135,26 @@ export const useOnboarding = () => {
         description: "Perfil configurado com sucesso",
       });
 
+      // Notify N8N about new user (fire and forget)
+      try {
+        console.log('📞 Notifying N8N about new user...');
+        const { error: n8nError } = await supabase.functions.invoke('notify-n8n-new-user', {
+          body: {
+            user_id: user.id,
+            name: data.goal === 'other' ? data.goal_other : null,
+            phone: data.phone,
+          },
+        });
+        
+        if (n8nError) {
+          console.error('⚠️ N8N notification failed (non-blocking):', n8nError);
+        } else {
+          console.log('✅ N8N notified successfully');
+        }
+      } catch (n8nError) {
+        console.error('⚠️ N8N notification error (non-blocking):', n8nError);
+      }
+
       // Add a small delay to ensure database propagation
       await new Promise(resolve => setTimeout(resolve, 500));
       
