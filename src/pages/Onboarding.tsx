@@ -290,7 +290,7 @@ export const Onboarding = () => {
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+55 11 99999-9999"
+                        placeholder="11999999999"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="pl-11 h-12 text-base"
