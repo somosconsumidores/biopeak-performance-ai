@@ -12,6 +12,9 @@ verify_jwt = true
 [functions.create-annual-checkout]
 verify_jwt = true
 
+[functions.create-flash-checkout]
+verify_jwt = true
+
 [functions.recover-polar-webhook-activities]
 verify_jwt = false
 
