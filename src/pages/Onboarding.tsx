@@ -132,6 +132,7 @@ export const Onboarding = () => {
   };
 
   const handleFinish = async () => {
+    console.log('🎯🎯🎯 ONBOARDING_PAGE: handleFinish CALLED!');
     console.log('🔍 ONBOARDING_PAGE: Starting finish process');
     
     const formattedBirthDate = birthDay && birthMonth && birthYear 

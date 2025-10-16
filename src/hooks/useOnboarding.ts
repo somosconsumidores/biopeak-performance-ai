@@ -53,7 +53,10 @@ export const useOnboarding = () => {
   };
 
   const saveOnboardingData = async (data: OnboardingData) => {
+    console.log('🚀🚀🚀 ONBOARDING SAVE FUNCTION CALLED!', data);
+    
     if (!user) {
+      console.log('❌ No user found, aborting');
       toast({
         title: "Erro",
         description: "Usuário não autenticado",
@@ -62,6 +65,7 @@ export const useOnboarding = () => {
       return false;
     }
 
+    console.log('✅ User found:', user.id);
     setLoading(true);
     console.log('🔍 ONBOARDING: Starting save process', { userId: user.id, data });
     console.log('🔍 ONBOARDING: Data validation', {
