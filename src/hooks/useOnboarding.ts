@@ -71,12 +71,13 @@ export const useOnboarding = () => {
     });
     
     try {
-      // Save onboarding data
+      // Save onboarding data (excluding phone which goes to profiles)
+      const { phone: _, ...onboardingData } = data;
       const { error: onboardingError } = await supabase
         .from('user_onboarding')
         .upsert({
           user_id: user.id,
-          ...data,
+          ...onboardingData,
         });
 
       if (onboardingError) {
