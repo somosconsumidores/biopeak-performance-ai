@@ -9,6 +9,7 @@ export interface OnboardingData {
   birth_date?: string;
   weight_kg?: number;
   athletic_level: string;
+  phone?: string;
 }
 
 export interface UserOnboarding {
@@ -92,6 +93,7 @@ export const useOnboarding = () => {
           onboarding_completed: true,
           birth_date: data.birth_date,
           weight_kg: data.weight_kg,
+          phone: data.phone,
         })
         .eq('user_id', user.id);
 
