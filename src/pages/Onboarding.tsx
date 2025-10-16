@@ -26,7 +26,9 @@ import {
   Users,
   Star,
   Zap,
-  Medal
+  Medal,
+  Smartphone,
+  MessageCircle
 } from "lucide-react";
 import { useOnboarding } from "@/hooks/useOnboarding";
 
@@ -105,6 +107,7 @@ export const Onboarding = () => {
   const { saveOnboardingData, loading } = useOnboarding();
   
   const [currentStep, setCurrentStep] = useState(1);
+  const [phone, setPhone] = useState<string>("");
   const [selectedGoal, setSelectedGoal] = useState<string>("");
   const [goalOther, setGoalOther] = useState<string>("");
   const [birthDay, setBirthDay] = useState<string>("");
@@ -113,7 +116,7 @@ export const Onboarding = () => {
   const [weight, setWeight] = useState<string>("");
   const [athleticLevel, setAthleticLevel] = useState<string>("");
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (currentStep / totalSteps) * 100;
 
   const handleNext = () => {
@@ -136,6 +139,7 @@ export const Onboarding = () => {
       : undefined;
 
     const onboardingData = {
+      phone: phone || undefined,
       goal: selectedGoal,
       goal_other: selectedGoal === "other" ? goalOther : undefined,
       birth_date: formattedBirthDate,
@@ -158,12 +162,15 @@ export const Onboarding = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!(selectedGoal && (selectedGoal !== "other" || goalOther.trim()));
+        // Phone is optional but if provided must be valid
+        return !phone || /^\+?[\d\s\-()]+$/.test(phone);
       case 2:
-        return !!(birthDay && birthMonth && birthYear);
+        return !!(selectedGoal && (selectedGoal !== "other" || goalOther.trim()));
       case 3:
-        return !!(weight && parseFloat(weight) > 0);
+        return !!(birthDay && birthMonth && birthYear);
       case 4:
+        return !!(weight && parseFloat(weight) > 0);
+      case 5:
         return !!athleticLevel;
       default:
         return false;
@@ -220,24 +227,84 @@ export const Onboarding = () => {
         <Card className="glass-card flex-1 flex flex-col animate-fade-in">
           <CardHeader className="text-center space-y-2 shrink-0">
             <CardTitle className="text-xl md:text-2xl font-bold text-high-contrast">
-              {currentStep === 1 && "Qual é o seu objetivo?"}
-              {currentStep === 2 && "Qual é a sua data de nascimento?"}
-              {currentStep === 3 && "Qual é o seu peso?"}
-              {currentStep === 4 && "Você se considera um atleta:"}
+              {currentStep === 1 && "Receba seus resultados no WhatsApp"}
+              {currentStep === 2 && "Qual é o seu objetivo?"}
+              {currentStep === 3 && "Qual é a sua data de nascimento?"}
+              {currentStep === 4 && "Qual é o seu peso?"}
+              {currentStep === 5 && "Você se considera um atleta:"}
             </CardTitle>
             <p className="text-sm text-medium-contrast">
-              {currentStep === 1 && "Escolha o objetivo que mais combina com você"}
-              {currentStep === 2 && "Essas informações nos ajudam a personalizar sua experiência"}
-              {currentStep === 3 && "Usado para cálculos de performance mais precisos"}
-              {currentStep === 4 && "Isso nos ajuda a adaptar as recomendações para seu nível"}
+              {currentStep === 1 && "Compartilhe seu número e receba resumos semanais e análises dos seus treinos"}
+              {currentStep === 2 && "Escolha o objetivo que mais combina com você"}
+              {currentStep === 3 && "Essas informações nos ajudam a personalizar sua experiência"}
+              {currentStep === 4 && "Usado para cálculos de performance mais precisos"}
+              {currentStep === 5 && "Isso nos ajuda a adaptar as recomendações para seu nível"}
             </p>
           </CardHeader>
           
           <CardContent className="flex-1 flex flex-col">
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto pb-4">
-              {/* Step 1: Goal Selection */}
+              {/* Step 1: Phone Number */}
               {currentStep === 1 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-center">
+                    <div className="relative">
+                      <MessageCircle className="h-16 w-16 text-primary" />
+                      <Smartphone className="h-6 w-6 text-accent absolute -bottom-1 -right-1" />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-primary/20 rounded-full p-2 shrink-0">
+                        <MessageCircle className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-1">Resumos Semanais</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Receba todas as segundas-feiras um resumo completo dos seus treinos da semana
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="bg-accent/20 rounded-full p-2 shrink-0">
+                        <Activity className="h-5 w-5 text-accent" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-1">Análises de Treinos</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Insights automáticos sobre seu desempenho após cada atividade
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-base font-medium">
+                      Número do WhatsApp (opcional)
+                    </Label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+55 11 99999-9999"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="pl-11 h-12 text-base"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Você pode pular este passo e adicionar depois nas configurações
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Goal Selection */}
+              {currentStep === 2 && (
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="goal-select" className="text-base font-medium">Escolha seu objetivo principal</Label>
@@ -276,8 +343,8 @@ export const Onboarding = () => {
                 </div>
               )}
 
-              {/* Step 2: Birth Date */}
-              {currentStep === 2 && (
+              {/* Step 3: Birth Date */}
+              {currentStep === 3 && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-center">
                     <CalendarIcon className="h-8 w-8 text-primary mb-4" />
@@ -350,8 +417,8 @@ export const Onboarding = () => {
                 </div>
               )}
 
-              {/* Step 3: Weight */}
-              {currentStep === 3 && (
+              {/* Step 4: Weight */}
+              {currentStep === 4 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-center">
                     <Weight className="h-8 w-8 text-primary mb-4" />
@@ -377,8 +444,8 @@ export const Onboarding = () => {
                 </div>
               )}
 
-              {/* Step 4: Athletic Level */}
-              {currentStep === 4 && (
+              {/* Step 5: Athletic Level */}
+              {currentStep === 5 && (
                 <div className="space-y-4">
                   <RadioGroup value={athleticLevel} onValueChange={setAthleticLevel}>
                     <div className="space-y-3">
