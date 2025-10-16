@@ -112,8 +112,8 @@ serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       customer_creation: 'always',
-      customer_update: { phone: 'auto', name: 'auto' },
-      phone_number_collection: { enabled: false },
+      customer_update: { address: 'auto', name: 'auto' },
+      phone_number_collection: { enabled: !!userPhone },
       ...(userPhone && !customerId ? { customer_data: { phone: userPhone } } : {}),
       line_items: [
         {
