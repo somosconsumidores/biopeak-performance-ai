@@ -64,6 +64,11 @@ export const useOnboarding = () => {
 
     setLoading(true);
     console.log('🔍 ONBOARDING: Starting save process', { userId: user.id, data });
+    console.log('🔍 ONBOARDING: Data validation', {
+      hasGoal: !!data.goal,
+      hasAthleticLevel: !!data.athletic_level,
+      phone: data.phone || 'not provided'
+    });
     
     try {
       // Save onboarding data
@@ -75,10 +80,16 @@ export const useOnboarding = () => {
         });
 
       if (onboardingError) {
-        console.error('Error saving onboarding data:', onboardingError);
+        console.error('🔍 ONBOARDING ERROR: Failed to save onboarding data', {
+          error: onboardingError,
+          code: onboardingError.code,
+          message: onboardingError.message,
+          details: onboardingError.details,
+          hint: onboardingError.hint
+        });
         toast({
-          title: "Erro",
-          description: "Erro ao salvar dados do onboarding",
+          title: "Erro ao salvar",
+          description: onboardingError.message || "Erro ao salvar dados do onboarding",
           variant: "destructive",
         });
         return false;
@@ -98,10 +109,16 @@ export const useOnboarding = () => {
         .eq('user_id', user.id);
 
       if (profileError) {
-        console.error('Error updating profile:', profileError);
+        console.error('🔍 PROFILE ERROR: Failed to update profile', {
+          error: profileError,
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint
+        });
         toast({
-          title: "Erro",
-          description: "Erro ao atualizar perfil",
+          title: "Erro ao atualizar perfil",
+          description: profileError.message || "Erro ao atualizar perfil",
           variant: "destructive",
         });
         return false;
