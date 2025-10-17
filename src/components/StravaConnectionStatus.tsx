@@ -15,6 +15,10 @@ import { useQueryClient } from "@tanstack/react-query";
 export const StravaConnectionStatus = () => {
   const isNative = Capacitor.isNativePlatform();
   
+  // 🐛 DEBUG: Mostrar se está em modo nativo
+  console.log('🐛 [DEBUG] isNative:', isNative);
+  console.log('🐛 [DEBUG] Platform:', Capacitor.getPlatform());
+  
   // Web OAuth
   const { handleStravaConnect, isLoading: isWebLoading } = useStravaAuth();
   
@@ -83,6 +87,9 @@ export const StravaConnectionStatus = () => {
           
           <Button 
             onClick={() => {
+              // 🐛 DEBUG: Alert visual
+              alert(`🐛 DEBUG\n\nisNative: ${isNative}\nPlatform: ${Capacitor.getPlatform()}\nFluxo: ${isNative ? 'Native Browser' : 'Web OAuth'}`);
+              
               if (isNative) {
                 console.log('📱 [StravaStatus] Using native browser flow');
                 connectStravaViaSystemBrowser();

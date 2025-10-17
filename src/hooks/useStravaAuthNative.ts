@@ -12,8 +12,15 @@ export const useStravaAuthNative = () => {
   const queryClient = useQueryClient();
 
   const connectStravaViaSystemBrowser = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return;
+    // 🐛 DEBUG: Alert no início da função
+    alert(`🐛 DEBUG connectStravaViaSystemBrowser\n\nChamada iniciada!\nIsNative: ${Capacitor.isNativePlatform()}\nUser ID: ${user?.id || 'null'}`);
+    
+    if (!Capacitor.isNativePlatform()) {
+      alert('🐛 DEBUG: NÃO É NATIVE! Abortando...');
+      return;
+    }
     if (!user?.id) {
+      alert('🐛 DEBUG: SEM USER ID! Abortando...');
       toast({ 
         title: "Erro", 
         description: "Usuário não autenticado",
@@ -30,6 +37,9 @@ export const useStravaAuthNative = () => {
 
       const url = `https://biopeak-ai.com/strava-connect?user_id=${user.id}`;
       
+      // 🐛 DEBUG: Alert antes de abrir o browser
+      alert(`🐛 DEBUG\n\nVai abrir Browser.open()!\nURL: ${url}`);
+      
       console.log('🔗 [StravaAuthNative] Opening Safari View Controller:', url);
       
       // Abrir Safari View Controller (webview integrada)
@@ -38,6 +48,9 @@ export const useStravaAuthNative = () => {
         presentationStyle: 'popover',
         toolbarColor: '#0f172a',
       });
+      
+      // 🐛 DEBUG: Alert depois de abrir
+      alert('🐛 DEBUG: Browser.open() completou!');
 
       // Listener para quando o usuário fechar o Safari View manualmente
       Browser.addListener('browserFinished', () => {
