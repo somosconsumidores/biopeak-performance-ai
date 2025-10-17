@@ -110,16 +110,9 @@ export default function StravaCallback() {
           console.warn('⚠️ [StravaCallback] Failed to close browser:', err);
         });
         
-        // Enviar deep link com os parâmetros do OAuth para o app processar
-        const params = new URLSearchParams({
-          code: code || '',
-          state: state || '',
-          timestamp: Date.now().toString()
-        });
-        const deepLink = `biopeak://strava-callback?${params.toString()}`;
-        
-        console.log('📱 [StravaCallback] Redirecting to deep link:', deepLink);
-        window.location.href = deepLink;
+        // Enviar deep link de sucesso para o app processar
+        console.log('📱 [StravaCallback] Redirecting to deep link: biopeak://strava-success');
+        window.location.href = 'biopeak://strava-success';
         return;
       }
 
