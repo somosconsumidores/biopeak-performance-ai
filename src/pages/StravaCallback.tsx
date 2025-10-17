@@ -91,30 +91,15 @@ export default function StravaCallback() {
         currentUrl 
       });
 
-      // DETECTAR FLUXO NATIVO IMEDIATAMENTE - antes de qualquer processamento
+      // Detectar fluxo nativo para logging
       const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
       const isNativePlatform = Capacitor.isNativePlatform();
       
       console.log('📱 [StravaCallback] Platform detection:', { 
         isNativeFlow, 
         isNativePlatform,
-        finalDecision: isNativeFlow || isNativePlatform 
+        willProcessOAuthFirst: true
       });
-
-      // Se for fluxo nativo, fechar Safari View Controller e enviar deep link IMEDIATAMENTE
-      if (isNativeFlow || isNativePlatform) {
-        console.log('📱 [StravaCallback] Native flow detected - closing browser and sending deep link');
-        
-        // Fechar Safari View Controller
-        await Browser.close().catch(err => {
-          console.warn('⚠️ [StravaCallback] Failed to close browser:', err);
-        });
-        
-        // Enviar deep link de sucesso para o app processar
-        console.log('📱 [StravaCallback] Redirecting to deep link: biopeak://strava-success');
-        window.location.href = 'biopeak://strava-success';
-        return;
-      }
 
       if (error) {
         console.error('[StravaCallback] OAuth error received:', error);
@@ -166,18 +151,20 @@ export default function StravaCallback() {
         
         console.log('[StravaCallback] Flow detection:', { isNativeFlow, isNativePlatform });
         
-        // Se for fluxo nativo, redirecionar via deep link IMEDIATAMENTE
+        // Se for fluxo nativo, fechar Safari View e redirecionar via deep link
         if (isNativeFlow || isNativePlatform) {
-          console.log('[StravaCallback] Native flow detected, redirecting via deep link');
+          console.log('📱 [StravaCallback] Native flow - OAuth processed, closing browser');
           
-          // Construir deep link com timestamp
-          const deepLink = `biopeak://strava-success?timestamp=${Date.now()}`;
-          console.log('[StravaCallback] Deep link:', deepLink);
+          // Fechar Safari View Controller
+          await Browser.close().catch(err => {
+            console.warn('⚠️ [StravaCallback] Failed to close browser:', err);
+          });
           
-          // Redirecionar via deep link (isso fecha o Safari View Controller)
-          window.location.href = deepLink;
+          // Enviar deep link de sucesso
+          console.log('📱 [StravaCallback] Redirecting to deep link: biopeak://strava-success');
+          window.location.href = 'biopeak://strava-success';
           
-          // Não executar mais nada - o deep link vai lidar com tudo
+          // Não executar sincronização - o Realtime listener vai lidar com tudo
           return;
         }
         
