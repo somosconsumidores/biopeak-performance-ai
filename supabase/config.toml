@@ -112,7 +112,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.strava-auth]
-verify_jwt = true
+verify_jwt = false
 
 [functions.strava-sync]
 verify_jwt = true

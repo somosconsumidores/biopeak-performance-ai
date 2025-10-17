@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
-import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaSync } from '@/hooks/useStravaSync';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,6 @@ import { getProductionRedirectUrl } from '@/lib/utils';
 export default function StravaCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { handleCallback } = useStravaAuth();
   const { syncActivities, syncActivitiesOptimized, isLoading: isSyncing } = useStravaSync();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -125,14 +123,37 @@ export default function StravaCallback() {
         console.log('[StravaCallback] Starting authentication with Strava...');
         setMessage('Autenticando com o Strava...');
         
-        // Small delay to prevent visual flicker
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Extrair user_id do state (formato: userId:timestamp)
+        const [userId, timestamp] = state.split(':');
         
-        const authSuccess = await handleCallback(code, state);
-        console.log('[StravaCallback] Authentication result:', authSuccess);
+        if (!userId || !timestamp) {
+          console.error('[StravaCallback] Invalid state format:', state);
+          setStatus('error');
+          setMessage('Estado OAuth inválido');
+          setTimeout(() => {
+            window.location.href = getProductionRedirectUrl('/sync');
+          }, 3000);
+          return;
+        }
         
-        if (!authSuccess) {
-          console.error('[StravaCallback] Authentication failed');
+        console.log('[StravaCallback] State validated:', { userId: userId.substring(0, 8) + '...', timestamp });
+        
+        // Chamar strava-auth DIRETAMENTE (sem autenticação JWT)
+        console.log('[StravaCallback] Calling strava-auth edge function...');
+        const response = await fetch(
+          'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/strava-auth',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, state }),
+          }
+        );
+        
+        console.log('[StravaCallback] strava-auth response status:', response.status);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('[StravaCallback] Auth failed:', error);
           setStatus('error');
           setMessage('Falha na autenticação com o Strava');
           setTimeout(() => {
@@ -145,21 +166,16 @@ export default function StravaCallback() {
         setStatus('success');
         setMessage('Strava conectado com sucesso!');
         
-        // Detectar fluxo nativo ANTES de qualquer redirecionamento
+        // Detectar fluxo nativo
         const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
         const isNativePlatform = Capacitor.isNativePlatform();
         
         console.log('[StravaCallback] Flow detection:', { isNativeFlow, isNativePlatform });
         
-        // Se for fluxo nativo, redirecionar via deep link (iOS fecha Safari View automaticamente)
+        // Se for fluxo nativo, enviar deep link (iOS fecha Safari automaticamente)
         if (isNativeFlow || isNativePlatform) {
-          console.log('📱 [StravaCallback] Native flow - OAuth processed, sending deep link');
-          
-          // Enviar deep link de sucesso (iOS fecha Safari View Controller automaticamente)
-          console.log('📱 [StravaCallback] Redirecting to deep link: biopeak://strava-success');
+          console.log('📱 [StravaCallback] Native flow - Sending deep link');
           window.location.href = 'biopeak://strava-success';
-          
-          // Não executar sincronização - o Realtime listener vai lidar com tudo
           return;
         }
         
@@ -224,7 +240,7 @@ export default function StravaCallback() {
       console.log('[StravaCallback] No OAuth parameters found, redirecting to sync...');
       window.location.href = getProductionRedirectUrl('/sync');
     }
-  }, [searchParams, handleCallback, queryClient]); // Removed dependencies that could cause loops
+  }, [searchParams, queryClient]); // Removed dependencies that could cause loops
 
   const getIcon = () => {
     switch (status) {

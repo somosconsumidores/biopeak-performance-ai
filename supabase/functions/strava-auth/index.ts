@@ -30,54 +30,55 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    )
-
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization')
-    console.log('🔵 Strava Auth - Auth header present:', !!authHeader)
-    
-    if (!authHeader) {
-      console.log('❌ Strava Auth - No authorization header')
-      return new Response(JSON.stringify({ error: 'Authorization header required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    
-    const token = authHeader.replace('Bearer ', '')
-    console.log('🔵 Strava Auth - Getting user from token')
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-    
-    if (authError || !user) {
-      console.log('❌ Strava Auth - Authentication failed:', { authError, hasUser: !!user })
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    
-    console.log('✅ Strava Auth - User authenticated:', { userId: user.id, email: user.email })
-    
     // Parse request body
     console.log('🔵 Strava Auth - Parsing request body')
     const requestBody = await req.json()
-    const { code, redirect_uri } = requestBody
+    const { code, state } = requestBody
     console.log('🔵 Strava Auth - Request data:', { 
       hasCode: !!code, 
-      codeLength: code?.length, 
-      redirectUri: redirect_uri 
+      hasState: !!state
     })
     
-    if (!code || !redirect_uri) {
-      console.log('❌ Strava Auth - Missing required parameters:', { hasCode: !!code, hasRedirectUri: !!redirect_uri })
-      return new Response(JSON.stringify({ error: 'Authorization code and redirect_uri required' }), {
+    if (!code || !state) {
+      console.log('❌ Strava Auth - Missing required parameters:', { hasCode: !!code, hasState: !!state })
+      return new Response(JSON.stringify({ error: 'Code and state required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // Extrair user_id do state (formato: userId:timestamp)
+    const [userId, timestamp] = state.split(':')
+    
+    if (!userId || !timestamp) {
+      console.log('❌ Strava Auth - Invalid state format:', state)
+      return new Response(JSON.stringify({ error: 'Invalid state format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Validar timestamp (máximo 10 minutos)
+    const now = Date.now()
+    const stateTimestamp = parseInt(timestamp)
+    const tenMinutes = 10 * 60 * 1000
+    
+    if (now - stateTimestamp > tenMinutes) {
+      console.log('❌ Strava Auth - State expired:', { 
+        now, 
+        stateTimestamp, 
+        diff: now - stateTimestamp 
+      })
+      return new Response(JSON.stringify({ error: 'State expired' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    console.log('✅ Strava Auth - State validated:', { 
+      userId: userId.substring(0, 8) + '...', 
+      timestamp 
+    })
 
     // Exchange authorization code for access token
     const clientId = Deno.env.get('STRAVA_CLIENT_ID')
@@ -102,8 +103,7 @@ Deno.serve(async (req) => {
       client_id: clientId,
       client_secret: clientSecret,
       code: code,
-      grant_type: 'authorization_code',
-      redirect_uri: redirect_uri
+      grant_type: 'authorization_code'
     }
     console.log('🔵 Strava Auth - Token request payload:', { 
       ...tokenPayload, 
@@ -153,14 +153,14 @@ Deno.serve(async (req) => {
     )
     
     const tokenRecord = {
-      user_id: user.id,
+      user_id: userId,
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
       athlete_id: tokenData.athlete?.id,
     }
     console.log('🔵 Strava Auth - Token record:', {
-      userId: tokenRecord.user_id,
+      userId: tokenRecord.user_id.substring(0, 8) + '...',
       hasAccessToken: !!tokenRecord.access_token,
       hasRefreshToken: !!tokenRecord.refresh_token,
       expiresAt: tokenRecord.expires_at,
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     await serviceRoleClient
       .from('strava_tokens')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
     
     // Insert new token
     const { error: insertError } = await serviceRoleClient

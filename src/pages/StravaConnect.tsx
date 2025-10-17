@@ -60,7 +60,6 @@ export default function StravaConnect() {
     try {
       setIsLoading(true);
       console.log('🔑 [StravaConnect] Fetching Strava config...');
-      console.log('🔑 [StravaConnect] Supabase client available:', !!supabase);
       
       // Buscar configuração do Strava
       const { data, error } = await supabase.functions.invoke('strava-config', {
@@ -83,19 +82,12 @@ export default function StravaConnect() {
         redirectUri: data.redirectUri
       });
 
-      // Gerar state único para segurança
-      const state = crypto.randomUUID();
+      // Gerar state com user_id embutido (formato: userId:timestamp)
+      const state = `${uid}:${Date.now()}`;
       
-      // Salvar state no localStorage e database
+      // Salvar state APENAS no localStorage (não no banco)
       localStorage.setItem('strava_oauth_state', state);
-      
-      await supabase
-        .from('oauth_states')
-        .insert({
-          state,
-          user_id: uid,
-          created_at: new Date().toISOString()
-        });
+      console.log('✅ [StravaConnect] State generated:', state.substring(0, 20) + '...');
 
       // Construir URL do Strava OAuth
       const stravaAuthUrl = new URL('https://www.strava.com/oauth/authorize');
@@ -107,16 +99,12 @@ export default function StravaConnect() {
       stravaAuthUrl.searchParams.set('state', state);
 
       console.log('🔗 [StravaConnect] OAuth URL constructed:', stravaAuthUrl.toString());
-      console.log('🔗 [StravaConnect] About to redirect...');
 
       // Redirecionar para Strava (dentro do Safari View Controller)
       window.location.href = stravaAuthUrl.toString();
       
-      console.log('🔗 [StravaConnect] Redirect command executed');
-      
     } catch (err) {
       console.error('❌ [StravaConnect] OAuth setup failed:', err);
-      console.error('❌ [StravaConnect] Error details:', JSON.stringify(err, null, 2));
       setIsLoading(false);
     }
   };
