@@ -2,7 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Calendar, Clock, Zap } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
 import { useStravaAuth } from "@/hooks/useStravaAuth";
+import { useStravaAuthNative } from "@/hooks/useStravaAuthNative";
 import { useStravaStats } from "@/hooks/useStravaStats";
 import { useStravaSync } from "@/hooks/useStravaSync";
 import { formatDistanceToNow } from "date-fns";
@@ -11,7 +13,14 @@ import { useStravaBackgroundSync } from "@/hooks/useStravaBackgroundSync";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const StravaConnectionStatus = () => {
-  const { handleStravaConnect, isLoading: isConnecting } = useStravaAuth();
+  const isNative = Capacitor.isNativePlatform();
+  
+  // Web OAuth
+  const { handleStravaConnect, isLoading: isWebLoading } = useStravaAuth();
+  
+  // Native OAuth (delegado ao PWA)
+  const { connectStravaViaSystemBrowser, isWaitingForAuth } = useStravaAuthNative();
+  
   const { data: stats, isLoading: isLoadingStats, refetch } = useStravaStats();
   const { syncActivities, isLoading: isSyncing, lastSyncResult } = useStravaSync();
   const { startBackgroundSync, isBackgroundSyncing } = useStravaBackgroundSync();
@@ -64,12 +73,31 @@ export const StravaConnectionStatus = () => {
             <Badge variant="secondary">Desconectado</Badge>
           </div>
           
+          {isNative && isWaitingForAuth && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                🔐 Complete a autorização no navegador que acabou de abrir
+              </p>
+            </div>
+          )}
+          
           <Button 
-            onClick={handleStravaConnect} 
-            disabled={isConnecting}
+            onClick={() => {
+              if (isNative) {
+                console.log('📱 [StravaStatus] Using native browser flow');
+                connectStravaViaSystemBrowser();
+              } else {
+                console.log('🌐 [StravaStatus] Using web OAuth flow');
+                handleStravaConnect();
+              }
+            }}
+            disabled={isNative ? isWaitingForAuth : isWebLoading}
             className="w-full bg-orange-500 hover:bg-orange-600"
           >
-            {isConnecting ? "Conectando..." : "Conectar ao Strava"}
+            {(isNative ? isWaitingForAuth : isWebLoading) 
+              ? (isNative ? 'Aguardando autorização…' : 'Conectando...') 
+              : 'Conectar ao Strava'
+            }
           </Button>
         </CardContent>
       </Card>

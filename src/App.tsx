@@ -28,6 +28,7 @@ import { GarminSync } from "./pages/GarminSync";
 import { GarminCallback } from "./pages/GarminCallback";
 import PolarCallback from "./pages/PolarCallback";
 import StravaCallback from "./pages/StravaCallback";
+import StravaConnect from "./pages/StravaConnect";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { TermosCondicoes } from "./pages/TermosCondicoes";
@@ -138,6 +139,11 @@ function AppRoutes() {
           <ProtectedRoute skipOnboardingCheck={true}>
             <StravaCallback />
           </ProtectedRoute>
+        } />
+        <Route path="/strava-connect" element={
+          <PublicRoute>
+            <StravaConnect />
+          </PublicRoute>
         } />
         <Route path="/garmin-sync" element={
           <ProtectedRoute skipOnboardingCheck={true}>

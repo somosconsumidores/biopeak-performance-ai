@@ -159,10 +159,36 @@ export default function StravaCallback() {
           setMessage('Strava conectado, mas houve erro na sincronização');
         }
         
-        console.log('[StravaCallback] Redirecting to dashboard...');
-        setTimeout(() => {
-          window.location.href = getProductionRedirectUrl('/dashboard');
-        }, 2000);
+        // Detectar se veio do fluxo nativo
+        const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
+
+        if (isNativeFlow) {
+          console.log('📱 [StravaCallback] Native flow detected - showing success screen');
+          setMessage('✅ Strava conectado! Volte ao app BioPeak.');
+          
+          // Tentar abrir deep link (pode falhar se não configurado)
+          try {
+            window.location.href = 'biopeak://strava-connected';
+            console.log('🔗 [StravaCallback] Attempted deep link: biopeak://strava-connected');
+          } catch (e) {
+            console.warn('⚠️ [StravaCallback] Deep link failed (expected):', e);
+          }
+          
+          // Limpar flags
+          localStorage.removeItem('strava_connect_flow');
+          localStorage.removeItem('strava_connect_user_id');
+          localStorage.removeItem('strava_oauth_user_id');
+          
+          // Fallback: redirecionar após 3 segundos
+          setTimeout(() => {
+            window.location.href = getProductionRedirectUrl('/dashboard');
+          }, 3000);
+        } else {
+          console.log('[StravaCallback] Redirecting to dashboard...');
+          setTimeout(() => {
+            window.location.href = getProductionRedirectUrl('/dashboard');
+          }, 2000);
+        }
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
@@ -255,12 +281,28 @@ export default function StravaCallback() {
           
           {status === 'success' && !isSyncing && (
             <div className="space-y-2">
-              <p className="text-sm text-green-600 font-medium">
-                ✅ Todas as atividades foram sincronizadas!
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Redirecionando para o dashboard...
-              </p>
+              {localStorage.getItem('strava_connect_flow') === 'native' ? (
+                <>
+                  <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                    <p className="text-lg font-semibold text-green-800 dark:text-green-200 text-center">
+                      ✅ Conta Strava conectada com sucesso!
+                    </p>
+                  </div>
+                  <div className="text-center text-muted-foreground">
+                    <p className="text-sm">Você pode voltar ao app BioPeak agora</p>
+                    <p className="text-xs mt-2">Redirecionando automaticamente...</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-green-600 font-medium">
+                    ✅ Todas as atividades foram sincronizadas!
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Redirecionando para o dashboard...
+                  </p>
+                </>
+              )}
             </div>
           )}
           
