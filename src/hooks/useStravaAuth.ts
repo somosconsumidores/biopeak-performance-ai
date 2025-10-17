@@ -76,11 +76,6 @@ export const useStravaAuth = () => {
       // Hybrid storage: localStorage + sessionStorage + database
       if (!user?.id) {
         console.error('❌ [StravaAuth] User not authenticated');
-        toast({
-          title: "Erro de autenticação",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -196,11 +191,6 @@ export const useStravaAuth = () => {
       
       if (!user?.id) {
         console.error('❌ [StravaAuth] User not authenticated in callback');
-        toast({
-          title: "Erro de autenticação",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        });
         return false;
       }
       
