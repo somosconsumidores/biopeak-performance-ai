@@ -151,16 +151,11 @@ export default function StravaCallback() {
         
         console.log('[StravaCallback] Flow detection:', { isNativeFlow, isNativePlatform });
         
-        // Se for fluxo nativo, fechar Safari View e redirecionar via deep link
+        // Se for fluxo nativo, redirecionar via deep link (iOS fecha Safari View automaticamente)
         if (isNativeFlow || isNativePlatform) {
-          console.log('📱 [StravaCallback] Native flow - OAuth processed, closing browser');
+          console.log('📱 [StravaCallback] Native flow - OAuth processed, sending deep link');
           
-          // Fechar Safari View Controller
-          await Browser.close().catch(err => {
-            console.warn('⚠️ [StravaCallback] Failed to close browser:', err);
-          });
-          
-          // Enviar deep link de sucesso
+          // Enviar deep link de sucesso (iOS fecha Safari View Controller automaticamente)
           console.log('📱 [StravaCallback] Redirecting to deep link: biopeak://strava-success');
           window.location.href = 'biopeak://strava-success';
           

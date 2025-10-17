@@ -118,18 +118,15 @@ function AppRoutes() {
 
         // Detectar se é callback do Strava
         if (data.url.startsWith('biopeak://strava-success')) {
-          console.log('✅ [App] Strava success deep link detected');
+          console.log('✅ [App] Strava success deep link detected - Safari View já fechado pelo iOS');
           
-          // Fechar Safari View Controller
-          Browser.close().catch(err => {
-            console.warn('⚠️ [App] Failed to close browser:', err);
-          });
-          
-          // Limpar flags
+          // Limpar flags de autenticação
           localStorage.removeItem('strava_connect_flow');
           localStorage.removeItem('strava_native_auth_pending');
           localStorage.removeItem('strava_connect_user_id');
           localStorage.removeItem('strava_oauth_user_id');
+          
+          console.log('🧹 [App] Auth flags cleared, Realtime listener will handle token detection');
         }
       });
     };
