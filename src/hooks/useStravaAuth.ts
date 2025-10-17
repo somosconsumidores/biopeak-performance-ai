@@ -189,10 +189,26 @@ export const useStravaAuth = () => {
       // Mark code as being processed (will be cleared after processing)
       localStorage.setItem(processedCodeKey, Date.now().toString());
       
-      if (!user?.id) {
-        console.error('❌ [StravaAuth] User not authenticated in callback');
+      // Para fluxo nativo, usar o user_id salvo no localStorage
+      const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
+      const savedUserId = localStorage.getItem('strava_connect_user_id');
+      
+      const effectiveUserId = isNativeFlow && savedUserId ? savedUserId : user?.id;
+      
+      if (!effectiveUserId) {
+        console.error('❌ [StravaAuth] User not authenticated in callback', {
+          isNativeFlow,
+          hasSavedUserId: !!savedUserId,
+          hasCurrentUser: !!user?.id
+        });
         return false;
       }
+      
+      console.log('✅ [StravaAuth] Using user ID:', {
+        isNativeFlow,
+        userId: effectiveUserId.substring(0, 8) + '...',
+        source: isNativeFlow && savedUserId ? 'localStorage' : 'current session'
+      });
       
       // Hybrid validation: try multiple storage sources
       let storedState: string | null = null;
@@ -235,7 +251,7 @@ export const useStravaAuth = () => {
             const { data: dbState, error: dbError } = await supabase
               .from('oauth_states')
               .select('state_value, redirect_uri')
-              .eq('user_id', user.id)
+              .eq('user_id', effectiveUserId)
               .eq('provider', 'strava')
               .gte('expires_at', new Date().toISOString())
               .order('created_at', { ascending: false })
@@ -279,7 +295,7 @@ export const useStravaAuth = () => {
           await supabase
             .from('oauth_states')
             .delete()
-            .eq('user_id', user.id)
+            .eq('user_id', effectiveUserId)
             .eq('provider', 'strava');
         } catch (cleanupError) {
           console.warn('⚠️ [StravaAuth] Cleanup error:', cleanupError);
@@ -350,7 +366,7 @@ export const useStravaAuth = () => {
         await supabase
           .from('oauth_states')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .eq('provider', 'strava')
           .eq('state_value', storedState);
       } catch (cleanupError) {
