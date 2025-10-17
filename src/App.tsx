@@ -182,11 +182,7 @@ function AppRoutes() {
             <StravaCallback />
           </ProtectedRoute>
         } />
-        <Route path="/strava-connect" element={
-          <PublicRoute>
-            <StravaConnect />
-          </PublicRoute>
-        } />
+        <Route path="/strava-connect" element={<StravaConnect />} />
         <Route path="/garmin-sync" element={
           <ProtectedRoute skipOnboardingCheck={true}>
             <GarminSync />
