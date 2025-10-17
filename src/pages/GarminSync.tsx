@@ -12,7 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
+import { useStravaAuthNative } from '@/hooks/useStravaAuthNative';
 import { useStravaStats } from '@/hooks/useStravaStats';
+import { Capacitor } from '@capacitor/core';
 import { usePolarAuth } from '@/hooks/usePolarAuth';
 import { usePolarStats } from '@/hooks/usePolarStats';
 import { useHealthKitAuth } from '@/hooks/useHealthKitAuth';
@@ -74,6 +76,7 @@ export function GarminSync() {
   
   // Strava integration
   const { handleStravaConnect, isLoading: stravaConnecting } = useStravaAuth();
+  const { connectStravaViaSystemBrowser, isWaitingForAuth } = useStravaAuthNative();
   const { data: stravaStats, isLoading: stravaLoading } = useStravaStats();
   
   const stravaConnected = stravaStats?.isConnected || false;
@@ -189,7 +192,18 @@ export function GarminSync() {
 
   const handleConnectStrava = () => {
     console.log('[StravaSync] Connect button clicked');
-    handleStravaConnect();
+    
+    // CRÍTICO: Detectar plataforma DENTRO do evento de clique
+    const isNative = Capacitor.isNativePlatform();
+    console.log('[StravaSync] Platform detected:', { isNative });
+    
+    if (isNative) {
+      console.log('[StravaSync] Using NATIVE flow (Browser.open)');
+      connectStravaViaSystemBrowser();
+    } else {
+      console.log('[StravaSync] Using WEB flow (window.location.href)');
+      handleStravaConnect();
+    }
   };
 
   const handleConnectPolar = () => {
@@ -438,21 +452,34 @@ export function GarminSync() {
                         
                         <Button 
                           onClick={handleConnectStrava}
-                          disabled={stravaConnecting}
+                          disabled={Capacitor.isNativePlatform() ? isWaitingForAuth : stravaConnecting}
                           className="w-full bg-orange-600 hover:bg-orange-700"
                           size="lg"
                         >
-                          {stravaConnecting ? (
-                            <>
-                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
-                              Conectando...
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Conectar Strava
-                            </>
-                          )}
+                          {Capacitor.isNativePlatform() 
+                            ? (isWaitingForAuth ? (
+                              <>
+                                <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                                Aguardando autorização...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="h-4 w-4 mr-2" />
+                                Conectar Strava
+                              </>
+                            ))
+                            : (stravaConnecting ? (
+                              <>
+                                <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                                Conectando...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="h-4 w-4 mr-2" />
+                                Conectar Strava
+                              </>
+                            ))
+                          }
                         </Button>
 
                         <div className="pt-2">

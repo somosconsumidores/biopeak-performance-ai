@@ -135,6 +135,28 @@ export default function StravaCallback() {
         setStatus('success');
         setMessage('Strava conectado com sucesso!');
         
+        // Detectar fluxo nativo ANTES de qualquer redirecionamento
+        const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
+        const isNativePlatform = Capacitor.isNativePlatform();
+        
+        console.log('[StravaCallback] Flow detection:', { isNativeFlow, isNativePlatform });
+        
+        // Se for fluxo nativo, redirecionar via deep link IMEDIATAMENTE
+        if (isNativeFlow || isNativePlatform) {
+          console.log('[StravaCallback] Native flow detected, redirecting via deep link');
+          
+          // Construir deep link com timestamp
+          const deepLink = `biopeak://strava-success?timestamp=${Date.now()}`;
+          console.log('[StravaCallback] Deep link:', deepLink);
+          
+          // Redirecionar via deep link (isso fecha o Safari View Controller)
+          window.location.href = deepLink;
+          
+          // Não executar mais nada - o deep link vai lidar com tudo
+          return;
+        }
+        
+        // Fluxo WEB normal continua aqui
         // Clear URL params immediately after successful auth to prevent re-processing
         console.log('[StravaCallback] Clearing URL parameters to prevent re-processing...');
         window.history.replaceState({}, '', '/strava-callback');
@@ -144,8 +166,8 @@ export default function StravaCallback() {
         queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
         queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
         
-        // Start optimized sync after successful authentication
-        console.log('[StravaCallback] Starting optimized activity sync...');
+        // Fluxo WEB normal: sincronizar atividades
+        console.log('[StravaCallback] WEB flow - starting optimized activity sync...');
         setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
         setSyncStartTime(Date.now());
         
@@ -161,49 +183,11 @@ export default function StravaCallback() {
           setMessage('Strava conectado, mas houve erro na sincronização');
         }
         
-        // Detectar se veio do fluxo nativo
-        const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
-
-        if (isNativeFlow && Capacitor.isNativePlatform()) {
-          console.log('📱 [StravaCallback] Native flow detected - closing Safari View');
-          
-          // Fechar o Safari View Controller
-          await Browser.close();
-          
-          // Limpar flags
-          localStorage.removeItem('strava_connect_flow');
-          localStorage.removeItem('strava_connect_user_id');
-          localStorage.removeItem('strava_oauth_user_id');
-          localStorage.removeItem('strava_native_auth_pending');
-          
-          // O Realtime listener já vai detectar o token e mostrar o toast
-          // Não precisa redirecionar - o app já está aberto
-        } else if (isNativeFlow) {
-          // Fluxo web com flag nativa (fallback)
-          console.log('📱 [StravaCallback] Native flow on web - attempting deep link');
-          setMessage('✅ Strava conectado! Volte ao app BioPeak.');
-          
-          try {
-            window.location.href = 'biopeak://strava-success';
-            console.log('🔗 [StravaCallback] Attempted deep link: biopeak://strava-success');
-          } catch (e) {
-            console.warn('⚠️ [StravaCallback] Deep link failed:', e);
-          }
-          
-          localStorage.removeItem('strava_connect_flow');
-          localStorage.removeItem('strava_connect_user_id');
-          localStorage.removeItem('strava_oauth_user_id');
-          
-          setTimeout(() => {
-            window.location.href = getProductionRedirectUrl('/dashboard');
-          }, 3000);
-        } else {
-          // Fluxo web normal
-          console.log('[StravaCallback] Redirecting to dashboard...');
-          setTimeout(() => {
-            window.location.href = getProductionRedirectUrl('/dashboard');
-          }, 2000);
-        }
+        // Fluxo WEB: redirecionar para dashboard
+        console.log('[StravaCallback] Redirecting to dashboard...');
+        setTimeout(() => {
+          window.location.href = getProductionRedirectUrl('/dashboard');
+        }, 2000);
         
       } catch (error) {
         console.error('[StravaCallback] Callback processing error:', error);
