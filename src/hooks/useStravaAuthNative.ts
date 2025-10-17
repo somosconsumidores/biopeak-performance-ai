@@ -14,11 +14,7 @@ export const useStravaAuthNative = () => {
   const connectStravaViaSystemBrowser = useCallback(async () => {
     if (!Capacitor.isNativePlatform()) return;
     if (!user?.id) {
-      toast({ 
-        title: "Erro", 
-        description: "Usuário não autenticado",
-        variant: "destructive" 
-      });
+      console.error('❌ [StravaAuthNative] User not authenticated');
       return;
     }
 
