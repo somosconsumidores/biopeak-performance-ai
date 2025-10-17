@@ -98,6 +98,10 @@ serve(async (req) => {
     const flashPriceId = "price_1S85CZI6QbtlS9WtNAIvlP4h";
     logStep("Using flash sale price", { priceId: flashPriceId });
 
+    // Calculate checkout expiration (10 minutes from now)
+    const expiresAt = Math.floor(Date.now() / 1000) + (10 * 60);
+    logStep("Setting checkout expiration", { expiresAt, expiresIn: "10 minutes" });
+
     // Validate the price ID with Stripe
     try {
       const price = await stripe.prices.retrieve(flashPriceId);
@@ -120,6 +124,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
+      expires_at: expiresAt,
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/paywall2?success=true`,
       cancel_url: `${req.headers.get("origin")}/paywall2?canceled=true`,
