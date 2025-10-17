@@ -46,8 +46,17 @@ import {
 export function GarminSync() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { toast } = useToast();
+  
+  // Debug auth state
+  useEffect(() => {
+    console.log('🔵 [GarminSync] Auth state:', {
+      hasUser: !!user,
+      userId: user?.id,
+      loading
+    });
+  }, [user, loading]);
   
   // Detect Strava callback that might have landed on /sync instead of /strava-callback
   useEffect(() => {
@@ -452,11 +461,16 @@ export function GarminSync() {
                         
                         <Button 
                           onClick={handleConnectStrava}
-                          disabled={Capacitor.isNativePlatform() ? isWaitingForAuth : stravaConnecting}
+                          disabled={!user?.id || loading || (Capacitor.isNativePlatform() ? isWaitingForAuth : stravaConnecting)}
                           className="w-full bg-orange-600 hover:bg-orange-700"
                           size="lg"
                         >
-                          {Capacitor.isNativePlatform() 
+                          {loading || !user?.id ? (
+                            <>
+                              <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                              Carregando...
+                            </>
+                          ) : Capacitor.isNativePlatform() 
                             ? (isWaitingForAuth ? (
                               <>
                                 <Zap className="h-4 w-4 mr-2 animate-pulse" />

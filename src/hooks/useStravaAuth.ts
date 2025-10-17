@@ -73,11 +73,11 @@ export const useStravaAuth = () => {
       });
       console.log('🚀 [StravaAuth] Authorization URL:', authUrl.toString());
       
-      // Hybrid storage: localStorage + sessionStorage + database
-      if (!user?.id) {
-        console.error('❌ [StravaAuth] User not authenticated');
-        return;
-      }
+      // Log user state for debugging (não bloquear fluxo - validação ocorre no backend)
+      console.log('🔍 [StravaAuth] User state:', { 
+        hasUser: !!user, 
+        userId: user?.id 
+      });
 
       console.log('🔵 [StravaAuth] Storing OAuth state in multiple locations...');
 
