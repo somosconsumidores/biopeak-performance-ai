@@ -4,8 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.biopeak-ai.performance',
   appName: 'BioPeak-ai',
   webDir: 'dist',
-  // Force offline/local mode - NO server configuration
-  bundledWebRuntime: false,
+  server: {
+    url: "https://2de71c28-ed78-4dcd-8f5f-290d2b70bd62.lovableproject.com?forceHideBadge=true",
+    cleartext: false
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 3000,
