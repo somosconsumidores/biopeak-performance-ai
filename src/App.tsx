@@ -177,11 +177,7 @@ function AppRoutes() {
             <PolarCallback />
           </ProtectedRoute>
         } />
-        <Route path="/strava-callback" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
-            <StravaCallback />
-          </ProtectedRoute>
-        } />
+        <Route path="/strava-callback" element={<StravaCallback />} />
         <Route path="/strava-connect" element={<StravaConnect />} />
         <Route path="/garmin-sync" element={
           <ProtectedRoute skipOnboardingCheck={true}>

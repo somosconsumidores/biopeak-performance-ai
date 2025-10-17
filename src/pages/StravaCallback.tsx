@@ -91,6 +91,20 @@ export default function StravaCallback() {
         currentUrl 
       });
 
+      // Detectar fluxo nativo: fechar Safari View Controller e enviar deep link
+      if (Capacitor.isNativePlatform()) {
+        console.log('📱 [StravaCallback] Native platform detected - closing browser and sending deep link');
+        
+        // Fechar Safari View Controller
+        await Browser.close().catch(err => {
+          console.warn('⚠️ [StravaCallback] Failed to close browser:', err);
+        });
+        
+        // Enviar deep link de sucesso para o app processar
+        window.location.href = 'biopeak://strava-success';
+        return;
+      }
+
       if (error) {
         console.error('[StravaCallback] OAuth error received:', error);
         setStatus('error');
