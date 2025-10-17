@@ -7,13 +7,25 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Lock } from 'lucide-react';
 
 export default function StravaConnect() {
+  console.log('🔵 [StravaConnect] Component mounted - START');
+  
   const [searchParams] = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  console.log('🔵 [StravaConnect] Component rendering', {
+    hasSearchParams: !!searchParams,
+    userId,
+    isLoading,
+    url: window.location.href
+  });
+
   useEffect(() => {
+    console.log('🔵 [StravaConnect] useEffect triggered');
+    
     const uid = searchParams.get('user_id');
+    console.log('🔵 [StravaConnect] user_id from params:', uid);
     
     if (!uid) {
       console.error('❌ [StravaConnect] No user_id parameter');
@@ -28,6 +40,11 @@ export default function StravaConnect() {
     
     setUserId(uid);
     console.log('✅ [StravaConnect] Initialized with user_id:', uid);
+    console.log('✅ [StravaConnect] localStorage set:', {
+      connect_user_id: localStorage.getItem('strava_connect_user_id'),
+      oauth_user_id: localStorage.getItem('strava_oauth_user_id'),
+      connect_flow: localStorage.getItem('strava_connect_flow')
+    });
     
     // Se for fluxo nativo, iniciar OAuth automaticamente
     const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
@@ -38,17 +55,26 @@ export default function StravaConnect() {
   }, [searchParams, navigate]);
 
   const handleNativeOAuth = async (uid: string) => {
+    console.log('🔵 [StravaConnect] handleNativeOAuth STARTED', { uid });
+    
     try {
       setIsLoading(true);
       console.log('🔑 [StravaConnect] Fetching Strava config...');
+      console.log('🔑 [StravaConnect] Supabase client available:', !!supabase);
       
       // Buscar configuração do Strava
       const { data, error } = await supabase.functions.invoke('strava-config', {
         method: 'GET',
       });
 
-      if (error) throw error;
+      console.log('🔑 [StravaConnect] Strava config response:', { data, error });
+
+      if (error) {
+        console.error('❌ [StravaConnect] Strava config error:', error);
+        throw error;
+      }
       if (!data?.clientId || !data?.redirectUri) {
+        console.error('❌ [StravaConnect] Invalid config data:', data);
         throw new Error('Invalid Strava configuration');
       }
 
@@ -80,13 +106,17 @@ export default function StravaConnect() {
       stravaAuthUrl.searchParams.set('scope', 'read,activity:read_all,activity:write');
       stravaAuthUrl.searchParams.set('state', state);
 
-      console.log('🔗 [StravaConnect] Redirecting to Strava OAuth:', stravaAuthUrl.toString());
+      console.log('🔗 [StravaConnect] OAuth URL constructed:', stravaAuthUrl.toString());
+      console.log('🔗 [StravaConnect] About to redirect...');
 
       // Redirecionar para Strava (dentro do Safari View Controller)
       window.location.href = stravaAuthUrl.toString();
       
+      console.log('🔗 [StravaConnect] Redirect command executed');
+      
     } catch (err) {
       console.error('❌ [StravaConnect] OAuth setup failed:', err);
+      console.error('❌ [StravaConnect] Error details:', JSON.stringify(err, null, 2));
       setIsLoading(false);
     }
   };
