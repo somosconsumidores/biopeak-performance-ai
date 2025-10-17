@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -10,7 +11,7 @@ export const useStravaAuthNative = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const connectStravaViaSystemBrowser = useCallback(() => {
+  const connectStravaViaSystemBrowser = useCallback(async () => {
     if (!Capacitor.isNativePlatform()) return;
     if (!user?.id) {
       toast({ 
@@ -27,13 +28,24 @@ export const useStravaAuthNative = () => {
       localStorage.setItem('strava_native_auth_pending', 'true');
       localStorage.setItem('strava_connect_flow', 'native');
 
-      // Abre Safari (sem plugin)
       const url = `https://biopeak-ai.com/strava-connect?user_id=${user.id}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
       
-      console.log('🔗 [StravaAuthNative] Opened Safari for OAuth:', url);
+      console.log('🔗 [StravaAuthNative] Opening Safari View Controller:', url);
+      
+      // Abrir Safari View Controller (webview integrada)
+      await Browser.open({
+        url: url,
+        presentationStyle: 'popover',
+        toolbarColor: '#0f172a',
+      });
+
+      // Listener para quando o usuário fechar o Safari View manualmente
+      Browser.addListener('browserFinished', () => {
+        console.log('👋 [StravaAuthNative] User closed Safari View');
+      });
+      
     } catch (err) {
-      console.error('❌ [StravaAuthNative] window.open error:', err);
+      console.error('❌ [StravaAuthNative] Browser.open error:', err);
       setIsWaitingForAuth(false);
       toast({ 
         title: 'Erro ao abrir navegador', 

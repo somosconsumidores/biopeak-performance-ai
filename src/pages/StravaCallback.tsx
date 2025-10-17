@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaSync } from '@/hooks/useStravaSync';
 import { useQueryClient } from '@tanstack/react-query';
@@ -162,28 +164,41 @@ export default function StravaCallback() {
         // Detectar se veio do fluxo nativo
         const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
 
-        if (isNativeFlow) {
-          console.log('📱 [StravaCallback] Native flow detected - showing success screen');
-          setMessage('✅ Strava conectado! Volte ao app BioPeak.');
+        if (isNativeFlow && Capacitor.isNativePlatform()) {
+          console.log('📱 [StravaCallback] Native flow detected - closing Safari View');
           
-          // Tentar abrir deep link (pode falhar se não configurado)
-          try {
-            window.location.href = 'biopeak://strava-connected';
-            console.log('🔗 [StravaCallback] Attempted deep link: biopeak://strava-connected');
-          } catch (e) {
-            console.warn('⚠️ [StravaCallback] Deep link failed (expected):', e);
-          }
+          // Fechar o Safari View Controller
+          await Browser.close();
           
           // Limpar flags
           localStorage.removeItem('strava_connect_flow');
           localStorage.removeItem('strava_connect_user_id');
           localStorage.removeItem('strava_oauth_user_id');
+          localStorage.removeItem('strava_native_auth_pending');
           
-          // Fallback: redirecionar após 3 segundos
+          // O Realtime listener já vai detectar o token e mostrar o toast
+          // Não precisa redirecionar - o app já está aberto
+        } else if (isNativeFlow) {
+          // Fluxo web com flag nativa (fallback)
+          console.log('📱 [StravaCallback] Native flow on web - attempting deep link');
+          setMessage('✅ Strava conectado! Volte ao app BioPeak.');
+          
+          try {
+            window.location.href = 'biopeak://strava-success';
+            console.log('🔗 [StravaCallback] Attempted deep link: biopeak://strava-success');
+          } catch (e) {
+            console.warn('⚠️ [StravaCallback] Deep link failed:', e);
+          }
+          
+          localStorage.removeItem('strava_connect_flow');
+          localStorage.removeItem('strava_connect_user_id');
+          localStorage.removeItem('strava_oauth_user_id');
+          
           setTimeout(() => {
             window.location.href = getProductionRedirectUrl('/dashboard');
           }, 3000);
         } else {
+          // Fluxo web normal
           console.log('[StravaCallback] Redirecting to dashboard...');
           setTimeout(() => {
             window.location.href = getProductionRedirectUrl('/dashboard');

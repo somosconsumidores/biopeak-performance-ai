@@ -12,6 +12,9 @@ import { PermissionOnboarding } from "./components/PermissionOnboarding";
 import { SurveyPopup } from "./components/SurveyPopup";
 import { useSurveyPopup } from "./hooks/useSurveyPopup";
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 
 import { LandingPage } from "./pages/LandingPage";
 import { SalesLandingPage } from "./pages/SalesLandingPage";
@@ -100,6 +103,45 @@ function AppRoutes() {
   console.log('🔍 Platform detection:', { platform, isNative, capacitor: !!(window as any)?.Capacitor });
   
   const Router = isNative ? HashRouter : BrowserRouter;
+
+  // Deep link listener para Strava OAuth
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    console.log('📡 [App] Registering deep link listener...');
+
+    let listenerHandle: any = null;
+
+    const setupListener = async () => {
+      listenerHandle = await CapApp.addListener('appUrlOpen', (data) => {
+        console.log('🔗 [App] Deep link received:', data.url);
+
+        // Detectar se é callback do Strava
+        if (data.url.startsWith('biopeak://strava-success')) {
+          console.log('✅ [App] Strava success deep link detected');
+          
+          // Fechar Safari View Controller
+          Browser.close().catch(err => {
+            console.warn('⚠️ [App] Failed to close browser:', err);
+          });
+          
+          // Limpar flags
+          localStorage.removeItem('strava_connect_flow');
+          localStorage.removeItem('strava_native_auth_pending');
+          localStorage.removeItem('strava_connect_user_id');
+          localStorage.removeItem('strava_oauth_user_id');
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (listenerHandle) {
+        listenerHandle.remove();
+      }
+    };
+  }, []);
 
   return (
     <Router>
