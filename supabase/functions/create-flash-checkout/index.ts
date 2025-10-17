@@ -111,7 +111,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      customer_update: { address: 'auto', name: 'auto' },
+      ...(customerId ? { customer_update: { address: 'auto', name: 'auto' } } : {}),
       phone_number_collection: { enabled: !!userPhone },
       ...(userPhone && !customerId ? { customer_data: { phone: userPhone } } : {}),
       line_items: [
