@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { useStravaAuth } from '@/hooks/useStravaAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Lock } from 'lucide-react';
 
 export default function StravaConnect() {
   const [searchParams] = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
-  const { handleStravaConnect, isLoading } = useStravaAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,12 +28,67 @@ export default function StravaConnect() {
     
     setUserId(uid);
     console.log('✅ [StravaConnect] Initialized with user_id:', uid);
+    
+    // Se for fluxo nativo, iniciar OAuth automaticamente
+    const isNativeFlow = localStorage.getItem('strava_connect_flow') === 'native';
+    if (isNativeFlow) {
+      console.log('🚀 [StravaConnect] Native flow detected, starting OAuth...');
+      handleNativeOAuth(uid);
+    }
   }, [searchParams, navigate]);
 
-  const handleClick = () => {
-    if (!userId) return;
-    console.log('🚀 [StravaConnect] Starting OAuth flow for user:', userId);
-    handleStravaConnect();
+  const handleNativeOAuth = async (uid: string) => {
+    try {
+      setIsLoading(true);
+      console.log('🔑 [StravaConnect] Fetching Strava config...');
+      
+      // Buscar configuração do Strava
+      const { data, error } = await supabase.functions.invoke('strava-config', {
+        method: 'GET',
+      });
+
+      if (error) throw error;
+      if (!data?.clientId || !data?.redirectUri) {
+        throw new Error('Invalid Strava configuration');
+      }
+
+      console.log('✅ [StravaConnect] Strava config received:', {
+        clientId: data.clientId,
+        redirectUri: data.redirectUri
+      });
+
+      // Gerar state único para segurança
+      const state = crypto.randomUUID();
+      
+      // Salvar state no localStorage e database
+      localStorage.setItem('strava_oauth_state', state);
+      
+      await supabase
+        .from('oauth_states')
+        .insert({
+          state,
+          user_id: uid,
+          created_at: new Date().toISOString()
+        });
+
+      // Construir URL do Strava OAuth
+      const stravaAuthUrl = new URL('https://www.strava.com/oauth/authorize');
+      stravaAuthUrl.searchParams.set('client_id', data.clientId);
+      stravaAuthUrl.searchParams.set('redirect_uri', data.redirectUri);
+      stravaAuthUrl.searchParams.set('response_type', 'code');
+      stravaAuthUrl.searchParams.set('approval_prompt', 'auto');
+      stravaAuthUrl.searchParams.set('scope', 'read,activity:read_all,activity:write');
+      stravaAuthUrl.searchParams.set('state', state);
+
+      console.log('🔗 [StravaConnect] Redirecting to Strava OAuth:', stravaAuthUrl.toString());
+
+      // Redirecionar para Strava (dentro do Safari View Controller)
+      window.location.href = stravaAuthUrl.toString();
+      
+    } catch (err) {
+      console.error('❌ [StravaConnect] OAuth setup failed:', err);
+      setIsLoading(false);
+    }
   };
 
   if (!userId) {
@@ -60,7 +114,7 @@ export default function StravaConnect() {
           </div>
           <CardTitle className="text-2xl">Conectar ao Strava</CardTitle>
           <CardDescription>
-            Vamos conectar sua conta Strava ao BioPeak para sincronizar suas atividades automaticamente
+            Redirecionando para autorização do Strava...
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -69,27 +123,9 @@ export default function StravaConnect() {
             Seguro via OAuth 2.0
           </Badge>
           
-          <div className="bg-muted/20 p-4 rounded-lg">
-            <p className="text-sm text-muted-foreground text-center">
-              Você será redirecionado para o Strava para autorizar a conexão. 
-              Suas credenciais nunca são compartilhadas com o BioPeak.
-            </p>
+          <div className="bg-muted/20 p-4 rounded-lg flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-
-          <Button 
-            onClick={handleClick}
-            disabled={isLoading}
-            className="w-full bg-[#FC4C02] hover:bg-[#E04402] text-white"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Conectando...
-              </>
-            ) : (
-              'Conectar ao Strava'
-            )}
-          </Button>
         </CardContent>
       </Card>
     </div>
