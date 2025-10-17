@@ -33,15 +33,8 @@ export default defineConfig(({ mode }) => ({
           jspdf: 'jspdf',
         },
       },
-      // Prevent aggressive tree-shaking of Capacitor native code
-      treeshake: {
-        moduleSideEffects: (id) => {
-          // Preserve all Capacitor modules and hooks that use them
-          return id.includes('@capacitor') || 
-                 id.includes('useStravaAuthNative') ||
-                 id.includes('StravaConnectionStatus');
-        },
-      },
+      // Disable tree-shaking for Capacitor to preserve native code
+      treeshake: false,
     },
   },
   define: {
