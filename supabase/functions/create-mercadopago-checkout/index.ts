@@ -42,33 +42,76 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://grcwlmltlcltmwbhdpky.supabase.co";
 
-    // Criar preferência no Mercado Pago
+    // Criar preferência no Mercado Pago com informações otimizadas
     const preference = {
       items: [
         {
           title: selectedPlan.title,
+          description: planType === 'monthly' 
+            ? "Acesso completo aos recursos premium do BioPeak. Renovação mensal automática. Cancele quando quiser."
+            : "Acesso completo aos recursos premium do BioPeak por 12 meses. Economia de 56% comparado ao plano mensal.",
           quantity: 1,
           unit_price: selectedPlan.amount,
-          currency_id: "BRL"
+          currency_id: "BRL",
+          category_id: "services"
         }
       ],
       payer: {
+        name: user.user_metadata?.display_name || user.email?.split('@')[0] || "Cliente BioPeak",
         email: user.email,
+        phone: {
+          area_code: "",
+          number: ""
+        },
+        identification: {
+          type: "",
+          number: ""
+        },
+        address: {
+          zip_code: "",
+          street_name: ""
+        }
       },
       back_urls: {
-        success: `${origin}/dashboard?mp_success=true`,
-        failure: `${origin}/paywall-mercadopago?mp_error=true`,
-        pending: `${origin}/paywall-mercadopago?mp_pending=true`
+        success: `${origin}/dashboard?mp_success=true&plan=${planType}`,
+        failure: `${origin}/paywall-mercadopago?mp_error=true&plan=${planType}`,
+        pending: `${origin}/paywall-mercadopago?mp_pending=true&plan=${planType}`
       },
       auto_return: "approved",
-      external_reference: user.id, // Para identificar o usuário no webhook
+      statement_descriptor: "BIOPEAK PRO",
+      external_reference: `BIOPEAK_${user.id.substring(0, 8)}_${planType.toUpperCase()}_${Date.now()}`,
+      notification_url: `${origin.replace(/^https:\/\/[^.]+/, 'https://grcwlmltlcltmwbhdpky')}.supabase.co/functions/v1/mercadopago-webhook`,
+      payment_methods: {
+        excluded_payment_methods: [],
+        excluded_payment_types: [],
+        installments: planType === 'annual' ? 12 : 1,
+        default_installments: 1
+      },
+      binary_mode: true,
+      expires: true,
+      expiration_date_from: new Date().toISOString(),
+      expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       metadata: {
         user_id: user.id,
-        plan_type: planType
+        user_email: user.email,
+        plan_type: planType,
+        plan_name: selectedPlan.title,
+        amount_brl: selectedPlan.amount,
+        created_at: new Date().toISOString(),
+        source: "web_app",
+        integration_version: "v1.1"
       }
     };
 
-    console.log("[MP] Creating preference for user:", user.id, "plan:", planType);
+    console.log("[MP] Creating preference with enhanced data:", {
+      user_id: user.id,
+      user_email: user.email,
+      plan: planType,
+      amount: selectedPlan.amount,
+      title: selectedPlan.title,
+      preference_structure: 'optimized_v1.1',
+      expires_in: '24h'
+    });
 
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
