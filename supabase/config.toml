@@ -203,3 +203,9 @@ verify_jwt = true
 
 [functions.notify-n8n-new-user]
 verify_jwt = true
+
+[functions.create-mercadopago-checkout]
+verify_jwt = true
+
+[functions.mercadopago-webhook]
+verify_jwt = false

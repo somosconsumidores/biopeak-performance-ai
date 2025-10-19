@@ -44,6 +44,7 @@ import TrainingPlan from "./pages/TrainingPlan";
 import { PremiumStats } from "./pages/PremiumStats";
 import Paywall from "./pages/Paywall";
 import Paywall2 from "./pages/Paywall2";
+import { PaywallMercadoPago } from "./pages/PaywallMercadoPago";
 import RacePlanning from "./pages/RacePlanning";
 import SavedStrategies from "./pages/SavedStrategies";
 import MobileBottomBar from "./components/MobileBottomBar";
@@ -251,6 +252,7 @@ function AppRoutes() {
         } />
         <Route path="/paywall" element={<Paywall2 />} />
         <Route path="/paywall2" element={<Paywall2 />} />
+        <Route path="/paywall-mercadopago" element={<PaywallMercadoPago />} />
         <Route path="/race-planning" element={
           <ProtectedRoute>
             <RacePlanning />

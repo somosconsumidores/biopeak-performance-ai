@@ -1735,6 +1735,57 @@ export type Database = {
         }
         Relationships: []
       }
+      mercadopago_payments: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          created_at: string | null
+          currency: string
+          id: string
+          payer_email: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_type_id: string | null
+          plan_type: string
+          preference_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          created_at?: string | null
+          currency?: string
+          id?: string
+          payer_email?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_type_id?: string | null
+          plan_type: string
+          preference_id?: string | null
+          status: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          created_at?: string | null
+          currency?: string
+          id?: string
+          payer_email?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_type_id?: string | null
+          plan_type?: string
+          preference_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       n8n_notification_queue: {
         Row: {
           created_at: string | null
