@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ export default function CheckoutMercadoPago() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [mpLoaded, setMpLoaded] = useState(false);
 
   const planType = searchParams.get("plan") || "monthly";
   const planPrice = planType === "monthly" ? "R$ 12,90" : "R$ 154,80";
@@ -28,6 +29,21 @@ export default function CheckoutMercadoPago() {
     identificationType: "CPF",
     identificationNumber: "",
   });
+
+  // Inicializar SDK do Mercado Pago
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://sdk.mercadopago.com/js/v2';
+    script.async = true;
+    script.onload = () => {
+      setMpLoaded(true);
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -46,6 +62,16 @@ export default function CheckoutMercadoPago() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!mpLoaded) {
+      toast({
+        title: "Erro",
+        description: "SDK do Mercado Pago não carregado. Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -59,23 +85,41 @@ export default function CheckoutMercadoPago() {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
-      // Chamar edge function para processar pagamento
+      // Inicializar Mercado Pago
+      const mp = new (window as any).MercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+
+      // Criar token do cartão (PCI compliant)
+      console.log("[MP] Creating card token...");
+      const cardToken = await mp.fields.createCardToken({
+        cardNumber: formData.cardNumber.replace(/\s/g, ""),
+        cardholderName: formData.cardholderName,
+        cardExpirationMonth: formData.expirationMonth,
+        cardExpirationYear: formData.expirationYear,
+        securityCode: formData.securityCode,
+        identificationType: formData.identificationType,
+        identificationNumber: formData.identificationNumber,
+      });
+
+      if (!cardToken?.id) {
+        throw new Error("Erro ao tokenizar cartão");
+      }
+
+      console.log("[MP] Card token created:", cardToken.id);
+
+      // Enviar apenas o token para o backend
       const { data, error } = await supabase.functions.invoke('process-mercadopago-payment', {
         body: {
           planType,
-          cardData: {
-            cardNumber: formData.cardNumber.replace(/\s/g, ""),
-            cardholderName: formData.cardholderName,
-            expirationMonth: formData.expirationMonth,
-            expirationYear: formData.expirationYear,
-            securityCode: formData.securityCode,
-            identificationType: formData.identificationType,
-            identificationNumber: formData.identificationNumber,
-          }
+          token: cardToken.id,
+          payerEmail: user.email,
+          identificationType: formData.identificationType,
+          identificationNumber: formData.identificationNumber,
         }
       });
 
       if (error) throw error;
+
+      console.log("[MP] Payment response:", data);
 
       if (data?.status === "approved") {
         toast({

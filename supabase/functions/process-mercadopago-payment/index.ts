@@ -19,13 +19,13 @@ serve(async (req) => {
   try {
     // Autenticar usuário
     const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
+    const authToken = authHeader.replace("Bearer ", "");
+    const { data } = await supabaseClient.auth.getUser(authToken);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    // Pegar dados do body
-    const { planType, cardData } = await req.json();
+    // Pegar dados do body (agora com token ao invés de dados do cartão)
+    const { planType, token, payerEmail, identificationType, identificationNumber } = await req.json();
     
     // Definir valores
     const prices = {
@@ -36,31 +36,36 @@ serve(async (req) => {
     const selectedPlan = prices[planType as keyof typeof prices];
     if (!selectedPlan) throw new Error("Invalid plan type");
 
+    // Validar token
+    if (!token) throw new Error("Card token is required");
+
     // Pegar token do Mercado Pago
     const mpAccessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
     if (!mpAccessToken) throw new Error("MercadoPago access token not configured");
 
-    console.log("[MP] Processing direct payment:", {
+    console.log("[MP] Processing payment with token:", {
       user_id: user.id,
       plan: planType,
-      amount: selectedPlan.amount
+      amount: selectedPlan.amount,
+      has_token: !!token
     });
 
-    // Criar pagamento direto via API do Mercado Pago
-    const payment = {
+    // Criar pagamento via API do Mercado Pago
+    const paymentBody = {
       transaction_amount: selectedPlan.amount,
       description: selectedPlan.title,
-      payment_method_id: "visa", // Será detectado automaticamente
+      payment_method_id: "visa", // Será detectado pelo token
+      token: token, // Token seguro do cartão
+      installments: 1,
       payer: {
-        email: user.email,
+        email: payerEmail || user.email,
         identification: {
-          type: cardData.identificationType,
-          number: cardData.identificationNumber
+          type: identificationType,
+          number: identificationNumber
         }
       },
-      token: null, // Será gerado pelo SDK no frontend
-      installments: 1,
       statement_descriptor: "BIOPEAK PRO",
+      external_reference: `BIOPEAK_${user.id.substring(0, 8)}_${planType.toUpperCase()}_${Date.now()}`,
       metadata: {
         user_id: user.id,
         user_email: user.email,
@@ -68,74 +73,46 @@ serve(async (req) => {
         plan_name: selectedPlan.title,
         source: "transparent_checkout",
         integration_version: "v2.0"
-      },
-      additional_info: {
-        items: [
-          {
-            id: planType,
-            title: selectedPlan.title,
-            description: planType === 'monthly' 
-              ? "Acesso completo aos recursos premium do BioPeak"
-              : "Acesso completo aos recursos premium do BioPeak por 12 meses",
-            quantity: 1,
-            unit_price: selectedPlan.amount,
-            category_id: "services"
-          }
-        ],
-        payer: {
-          first_name: user.user_metadata?.display_name || user.email?.split('@')[0] || "Cliente",
-          last_name: "BioPeak",
-          phone: {
-            area_code: "",
-            number: ""
-          },
-          address: {
-            zip_code: "",
-            street_name: ""
-          }
-        }
       }
     };
 
-    // Por enquanto, simular processamento do pagamento
-    // Em produção, você usaria o SDK do Mercado Pago para tokenizar o cartão
-    // e processar o pagamento de forma segura
-    
-    console.log("[MP] Payment structure prepared:", {
-      amount: payment.transaction_amount,
-      description: payment.description,
-      user_id: user.id
+    console.log("[MP] Calling Mercado Pago API...");
+
+    // Chamar API do Mercado Pago
+    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${mpAccessToken}`,
+        "X-Idempotency-Key": `${user.id}-${planType}-${Date.now()}`
+      },
+      body: JSON.stringify(paymentBody)
     });
 
-    // NOTA IMPORTANTE: Esta é uma implementação simplificada
-    // Para produção, você precisa:
-    // 1. Usar o SDK do Mercado Pago no frontend para tokenizar o cartão
-    // 2. Enviar apenas o token (não os dados do cartão) para o backend
-    // 3. Processar o pagamento usando o token
+    const paymentResult = await mpResponse.json();
 
-    // Simulação de resposta aprovada para teste
-    const mockResponse = {
-      id: `mock_${Date.now()}`,
-      status: "approved",
-      status_detail: "accredited",
-      transaction_amount: selectedPlan.amount,
-      payer: { email: user.email },
-      metadata: payment.metadata
-    };
+    if (!mpResponse.ok) {
+      console.error("[MP] Payment failed:", paymentResult);
+      throw new Error(paymentResult.message || "Payment processing failed");
+    }
 
-    console.log("[MP] Mock payment response:", mockResponse);
+    console.log("[MP] Payment processed:", {
+      id: paymentResult.id,
+      status: paymentResult.status,
+      status_detail: paymentResult.status_detail
+    });
 
     // Registrar pagamento na tabela
     const { error: insertError } = await supabaseClient
       .from("mercadopago_payments")
       .insert({
         user_id: user.id,
-        payment_id: mockResponse.id,
-        status: mockResponse.status,
+        payment_id: paymentResult.id,
+        status: paymentResult.status,
         plan_type: planType,
         amount_cents: Math.round(selectedPlan.amount * 100),
         currency: "BRL",
-        payer_email: user.email,
+        payer_email: payerEmail || user.email,
         payment_type: "transparent_checkout"
       });
 
@@ -144,7 +121,7 @@ serve(async (req) => {
     }
 
     // Se aprovado, atualizar assinatura do usuário
-    if (mockResponse.status === "approved") {
+    if (paymentResult.status === "approved") {
       const subscriptionEnd = new Date();
       if (planType === "monthly") {
         subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
@@ -172,9 +149,9 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ 
-      status: mockResponse.status,
-      status_detail: mockResponse.status_detail,
-      payment_id: mockResponse.id
+      status: paymentResult.status,
+      status_detail: paymentResult.status_detail,
+      payment_id: paymentResult.id
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
