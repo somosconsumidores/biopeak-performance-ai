@@ -85,11 +85,27 @@ export default function CheckoutMercadoPago() {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
+      // Verificar se a chave pública está configurada
+      const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+      console.log("[MP] Public key configured:", publicKey ? "Yes" : "No");
+      
+      if (!publicKey) {
+        throw new Error("Chave pública do Mercado Pago não configurada");
+      }
+
       // Inicializar Mercado Pago
-      const mp = new (window as any).MercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+      console.log("[MP] Initializing MercadoPago SDK...");
+      const mp = new (window as any).MercadoPago(publicKey);
 
       // Criar token do cartão (PCI compliant)
-      console.log("[MP] Creating card token...");
+      console.log("[MP] Creating card token with data:", {
+        cardNumber: formData.cardNumber.slice(0, 6) + "..." + formData.cardNumber.slice(-4),
+        cardholderName: formData.cardholderName,
+        expirationMonth: formData.expirationMonth,
+        expirationYear: formData.expirationYear,
+        identificationType: formData.identificationType,
+      });
+      
       const cardToken = await mp.createCardToken({
         cardNumber: formData.cardNumber.replace(/\s/g, ""),
         cardholderName: formData.cardholderName,
@@ -100,11 +116,14 @@ export default function CheckoutMercadoPago() {
         identificationNumber: formData.identificationNumber,
       });
 
+      console.log("[MP] Card token response:", cardToken);
+
       if (!cardToken?.id) {
-        throw new Error("Erro ao tokenizar cartão");
+        console.error("[MP] Invalid token response:", cardToken);
+        throw new Error(cardToken?.error?.message || "Erro ao tokenizar cartão");
       }
 
-      console.log("[MP] Card token created:", cardToken.id);
+      console.log("[MP] Card token created successfully:", cardToken.id);
 
       // Enviar apenas o token para o backend
       const { data, error } = await supabase.functions.invoke('process-mercadopago-payment', {
