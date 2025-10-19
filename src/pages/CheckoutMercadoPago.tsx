@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CreditCard, Lock, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { loadMercadoPago } from '@mercadopago/sdk-js';
 
 export default function CheckoutMercadoPago() {
   const [searchParams] = useSearchParams();
@@ -19,6 +20,7 @@ export default function CheckoutMercadoPago() {
   const planType = searchParams.get("plan") || "monthly";
   const planPrice = planType === "monthly" ? "R$ 12,90" : "R$ 154,80";
   const planName = planType === "monthly" ? "BioPeak Pro - Mensal" : "BioPeak Pro - Anual";
+  const planAmount = planType === "monthly" ? 12.90 : 154.80;
 
   const [formData, setFormData] = useState({
     cardNumber: "",
@@ -30,19 +32,23 @@ export default function CheckoutMercadoPago() {
     identificationNumber: "",
   });
 
-  // Inicializar SDK do Mercado Pago
+  // Inicializar SDK do Mercado Pago (novo SDK)
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://sdk.mercadopago.com/js/v2';
-    script.async = true;
-    script.onload = () => {
-      setMpLoaded(true);
+    const initializeMP = async () => {
+      const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+      if (publicKey) {
+        console.log("[MP] Initializing new Mercado Pago SDK...");
+        await loadMercadoPago();
+        const mp = new (window as any).MercadoPago(publicKey, { locale: 'pt-BR' });
+        (window as any).__mp = mp;
+        setMpLoaded(true);
+        console.log("[MP] SDK loaded successfully");
+      } else {
+        console.error("[MP] Public key not configured");
+      }
     };
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
+    
+    initializeMP();
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
@@ -85,20 +91,8 @@ export default function CheckoutMercadoPago() {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
-      // Verificar se a chave pública está configurada
-      const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-      console.log("[MP] Public key configured:", publicKey ? "Yes" : "No");
-      
-      if (!publicKey) {
-        throw new Error("Chave pública do Mercado Pago não configurada");
-      }
-
-      // Inicializar Mercado Pago
-      console.log("[MP] Initializing MercadoPago SDK...");
-      const mp = new (window as any).MercadoPago(publicKey);
-
-      // Criar token do cartão (PCI compliant)
-      console.log("[MP] Creating card token with data:", {
+      // Criar token do cartão usando o novo SDK
+      console.log("[MP] Creating card token with new SDK...", {
         cardNumber: formData.cardNumber.slice(0, 6) + "..." + formData.cardNumber.slice(-4),
         cardholderName: formData.cardholderName,
         expirationMonth: formData.expirationMonth,
@@ -106,7 +100,12 @@ export default function CheckoutMercadoPago() {
         identificationType: formData.identificationType,
       });
       
-      const cardToken = await mp.createCardToken({
+      const mp = (window as any).__mp;
+      if (!mp) {
+        throw new Error("SDK do Mercado Pago não inicializado");
+      }
+
+      const tokenResponse = await mp.createCardToken({
         cardNumber: formData.cardNumber.replace(/\s/g, ""),
         cardholderName: formData.cardholderName,
         cardExpirationMonth: formData.expirationMonth,
@@ -116,20 +115,20 @@ export default function CheckoutMercadoPago() {
         identificationNumber: formData.identificationNumber,
       });
 
-      console.log("[MP] Card token response:", cardToken);
+      console.log("[MP] Card token response:", tokenResponse);
 
-      if (!cardToken?.id) {
-        console.error("[MP] Invalid token response:", cardToken);
-        throw new Error(cardToken?.error?.message || "Erro ao tokenizar cartão");
+      if (!tokenResponse?.id) {
+        console.error("[MP] Invalid token response:", tokenResponse);
+        throw new Error(tokenResponse?.error?.message || "Erro ao tokenizar cartão");
       }
 
-      console.log("[MP] Card token created successfully:", cardToken.id);
+      console.log("[MP] Card token created successfully:", tokenResponse.id);
 
       // Enviar apenas o token para o backend
       const { data, error } = await supabase.functions.invoke('process-mercadopago-payment', {
         body: {
           planType,
-          token: cardToken.id,
+          token: tokenResponse.id,
           payerEmail: user.email,
           identificationType: formData.identificationType,
           identificationNumber: formData.identificationNumber,
