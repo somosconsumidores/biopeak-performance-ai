@@ -10,6 +10,13 @@ import { Loader2, CreditCard, Lock, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { loadMercadoPago } from '@mercadopago/sdk-js';
 
+// Declaração de tipo para Mercado Pago SDK
+declare global {
+  interface Window {
+    MercadoPago: any;
+  }
+}
+
 export default function CheckoutMercadoPago() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -39,7 +46,7 @@ export default function CheckoutMercadoPago() {
       if (publicKey) {
         console.log("[MP] Initializing new Mercado Pago SDK...");
         await loadMercadoPago();
-        const mp = new (window as any).MercadoPago(publicKey, { locale: 'pt-BR' });
+        const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
         (window as any).__mp = mp;
         setMpLoaded(true);
         console.log("[MP] SDK loaded successfully");
@@ -91,8 +98,8 @@ export default function CheckoutMercadoPago() {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
-      // Criar token do cartão usando o novo SDK
-      console.log("[MP] Creating card token with new SDK...", {
+      // Criar token do cartão usando o novo SDK com fields API
+      console.log("[MP] Creating card token with new SDK (fields API)...", {
         cardNumber: formData.cardNumber.slice(0, 6) + "..." + formData.cardNumber.slice(-4),
         cardholderName: formData.cardholderName,
         expirationMonth: formData.expirationMonth,
@@ -105,7 +112,7 @@ export default function CheckoutMercadoPago() {
         throw new Error("SDK do Mercado Pago não inicializado");
       }
 
-      const tokenResponse = await mp.createCardToken({
+      const tokenResponse = await mp.fields.createCardToken({
         cardNumber: formData.cardNumber.replace(/\s/g, ""),
         cardholderName: formData.cardholderName,
         cardExpirationMonth: formData.expirationMonth,
