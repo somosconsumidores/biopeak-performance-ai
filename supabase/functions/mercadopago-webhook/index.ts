@@ -3,8 +3,77 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-signature, x-request-id",
 };
+
+// Timing-safe comparison to prevent timing attacks
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a[i] ^ b[i];
+  }
+  return result === 0;
+}
+
+// Validate Mercado Pago webhook signature
+async function validateWebhookSignature(
+  signature: string,
+  requestId: string,
+  dataId: string,
+  secret: string
+): Promise<boolean> {
+  try {
+    // Parse x-signature header: "ts=1234567890,v1=abc123..."
+    const parts = signature.split(',');
+    const ts = parts.find(p => p.startsWith('ts='))?.split('=')[1];
+    const hash = parts.find(p => p.startsWith('v1='))?.split('=')[1];
+    
+    if (!ts || !hash) {
+      console.warn('[MP Webhook] Invalid signature format');
+      return false;
+    }
+    
+    // Build manifest string according to MP documentation
+    const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+    
+    // Calculate HMAC SHA256
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const messageData = encoder.encode(manifest);
+    
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, messageData);
+    const expectedHash = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    // Timing-safe comparison
+    const isValid = timingSafeEqual(
+      encoder.encode(expectedHash),
+      encoder.encode(hash)
+    );
+    
+    if (!isValid) {
+      console.warn('[MP Webhook] Signature mismatch', {
+        expected: expectedHash.substring(0, 10) + '...',
+        received: hash.substring(0, 10) + '...'
+      });
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('[MP Webhook] Error validating signature:', error);
+    return false;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,8 +87,54 @@ serve(async (req) => {
   );
 
   try {
+    // Validate webhook signature
+    const signature = req.headers.get('x-signature');
+    const requestId = req.headers.get('x-request-id');
+    const secret = Deno.env.get('SECRET_SIGNATURE_MERCADO_PAGO');
+
+    if (!signature || !requestId) {
+      console.warn('[MP Webhook] Missing required headers (x-signature or x-request-id)');
+      return new Response(JSON.stringify({ error: 'Unauthorized - Missing signature headers' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!secret) {
+      console.error('[MP Webhook] SECRET_SIGNATURE_MERCADO_PAGO not configured');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const payload = await req.json();
     console.log("[MP Webhook] Received notification:", JSON.stringify(payload));
+
+    const dataId = payload.data?.id;
+    if (!dataId) {
+      console.warn('[MP Webhook] Missing data.id in payload');
+      return new Response(JSON.stringify({ error: 'Invalid payload' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Validate signature
+    const isValid = await validateWebhookSignature(signature, requestId, dataId.toString(), secret);
+    
+    if (!isValid) {
+      console.warn('[MP Webhook] Invalid signature - potential security threat', {
+        requestId,
+        dataId
+      });
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('[MP Webhook] Signature validated successfully');
 
     // Mercado Pago envia notificações com diferentes tipos
     if (payload.type === "payment") {
