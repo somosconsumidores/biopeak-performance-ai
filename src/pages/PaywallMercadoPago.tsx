@@ -59,34 +59,15 @@ export function PaywallMercadoPago() {
   const handleCheckout = async () => {
     if (!user) {
       toast({
-        title: "Erro",
-        description: "Você precisa estar logado para assinar.",
-        variant: "destructive"
+        title: "Login necessário",
+        description: "Faça login para continuar com a assinatura",
+        variant: "destructive",
       });
       return;
     }
 
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-mercadopago-checkout', {
-        body: { planType: selectedPlan }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url; // Redireciona para checkout do MP
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Erro no checkout",
-        description: "Não foi possível processar o pagamento. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Redirecionar para o checkout transparente
+    navigate(`/checkout-mercadopago?plan=${selectedPlan}`);
   };
 
   const openDialog = (url: string, title: string, contentType: 'iframe' | 'eula' | 'privacy' = 'iframe') => {
