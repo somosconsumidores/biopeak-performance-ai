@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,26 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   try {
+    // Get JWT token to identify user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     const { planType, payerEmail, cardData } = await req.json();
     const accessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     
@@ -60,10 +80,32 @@ serve(async (req) => {
     };
     
     const amount = planPrices[planType as keyof typeof planPrices] || 12.90;
+    const amountCents = Math.round(amount * 100);
     const description = planType === 'monthly' 
       ? 'BioPeak Pro - Assinatura Mensal'
       : 'BioPeak Pro - Assinatura Anual';
 
+    // Insert initial payment record with pending status
+    console.log('[MP Backend] Creating payment record...');
+    const { data: paymentRecord, error: insertError } = await supabase
+      .from('mercadopago_payments')
+      .insert({
+        user_id: user.id,
+        status: 'pending',
+        plan_type: planType,
+        amount_cents: amountCents,
+        currency: 'BRL',
+        payer_email: payerEmail
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[MP Backend] Error creating payment record:', insertError);
+      throw new Error('Failed to create payment record');
+    }
+
+    console.log('[MP Backend] Payment record created:', paymentRecord.id);
     console.log('[MP Backend] Creating payment...');
     const paymentResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -97,6 +139,23 @@ serve(async (req) => {
     const paymentData = await paymentResponse.json();
     console.log('[MP Backend] Payment processed:', paymentData.status);
 
+    // Update payment record with MP payment_id and status
+    const { error: updateError } = await supabase
+      .from('mercadopago_payments')
+      .update({
+        payment_id: paymentData.id.toString(),
+        status: paymentData.status,
+        payment_method: paymentData.payment_method_id,
+        payment_type_id: paymentData.payment_type_id,
+        approved_at: paymentData.status === 'approved' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', paymentRecord.id);
+
+    if (updateError) {
+      console.error('[MP Backend] Error updating payment record:', updateError);
+    }
+
     return new Response(
       JSON.stringify({
         status: paymentData.status,
@@ -104,6 +163,7 @@ serve(async (req) => {
         payment_id: paymentData.id,
         amount,
         description,
+        record_id: paymentRecord.id
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
