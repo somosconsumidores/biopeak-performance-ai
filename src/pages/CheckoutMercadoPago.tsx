@@ -90,7 +90,7 @@ export default function CheckoutMercadoPago() {
 
       // Criar token do cartão (PCI compliant)
       console.log("[MP] Creating card token...");
-      const cardToken = await mp.fields.createCardToken({
+      const cardToken = await mp.createCardToken({
         cardNumber: formData.cardNumber.replace(/\s/g, ""),
         cardholderName: formData.cardholderName,
         cardExpirationMonth: formData.expirationMonth,
