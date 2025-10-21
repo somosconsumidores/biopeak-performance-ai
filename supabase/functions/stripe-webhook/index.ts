@@ -224,6 +224,88 @@ serve(async (req) => {
       }
     }
 
+    // Handle customer.subscription.updated event
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object as Stripe.Subscription;
+      
+      logStep('Subscription updated', { 
+        subscriptionId: subscription.id, 
+        status: subscription.status,
+        customerId: subscription.customer
+      });
+      
+      // Find user by customer_id
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('user_id, email')
+        .eq('stripe_customer_id', subscription.customer as string)
+        .maybeSingle();
+      
+      if (profile) {
+        const isActive = subscription.status === 'active';
+        
+        await supabaseAdmin.from('subscribers').upsert({
+          user_id: profile.user_id,
+          email: profile.email,
+          stripe_customer_id: subscription.customer as string,
+          subscribed: isActive,
+          subscription_type: isActive ? 'monthly' : null,
+          subscription_tier: isActive ? 'Premium' : null,
+          subscription_end: isActive 
+            ? new Date(subscription.current_period_end * 1000).toISOString() 
+            : null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'email' });
+        
+        logStep('Subscription status updated in database', { 
+          userId: profile.user_id, 
+          subscribed: isActive,
+          status: subscription.status
+        });
+      } else {
+        logStep('No profile found for customer', { customerId: subscription.customer });
+      }
+    }
+
+    // Handle invoice.payment_failed event
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object as Stripe.Invoice;
+      
+      logStep('Payment failed', { 
+        invoiceId: invoice.id, 
+        customerId: invoice.customer,
+        subscriptionId: invoice.subscription
+      });
+      
+      // Find user by customer_id
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('user_id, email')
+        .eq('stripe_customer_id', invoice.customer as string)
+        .maybeSingle();
+      
+      if (profile) {
+        // Mark as unsubscribed due to payment failure
+        await supabaseAdmin.from('subscribers').upsert({
+          user_id: profile.user_id,
+          email: profile.email,
+          stripe_customer_id: invoice.customer as string,
+          subscribed: false,
+          subscription_type: null,
+          subscription_tier: null,
+          subscription_end: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'email' });
+        
+        logStep('User marked as unsubscribed due to payment failure', { 
+          userId: profile.user_id,
+          invoiceId: invoice.id
+        });
+      } else {
+        logStep('No profile found for customer', { customerId: invoice.customer });
+      }
+    }
+
     // Handle payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;

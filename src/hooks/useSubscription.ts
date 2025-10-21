@@ -221,11 +221,21 @@ export const useSubscription = () => {
       if (sessionVerified) {
         try {
           const sessionData = JSON.parse(sessionVerified);
-          debugLog('Using session-verified subscription data', sessionData);
-          setSubscriptionData(sessionData);
-          setLoading(false);
-          initializingRef.current = false;
-          return;
+          
+          // VALIDATION: Check if subscription has expired
+          if (sessionData.subscription_end && new Date(sessionData.subscription_end) < new Date()) {
+            debugWarn('Session subscription expired, forcing full check', { 
+              subscription_end: sessionData.subscription_end 
+            });
+            sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
+            // Continue to full check below
+          } else {
+            debugLog('Using session-verified subscription data', sessionData);
+            setSubscriptionData(sessionData);
+            setLoading(false);
+            initializingRef.current = false;
+            return;
+          }
         } catch (e) {
           debugError('Session data parse error:', e);
           sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
@@ -237,7 +247,15 @@ export const useSubscription = () => {
       if (cached) {
         try {
           const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < CACHE_DURATION) {
+          
+          // VALIDATION: Check if subscription has expired
+          if (data.subscription_end && new Date(data.subscription_end) < new Date()) {
+            debugWarn('Cached subscription expired, forcing full check', { 
+              subscription_end: data.subscription_end 
+            });
+            localStorage.removeItem(CACHE_KEY);
+            // Continue to full check below
+          } else if (Date.now() - timestamp < CACHE_DURATION) {
             debugLog('Using cached subscription data', data);
             setSubscriptionData(data);
             setLoading(false);

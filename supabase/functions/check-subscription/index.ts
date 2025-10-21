@@ -191,25 +191,40 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions (monthly)
+    // Check for subscriptions (all statuses to detect past_due, unpaid, etc.)
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
-      limit: 1,
+      status: "all",
+      limit: 5,
     });
     
-    let hasActiveSub = subscriptions.data.length > 0;
+    let hasActiveSub = false;
     let subscriptionType = null;
     let subscriptionTier = null;
     let subscriptionEnd = null;
 
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      subscriptionType = "monthly";
-      subscriptionTier = "Premium";
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
-    } else {
+    // Validate subscription status
+    for (const sub of subscriptions.data) {
+      logStep("Checking subscription", { id: sub.id, status: sub.status });
+      
+      if (sub.status === "active") {
+        hasActiveSub = true;
+        subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
+        subscriptionType = "monthly";
+        subscriptionTier = "Premium";
+        logStep("Active subscription found", { subscriptionId: sub.id, endDate: subscriptionEnd });
+        break; // Use first active subscription
+      } else if (["past_due", "unpaid", "incomplete", "canceled"].includes(sub.status)) {
+        logStep("Subscription with problematic status detected", {
+          subscriptionId: sub.id,
+          status: sub.status
+        });
+        hasActiveSub = false;
+        // Don't break - continue to check if there's an active one
+      }
+    }
+
+    if (!hasActiveSub) {
       logStep("No active subscriptions, checking for one-time payments");
       
       // Check for one-time payments in the last year (annual)
