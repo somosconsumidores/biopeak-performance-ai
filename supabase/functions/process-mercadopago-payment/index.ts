@@ -106,6 +106,35 @@ serve(async (req) => {
     const tokenData = JSON.parse(tokenResponseText);
     console.log('[MP Backend] Card tokenized successfully:', tokenData.id);
 
+    // Step 1.5: Get payment_method_id using BIN (first 6 digits of card)
+    const bin = cardData.cardNumber.substring(0, 6);
+    console.log('[MP Backend] Getting payment method for BIN:', bin);
+    
+    const paymentMethodsResponse = await fetch(
+      `https://api.mercadopago.com/v1/payment_methods/search?bin=${bin}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!paymentMethodsResponse.ok) {
+      console.error('[MP Backend] Payment methods error:', await paymentMethodsResponse.text());
+      throw new Error('Erro ao identificar método de pagamento do cartão');
+    }
+
+    const paymentMethodsData = await paymentMethodsResponse.json();
+    console.log('[MP Backend] Payment methods response:', paymentMethodsData);
+    
+    if (!paymentMethodsData.results || paymentMethodsData.results.length === 0) {
+      throw new Error('Método de pagamento não identificado para este cartão');
+    }
+
+    const paymentMethodId = paymentMethodsData.results[0].id;
+    console.log('[MP Backend] Payment method identified:', paymentMethodId);
+
     // Step 2: Create payment with the token
     const planPrices = {
       monthly: 12.90,
@@ -146,7 +175,7 @@ serve(async (req) => {
       token: tokenData.id,
       description,
       installments: 1,
-      payment_method_id: tokenData.payment_method_id,
+      payment_method_id: paymentMethodId,
       payer: {
         email: payerEmail,
         identification: {
