@@ -42,38 +42,68 @@ serve(async (req) => {
       throw new Error('Mercado Pago access token não configurado');
     }
 
+    // Validate required data
+    if (!planType || !payerEmail || !cardData) {
+      throw new Error('Dados incompletos: planType, payerEmail e cardData são obrigatórios');
+    }
+
     console.log('[MP Backend] Processing payment for plan:', planType);
+    console.log('[MP Backend] Card data validation:', {
+      hasCardNumber: !!cardData.cardNumber,
+      hasCardholderName: !!cardData.cardholderName,
+      hasIdentificationType: !!cardData.identificationType,
+      hasIdentificationNumber: !!cardData.identificationNumber,
+      hasExpirationMonth: !!cardData.cardExpirationMonth,
+      hasExpirationYear: !!cardData.cardExpirationYear,
+      hasSecurityCode: !!cardData.securityCode,
+    });
 
     // Step 1: Tokenize the card using Mercado Pago API
     console.log('[MP Backend] Tokenizing card...');
+    const tokenPayload = {
+      card_number: cardData.cardNumber,
+      cardholder: {
+        name: cardData.cardholderName,
+        identification: {
+          type: cardData.identificationType,
+          number: cardData.identificationNumber,
+        },
+      },
+      expiration_month: cardData.cardExpirationMonth,
+      expiration_year: `20${cardData.cardExpirationYear}`, // Convert YY to YYYY
+      security_code: cardData.securityCode,
+    };
+
+    console.log('[MP Backend] Token payload (sanitized):', {
+      ...tokenPayload,
+      card_number: '****',
+      security_code: '***',
+    });
+
     const tokenResponse = await fetch('https://api.mercadopago.com/v1/card_tokens', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        card_number: cardData.cardNumber,
-        cardholder: {
-          name: cardData.cardholderName,
-          identification: {
-            type: cardData.identificationType,
-            number: cardData.identificationNumber,
-          },
-        },
-        expiration_month: cardData.cardExpirationMonth,
-        expiration_year: `20${cardData.cardExpirationYear}`, // Convert YY to YYYY
-        security_code: cardData.securityCode,
-      }),
+      body: JSON.stringify(tokenPayload),
     });
 
+    const tokenResponseText = await tokenResponse.text();
+    console.log('[MP Backend] Token response status:', tokenResponse.status);
+    
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json();
-      console.error('[MP Backend] Tokenization error:', errorData);
-      throw new Error(errorData.message || 'Erro ao tokenizar cartão');
+      console.error('[MP Backend] Tokenization error response:', tokenResponseText);
+      let errorData;
+      try {
+        errorData = JSON.parse(tokenResponseText);
+      } catch (e) {
+        throw new Error(`Erro ao tokenizar cartão: ${tokenResponseText}`);
+      }
+      throw new Error(JSON.stringify(errorData));
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = JSON.parse(tokenResponseText);
     console.log('[MP Backend] Card tokenized successfully:', tokenData.id);
 
     // Step 2: Create payment with the token
@@ -110,6 +140,27 @@ serve(async (req) => {
 
     console.log('[MP Backend] Payment record created:', paymentRecord.id);
     console.log('[MP Backend] Creating payment...');
+    
+    const paymentPayload = {
+      transaction_amount: amount,
+      token: tokenData.id,
+      description,
+      installments: 1,
+      payment_method_id: tokenData.payment_method_id,
+      payer: {
+        email: payerEmail,
+        identification: {
+          type: cardData.identificationType,
+          number: cardData.identificationNumber,
+        },
+      },
+    };
+
+    console.log('[MP Backend] Payment payload:', {
+      ...paymentPayload,
+      token: '***TOKEN***',
+    });
+
     const paymentResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
@@ -117,29 +168,25 @@ serve(async (req) => {
         'Authorization': `Bearer ${accessToken}`,
         'X-Idempotency-Key': `${payerEmail}-${Date.now()}`, // Prevent duplicate payments
       },
-      body: JSON.stringify({
-        transaction_amount: amount,
-        token: tokenData.id,
-        description,
-        installments: 1,
-        payment_method_id: tokenData.payment_method_id,
-        payer: {
-          email: payerEmail,
-          identification: {
-            type: cardData.identificationType,
-            number: cardData.identificationNumber,
-          },
-        },
-      }),
+      body: JSON.stringify(paymentPayload),
     });
 
+    const paymentResponseText = await paymentResponse.text();
+    console.log('[MP Backend] Payment response status:', paymentResponse.status);
+    
     if (!paymentResponse.ok) {
-      const errorData = await paymentResponse.json();
-      console.error('[MP Backend] Payment error:', errorData);
-      throw new Error(errorData.message || 'Erro ao processar pagamento');
+      console.error('[MP Backend] Payment error response:', paymentResponseText);
+      let errorData;
+      try {
+        errorData = JSON.parse(paymentResponseText);
+      } catch (e) {
+        throw new Error(`Erro ao processar pagamento: ${paymentResponseText}`);
+      }
+      console.error('[MP Backend] Payment error details:', JSON.stringify(errorData, null, 2));
+      throw new Error(JSON.stringify(errorData));
     }
 
-    const paymentData = await paymentResponse.json();
+    const paymentData = JSON.parse(paymentResponseText);
     console.log('[MP Backend] Payment processed:', paymentData.status);
 
     // Update payment record with MP payment_id and status
