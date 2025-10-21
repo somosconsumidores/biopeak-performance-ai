@@ -306,6 +306,132 @@ serve(async (req) => {
       }
     }
 
+    // Handle invoice.payment_succeeded event (recurring payments)
+    if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object as Stripe.Invoice;
+      
+      logStep('Invoice payment succeeded', { 
+        invoiceId: invoice.id, 
+        customerId: invoice.customer,
+        subscriptionId: invoice.subscription,
+        amount: invoice.amount_paid,
+        currency: invoice.currency
+      });
+      
+      // Find user by customer_id
+      let profile = await supabaseAdmin
+        .from('profiles')
+        .select('user_id, email')
+        .eq('stripe_customer_id', invoice.customer as string)
+        .maybeSingle()
+        .then(res => res.data);
+      
+      if (!profile) {
+        logStep('No profile found for customer in invoice.payment_succeeded', { 
+          customerId: invoice.customer 
+        });
+        
+        // Fallback: try to find user via subscribers table
+        const { data: subscriber } = await supabaseAdmin
+          .from('subscribers')
+          .select('user_id, email')
+          .eq('stripe_customer_id', invoice.customer as string)
+          .maybeSingle();
+        
+        if (subscriber) {
+          profile = subscriber;
+          logStep('Found user via subscribers table', { 
+            userId: subscriber.user_id,
+            email: subscriber.email 
+          });
+        }
+      }
+      
+      if (profile) {
+        // Get subscription details for metadata
+        let subscriptionTier = 'Premium';
+        let subscriptionType = 'monthly';
+        
+        if (invoice.subscription) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+            
+            // Determine tier based on price
+            const priceId = subscription.items.data[0]?.price.id;
+            if (priceId) {
+              // Map price IDs to tiers (adjust based on your actual price IDs)
+              if (priceId.includes('annual') || priceId.includes('year')) {
+                subscriptionType = 'annual';
+              }
+            }
+            
+            logStep('Retrieved subscription details', {
+              subscriptionId: subscription.id,
+              priceId,
+              type: subscriptionType
+            });
+          } catch (subError) {
+            logStep('Error retrieving subscription details', { 
+              error: subError instanceof Error ? subError.message : String(subError) 
+            });
+          }
+        }
+        
+        // Calculate period dates
+        const periodoInicio = invoice.period_start 
+          ? new Date(invoice.period_start * 1000).toISOString().split('T')[0]
+          : null;
+        const periodoFim = invoice.period_end 
+          ? new Date(invoice.period_end * 1000).toISOString().split('T')[0]
+          : null;
+        
+        // Insert into faturamento table
+        const { error: faturamentoError } = await supabaseAdmin
+          .from('faturamento')
+          .insert({
+            user_id: profile.user_id,
+            stripe_customer_id: invoice.customer as string,
+            stripe_payment_id: invoice.payment_intent as string || invoice.id,
+            tipo_pagamento: 'subscription',
+            status: invoice.status === 'paid' ? 'succeeded' : invoice.status,
+            valor_centavos: invoice.amount_paid,
+            moeda: invoice.currency?.toUpperCase() || 'BRL',
+            data_pagamento: new Date().toISOString(),
+            descricao: `Pagamento de assinatura ${subscriptionType}`,
+            periodo_inicio: periodoInicio,
+            periodo_fim: periodoFim,
+            metadata: {
+              invoice_id: invoice.id,
+              subscription_id: invoice.subscription,
+              subscription_tier: subscriptionTier,
+              subscription_type: subscriptionType,
+              invoice_number: invoice.number,
+              hosted_invoice_url: invoice.hosted_invoice_url,
+            },
+          });
+
+        if (faturamentoError) {
+          logStep('ERROR: Failed to insert faturamento for invoice', {
+            error: faturamentoError,
+            invoiceId: invoice.id,
+            userId: profile.user_id
+          });
+        } else {
+          logStep('Successfully inserted faturamento for recurring payment', { 
+            userId: profile.user_id,
+            invoiceId: invoice.id,
+            amount: invoice.amount_paid,
+            currency: invoice.currency
+          });
+        }
+      } else {
+        logStep('ERROR: Could not find user for invoice payment', { 
+          customerId: invoice.customer,
+          invoiceId: invoice.id
+        });
+      }
+    }
+
     // Handle payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
