@@ -72,6 +72,9 @@ export function BirthDateStep({ wizardData, updateWizardData }: BirthDateStepPro
               }
               initialFocus
               className="pointer-events-auto"
+              captionLayout="dropdown-buttons"
+              fromYear={1900}
+              toYear={new Date().getFullYear()}
             />
           </PopoverContent>
         </Popover>
