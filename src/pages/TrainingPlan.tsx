@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, Plus, Target, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +7,25 @@ import { Header } from '@/components/Header';
 import { RaceCalendar } from '@/components/RaceCalendar';
 import { PlanOverview } from '@/components/PlanOverview';
 import { PremiumButton } from '@/components/PremiumButton';
+import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
 
 const TrainingPlan = () => {
-  const { plan, workouts, loading } = useActiveTrainingPlan();
+  const { plan, workouts, loading, refreshPlan } = useActiveTrainingPlan();
   const { isSubscribed } = useSubscription();
+  const { toast } = useToast();
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const handleWizardComplete = () => {
+    setWizardOpen(false);
+    refreshPlan();
+    toast({
+      title: "Plano criado com sucesso!",
+      description: "Seu plano de treino personalizado foi gerado.",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,13 +67,11 @@ const TrainingPlan = () => {
                   </p>
                   <Button 
                     className="w-full max-w-xs bg-primary hover:bg-primary/90"
-                    disabled
+                    onClick={() => setWizardOpen(true)}
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Criar Plano
                   </Button>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Feature em desenvolvimento
-                  </p>
                 </div>
               )}
             </CardContent>
@@ -101,6 +112,13 @@ const TrainingPlan = () => {
           </div>
         </div>
       </div>
+
+      <TrainingPlanWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onComplete={handleWizardComplete}
+      />
     </div>
   );
 };
