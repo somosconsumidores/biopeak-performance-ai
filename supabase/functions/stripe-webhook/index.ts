@@ -267,6 +267,43 @@ serve(async (req) => {
       }
     }
 
+    // Handle customer.subscription.deleted event
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription;
+      
+      logStep('Subscription deleted', { 
+        subscriptionId: subscription.id, 
+        customerId: subscription.customer
+      });
+      
+      // Find user by customer_id
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('user_id, email')
+        .eq('stripe_customer_id', subscription.customer as string)
+        .maybeSingle();
+      
+      if (profile) {
+        await supabaseAdmin.from('subscribers').upsert({
+          user_id: profile.user_id,
+          email: profile.email,
+          stripe_customer_id: subscription.customer as string,
+          subscribed: false,
+          subscription_type: null,
+          subscription_tier: null,
+          subscription_end: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'email' });
+        
+        logStep('User marked as unsubscribed due to subscription deletion', { 
+          userId: profile.user_id,
+          subscriptionId: subscription.id
+        });
+      } else {
+        logStep('No profile found for customer', { customerId: subscription.customer });
+      }
+    }
+
     // Handle invoice.payment_failed event
     if (event.type === 'invoice.payment_failed') {
       const invoice = event.data.object as Stripe.Invoice;
