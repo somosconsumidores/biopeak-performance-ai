@@ -21,6 +21,7 @@ import { useHealthKitAuth } from '@/hooks/useHealthKitAuth';
 import { useHealthKitSync } from '@/hooks/useHealthKitSync';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { usePlatform } from '@/hooks/usePlatform';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -40,7 +41,8 @@ import {
   MapPin,
   TrendingUp,
   Settings,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 
 export function GarminSync() {
@@ -117,6 +119,9 @@ export function GarminSync() {
     isLoading: healthKitSyncing,
     lastSyncResult: healthKitLastSync 
   } = useHealthKitSync();
+  
+  // Platform detection
+  const { isWeb } = usePlatform();
   const disconnectStrava = async () => {
     console.log('Strava disconnect');
     try {
@@ -684,21 +689,27 @@ export function GarminSync() {
                     <div className="space-y-4">
                       {!healthKitSupported ? (
                         <>
-                          <Alert className="border-amber-500/50 bg-amber-500/10">
+                          <Alert className="border-blue-500/50 bg-blue-500/10">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-amber-400">
-                              Apple Health está disponível apenas em dispositivos iOS com o app nativo
+                            <AlertDescription className="text-blue-400">
+                              Sincronização com Apple Health está disponível no nosso app nativo para iOS
                             </AlertDescription>
                           </Alert>
                           
                           <Button 
-                            disabled={true}
-                            className="w-full bg-red-500/50 cursor-not-allowed"
+                            onClick={() => window.open('https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=pwa&mt=sync', '_blank')}
+                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
                             size="lg"
                           >
-                            <Heart className="h-4 w-4 mr-2" />
-                            Disponível apenas no iOS
+                            <Download className="h-4 w-4 mr-2" />
+                            Disponível no App iOS - Baixe Agora
                           </Button>
+
+                          <div className="pt-2">
+                            <p className="text-xs text-muted-foreground text-center">
+                              Baixe o app BioPeak AI na App Store para sincronizar com Apple Health e Apple Watch
+                            </p>
+                          </div>
                         </>
                       ) : healthKitSyncStats.syncStatus === 'disconnected' ? (
                         <>
