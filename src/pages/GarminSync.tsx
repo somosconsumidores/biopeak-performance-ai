@@ -698,11 +698,11 @@ export function GarminSync() {
                           
                           <Button 
                             onClick={() => window.open('https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=pwa&mt=sync', '_blank')}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 whitespace-nowrap"
                             size="lg"
                           >
                             <Download className="h-4 w-4 mr-2" />
-                            Disponível no App iOS - Baixe Agora
+                            Baixar App iOS
                           </Button>
 
                           <div className="pt-2">
