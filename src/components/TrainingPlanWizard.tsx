@@ -84,6 +84,7 @@ export function TrainingPlanWizard({
     canProceed,
     generateTrainingPlan,
     stepSequence,
+    calculateTargetTime,
   } = useTrainingPlanWizard();
   
   const { toast } = useToast();
@@ -150,7 +151,7 @@ export function TrainingPlanWizard({
         case 12:
           return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
         case 13:
-          return <SummaryStep wizardData={wizardData} />;
+          return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
         default:
           return null;
     }
