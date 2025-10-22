@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Calendar, Plus, Target, Clock } from 'lucide-react';
+import { Calendar, Plus, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/Header';
@@ -8,15 +8,18 @@ import { RaceCalendar } from '@/components/RaceCalendar';
 import { PlanOverview } from '@/components/PlanOverview';
 import { PremiumButton } from '@/components/PremiumButton';
 import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
-import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { WorkoutCalendar } from '@/components/WorkoutCalendar';
+import { WorkoutDetailDialog } from '@/components/WorkoutDetailDialog';
+import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 
 const TrainingPlan = () => {
-  const { plan, workouts, loading, refreshPlan } = useActiveTrainingPlan();
+  const { plan, workouts, loading, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const { isSubscribed } = useSubscription();
   const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
@@ -57,7 +60,12 @@ const TrainingPlan = () => {
                   </div>
                 </div>
               ) : plan ? (
-                <PlanOverview plan={plan} workouts={workouts} />
+                <PlanOverview 
+                  plan={plan} 
+                  workouts={workouts}
+                  onDeletePlan={deletePlan}
+                  onRefreshPlan={refreshPlan}
+                />
               ) : (
                 <div className="text-center py-8">
                   <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -76,6 +84,24 @@ const TrainingPlan = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Workout Calendar - Show when there's an active plan */}
+          {plan && workouts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Calendar className="h-5 w-5" />
+                  Calendário de Treinos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <WorkoutCalendar
+                  workouts={workouts}
+                  onWorkoutClick={setSelectedWorkout}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Race Calendar - Available to all users */}
           <RaceCalendar />
@@ -118,6 +144,12 @@ const TrainingPlan = () => {
         onOpenChange={setWizardOpen}
         onClose={() => setWizardOpen(false)}
         onComplete={handleWizardComplete}
+      />
+
+      <WorkoutDetailDialog
+        workout={selectedWorkout}
+        open={!!selectedWorkout}
+        onClose={() => setSelectedWorkout(null)}
       />
     </div>
   );

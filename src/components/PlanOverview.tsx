@@ -1,17 +1,35 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
-import { Calendar, Target, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, Target, Clock, CheckCircle2, MoreVertical, RefreshCw, Settings, Trash2 } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { DeletePlanDialog } from './DeletePlanDialog';
 
 interface PlanOverviewProps {
   plan: TrainingPlan;
   workouts: TrainingWorkout[];
+  onDeletePlan: () => Promise<void>;
+  onRefreshPlan: () => void;
 }
 
-export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
+export function PlanOverview({ plan, workouts, onDeletePlan, onRefreshPlan }: PlanOverviewProps) {
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [recalibrating, setRecalibrating] = useState(false);
+
   const completedWorkouts = workouts.filter(w => w.status === 'completed').length;
   const totalWorkouts = workouts.length;
   const completionPercentage = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
@@ -27,6 +45,48 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
     .filter(w => w.status !== 'completed' && parseISO(w.workout_date) >= today)
     .sort((a, b) => parseISO(a.workout_date).getTime() - parseISO(b.workout_date).getTime())
     .slice(0, 3);
+
+  const handleRecalibrate = async () => {
+    setRecalibrating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('recalibrate-training-plan', {
+        body: { plan_id: plan.id }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Plano recalibrado!",
+        description: "Seus treinos foram ajustados com base no seu progresso recente."
+      });
+      
+      onRefreshPlan();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao recalibrar",
+        description: error.message || "Não foi possível recalibrar o plano.",
+        variant: "destructive"
+      });
+    } finally {
+      setRecalibrating(false);
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    try {
+      await onDeletePlan();
+      toast({
+        title: "Plano cancelado",
+        description: "Seu plano de treino foi cancelado com sucesso."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao cancelar plano",
+        description: error.message || "Não foi possível cancelar o plano.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -116,8 +176,33 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
 
       {/* Plan Details */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Detalhes do Plano</CardTitle>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleRecalibrate} disabled={recalibrating}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${recalibrating ? 'animate-spin' : ''}`} />
+                {recalibrating ? 'Recalibrando...' : 'Recalibrar Plano'}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled>
+                <Settings className="h-4 w-4 mr-2" />
+                Editar Configurações
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setDeleteDialogOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Cancelar Plano
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -208,6 +293,13 @@ export function PlanOverview({ plan, workouts }: PlanOverviewProps) {
           </CardContent>
         </Card>
       )}
+
+      <DeletePlanDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        planName={plan.goal_type}
+        onConfirm={handleDeletePlan}
+      />
     </div>
   );
 }
