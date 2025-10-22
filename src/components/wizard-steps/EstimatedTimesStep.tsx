@@ -85,10 +85,10 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingTimes(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-xs sm:text-sm px-3 py-2 h-auto whitespace-normal text-center"
               >
-                <Edit3 className="h-4 w-4" />
-                Ajustar tempos
+                <Edit3 className="h-4 w-4 flex-shrink-0" />
+                <span>Ou defina seu tempo alvo para este plano</span>
               </Button>
             </div>
           </div>
@@ -97,7 +97,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           {editingTimes && (
             <Card className="border-primary/20">
               <CardHeader>
-                <CardTitle className="text-base">Ajustar Tempos</CardTitle>
+                <CardTitle className="text-base">Definir Tempo Alvo</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4">

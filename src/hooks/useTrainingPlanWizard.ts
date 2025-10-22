@@ -143,28 +143,64 @@ export function useTrainingPlanWizard() {
     return false; // Never show race goal step - we calculate it automatically
   };
 
+  // Helper function to parse time strings to minutes
+  const parseTimeToMinutes = (timeStr: string): number | undefined => {
+    if (!timeStr) return undefined;
+    const parts = timeStr.split(':').map(p => parseInt(p, 10));
+    if (parts.length === 2) {
+      // MM:SS format
+      return parts[0] + parts[1] / 60;
+    } else if (parts.length === 3) {
+      // HH:MM:SS format
+      return parts[0] * 60 + parts[1] + parts[2] / 60;
+    }
+    return undefined;
+  };
+
   // Calculate target time automatically for race goals
   const calculateTargetTime = () => {
-    if (!isRaceGoal() || !athleteAnalysis.raceEstimates) return undefined;
+    if (!isRaceGoal()) return undefined;
     
-    const estimates = athleteAnalysis.raceEstimates;
     let targetMinutes: number | undefined;
     
-    switch (wizardData.goal) {
-      case '5k':
-        targetMinutes = estimates.k5?.seconds ? estimates.k5.seconds / 60 : undefined;
-        break;
-      case '10k':
-        targetMinutes = estimates.k10?.seconds ? estimates.k10.seconds / 60 : undefined;
-        break;
-      case 'half_marathon':
-      case '21k':
-        targetMinutes = estimates.k21?.seconds ? estimates.k21.seconds / 60 : undefined;
-        break;
-      case 'marathon':
-      case '42k':
-        targetMinutes = estimates.k42?.seconds ? estimates.k42.seconds / 60 : undefined;
-        break;
+    // Check if user has adjusted times manually
+    if (wizardData.adjustedTimes && wizardData.estimatedTimes) {
+      // Use user-adjusted times
+      switch (wizardData.goal) {
+        case '5k':
+          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k5);
+          break;
+        case '10k':
+          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k10);
+          break;
+        case 'half_marathon':
+        case '21k':
+          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k21);
+          break;
+        case 'marathon':
+        case '42k':
+          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k42);
+          break;
+      }
+    } else if (athleteAnalysis.raceEstimates) {
+      // Use historical estimates
+      const estimates = athleteAnalysis.raceEstimates;
+      switch (wizardData.goal) {
+        case '5k':
+          targetMinutes = estimates.k5?.seconds ? estimates.k5.seconds / 60 : undefined;
+          break;
+        case '10k':
+          targetMinutes = estimates.k10?.seconds ? estimates.k10.seconds / 60 : undefined;
+          break;
+        case 'half_marathon':
+        case '21k':
+          targetMinutes = estimates.k21?.seconds ? estimates.k21.seconds / 60 : undefined;
+          break;
+        case 'marathon':
+        case '42k':
+          targetMinutes = estimates.k42?.seconds ? estimates.k42.seconds / 60 : undefined;
+          break;
+      }
     }
     
     // Apply improvement factor based on plan duration and athlete level
