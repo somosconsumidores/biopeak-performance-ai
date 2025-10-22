@@ -12,8 +12,9 @@ interface SubscriptionData {
   subscription_end?: string;
 }
 
-const CACHE_KEY = 'subscription_cache';
-const SESSION_SUBSCRIPTION_KEY = 'session_subscription_verified';
+const CACHE_VERSION = 'v2'; // Incrementar quando houver mudanças críticas
+const CACHE_KEY = `subscription_cache_${CACHE_VERSION}`;
+const SESSION_SUBSCRIPTION_KEY = `session_subscription_verified_${CACHE_VERSION}`;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 export const useSubscription = () => {

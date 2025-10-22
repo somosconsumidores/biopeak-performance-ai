@@ -7,6 +7,12 @@ export const PlatformDebugger = () => {
   const { platform, isNative, isIOS, isAndroid, isWeb } = usePlatform();
   const { user } = useAuth();
 
+  const handleForceRefresh = () => {
+    sessionStorage.clear();
+    localStorage.clear();
+    window.location.reload();
+  };
+
   return (
     <div className="fixed bottom-4 right-4 p-4 bg-background/90 backdrop-blur-sm border rounded-lg shadow-lg text-xs max-w-sm z-50">
       <h3 className="font-semibold mb-2 text-primary">Debug Info</h3>
@@ -26,6 +32,13 @@ export const PlatformDebugger = () => {
         <div><strong>Tier:</strong> {subscriptionTier || 'None'}</div>
         <div><strong>Ends:</strong> {subscriptionEnd ? new Date(subscriptionEnd).toLocaleDateString() : 'None'}</div>
       </div>
+
+      <button
+        onClick={handleForceRefresh}
+        className="mt-3 w-full text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90 transition-colors"
+      >
+        🔄 Force Refresh
+      </button>
 
       <div className="mt-3 pt-2 border-t text-[10px] text-muted-foreground">
         Current Route: {window.location.pathname}

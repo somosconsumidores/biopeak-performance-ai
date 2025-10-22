@@ -145,7 +145,7 @@ export const Dashboard = () => {
     return { sleepData, overtrainingData: overtrainingAnalysisData };
   };
 
-  if (loading) {
+  if (loading || subscriptionLoading) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
