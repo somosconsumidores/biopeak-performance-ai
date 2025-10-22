@@ -255,15 +255,11 @@ export function GarminSync() {
   const garminMetrics = [
     { label: 'Atividades Totais', value: garminSyncStats.activitiesCount, icon: Activity },
     { label: 'Última Sincronização', value: garminSyncStats.lastSync, icon: Timer },
-    { label: 'Frequência Cardíaca', value: '24/7', icon: Heart },
-    { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
   const stravaMetrics = [
     { label: 'Atividades Totais', value: stravaSyncStats.activitiesCount, icon: Activity },
     { label: 'Última Sincronização', value: stravaSyncStats.lastSync, icon: Timer },
-    { label: 'Segmentos', value: 'Disponível', icon: TrendingUp },
-    { label: 'GPS', value: 'Ativo', icon: MapPin },
   ];
 
   const polarMetrics = [
