@@ -230,7 +230,7 @@ export function TrainingPlanWizard({
                 {stepSequence.indexOf(currentStep) === stepSequence.length - 1 ? (
                   <Button
                     onClick={handleFinish}
-                    disabled={!canProceed || loading || isGenerating}
+                    disabled={!canProceed() || loading || isGenerating}
                     className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold px-8"
                   >
                     {isGenerating ? (
@@ -248,7 +248,7 @@ export function TrainingPlanWizard({
                 ) : (
                   <Button
                     onClick={handleNext}
-                    disabled={!canProceed || loading}
+                    disabled={!canProceed() || loading}
                     className="flex items-center gap-2"
                   >
                     Próximo

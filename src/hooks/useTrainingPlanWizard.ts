@@ -504,7 +504,7 @@ export function useTrainingPlanWizard() {
     updateWizardData,
     nextStep,
     previousStep,
-    canProceed: canProceed(),
+    canProceed, // Return as function, not executed value
     generateTrainingPlan,
     isRaceGoal: isRaceGoal(),
     shouldShowRaceDate: shouldShowRaceDate(),
