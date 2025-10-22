@@ -3,15 +3,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useSubscription } from '@/hooks/useSubscription';
 import { WorkoutDetailDialog } from './WorkoutDetailDialog';
 import { Calendar, MapPin, Clock, ChevronRight, PlayCircle } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function TrainingAgendaWidget() {
   const { plan, workouts, loading } = useActiveTrainingPlan();
+  const { isSubscribed } = useSubscription();
+  const navigate = useNavigate();
   const [selectedWorkout, setSelectedWorkout] = useState(null);
+
+  const handleCreatePlan = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isSubscribed) {
+      navigate('/paywall2');
+    } else {
+      navigate('/training-plan');
+    }
+  };
+
+  const handleViewAll = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isSubscribed) {
+      navigate('/paywall2');
+    } else {
+      navigate('/training-plan');
+    }
+  };
 
   if (loading) {
     return (
@@ -42,8 +63,8 @@ export function TrainingAgendaWidget() {
           <div className="text-center py-6">
             <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
             <p className="text-muted-foreground mb-4">Nenhum plano de treino ativo</p>
-            <Button asChild size="sm">
-              <Link to="/training-plan">Criar Plano</Link>
+            <Button size="sm" onClick={handleCreatePlan}>
+              Criar Plano
             </Button>
           </div>
         </CardContent>
@@ -92,11 +113,9 @@ export function TrainingAgendaWidget() {
               <Calendar className="h-5 w-5 text-primary" />
               <span>Agenda de Treinos</span>
             </CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/training-plan">
-                Ver Todos
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Link>
+            <Button variant="ghost" size="sm" onClick={handleViewAll}>
+              Ver Todos
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </CardHeader>
