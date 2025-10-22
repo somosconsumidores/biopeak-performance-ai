@@ -234,6 +234,12 @@ export const useSubscription = () => {
             debugLog('Using session-verified subscription data', sessionData);
             setSubscriptionData(sessionData);
             setLoading(false);
+            
+            // Verify in background to ensure accuracy
+            setTimeout(() => {
+              checkSubscription(true);
+            }, 1000);
+            
             initializingRef.current = false;
             return;
           }
@@ -241,6 +247,41 @@ export const useSubscription = () => {
           debugError('Session data parse error:', e);
           sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
         }
+      }
+
+      // Try fast DB check first before edge function
+      try {
+        const { data: dbSub } = await Promise.race([
+          supabase
+            .from('subscribers')
+            .select('*')
+            .eq('user_id', user.id)
+            .single(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('DB query timeout')), 2000)
+          )
+        ]) as any;
+        
+        if (dbSub && dbSub.subscription_end && new Date(dbSub.subscription_end) > new Date()) {
+          debugLog('Fast DB check: Active subscription found', dbSub);
+          const fastData = {
+            subscribed: dbSub.subscribed,
+            subscription_tier: dbSub.subscription_tier,
+            subscription_end: dbSub.subscription_end
+          };
+          setSubscriptionData(fastData);
+          setLoading(false);
+          
+          // Verify with Stripe in background
+          setTimeout(() => {
+            checkSubscription(true);
+          }, 2000);
+          
+          initializingRef.current = false;
+          return;
+        }
+      } catch (e) {
+        debugLog('Fast DB check failed, proceeding to full check', e);
       }
 
       // Try cache
@@ -261,7 +302,7 @@ export const useSubscription = () => {
             setSubscriptionData(data);
             setLoading(false);
             initializingRef.current = false;
-            return; // Don't verify in background to prevent loops
+            return;
           }
         } catch (e) {
           debugError('Cache parse error:', e);
@@ -280,7 +321,7 @@ export const useSubscription = () => {
     return () => {
       initializingRef.current = false;
     };
-  }, [user?.id]); // Only depend on user?.id, checkSubscription is stable via useCallback
+  }, [user?.id, checkSubscription]); // Depend on checkSubscription to get latest version
 
   const refreshSubscription = useCallback(async () => {
     await checkSubscription(false);

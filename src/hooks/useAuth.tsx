@@ -139,6 +139,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(() => trackLogin(), 100);
 
+          // Clear subscription caches to force fresh check
+          if (typeof window !== 'undefined') {
+            Object.keys(localStorage).forEach(key => {
+              if (key.includes('subscription_cache')) {
+                localStorage.removeItem(key);
+              }
+            });
+            Object.keys(sessionStorage).forEach(key => {
+              if (key.includes('session_subscription_verified')) {
+                sessionStorage.removeItem(key);
+              }
+            });
+          }
+
           // Persist UTM to profile on first sign-in when we have a session
           const utm = (typeof window !== 'undefined') ? localStorage.getItem(UTM_LOCAL_STORAGE_KEY) : null;
           if (utm) {
