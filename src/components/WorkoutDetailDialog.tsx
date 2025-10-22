@@ -45,6 +45,96 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
     return labels[type] || type;
   };
 
+  const getHRZoneInfo = (zone: string) => {
+    const zoneMap: Record<string, { name: string; intensity: string; paceRange: string; bpmRange: string; description: string }> = {
+      '1': {
+        name: 'Zona 1 - Recuperação',
+        intensity: '50-60% FCM',
+        paceRange: '7:00-8:00 min/km',
+        bpmRange: '100-120 bpm',
+        description: 'Ritmo muito leve para recuperação ativa'
+      },
+      '2': {
+        name: 'Zona 2 - Aeróbica Leve',
+        intensity: '60-70% FCM',
+        paceRange: '6:00-7:00 min/km',
+        bpmRange: '120-140 bpm',
+        description: 'Ritmo confortável onde você consegue conversar facilmente'
+      },
+      '3': {
+        name: 'Zona 3 - Aeróbica',
+        intensity: '70-80% FCM',
+        paceRange: '5:15-6:00 min/km',
+        bpmRange: '140-160 bpm',
+        description: 'Ritmo moderado, conversação um pouco difícil'
+      },
+      '4': {
+        name: 'Zona 4 - Limiar',
+        intensity: '80-90% FCM',
+        paceRange: '4:30-5:15 min/km',
+        bpmRange: '160-175 bpm',
+        description: 'Ritmo desconfortável mas sustentável por 20-40 minutos'
+      },
+      '5': {
+        name: 'Zona 5 - Anaeróbica',
+        intensity: '90-100% FCM',
+        paceRange: '3:45-4:30 min/km',
+        bpmRange: '175-190 bpm',
+        description: 'Esforço máximo, sustentável apenas por curtos períodos'
+      }
+    };
+    return zoneMap[zone] || null;
+  };
+
+  const enhanceWorkoutDescription = (description: string, workout: TrainingWorkout): string => {
+    let enhanced = description;
+
+    // Adiciona informações sobre aquecimento
+    if (description.toLowerCase().includes('aquecimento')) {
+      enhanced = enhanced.replace(
+        /aquecimento/gi,
+        'Aquecimento (10-15 min em ritmo leve, Zona 1-2, ~7:00 min/km)'
+      );
+    }
+
+    // Adiciona informações sobre ritmo limiar
+    if (description.toLowerCase().includes('limiar') || description.toLowerCase().includes('tempo')) {
+      const limiarInfo = ' (Zona 4: 4:30-5:15 min/km, 160-175 bpm)';
+      if (!enhanced.includes(limiarInfo)) {
+        enhanced = enhanced.replace(
+          /(ritmo limiar|limiar|tempo)/gi,
+          `$1${limiarInfo}`
+        );
+      }
+    }
+
+    // Adiciona informações sobre ritmo leve/fácil
+    if (description.toLowerCase().includes('ritmo leve') || description.toLowerCase().includes('fácil')) {
+      enhanced = enhanced.replace(
+        /(ritmo leve|fácil)/gi,
+        '$1 (Zona 2: 6:00-7:00 min/km, 120-140 bpm)'
+      );
+    }
+
+    // Adiciona informações sobre intervalos
+    if (description.toLowerCase().includes('interval') || description.toLowerCase().includes('tiros')) {
+      enhanced = enhanced.replace(
+        /(interval|tiros)/gi,
+        '$1 (Zona 5: esforço máximo, 3:45-4:30 min/km)'
+      );
+    }
+
+    // Adiciona informações sobre recuperação
+    if (description.toLowerCase().includes('recuperação')) {
+      enhanced = enhanced.replace(
+        /recuperação/gi,
+        'recuperação (Zona 1: muito leve, 7:00-8:00 min/km)'
+      );
+    }
+
+    return enhanced;
+  };
+
   const handleStatusToggle = async () => {
     setIsUpdating(true);
     try {
@@ -59,6 +149,8 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
       setIsUpdating(false);
     }
   };
+
+  const hrZoneInfo = workout.target_hr_zone ? getHRZoneInfo(workout.target_hr_zone) : null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -113,14 +205,14 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
 
           {/* Description */}
           {workout.description && (
-            <Card>
+            <Card className="border-l-4 border-l-primary">
               <CardContent className="p-4">
                 <div className="flex items-start space-x-2">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">Descrição do Treino</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {workout.description}
+                  <FileText className="h-5 w-5 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-base mb-2 text-foreground">Descrição do Treino</h4>
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                      {enhanceWorkoutDescription(workout.description, workout)}
                     </p>
                   </div>
                 </div>
@@ -184,17 +276,42 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
               </Card>
             )}
 
-            {workout.target_hr_zone && (
-              <Card>
+            {workout.target_hr_zone && hrZoneInfo && (
+              <Card className="md:col-span-2">
                 <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-full bg-red-100">
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2 rounded-full bg-red-100 flex-shrink-0">
                       <Heart className="h-4 w-4 text-red-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Zona FC</p>
-                      <p className="text-lg font-semibold">
-                        Zona {workout.target_hr_zone}
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Zona de Frequência Cardíaca</p>
+                        <p className="text-lg font-semibold text-foreground">
+                          {hrZoneInfo.name}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium">Intensidade</p>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {hrZoneInfo.intensity}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium">Pace Esperado</p>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {hrZoneInfo.paceRange}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium">Faixa BPM</p>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {hrZoneInfo.bpmRange}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground italic pt-1">
+                        {hrZoneInfo.description}
                       </p>
                     </div>
                   </div>
