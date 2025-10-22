@@ -121,8 +121,31 @@ export const Onboarding = () => {
   const totalSteps = 6;
   const progress = (currentStep / totalSteps) * 100;
 
-  const handleNext = () => {
+  const savePartialData = async () => {
+    const formattedBirthDate = birthDay && birthMonth && birthYear 
+      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
+      : undefined;
+
+    const partialData = {
+      phone: phone || undefined,
+      goal: selectedGoal || undefined,
+      goal_other: selectedGoal === "other" ? goalOther : undefined,
+      birth_date: formattedBirthDate,
+      weight_kg: weight ? parseFloat(weight) : undefined,
+      athletic_level: athleticLevel || undefined,
+      aplicativo: trainingApp === "other" ? trainingAppOther : trainingApp || undefined,
+    };
+
+    // Only save if we have at least some data to save
+    if (partialData.goal || partialData.athletic_level || partialData.phone || 
+        partialData.birth_date || partialData.weight_kg || partialData.aplicativo) {
+      await saveOnboardingData(partialData, true); // true = isPartialSave
+    }
+  };
+
+  const handleNext = async () => {
     if (currentStep < totalSteps) {
+      await savePartialData();
       setCurrentStep(currentStep + 1);
     }
   };
@@ -141,26 +164,22 @@ export const Onboarding = () => {
       ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
       : undefined;
 
-    const onboardingData = {
+    const finalData = {
       phone: phone || undefined,
-      goal: selectedGoal,
+      goal: selectedGoal || undefined,
       goal_other: selectedGoal === "other" ? goalOther : undefined,
       birth_date: formattedBirthDate,
       weight_kg: weight ? parseFloat(weight) : undefined,
-      athletic_level: athleticLevel,
-      aplicativo: trainingApp === "other" ? trainingAppOther : trainingApp,
+      athletic_level: athleticLevel || undefined,
+      aplicativo: trainingApp === "other" ? trainingAppOther : trainingApp || undefined,
     };
-
-    console.log('🔍 ONBOARDING_PAGE: Saving onboarding data', onboardingData);
     
-    const success = await saveOnboardingData(onboardingData);
-    if (success) {
-      console.log('🔍 ONBOARDING_PAGE: Save successful, navigating to /paywall');
-      // Use window.location to force navigation and bypass React Router
-      window.location.href = '/paywall';
-    } else {
-      console.log('🔍 ONBOARDING_PAGE: Save failed');
-    }
+    // Save final data with isPartialSave=false to mark as completed
+    await saveOnboardingData(finalData, false);
+    
+    console.log('🔍 ONBOARDING_PAGE: Final save successful, navigating to /paywall');
+    // Use window.location to force navigation and bypass React Router
+    window.location.href = '/paywall';
   };
 
   const canProceed = () => {
