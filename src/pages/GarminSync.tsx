@@ -325,23 +325,23 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
-                      <div>
-                        <CardTitle className="flex items-center gap-3">
-                          <Watch className="h-6 w-6 text-primary" />
-                          Garmin Connect
-                        </CardTitle>
-                        <CardDescription>
-                          Conecte sua conta Garmin Connect
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-3">
+                            <Watch className="h-6 w-6 text-primary" />
+                            Garmin Connect
+                          </CardTitle>
+                          <CardDescription>
+                            Conecte sua conta Garmin Connect
+                          </CardDescription>
+                        </div>
                         {garminConnected && (
                           <Button 
                             onClick={disconnectGarmin}
                             variant="outline"
                             size="sm"
-                            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10 shrink-0"
                           >
                             Desconectar
                           </Button>
@@ -428,28 +428,28 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
-                      <div>
-                        <CardTitle className="flex items-center gap-3">
-                          <Activity className="h-6 w-6 text-primary" />
-                          Strava
-                        </CardTitle>
-                        <CardDescription>
-                          Conecte sua conta Strava
-                        </CardDescription>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-3">
+                            <Activity className="h-6 w-6 text-primary" />
+                            Strava
+                          </CardTitle>
+                          <CardDescription>
+                            Conecte sua conta Strava
+                          </CardDescription>
+                        </div>
+                        {stravaConnected && (
+                          <Button 
+                            onClick={disconnectStrava}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10 shrink-0"
+                          >
+                            Desconectar
+                          </Button>
+                        )}
                       </div>
-                       <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                         {stravaConnected && (
-                           <Button 
-                             onClick={disconnectStrava}
-                             variant="outline"
-                             size="sm"
-                             className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                           >
-                             Desconectar
-                           </Button>
-                         )}
-                       </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -549,28 +549,28 @@ export function GarminSync() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
-                      <div>
-                        <CardTitle className="flex items-center gap-3">
-                          <Heart className="h-6 w-6 text-primary" />
-                          Polar Flow
-                        </CardTitle>
-                        <CardDescription>
-                          Conecte sua conta Polar Flow
-                        </CardDescription>
-                      </div>
-                        <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                          {polarConnected && (
-                            <Button 
-                              onClick={disconnectPolar}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                            >
-                              Desconectar
-                            </Button>
-                          )}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-3">
+                            <Heart className="h-6 w-6 text-primary" />
+                            Polar Flow
+                          </CardTitle>
+                          <CardDescription>
+                            Conecte sua conta Polar Flow
+                          </CardDescription>
                         </div>
+                        {polarConnected && (
+                          <Button 
+                            onClick={disconnectPolar}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 border-red-500/30 hover:bg-red-500/10 shrink-0"
+                          >
+                            Desconectar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -660,28 +660,28 @@ export function GarminSync() {
                         />
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-2">
-                        <div>
-                          <CardTitle className="flex items-center gap-3">
-                            <Heart className="h-6 w-6 text-red-500" />
-                            Apple Health
-                          </CardTitle>
-                          <CardDescription>
-                            Conecte sua conta Apple Health
-                          </CardDescription>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center gap-3">
+                              <Heart className="h-6 w-6 text-red-500" />
+                              Apple Health
+                            </CardTitle>
+                            <CardDescription>
+                              Conecte sua conta Apple Health
+                            </CardDescription>
+                          </div>
+                          {healthKitConnected && (
+                            <Button 
+                              onClick={disconnectHealthKit}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-400 border-red-500/30 hover:bg-red-500/10 shrink-0"
+                            >
+                              Desconectar
+                            </Button>
+                          )}
                         </div>
-                         <div className="flex flex-col items-end gap-2 justify-self-end self-start text-right">
-                           {healthKitConnected && (
-                             <Button 
-                               onClick={disconnectHealthKit}
-                               variant="outline"
-                               size="sm"
-                               className="text-red-400 border-red-500/30 hover:bg-red-500/10"
-                             >
-                               Desconectar
-                             </Button>
-                           )}
-                         </div>
                       </div>
                     </div>
                   </CardHeader>
