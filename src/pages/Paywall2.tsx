@@ -106,7 +106,7 @@ const Paywall2 = () => {
   }, [isIOS, isNative, isPWA, user, toast]);
 
   const handleClose = () => {
-    navigate('/');
+    navigate('/sync');
   };
 
   const handleRevenueCatPurchase = async () => {

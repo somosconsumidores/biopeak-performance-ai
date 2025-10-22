@@ -53,7 +53,7 @@ export function PaywallMercadoPago() {
   }, [toast, navigate]);
 
   const handleClose = () => {
-    navigate('/');
+    navigate('/sync');
   };
 
   const handleCheckout = async () => {
