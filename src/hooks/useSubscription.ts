@@ -85,7 +85,7 @@ export const useSubscription = () => {
         }
       }
       
-      // Server-side check (Stripe)
+      // Get token for server-side checks
       let token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) {
         const { data: refreshed } = await Promise.race([
@@ -107,6 +107,33 @@ export const useSubscription = () => {
         return;
       }
 
+      // PRIORITY 1: Try quick database check first (< 200ms)
+      try {
+        const { data: quickData, error: quickError } = await Promise.race([
+          supabase.functions.invoke('quick-check-subscription', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Quick check timeout')), 3000)
+          )
+        ]) as any;
+
+        if (!quickError && quickData?.subscribed) {
+          debugLog('Quick check: Active subscription found', quickData);
+          clearTimeout(timeoutId);
+          setSubscriptionData(quickData);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ data: quickData, timestamp: Date.now() }));
+          sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(quickData));
+          if (!background) setLoading(false);
+          return;
+        }
+        
+        debugLog('Quick check: No active subscription, proceeding to full check');
+      } catch (quickCheckError) {
+        debugLog('Quick check failed, proceeding to full check', quickCheckError);
+      }
+
+      // PRIORITY 2: Full Stripe verification (only if quick check failed)
       const invokeCheck = async (accessToken: string) =>
         Promise.race([
           supabase.functions.invoke('check-subscription', {

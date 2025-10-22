@@ -69,23 +69,27 @@ serve(async (req) => {
         });
     }
 
-    console.log('💾 Attempting to update subscriber with data:', {
+    console.log('💾 Attempting to upsert subscriber with data:', {
       user_id: app_user_id,
       subscribed,
       subscription_tier,
       subscription_end
     });
 
-    // Usar UPDATE direto em vez de upsert
+    // Usar UPSERT para garantir que novos usuários sejam inseridos
     const { data, error } = await supabase
       .from('subscribers')
-      .update({
+      .upsert({
+        user_id: app_user_id,
         subscribed,
         subscription_tier,
         subscription_end,
+        subscription_type: 'revenuecat',
         updated_at: new Date().toISOString()
+      }, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
       })
-      .eq('user_id', app_user_id)
       .select();
 
     if (error) {

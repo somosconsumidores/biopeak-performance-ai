@@ -26,6 +26,58 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided");
+    logStep("Authorization header found");
+
+    const token = authHeader.replace("Bearer ", "");
+    logStep("Authenticating user with token");
+    
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    const user = userData.user;
+    if (!user?.email) throw new Error("User not authenticated or email not available");
+    logStep("User authenticated", { userId: user.id, email: user.email });
+
+    // ===== PRIORITY 1: CHECK DATABASE CACHE FIRST (< 100ms) =====
+    const { data: subscriber } = await supabaseClient
+      .from('subscribers')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    // If found valid subscription in database, return immediately
+    if (subscriber?.subscribed && subscriber?.subscription_end) {
+      const endDate = new Date(subscriber.subscription_end);
+      const now = new Date();
+      
+      if (endDate > now) {
+        logStep("Database cache hit - returning active subscription", { 
+          subscription_end: subscriber.subscription_end,
+          subscription_tier: subscriber.subscription_tier,
+          subscription_type: subscriber.subscription_type 
+        });
+        
+        return new Response(JSON.stringify({
+          subscribed: true,
+          subscription_type: subscriber.subscription_type,
+          subscription_tier: subscriber.subscription_tier,
+          subscription_end: subscriber.subscription_end,
+          source: 'database_cache'
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      } else {
+        logStep("Database cache expired, proceeding to Stripe verification", {
+          expired_on: subscriber.subscription_end
+        });
+      }
+    } else {
+      logStep("No valid database cache found, proceeding to Stripe verification");
+    }
+
+    // ===== PRIORITY 2: FULL STRIPE VERIFICATION (only if cache miss/expired) =====
     // Get Stripe secret key from Supabase secrets (primary) or env (fallback)
     let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
     let keySource = "secrets";
@@ -44,20 +96,7 @@ serve(async (req) => {
     const isTestMode = stripeKey.startsWith("sk_test_");
     const stripeMode = isLiveMode ? "live" : isTestMode ? "test" : "unknown";
     
-    logStep("Stripe key verified", { mode: stripeMode, source: keySource });
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
-
-    const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token");
-    
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logStep("Stripe key verified - proceeding to full check", { mode: stripeMode, source: keySource });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
