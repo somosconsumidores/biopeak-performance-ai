@@ -207,13 +207,27 @@ serve(async (req) => {
     for (const sub of subscriptions.data) {
       logStep("Checking subscription", { id: sub.id, status: sub.status });
       
-      if (sub.status === "active") {
+      // Considerar tanto 'active' quanto 'trialing' como válidos
+      if (sub.status === "active" || sub.status === "trialing") {
         hasActiveSub = true;
-        subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
-        subscriptionType = "monthly";
+        
+        // Usar trial_end para trials, current_period_end para ativos
+        const endTimestamp = sub.status === "trialing" && sub.trial_end 
+          ? sub.trial_end 
+          : sub.current_period_end;
+          
+        subscriptionEnd = new Date(endTimestamp * 1000).toISOString();
+        
+        // Identificar tipo de assinatura
+        subscriptionType = sub.status === "trialing" ? "trial" : "monthly";
         subscriptionTier = "Premium";
-        logStep("Active subscription found", { subscriptionId: sub.id, endDate: subscriptionEnd });
-        break; // Use first active subscription
+        
+        logStep(`${sub.status === "trialing" ? "Trial" : "Active"} subscription found`, { 
+          subscriptionId: sub.id, 
+          endDate: subscriptionEnd,
+          status: sub.status 
+        });
+        break; // Use first active/trialing subscription
       } else if (["past_due", "unpaid", "incomplete", "canceled"].includes(sub.status)) {
         logStep("Subscription with problematic status detected", {
           subscriptionId: sub.id,
