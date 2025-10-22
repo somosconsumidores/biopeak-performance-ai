@@ -4,13 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 
 export interface OnboardingData {
-  goal?: string;
+  goal: string;
   goal_other?: string;
   birth_date?: string;
   weight_kg?: number;
-  athletic_level?: string;
+  athletic_level: string;
   phone?: string;
-  aplicativo?: string;
 }
 
 export interface UserOnboarding {
@@ -53,18 +52,16 @@ export const useOnboarding = () => {
     }
   };
 
-  const saveOnboardingData = async (data: OnboardingData, isPartialSave = false) => {
-    console.log('🚀🚀🚀 ONBOARDING SAVE FUNCTION CALLED!', { data, isPartialSave });
+  const saveOnboardingData = async (data: OnboardingData) => {
+    console.log('🚀🚀🚀 ONBOARDING SAVE FUNCTION CALLED!', data);
     
     if (!user) {
       console.log('❌ No user found, aborting');
-      if (!isPartialSave) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erro",
+        description: "Usuário não autenticado",
+        variant: "destructive",
+      });
       return false;
     }
 
@@ -80,133 +77,108 @@ export const useOnboarding = () => {
     try {
       // Save onboarding data (excluding phone which goes to profiles)
       const { phone: _, ...onboardingData } = data;
-      
-      // Only save non-empty values
-      const cleanedData = Object.fromEntries(
-        Object.entries(onboardingData).filter(([_, value]) => value !== undefined && value !== null && value !== '')
-      );
-      
-      if (Object.keys(cleanedData).length > 0) {
-        const { error: onboardingError } = await supabase
-          .from('user_onboarding')
-          .upsert({
-            user_id: user.id,
-            ...cleanedData,
-          });
-
-        if (onboardingError) {
-          console.error('🔍 ONBOARDING ERROR: Failed to save onboarding data', {
-            error: onboardingError,
-            code: onboardingError.code,
-            message: onboardingError.message,
-            details: onboardingError.details,
-            hint: onboardingError.hint
-          });
-          if (!isPartialSave) {
-            toast({
-              title: "Erro ao salvar",
-              description: onboardingError.message || "Erro ao salvar dados do onboarding",
-              variant: "destructive",
-            });
-          }
-          return false;
-        }
-
-        console.log('🔍 ONBOARDING: Onboarding data saved');
-      }
-
-      // Prepare profile updates
-      const profileUpdates: any = {};
-      if (data.birth_date) profileUpdates.birth_date = data.birth_date;
-      if (data.weight_kg) profileUpdates.weight_kg = data.weight_kg;
-      if (data.phone) profileUpdates.phone = data.phone;
-      
-      // Only mark as completed on final save
-      if (!isPartialSave) {
-        profileUpdates.onboarding_completed = true;
-      }
-
-      // Update profile if we have any updates
-      if (Object.keys(profileUpdates).length > 0) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update(profileUpdates)
-          .eq('user_id', user.id);
-
-        if (profileError) {
-          console.error('🔍 PROFILE ERROR: Failed to update profile', {
-            error: profileError,
-            code: profileError.code,
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint
-          });
-          if (!isPartialSave) {
-            toast({
-              title: "Erro ao atualizar perfil",
-              description: profileError.message || "Erro ao atualizar perfil",
-              variant: "destructive",
-            });
-          }
-          return false;
-        }
-
-        console.log('🔍 ONBOARDING: Profile updated successfully');
-      }
-
-      // Only do these actions on final save
-      if (!isPartialSave) {
-        // Set local state immediately to prevent race condition
-        setLocalOnboardingCompleted(true);
-        
-        console.log('🎯 ONBOARDING SAVE: About to notify N8N...', { userId: user.id });
-        
-        toast({
-          title: "Sucesso!",
-          description: "Perfil configurado com sucesso",
+      const { error: onboardingError } = await supabase
+        .from('user_onboarding')
+        .upsert({
+          user_id: user.id,
+          ...onboardingData,
         });
 
-        // Notify N8N about new user (fire and forget)
-        try {
-          const notificationPayload = {
-            user_id: user.id,
-            name: user.user_metadata?.display_name || null,
-            phone: data.phone || null,
-          };
-          
-          console.log('📞 Calling N8N webhook with:', notificationPayload);
-          
-          const { data: n8nData, error: n8nError } = await supabase.functions.invoke('notify-n8n-new-user', {
-            body: notificationPayload,
-          });
-          
-          if (n8nError) {
-            console.error('⚠️ N8N notification failed (non-blocking):', n8nError);
-          } else {
-            console.log('✅ N8N notified successfully:', n8nData);
-          }
-        } catch (n8nError) {
-          console.error('⚠️ N8N notification error (non-blocking):', n8nError);
-        }
-        
-        console.log('🎯 ONBOARDING SAVE: N8N notification attempt completed');
-
-        // Add a small delay to ensure database propagation
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (onboardingError) {
+        console.error('🔍 ONBOARDING ERROR: Failed to save onboarding data', {
+          error: onboardingError,
+          code: onboardingError.code,
+          message: onboardingError.message,
+          details: onboardingError.details,
+          hint: onboardingError.hint
+        });
+        toast({
+          title: "Erro ao salvar",
+          description: onboardingError.message || "Erro ao salvar dados do onboarding",
+          variant: "destructive",
+        });
+        return false;
       }
+
+      console.log('🔍 ONBOARDING: Onboarding data saved, updating profile...');
+
+      // Update profile to mark onboarding as completed
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          onboarding_completed: true,
+          birth_date: data.birth_date,
+          weight_kg: data.weight_kg,
+          phone: data.phone,
+        })
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('🔍 PROFILE ERROR: Failed to update profile', {
+          error: profileError,
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint
+        });
+        toast({
+          title: "Erro ao atualizar perfil",
+          description: profileError.message || "Erro ao atualizar perfil",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('🔍 ONBOARDING: Profile updated successfully');
+
+      // Set local state immediately to prevent race condition
+      setLocalOnboardingCompleted(true);
+      
+      console.log('🎯 ONBOARDING SAVE: About to notify N8N...', { userId: user.id });
+      
+      toast({
+        title: "Sucesso!",
+        description: "Perfil configurado com sucesso",
+      });
+
+      // Notify N8N about new user (fire and forget)
+      try {
+        const notificationPayload = {
+          user_id: user.id,
+          name: user.user_metadata?.display_name || null,
+          phone: data.phone || null,
+        };
+        
+        console.log('📞 Calling N8N webhook with:', notificationPayload);
+        
+        const { data: n8nData, error: n8nError } = await supabase.functions.invoke('notify-n8n-new-user', {
+          body: notificationPayload,
+        });
+        
+        if (n8nError) {
+          console.error('⚠️ N8N notification failed (non-blocking):', n8nError);
+        } else {
+          console.log('✅ N8N notified successfully:', n8nData);
+        }
+      } catch (n8nError) {
+        console.error('⚠️ N8N notification error (non-blocking):', n8nError);
+      }
+      
+      console.log('🎯 ONBOARDING SAVE: N8N notification attempt completed');
+
+      // Add a small delay to ensure database propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       console.log('🔍 ONBOARDING: Save process completed successfully');
       await fetchOnboardingData();
       return true;
     } catch (error) {
       console.error('Error saving onboarding data:', error);
-      if (!isPartialSave) {
-        toast({
-          title: "Erro",
-          description: "Erro ao salvar dados do onboarding",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar dados do onboarding",
+        variant: "destructive",
+      });
       return false;
     } finally {
       setLoading(false);
