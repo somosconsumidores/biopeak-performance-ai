@@ -390,7 +390,7 @@ export function GarminSync() {
                           </AlertDescription>
                         </Alert>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-3">
                           {garminMetrics.map((metric, index) => (
                             <div key={index} className="metric-card p-4">
                               <div className="flex flex-col gap-2">
@@ -511,7 +511,7 @@ export function GarminSync() {
                           </AlertDescription>
                         </Alert>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-3">
                           {stravaMetrics.map((metric, index) => (
                             <div key={index} className="metric-card p-4">
                               <div className="flex flex-col gap-2">
@@ -614,7 +614,7 @@ export function GarminSync() {
                           </AlertDescription>
                         </Alert>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-3">
                           {polarMetrics.map((metric, index) => (
                             <div key={index} className="metric-card p-4">
                               <div className="flex flex-col gap-2">
@@ -749,7 +749,7 @@ export function GarminSync() {
                             </AlertDescription>
                           </Alert>
                           
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-3">
                             {healthKitMetrics.map((metric, index) => (
                               <div key={index} className="metric-card p-4">
                                 <div className="flex flex-col gap-2">
