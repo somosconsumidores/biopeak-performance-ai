@@ -392,12 +392,14 @@ export function GarminSync() {
                         
                         <div className="grid grid-cols-2 gap-3">
                           {garminMetrics.map((metric, index) => (
-                            <div key={index} className="metric-card">
-                              <div className="flex items-center gap-2 mb-1">
-                                <metric.icon className="h-3 w-3 text-primary" />
-                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                            <div key={index} className="metric-card p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <metric.icon className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="text-xs text-muted-foreground leading-tight">{metric.label}</span>
+                                </div>
+                                <div className="font-semibold text-base">{metric.value}</div>
                               </div>
-                              <div className="font-semibold text-sm">{metric.value}</div>
                             </div>
                           ))}
                         </div>
@@ -511,12 +513,14 @@ export function GarminSync() {
                         
                         <div className="grid grid-cols-2 gap-3">
                           {stravaMetrics.map((metric, index) => (
-                            <div key={index} className="metric-card">
-                              <div className="flex items-center gap-2 mb-1">
-                                <metric.icon className="h-3 w-3 text-primary" />
-                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                            <div key={index} className="metric-card p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <metric.icon className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="text-xs text-muted-foreground leading-tight">{metric.label}</span>
+                                </div>
+                                <div className="font-semibold text-base">{metric.value}</div>
                               </div>
-                              <div className="font-semibold text-sm">{metric.value}</div>
                             </div>
                           ))}
                         </div>
@@ -612,12 +616,14 @@ export function GarminSync() {
                         
                         <div className="grid grid-cols-2 gap-3">
                           {polarMetrics.map((metric, index) => (
-                            <div key={index} className="metric-card">
-                              <div className="flex items-center gap-2 mb-1">
-                                <metric.icon className="h-3 w-3 text-primary" />
-                                <span className="text-xs text-muted-foreground">{metric.label}</span>
+                            <div key={index} className="metric-card p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <metric.icon className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="text-xs text-muted-foreground leading-tight">{metric.label}</span>
+                                </div>
+                                <div className="font-semibold text-base">{metric.value}</div>
                               </div>
-                              <div className="font-semibold text-sm">{metric.value}</div>
                             </div>
                           ))}
                         </div>
@@ -745,12 +751,14 @@ export function GarminSync() {
                           
                           <div className="grid grid-cols-2 gap-3">
                             {healthKitMetrics.map((metric, index) => (
-                              <div key={index} className="metric-card">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <metric.icon className="h-3 w-3 text-primary" />
-                                  <span className="text-xs text-muted-foreground">{metric.label}</span>
+                              <div key={index} className="metric-card p-4">
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <metric.icon className="h-4 w-4 text-primary shrink-0" />
+                                    <span className="text-xs text-muted-foreground leading-tight">{metric.label}</span>
+                                  </div>
+                                  <div className="font-semibold text-base">{metric.value}</div>
                                 </div>
-                                <div className="font-semibold text-sm">{metric.value}</div>
                               </div>
                             ))}
                           </div>
