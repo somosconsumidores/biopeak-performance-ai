@@ -228,14 +228,31 @@ serve(async (req) => {
     console.log(`🛡️ Safe paces calculated for ${profile?.email}:`, safeTargetPaces);
 
     // Get current dangerous workouts
-    const { data: currentWorkouts } = await supabase
+    const { data: currentWorkouts, error: workoutsError } = await supabase
       .from("training_plan_workouts")
       .select("*")
       .eq("plan_id", targetPlanId)
       .order("week_number", { ascending: true });
 
+    if (workoutsError) {
+      throw new Error(`Failed to fetch workouts: ${workoutsError.message}`);
+    }
+
     if (!currentWorkouts?.length) {
-      throw new Error("No workouts found for this plan");
+      console.log(`⚠️ No workouts found for plan ${targetPlanId} - plan may not be fully generated yet`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          plan_id: targetPlanId,
+          user_email: profile?.email,
+          message: "Este plano ainda não possui treinos gerados. Por favor, aguarde a geração do plano ser concluída.",
+          safe_target_paces: safeTargetPaces,
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     // Apply safety recalibration to each workout
