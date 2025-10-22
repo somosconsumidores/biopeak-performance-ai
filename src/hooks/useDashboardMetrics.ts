@@ -124,13 +124,15 @@ export function useDashboardMetrics() {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
+      // Limit to 100 most recent activities for better performance
       const [allActivitiesRes, garminVo2MaxRes] = await Promise.all([
         supabase
           .from('all_activities')
           .select('*')
           .eq('user_id', user.id)
           .gte('activity_date', sinceDateStr)
-          .order('activity_date', { ascending: false }),
+          .order('activity_date', { ascending: false })
+          .limit(100),
         fetchGarminVo2Max(user.id, sinceDateStr)
       ]);
 
@@ -172,9 +174,22 @@ export function useDashboardMetrics() {
       const peak = calculatePeakPerformance(activities);
       setPeakPerformance(peak);
 
-      // Buscar dados de sono
-      const sleepData = await fetchSleepData();
-      setSleepAnalytics(sleepData);
+      // Buscar dados de sono de forma assíncrona sem bloquear o resto
+      fetchSleepData().then(sleepData => {
+        setSleepAnalytics(sleepData);
+      }).catch(err => {
+        console.error('Error fetching sleep data:', err);
+        setSleepAnalytics({
+          sleepScore: null,
+          lastSleepDate: null,
+          hoursSlept: null,
+          qualityComment: 'Dados de sono não disponíveis.',
+          deepSleepPercentage: 0,
+          lightSleepPercentage: 0,
+          remSleepPercentage: 0,
+          totalSleepMinutes: 0,
+        });
+      });
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -199,14 +214,20 @@ export function useDashboardMetrics() {
     }
 
     try {
-      // 1) Tenta Garmin primeiro
-      const { data: garminSleep, error: garminError } = await supabase
-        .from('garmin_sleep_summaries')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('calendar_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Usar timeout para evitar travamento
+      const timeoutPromise = new Promise<SleepAnalytics>((_, reject) => {
+        setTimeout(() => reject(new Error('Sleep data fetch timeout')), 5000);
+      });
+
+      const fetchPromise = (async () => {
+        // 1) Tenta Garmin primeiro (com limit otimizado)
+        const { data: garminSleep, error: garminError } = await supabase
+          .from('garmin_sleep_summaries')
+          .select('calendar_date,sleep_time_in_seconds,deep_sleep_duration_in_seconds,light_sleep_duration_in_seconds,rem_sleep_duration_in_seconds,sleep_score')
+          .eq('user_id', user.id)
+          .order('calendar_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
       if (!garminError && garminSleep) {
         const totalSleepSeconds = garminSleep.sleep_time_in_seconds || 0;
@@ -250,7 +271,7 @@ export function useDashboardMetrics() {
       // 2) Fallback para Polar
       const { data: polarSleep, error: polarError } = await supabase
         .from('polar_sleep')
-        .select('*')
+        .select('date,deep_sleep,light_sleep,rem_sleep,total_sleep,sleep_score')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(1)
@@ -308,6 +329,10 @@ export function useDashboardMetrics() {
         remSleepPercentage: remPercentage,
         totalSleepMinutes: totalMinutes,
       };
+      })();
+
+      // Usar Promise.race para ter timeout
+      return await Promise.race([fetchPromise, timeoutPromise]);
 
     } catch (error) {
       console.error('Error fetching sleep data:', error);

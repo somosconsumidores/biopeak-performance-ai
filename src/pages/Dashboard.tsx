@@ -145,7 +145,8 @@ export const Dashboard = () => {
     return { sleepData, overtrainingData: overtrainingAnalysisData };
   };
 
-  if (loading || subscriptionLoading) {
+  // Show loading only for subscription check, not for metrics
+  if (subscriptionLoading) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
@@ -155,7 +156,7 @@ export const Dashboard = () => {
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground">Carregando métricas...</p>
+                <p className="text-muted-foreground">Verificando assinatura...</p>
               </div>
             </div>
           </div>
@@ -360,7 +361,19 @@ export const Dashboard = () => {
           {/* Dynamic Section Content */}
           <ScrollReveal delay={40}>
             <div className="mb-6 md:mb-8">
-              {activeSection === 'fitness-score' && (
+              {loading && (
+                <Card className="glass-card border-glass-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Carregando seus dados...</p>
+                      <p className="text-xs text-muted-foreground/60">Isso pode levar alguns segundos</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {!loading && activeSection === 'fitness-score' && (
                 isSubscribed ? (
                   <BioPeakFitnessCard />
                 ) : (
@@ -370,7 +383,7 @@ export const Dashboard = () => {
                 )
               )}
               
-              {activeSection === 'overtraining-risk' && overtrainingRisk && (
+              {!loading && activeSection === 'overtraining-risk' && overtrainingRisk && (
                 isSubscribed ? (
                 <Card className="glass-card border-glass-border">
                   <CardHeader>
@@ -498,7 +511,9 @@ export const Dashboard = () => {
                 )
               )}
               
-              {activeSection === 'achievements' && <AchievementSection maxItems={6} />}
+              {!loading && activeSection === 'commitments' && <CommitmentsCard />}
+              
+              {!loading && activeSection === 'achievements' && <AchievementSection maxItems={6} />}
             </div>
           </ScrollReveal>
 
