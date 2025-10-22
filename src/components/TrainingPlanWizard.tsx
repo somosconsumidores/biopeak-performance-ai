@@ -27,6 +27,7 @@ import { PlanDurationStep } from './wizard-steps/PlanDurationStep';
 import { RaceDateStep } from './wizard-steps/RaceDateStep';
 import { SummaryStep } from './wizard-steps/SummaryStep';
 import { RaceGoalStep } from './wizard-steps/RaceGoalStep';
+import { HealthDeclarationStep } from './wizard-steps/HealthDeclarationStep';
 
 interface TrainingPlanWizardProps {
   open?: boolean;
@@ -48,7 +49,8 @@ const STEP_TITLES: Record<number, string> = {
   10: 'Duração do plano',
   11: 'Data da prova',
   12: 'Meta da prova',
-  13: 'Resumo e geração'
+  13: 'Resumo e geração',
+  14: 'Declaração de saúde'
 };
 
 const STEP_DESCRIPTIONS: Record<number, string> = {
@@ -64,7 +66,8 @@ const STEP_DESCRIPTIONS: Record<number, string> = {
   10: 'Por quantas semanas você quer treinar?',
   11: 'Tem alguma prova específica como objetivo?',
   12: 'Defina seu tempo objetivo para a prova',
-  13: 'Revise tudo antes de gerar seu plano personalizado'
+  13: 'Revise tudo antes de gerar seu plano personalizado',
+  14: 'Questionário de saúde obrigatório para sua segurança'
 };
 
 export function TrainingPlanWizard({ 
@@ -152,6 +155,8 @@ export function TrainingPlanWizard({
           return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
         case 13:
           return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
+        case 14:
+          return <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
         default:
           return null;
     }

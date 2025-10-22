@@ -1624,6 +1624,60 @@ export type Database = {
         }
         Relationships: []
       }
+      health_declarations: {
+        Row: {
+          created_at: string
+          declaration_accepted: boolean
+          id: string
+          is_eligible: boolean
+          question_1_heart_problem: boolean
+          question_2_chest_pain_during_activity: boolean
+          question_3_chest_pain_last_3months: boolean
+          question_4_balance_consciousness_loss: boolean
+          question_5_bone_joint_problem: boolean
+          question_6_taking_medication: boolean
+          question_7_other_impediment: boolean
+          question_8_additional_info: string | null
+          training_plan_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          declaration_accepted: boolean
+          id?: string
+          is_eligible: boolean
+          question_1_heart_problem: boolean
+          question_2_chest_pain_during_activity: boolean
+          question_3_chest_pain_last_3months: boolean
+          question_4_balance_consciousness_loss: boolean
+          question_5_bone_joint_problem: boolean
+          question_6_taking_medication: boolean
+          question_7_other_impediment: boolean
+          question_8_additional_info?: string | null
+          training_plan_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          declaration_accepted?: boolean
+          id?: string
+          is_eligible?: boolean
+          question_1_heart_problem?: boolean
+          question_2_chest_pain_during_activity?: boolean
+          question_3_chest_pain_last_3months?: boolean
+          question_4_balance_consciousness_loss?: boolean
+          question_5_bone_joint_problem?: boolean
+          question_6_taking_medication?: boolean
+          question_7_other_impediment?: boolean
+          question_8_additional_info?: string | null
+          training_plan_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       healthkit_activities: {
         Row: {
           active_calories: number | null

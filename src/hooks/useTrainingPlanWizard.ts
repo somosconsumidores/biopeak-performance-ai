@@ -53,7 +53,20 @@ export interface TrainingPlanWizardData {
   raceGoal?: string;
   goalTargetTimeMinutes?: number;
   
-  // Step 12: Summary and generation (no additional data)
+  // Step 13: Summary and generation (no additional data)
+  
+  // Step 14: Health declaration (PAR-Q)
+  healthDeclaration?: {
+    question_1_heart_problem?: boolean;
+    question_2_chest_pain_during_activity?: boolean;
+    question_3_chest_pain_last_3months?: boolean;
+    question_4_balance_consciousness_loss?: boolean;
+    question_5_bone_joint_problem?: boolean;
+    question_6_taking_medication?: boolean;
+    question_7_other_impediment?: boolean;
+    question_8_additional_info?: string;
+    declaration_accepted?: boolean;
+  };
 }
 
 const GOALS = [
@@ -234,7 +247,8 @@ export function useTrainingPlanWizard() {
     
     // Never add step 12 (race goal) as we calculate it automatically
     
-    baseSteps.push(13); // Summary step (becomes the final step)
+    baseSteps.push(13); // Summary step
+    baseSteps.push(14); // Health declaration step (must be last before generation)
     return baseSteps;
   };
 
@@ -289,6 +303,33 @@ export function useTrainingPlanWizard() {
         return true; // Race goal is optional (not used in conditional flow)
       case 13:
         return true; // Summary step
+      case 14: // Health declaration step
+        if (!wizardData.healthDeclaration) return false;
+        
+        // Check all 7 questions are answered
+        const allQuestionsAnswered = [
+          'question_1_heart_problem',
+          'question_2_chest_pain_during_activity',
+          'question_3_chest_pain_last_3months',
+          'question_4_balance_consciousness_loss',
+          'question_5_bone_joint_problem',
+          'question_6_taking_medication',
+          'question_7_other_impediment',
+        ].every(q => wizardData.healthDeclaration![q as keyof typeof wizardData.healthDeclaration] !== undefined);
+        
+        // Check if eligible (all answers must be false/NO)
+        const hasPositiveAnswer = [
+          wizardData.healthDeclaration.question_1_heart_problem,
+          wizardData.healthDeclaration.question_2_chest_pain_during_activity,
+          wizardData.healthDeclaration.question_3_chest_pain_last_3months,
+          wizardData.healthDeclaration.question_4_balance_consciousness_loss,
+          wizardData.healthDeclaration.question_5_bone_joint_problem,
+          wizardData.healthDeclaration.question_6_taking_medication,
+          wizardData.healthDeclaration.question_7_other_impediment,
+        ].some(answer => answer === true);
+        
+        // Can only proceed if all questions answered, no positive answers, and declaration accepted
+        return allQuestionsAnswered && !hasPositiveAnswer && wizardData.healthDeclaration.declaration_accepted === true;
       default:
         return false;
     }
@@ -296,6 +337,28 @@ export function useTrainingPlanWizard() {
 
   const generateTrainingPlan = async () => {
     if (!user) return false;
+
+    // Validate health declaration
+    if (!wizardData.healthDeclaration?.declaration_accepted) {
+      console.error('Health declaration not accepted');
+      return false;
+    }
+
+    // Check eligibility (all answers must be NO/false)
+    const hasPositiveAnswer = [
+      wizardData.healthDeclaration.question_1_heart_problem,
+      wizardData.healthDeclaration.question_2_chest_pain_during_activity,
+      wizardData.healthDeclaration.question_3_chest_pain_last_3months,
+      wizardData.healthDeclaration.question_4_balance_consciousness_loss,
+      wizardData.healthDeclaration.question_5_bone_joint_problem,
+      wizardData.healthDeclaration.question_6_taking_medication,
+      wizardData.healthDeclaration.question_7_other_impediment,
+    ].some(answer => answer === true);
+
+    if (hasPositiveAnswer) {
+      console.error('User not eligible due to health concerns');
+      return false;
+    }
 
     setLoading(true);
     try {
@@ -319,7 +382,31 @@ export function useTrainingPlanWizard() {
         }
       }
 
-      // Create the training plan first (required for preferences foreign key)
+      // First, save health declaration for legal protection
+      const { data: healthDeclaration, error: healthError } = await supabase
+        .from('health_declarations')
+        .insert({
+          user_id: user.id,
+          question_1_heart_problem: wizardData.healthDeclaration.question_1_heart_problem || false,
+          question_2_chest_pain_during_activity: wizardData.healthDeclaration.question_2_chest_pain_during_activity || false,
+          question_3_chest_pain_last_3months: wizardData.healthDeclaration.question_3_chest_pain_last_3months || false,
+          question_4_balance_consciousness_loss: wizardData.healthDeclaration.question_4_balance_consciousness_loss || false,
+          question_5_bone_joint_problem: wizardData.healthDeclaration.question_5_bone_joint_problem || false,
+          question_6_taking_medication: wizardData.healthDeclaration.question_6_taking_medication || false,
+          question_7_other_impediment: wizardData.healthDeclaration.question_7_other_impediment || false,
+          question_8_additional_info: wizardData.healthDeclaration.question_8_additional_info || null,
+          declaration_accepted: true,
+          is_eligible: true, // We already validated this above
+        })
+        .select()
+        .single();
+
+      if (healthError) {
+        console.error('Error saving health declaration:', healthError);
+        return false;
+      }
+
+      // Create the training plan (required for preferences foreign key)
       const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
       const planId = uuidv4();
       const { error: planError } = await supabase
@@ -340,6 +427,12 @@ export function useTrainingPlanWizard() {
         console.error('Error creating plan:', planError);
         return false;
       }
+
+      // Link health declaration to training plan
+      await supabase
+        .from('health_declarations')
+        .update({ training_plan_id: planId })
+        .eq('id', healthDeclaration.id);
 
       // Then create preferences linked to the plan
       const dayIdx: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
