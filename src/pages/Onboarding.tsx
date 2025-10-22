@@ -115,8 +115,10 @@ export const Onboarding = () => {
   const [birthYear, setBirthYear] = useState<string>("");
   const [weight, setWeight] = useState<string>("");
   const [athleticLevel, setAthleticLevel] = useState<string>("");
+  const [trainingApp, setTrainingApp] = useState<string>("");
+  const [trainingAppOther, setTrainingAppOther] = useState<string>("");
 
-  const totalSteps = 5;
+  const totalSteps = 6;
   const progress = (currentStep / totalSteps) * 100;
 
   const handleNext = () => {
@@ -146,6 +148,7 @@ export const Onboarding = () => {
       birth_date: formattedBirthDate,
       weight_kg: weight ? parseFloat(weight) : undefined,
       athletic_level: athleticLevel,
+      aplicativo: trainingApp === "other" ? trainingAppOther : trainingApp,
     };
 
     console.log('🔍 ONBOARDING_PAGE: Saving onboarding data', onboardingData);
@@ -173,6 +176,8 @@ export const Onboarding = () => {
         return !!(weight && parseFloat(weight) > 0);
       case 5:
         return !!athleticLevel;
+      case 6:
+        return !!(trainingApp && (trainingApp !== "other" || trainingAppOther.trim()));
       default:
         return false;
     }
@@ -233,6 +238,7 @@ export const Onboarding = () => {
               {currentStep === 3 && "Qual é a sua data de nascimento?"}
               {currentStep === 4 && "Qual é o seu peso?"}
               {currentStep === 5 && "Você se considera um atleta:"}
+              {currentStep === 6 && "Qual aplicativo você usa para monitorar seus treinos?"}
             </CardTitle>
             <p className="text-sm text-medium-contrast">
               {currentStep === 1 && "Compartilhe seu número e receba resumos semanais e análises dos seus treinos"}
@@ -240,6 +246,7 @@ export const Onboarding = () => {
               {currentStep === 3 && "Essas informações nos ajudam a personalizar sua experiência"}
               {currentStep === 4 && "Usado para cálculos de performance mais precisos"}
               {currentStep === 5 && "Isso nos ajuda a adaptar as recomendações para seu nível"}
+              {currentStep === 6 && "Escolha o app que você utiliza para registrar suas atividades"}
             </p>
           </CardHeader>
           
@@ -472,6 +479,77 @@ export const Onboarding = () => {
                       })}
                     </div>
                   </RadioGroup>
+                </div>
+              )}
+
+              {/* Step 6: Training App */}
+              {currentStep === 6 && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="training-app-select" className="text-base font-medium">Selecione seu aplicativo</Label>
+                    <Select value={trainingApp} onValueChange={setTrainingApp}>
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Escolha o app..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="strava">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Strava</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="garmin_connect">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Garmin Connect</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="apple_health">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Apple Health</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="polar_flow">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Polar Flow</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="zepp">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Zepp</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="coros">
+                          <div className="flex items-center space-x-3">
+                            <Smartphone className="h-4 w-4 text-primary" />
+                            <span>Coros</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="other">
+                          <div className="flex items-center space-x-3">
+                            <MoreHorizontal className="h-4 w-4 text-primary" />
+                            <span>Outros</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {trainingApp === "other" && (
+                    <div className="mt-4">
+                      <Label htmlFor="training-app-other">Qual aplicativo você usa?</Label>
+                      <Input
+                        id="training-app-other"
+                        placeholder="Digite o nome do aplicativo..."
+                        value={trainingAppOther}
+                        onChange={(e) => setTrainingAppOther(e.target.value)}
+                        className="mt-2 h-12"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
