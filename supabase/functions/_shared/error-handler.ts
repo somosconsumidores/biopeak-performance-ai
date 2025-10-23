@@ -116,7 +116,35 @@ export class ErrorHandler {
         severity
       };
 
-      // Send notification via edge function
+      // Send notification to N8N webhook
+      try {
+        const n8nResponse = await fetch('https://biopeak-ai.app.n8n.cloud/webhook/warn-error', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `❌ Erro na Edge Function: ${context.functionName}`,
+            error: error.message,
+            functionName: context.functionName,
+            errorStack: error.stack,
+            severity: severity,
+            timestamp: new Date().toISOString(),
+            userId: context.userId,
+            requestData: context.requestData
+          })
+        });
+
+        if (!n8nResponse.ok) {
+          console.error('Failed to send N8N notification:', await n8nResponse.text());
+        } else {
+          console.log(`N8N notification sent for ${context.functionName} with severity ${severity}`);
+        }
+      } catch (n8nError) {
+        console.error('Error sending N8N notification:', n8nError);
+      }
+
+      // Send notification via edge function (keeping existing functionality)
       const { error: notificationError } = await this.supabase.functions.invoke(
         'send-error-notification',
         { body: notificationData }
