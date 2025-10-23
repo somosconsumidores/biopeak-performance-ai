@@ -68,11 +68,21 @@ export function useTargetRaces() {
 
     // SERVER-SIDE VALIDATION: Critical layer to prevent impossible times
     if (raceData.target_time_minutes && raceData.distance_meters) {
+      console.log('🔍 SERVER-SIDE validation input:', {
+        targetMinutes: raceData.target_time_minutes,
+        distanceMeters: raceData.distance_meters,
+        targetType: typeof raceData.target_time_minutes,
+        distanceType: typeof raceData.distance_meters,
+        raceData
+      });
+
       const validation = validateRaceTime(
         raceData.target_time_minutes,
         raceData.distance_meters,
         undefined // No historical data at this level
       );
+
+      console.log('🔍 SERVER-SIDE validation result:', validation);
 
       if (!validation.canProceed) {
         console.error('🚫 Server-side validation blocked race creation:', {

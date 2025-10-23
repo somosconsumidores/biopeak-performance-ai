@@ -45,27 +45,51 @@ export function validateRaceTime(
   distanceMeters: number,
   historicalMinutes?: number
 ): TimeValidation {
+  console.log('🔍 VALIDATION START:', {
+    targetMinutes,
+    distanceMeters,
+    historicalMinutes,
+    targetType: typeof targetMinutes,
+    distanceType: typeof distanceMeters
+  });
+
   // LAYER 1: Sanity check - Block absurdly fast times (faster than 3:00/km pace)
   const amateurMinimum = AMATEUR_MINIMUM_TIMES[distanceMeters.toString()];
+  console.log('🔍 LAYER 1 - Amateur minimum check:', {
+    amateurMinimum,
+    targetMinutes,
+    willBlock: amateurMinimum && targetMinutes < amateurMinimum
+  });
+  
   if (amateurMinimum && targetMinutes < amateurMinimum) {
     const pacePerKm = targetMinutes / (distanceMeters / 1000);
-    return {
-      level: 'impossible',
+    const result = {
+      level: 'impossible' as ValidationLevel,
       message: `⛔ Este tempo (${formatMinutes(targetMinutes)}) é fisicamente impossível para atletas amadores! Ritmo médio seria de ${pacePerKm.toFixed(2)} min/km. Para referência, o mínimo realista é ${formatMinutes(amateurMinimum)}.`,
       improvement: 0,
       canProceed: false,
     };
+    console.log('🚫 BLOCKED by amateur minimum:', result);
+    return result;
   }
 
   // LAYER 2: Check against world records even without historical data
   const worldRecordLimit = WORLD_RECORD_LIMITS[distanceMeters.toString()];
+  console.log('🔍 LAYER 2 - World record check:', {
+    worldRecordLimit,
+    targetMinutes,
+    willBlock: worldRecordLimit && targetMinutes < worldRecordLimit
+  });
+  
   if (worldRecordLimit && targetMinutes < worldRecordLimit) {
-    return {
-      level: 'impossible',
+    const result = {
+      level: 'impossible' as ValidationLevel,
       message: `⛔ Este tempo está próximo ao recorde mundial! Para um atleta amador, é fisicamente impossível. Reconsidere sua meta.`,
       improvement: 0,
       canProceed: false,
     };
+    console.log('🚫 BLOCKED by world record:', result);
+    return result;
   }
 
   // If no historical data, we can't validate further

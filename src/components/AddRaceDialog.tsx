@@ -51,6 +51,14 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
     const targetMinutes = Number(formData.target_time_minutes);
     const distanceMeters = formData.distance_meters;
 
+    console.log('🔍 AddRaceDialog validation input:', {
+      formDataTargetTime: formData.target_time_minutes,
+      targetMinutes,
+      distanceMeters,
+      targetType: typeof targetMinutes,
+      distanceType: typeof distanceMeters
+    });
+
     // Get historical time for this distance
     const normalizedDistance = normalizeDistanceForValidation(distanceMeters);
     let historicalMinutes: number | undefined;
@@ -70,7 +78,9 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
         break;
     }
 
-    return validateRaceTime(targetMinutes, distanceMeters, historicalMinutes);
+    const result = validateRaceTime(targetMinutes, distanceMeters, historicalMinutes);
+    console.log('🔍 AddRaceDialog validation result:', result);
+    return result;
   }, [formData.target_time_minutes, formData.distance_meters, raceEstimates]);
 
   const handleSubmit = async (e: React.FormEvent) => {
