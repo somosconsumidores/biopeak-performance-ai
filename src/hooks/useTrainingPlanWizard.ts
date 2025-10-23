@@ -3,8 +3,10 @@ import { useAthleteAnalysis } from './useAthleteAnalysis';
 import { useProfile } from './useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { addDays, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { validateRaceTime } from '@/utils/raceTimeValidation';
 
 export interface TrainingPlanWizardData {
   // Step 1: Goal selection
@@ -95,6 +97,7 @@ export function useTrainingPlanWizard() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const athleteAnalysis = useAthleteAnalysis();
+  const { toast } = useToast();
   
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -299,13 +302,31 @@ export function useTrainingPlanWizard() {
         return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
       case 11:
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
-      case 12:
-        // If step 12 is ever re-enabled, validate the target time
+      case 12: {
+        // RaceGoalStep validation - block impossible target times
         if (!wizardData.goalTargetTimeMinutes) return true; // Optional field
         
-        // Import validation at runtime to check if goal is achievable
-        // This prevents users from setting impossible goals
-        return true; // Will be validated by RaceGoalStep component's UI blocking
+        const distanceMap: Record<string, number> = {
+          '5k': 5000,
+          '10k': 10000,
+          'half_marathon': 21097,
+          '21k': 21097,
+          'marathon': 42195,
+          '42k': 42195,
+        };
+        
+        const distanceMeters = distanceMap[wizardData.goal] || 10000;
+        const validation = validateRaceTime(wizardData.goalTargetTimeMinutes, distanceMeters, undefined);
+        
+        console.log('🔍 canProceed Step 12 validation:', {
+          goalTargetTimeMinutes: wizardData.goalTargetTimeMinutes,
+          goal: wizardData.goal,
+          distanceMeters,
+          validation
+        });
+        
+        return validation.canProceed;
+      }
       case 13:
         return true; // Summary step
       case 14: // Health declaration step
@@ -446,6 +467,38 @@ export function useTrainingPlanWizard() {
 
       // Calculate target time for race goals
       const calculatedTargetTime = calculateTargetTime();
+      
+      // CRITICAL VALIDATION: Block impossible target times before creating plan
+      if (calculatedTargetTime && isRaceGoal()) {
+        const distanceMap: Record<string, number> = {
+          '5k': 5000,
+          '10k': 10000,
+          'half_marathon': 21097,
+          '21k': 21097,
+          'marathon': 42195,
+          '42k': 42195,
+        };
+        
+        const distanceMeters = distanceMap[wizardData.goal] || 10000;
+        const validation = validateRaceTime(calculatedTargetTime, distanceMeters, undefined);
+        
+        console.log('🔍 WIZARD VALIDATION:', {
+          goal: wizardData.goal,
+          calculatedTargetTime,
+          distanceMeters,
+          validation
+        });
+        
+        if (!validation.canProceed) {
+          console.error('🚫 WIZARD: Blocked plan creation with impossible target time:', validation);
+          toast({
+            title: "Meta impossível detectada",
+            description: validation.message,
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
       
       const { error: preferencesError } = await supabase
         .from('training_plan_preferences')
