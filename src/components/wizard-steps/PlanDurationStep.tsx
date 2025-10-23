@@ -127,21 +127,24 @@ export function PlanDurationStep({ wizardData, updateWizardData }: PlanDurationS
             return (
               <Card 
                 key={preset.weeks}
-                className={`cursor-pointer transition-all hover:shadow-md ${
+                className={`cursor-pointer transition-all hover:shadow-md relative ${
                   isSelected 
                     ? 'ring-2 ring-primary bg-primary/5' 
                     : 'hover:bg-muted/50'
                 } ${isRecommended ? 'border-green-200 dark:border-green-800' : ''}`}
                 onClick={() => handleDurationChange(preset.weeks)}
               >
+                {isRecommended && (
+                  <Badge 
+                    variant="outline" 
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
+                  >
+                    Recomendado
+                  </Badge>
+                )}
                 <CardContent className="p-3 text-center">
-                  <div className="font-medium text-foreground flex items-center justify-center gap-2">
+                  <div className="font-medium text-foreground">
                     {preset.label}
-                    {isRecommended && (
-                      <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
-                        Recomendado
-                      </Badge>
-                    )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {preset.description}

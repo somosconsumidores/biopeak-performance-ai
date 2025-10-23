@@ -139,20 +139,17 @@ export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarPro
                       <button
                         key={workout.id}
                         onClick={() => onWorkoutClick(workout)}
-                        className={`w-full text-left px-1.5 py-1 rounded text-xs transition-all ${colorClass} text-white relative group`}
-                        title={workout.title}
+                        className={`w-full h-6 rounded transition-all ${colorClass} relative group`}
+                        title={`${WORKOUT_TYPE_LABELS[workout.workout_type] || workout.workout_type} - ${workout.title}`}
                       >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="truncate text-[10px] md:text-xs">
-                            {WORKOUT_TYPE_LABELS[workout.workout_type] || workout.workout_type}
-                          </span>
-                          {isCompleted && (
-                            <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
-                          )}
-                        </div>
+                        {isCompleted && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          </div>
+                        )}
                         
                         {isLate && !isCompleted && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full border border-white" />
                         )}
                       </button>
                     );
@@ -165,20 +162,69 @@ export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarPro
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t">
-        <div className="flex items-center gap-1 text-xs">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="text-muted-foreground">Completo</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs">
-          <div className="w-3 h-3 rounded-full bg-red-500 relative">
-            <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-600 rounded-full" />
+      <div className="space-y-3 pt-4 border-t">
+        <div className="text-xs font-medium text-foreground">Legenda de Tipos de Treino</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-blue-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Corrida Longa</span>
           </div>
-          <span className="text-muted-foreground">Atrasado</span>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-orange-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Tempo</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-red-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Intervalado</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-green-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Leve</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-emerald-400 flex-shrink-0" />
+            <span className="text-muted-foreground">Recuperação</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-purple-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Pace de Prova</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-yellow-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Fartlek</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-amber-600 flex-shrink-0" />
+            <span className="text-muted-foreground">Subida</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-cyan-500 flex-shrink-0" />
+            <span className="text-muted-foreground">Cross Training</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-gray-400 flex-shrink-0" />
+            <span className="text-muted-foreground">Descanso</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-xs">
-          <div className="w-3 h-3 rounded border-2 border-primary" />
-          <span className="text-muted-foreground">Hoje</span>
+        
+        <div className="text-xs font-medium text-foreground pt-2">Status</div>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-muted flex items-center justify-center">
+              <CheckCircle2 className="h-3 w-3 text-foreground" />
+            </div>
+            <span className="text-muted-foreground">Treino Completo</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded bg-muted relative">
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full border border-white" />
+            </div>
+            <span className="text-muted-foreground">Atrasado</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-4 h-4 rounded border-2 border-primary" />
+            <span className="text-muted-foreground">Hoje</span>
+          </div>
         </div>
       </div>
     </div>
