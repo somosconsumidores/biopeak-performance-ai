@@ -69,28 +69,55 @@ serve(async (req) => {
         });
     }
 
-    console.log('💾 Attempting to upsert subscriber with data:', {
+    console.log('💾 Attempting to update subscriber with data:', {
       user_id: app_user_id,
       subscribed,
       subscription_tier,
       subscription_end
     });
 
-    // Usar UPSERT para garantir que novos usuários sejam inseridos
-    const { data, error } = await supabase
+    // Verificar se o subscriber já existe
+    const { data: existingSubscriber } = await supabase
       .from('subscribers')
-      .upsert({
-        user_id: app_user_id,
-        subscribed,
-        subscription_tier,
-        subscription_end,
-        subscription_type: 'revenuecat',
-        updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'user_id',
-        ignoreDuplicates: false 
-      })
-      .select();
+      .select('id')
+      .eq('user_id', app_user_id)
+      .single();
+
+    let data, error;
+
+    if (existingSubscriber) {
+      // Atualizar subscriber existente
+      console.log('📝 Updating existing subscriber');
+      const result = await supabase
+        .from('subscribers')
+        .update({
+          subscribed,
+          subscription_tier,
+          subscription_end,
+          subscription_type: 'revenuecat',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', app_user_id)
+        .select();
+      data = result.data;
+      error = result.error;
+    } else {
+      // Criar novo subscriber
+      console.log('➕ Creating new subscriber');
+      const result = await supabase
+        .from('subscribers')
+        .insert({
+          user_id: app_user_id,
+          subscribed,
+          subscription_tier,
+          subscription_end,
+          subscription_type: 'revenuecat',
+          updated_at: new Date().toISOString()
+        })
+        .select();
+      data = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error('❌ Error updating subscription:', error);
