@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
 import { Timer, Sparkles, Edit3, CheckCircle2 } from 'lucide-react';
-import { TimeSpinner } from '@/components/ui/time-spinner';
+import { ScrollableTimePicker } from '@/components/ui/scrollable-time-picker';
 
 interface EstimatedTimesStepProps {
   wizardData: TrainingPlanWizardData;
@@ -22,10 +22,10 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
 
   // Configurações de limites por distância
   const distanceConfigs = {
-    k5: { label: '5K', distance: '5 km', min: 15, max: 45, step: 0.5, format: 'MM:SS' as const, default: 30 },
-    k10: { label: '10K', distance: '10 km', min: 30, max: 90, step: 1, format: 'MM:SS' as const, default: 50 },
-    k21: { label: '21K', distance: '21,1 km (Meia Maratona)', min: 75, max: 240, step: 5, format: 'H:MM' as const, default: 120 },
-    k42: { label: '42K', distance: '42,2 km (Maratona)', min: 150, max: 480, step: 5, format: 'H:MM' as const, default: 240 },
+    k5: { label: '5K', distance: '5 km', distanceKm: 5, min: 15, max: 45, step: 0.5, format: 'MM:SS' as const, default: 30 },
+    k10: { label: '10K', distance: '10 km', distanceKm: 10, min: 30, max: 90, step: 1, format: 'MM:SS' as const, default: 50 },
+    k21: { label: '21K', distance: '21,1 km (Meia Maratona)', distanceKm: 21.097, min: 75, max: 240, step: 5, format: 'H:MM' as const, default: 120 },
+    k42: { label: '42K', distance: '42,2 km (Maratona)', distanceKm: 42.195, min: 150, max: 480, step: 5, format: 'H:MM' as const, default: 240 },
   };
 
   const hasEstimatedTimes = Object.values(wizardData.estimatedTimes).some(time => time);
@@ -136,8 +136,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
               <CardContent className="space-y-6">
                 {Object.entries(distanceConfigs).map(([key, config]) => (
                   <div key={key} className="space-y-2">
-                    <h4 className="text-sm font-medium text-center">{config.distance}</h4>
-                    <TimeSpinner
+                    <ScrollableTimePicker
                       value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
                       onChange={(minutes) => setTempTimesMinutes(prev => ({
                         ...prev,
@@ -146,8 +145,9 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
                       min={config.min}
                       max={config.max}
                       step={config.step}
+                      distance={config.distanceKm}
                       format={config.format}
-                      distance={config.distance}
+                      label={config.distance}
                     />
                   </div>
                 ))}
@@ -194,8 +194,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
             <CardContent className="space-y-6">
               {Object.entries(distanceConfigs).map(([key, config]) => (
                 <div key={key} className="space-y-2">
-                  <h4 className="text-sm font-medium text-center">{config.distance}</h4>
-                  <TimeSpinner
+                  <ScrollableTimePicker
                     value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
                     onChange={(minutes) => {
                       const newTimesMinutes = {
@@ -216,8 +215,9 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
                     min={config.min}
                     max={config.max}
                     step={config.step}
+                    distance={config.distanceKm}
                     format={config.format}
-                    distance={config.distance}
+                    label={config.distance}
                   />
                 </div>
               ))}

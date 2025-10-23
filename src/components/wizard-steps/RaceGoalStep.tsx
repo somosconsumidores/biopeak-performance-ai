@@ -5,7 +5,7 @@ import { Target, Timer, Trophy, Info, AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useAthleteAnalysis } from '@/hooks/useAthleteAnalysis';
 import { validateRaceTime, TimeValidation } from '@/utils/raceTimeValidation';
-import { TimeSpinner } from '@/components/ui/time-spinner';
+import { ScrollableTimePicker } from '@/components/ui/scrollable-time-picker';
 
 interface RaceGoalStepProps {
   wizardData: TrainingPlanWizardData;
@@ -15,12 +15,26 @@ interface RaceGoalStepProps {
 export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   const { raceEstimates, loading: analysisLoading } = useAthleteAnalysis();
   
+  // Helper para obter distância em km
+  const getDistanceInKm = (goal: string): number => {
+    switch (goal) {
+      case '5k': return 5;
+      case '10k': return 10;
+      case 'half_marathon':
+      case '21k': return 21.097;
+      case 'marathon':
+      case '42k': return 42.195;
+      default: return 10;
+    }
+  };
+  
   // Configurações de limites por distância (estilo Zepp Coach)
   const getTimeConfig = () => {
     switch (wizardData.goal) {
       case '5k':
         return { 
           distance: '5 km',
+          distanceKm: 5,
           min: 15,      // 15:00 min
           max: 45,      // 45:00 min
           step: 0.5,    // 30 segundos
@@ -30,6 +44,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
       case '10k':
         return { 
           distance: '10 km',
+          distanceKm: 10,
           min: 30,      // 30:00 min
           max: 90,      // 1:30 h
           step: 1,      // 1 minuto
@@ -40,6 +55,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
       case '21k':
         return { 
           distance: '21 km',
+          distanceKm: 21.097,
           min: 75,      // 1:15 h
           max: 240,     // 4:00 h
           step: 5,      // 5 minutos
@@ -50,6 +66,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
       case '42k':
         return { 
           distance: '42 km',
+          distanceKm: 42.195,
           min: 150,     // 2:30 h
           max: 480,     // 8:00 h
           step: 5,      // 5 minutos
@@ -59,6 +76,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
       default:
         return { 
           distance: 'prova',
+          distanceKm: 10,
           min: 30,
           max: 120,
           step: 5,
@@ -176,14 +194,15 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <TimeSpinner
+          <ScrollableTimePicker
             value={wizardData.goalTargetTimeMinutes || timeConfig.default}
             onChange={(minutes) => onUpdate({ goalTargetTimeMinutes: minutes })}
             min={timeConfig.min}
             max={timeConfig.max}
             step={timeConfig.step}
+            distance={timeConfig.distanceKm}
             format={timeConfig.format}
-            distance={timeConfig.distance}
+            label={timeConfig.distance}
           />
 
           {/* Loading feedback */}
