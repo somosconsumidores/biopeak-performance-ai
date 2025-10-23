@@ -502,36 +502,13 @@ export function useTrainingPlanWizard() {
       const daysArray = wizardData.availableDays.map(d => dayIdx[d] ?? 0);
       const longRunIdx = dayIdx[wizardData.longRunDay] ?? 6;
 
-      // VALIDATION: Log if target time seems impossible, but don't block plan creation
+      // TimeSpinner já garante valores dentro de limites realistas
+      // Validação simplificada apenas para logging
       if (calculatedTargetTime && isRaceGoal()) {
-        const distanceMap: Record<string, number> = {
-          '5k': 5000,
-          '10k': 10000,
-          'half_marathon': 21097,
-          '21k': 21097,
-          'marathon': 42195,
-          '42k': 42195,
-        };
-        
-        const distanceMeters = distanceMap[wizardData.goal] || 10000;
-        const validation = validateRaceTime(calculatedTargetTime, distanceMeters, undefined);
-        
-        console.log('🔍 WIZARD VALIDATION (informational only):', {
+        console.log('✅ Target time set via TimeSpinner (pre-validated):', {
           goal: wizardData.goal,
-          calculatedTargetTime,
-          distanceMeters,
-          validation
+          targetMinutes: calculatedTargetTime
         });
-        
-        // Show warning toast if time is questionable, but allow plan creation
-        if (!validation.canProceed) {
-          console.warn('⚠️ WIZARD: Questionable target time detected:', validation);
-          toast({
-            title: "Aviso sobre meta",
-            description: `Meta calculada pode ser ambiciosa: ${validation.message}`,
-            variant: "default",
-          });
-        }
       }
       
       const { error: preferencesError } = await supabase
