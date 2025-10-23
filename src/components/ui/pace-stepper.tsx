@@ -70,63 +70,61 @@ export function PaceStepper({
       <motion.div
         key={value}
         initial={{ scale: 1 }}
-        animate={{ scale: [1, 1.15, 1] }}
+        animate={{ scale: [1, 1.1, 1] }}
         transition={{ 
-          duration: 0.3,
-          ease: [0.34, 1.56, 0.64, 1] // Spring easing
+          duration: 0.2,
+          ease: [0.34, 1.56, 0.64, 1]
         }}
         className="text-center"
       >
         {/* Pace - Primary display */}
-        <div className="text-5xl sm:text-6xl font-bold text-primary leading-none mb-2">
-          {calculatePace(value)}
-          <span className="text-2xl sm:text-3xl font-semibold text-primary/70 ml-2">
-            /km
-          </span>
+        <div className="flex items-end justify-center gap-1 text-2xl sm:text-3xl font-semibold text-primary leading-none">
+          <span>{calculatePace(value)}</span>
+          <span className="text-base text-primary/80 font-medium">/km</span>
         </div>
         
         {/* Total time - Secondary info */}
-        <div className="text-lg sm:text-xl font-medium text-muted-foreground/70 mt-3">
+        <div className="text-sm text-muted-foreground mt-1">
           {formatTime(value)} total
         </div>
       </motion.div>
 
       {/* Control buttons */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 mt-3 sm:mt-4">
         <button
           onClick={() => handleChange(-step)}
           disabled={!canDecrease}
           aria-label="Diminuir pace"
           className={cn(
-            "group relative w-14 h-14 sm:w-16 sm:h-16 rounded-full",
+            "group relative w-10 h-10 sm:w-12 sm:h-12 rounded-full",
             "bg-primary/10 hover:bg-primary/20 active:scale-95",
-            "transition-all duration-200 shadow-lg",
+            "transition-all duration-200",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10",
             "flex items-center justify-center"
           )}
         >
           <Minus 
-            className="w-6 h-6 sm:w-7 sm:h-7 text-primary transition-transform group-hover:scale-110" 
+            className="w-5 h-5 text-primary transition-transform group-hover:scale-110" 
             strokeWidth={2.5}
           />
         </button>
 
-        <div className="w-16 h-1 rounded-full bg-gradient-to-r from-primary/20 via-primary/50 to-primary/20" />
+        <div className="w-12 h-0.5 rounded-full bg-gradient-to-r from-primary/20 via-primary/50 to-primary/20" />
 
         <button
           onClick={() => handleChange(step)}
           disabled={!canIncrease}
           aria-label="Aumentar pace"
           className={cn(
-            "group relative w-14 h-14 sm:w-16 sm:h-16 rounded-full",
+            "group relative w-10 h-10 sm:w-12 sm:h-12 rounded-full",
             "bg-primary/10 hover:bg-primary/20 active:scale-95",
-            "transition-all duration-200 shadow-lg",
+            "transition-all duration-200",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10",
             "flex items-center justify-center"
           )}
         >
           <Plus 
-            className="w-6 h-6 sm:w-7 sm:h-7 text-primary transition-transform group-hover:scale-110" 
+            className="w-5 h-5 text-primary transition-transform group-hover:scale-110" 
             strokeWidth={2.5}
           />
         </button>
