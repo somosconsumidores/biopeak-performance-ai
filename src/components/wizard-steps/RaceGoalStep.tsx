@@ -3,16 +3,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
-import { Target, Timer, Trophy, Info } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Target, Timer, Trophy, Info, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAthleteAnalysis } from '@/hooks/useAthleteAnalysis';
 
 interface RaceGoalStepProps {
   wizardData: TrainingPlanWizardData;
   onUpdate: (data: Partial<TrainingPlanWizardData>) => void;
 }
 
+type ValidationLevel = 'realistic' | 'ambitious' | 'very_ambitious' | 'impossible';
+
+interface TimeValidation {
+  level: ValidationLevel;
+  message: string;
+  improvement: number;
+}
+
 export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   const [timeInput, setTimeInput] = useState('');
+  const { raceEstimates } = useAthleteAnalysis();
   
   useEffect(() => {
     if (wizardData.goalTargetTimeMinutes) {
@@ -68,6 +78,90 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
 
   const distanceInfo = getDistanceInfo();
 
+  // Validação inteligente do tempo alvo
+  const timeValidation = useMemo((): TimeValidation | null => {
+    if (!wizardData.goalTargetTimeMinutes) return null;
+
+    // Pegar a estimativa histórica baseada na distância
+    let historicalTimeMinutes: number | undefined;
+    switch (wizardData.goal) {
+      case '5k':
+        historicalTimeMinutes = raceEstimates.k5 ? raceEstimates.k5.seconds / 60 : undefined;
+        break;
+      case '10k':
+        historicalTimeMinutes = raceEstimates.k10 ? raceEstimates.k10.seconds / 60 : undefined;
+        break;
+      case 'half_marathon':
+      case '21k':
+        historicalTimeMinutes = raceEstimates.k21 ? raceEstimates.k21.seconds / 60 : undefined;
+        break;
+      case 'marathon':
+      case '42k':
+        historicalTimeMinutes = raceEstimates.k42 ? raceEstimates.k42.seconds / 60 : undefined;
+        break;
+    }
+
+    if (!historicalTimeMinutes) return null;
+
+    const targetMinutes = wizardData.goalTargetTimeMinutes;
+    const improvementPercent = ((historicalTimeMinutes - targetMinutes) / historicalTimeMinutes) * 100;
+
+    // Recordes mundiais ajustados (com margem de segurança) para validação de sanidade
+    const worldRecordLimits: Record<string, number> = {
+      '5k': 13, // ~12:35 WR + margem
+      '10k': 27, // ~26:11 WR + margem
+      '21k': 58, // ~57:30 WR + margem
+      '42k': 122, // ~2:00:35 WR + margem
+    };
+
+    const goalKey = wizardData.goal === 'half_marathon' ? '21k' : 
+                    wizardData.goal === 'marathon' ? '42k' : wizardData.goal;
+    const worldRecordLimit = worldRecordLimits[goalKey || '10k'];
+
+    // Se está abaixo do recorde mundial (com margem), é impossível
+    if (targetMinutes < worldRecordLimit) {
+      return {
+        level: 'impossible',
+        message: `Este tempo está próximo ao recorde mundial! Para um atleta amador, é fisicamente impossível atingir este objetivo. Reconsidere sua meta.`,
+        improvement: improvementPercent,
+      };
+    }
+
+    // Validação baseada em melhoria percentual
+    if (improvementPercent > 35) {
+      return {
+        level: 'impossible',
+        message: `Meta extremamente agressiva! Você está tentando melhorar ${improvementPercent.toFixed(0)}% em relação ao seu histórico (${Math.floor(historicalTimeMinutes / 60)}:${(Math.floor(historicalTimeMinutes) % 60).toString().padStart(2, '0')}). Melhorias acima de 30-35% são praticamente impossíveis em um ciclo de treino.`,
+        improvement: improvementPercent,
+      };
+    } else if (improvementPercent > 20) {
+      return {
+        level: 'very_ambitious',
+        message: `Meta muito ambiciosa! Você está buscando ${improvementPercent.toFixed(0)}% de melhoria. Isso requer treino perfeito, condições ideais e pode ser arriscado. Considere uma meta mais conservadora.`,
+        improvement: improvementPercent,
+      };
+    } else if (improvementPercent > 12) {
+      return {
+        level: 'ambitious',
+        message: `Meta ambiciosa mas alcançável! ${improvementPercent.toFixed(0)}% de melhoria requer dedicação total e consistência. Certifique-se de seguir o plano rigorosamente.`,
+        improvement: improvementPercent,
+      };
+    } else if (improvementPercent >= 0) {
+      return {
+        level: 'realistic',
+        message: `Meta realista! Melhoria de ${improvementPercent.toFixed(1)}% é perfeitamente alcançável com treino consistente.`,
+        improvement: improvementPercent,
+      };
+    } else {
+      // Meta mais lenta que o histórico
+      return {
+        level: 'realistic',
+        message: `Meta conservadora. Seu histórico indica que você pode ser mais ambicioso se desejar.`,
+        improvement: improvementPercent,
+      };
+    }
+  }, [wizardData.goalTargetTimeMinutes, wizardData.goal, raceEstimates]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -116,6 +210,66 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
                 <Badge variant="secondary">
                   {Math.floor(wizardData.goalTargetTimeMinutes / 60)}:{(wizardData.goalTargetTimeMinutes % 60).toString().padStart(2, '0')}
                 </Badge>
+              </div>
+            </div>
+          )}
+
+          {/* Validação inteligente do tempo */}
+          {timeValidation && (
+            <div
+              className={`p-4 rounded-lg border-2 ${
+                timeValidation.level === 'impossible'
+                  ? 'bg-destructive/10 border-destructive'
+                  : timeValidation.level === 'very_ambitious'
+                  ? 'bg-orange-500/10 border-orange-500 dark:bg-orange-500/20'
+                  : timeValidation.level === 'ambitious'
+                  ? 'bg-yellow-500/10 border-yellow-500 dark:bg-yellow-500/20'
+                  : 'bg-green-500/10 border-green-500 dark:bg-green-500/20'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle
+                  className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                    timeValidation.level === 'impossible'
+                      ? 'text-destructive'
+                      : timeValidation.level === 'very_ambitious'
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : timeValidation.level === 'ambitious'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-green-600 dark:text-green-400'
+                  }`}
+                />
+                <div className="space-y-1 flex-1">
+                  <p
+                    className={`text-sm font-semibold ${
+                      timeValidation.level === 'impossible'
+                        ? 'text-destructive'
+                        : timeValidation.level === 'very_ambitious'
+                        ? 'text-orange-900 dark:text-orange-100'
+                        : timeValidation.level === 'ambitious'
+                        ? 'text-yellow-900 dark:text-yellow-100'
+                        : 'text-green-900 dark:text-green-100'
+                    }`}
+                  >
+                    {timeValidation.level === 'impossible' && '⛔ Meta Impossível'}
+                    {timeValidation.level === 'very_ambitious' && '⚠️ Meta Muito Arriscada'}
+                    {timeValidation.level === 'ambitious' && '💪 Meta Desafiadora'}
+                    {timeValidation.level === 'realistic' && '✅ Meta Realista'}
+                  </p>
+                  <p
+                    className={`text-xs ${
+                      timeValidation.level === 'impossible'
+                        ? 'text-destructive/90'
+                        : timeValidation.level === 'very_ambitious'
+                        ? 'text-orange-800 dark:text-orange-200'
+                        : timeValidation.level === 'ambitious'
+                        ? 'text-yellow-800 dark:text-yellow-200'
+                        : 'text-green-800 dark:text-green-200'
+                    }`}
+                  >
+                    {timeValidation.message}
+                  </p>
+                </div>
               </div>
             </div>
           )}
