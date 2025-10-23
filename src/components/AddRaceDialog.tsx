@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTargetRaces, TargetRace } from "@/hooks/useTargetRaces";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { useAthleteAnalysis } from "@/hooks/useAthleteAnalysis";
+import { validateRaceTime, normalizeDistanceForValidation } from "@/utils/raceTimeValidation";
+import { Calendar, Clock, MapPin, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AddRaceDialogProps {
   open: boolean;
@@ -17,6 +20,7 @@ interface AddRaceDialogProps {
 
 export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDialogProps) {
   const { addRace, updateRace } = useTargetRaces();
+  const { raceEstimates } = useAthleteAnalysis();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -38,8 +42,45 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
     { label: 'Personalizada', value: 0 },
   ];
 
+  // Validate target time against historical data
+  const timeValidation = useMemo(() => {
+    if (!formData.target_time_minutes || formData.target_time_minutes === '') {
+      return null;
+    }
+
+    const targetMinutes = Number(formData.target_time_minutes);
+    const distanceMeters = formData.distance_meters;
+
+    // Get historical time for this distance
+    const normalizedDistance = normalizeDistanceForValidation(distanceMeters);
+    let historicalMinutes: number | undefined;
+
+    switch (normalizedDistance) {
+      case 5000:
+        historicalMinutes = raceEstimates.k5?.seconds ? raceEstimates.k5.seconds / 60 : undefined;
+        break;
+      case 10000:
+        historicalMinutes = raceEstimates.k10?.seconds ? raceEstimates.k10.seconds / 60 : undefined;
+        break;
+      case 21097:
+        historicalMinutes = raceEstimates.k21?.seconds ? raceEstimates.k21.seconds / 60 : undefined;
+        break;
+      case 42195:
+        historicalMinutes = raceEstimates.k42?.seconds ? raceEstimates.k42.seconds / 60 : undefined;
+        break;
+    }
+
+    return validateRaceTime(targetMinutes, distanceMeters, historicalMinutes);
+  }, [formData.target_time_minutes, formData.distance_meters, raceEstimates]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Block submission if time is impossible or very ambitious
+    if (timeValidation && !timeValidation.canProceed) {
+      return; // Don't submit - button will be disabled
+    }
+
     setLoading(true);
 
     try {
@@ -167,6 +208,32 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
             <p className="text-sm text-muted-foreground">
               Informe o tempo em minutos totais (ex: 180 para 3 horas, 30 para 30 minutos)
             </p>
+            
+            {/* Validation feedback */}
+            {timeValidation && (
+              <Alert 
+                className={`${
+                  timeValidation.level === 'impossible' || timeValidation.level === 'very_ambitious'
+                    ? 'border-destructive bg-destructive/10'
+                    : timeValidation.level === 'ambitious'
+                    ? 'border-yellow-500 bg-yellow-500/10'
+                    : 'border-green-500 bg-green-500/10'
+                }`}
+              >
+                <AlertTriangle 
+                  className={`h-4 w-4 ${
+                    timeValidation.level === 'impossible' || timeValidation.level === 'very_ambitious'
+                      ? 'text-destructive'
+                      : timeValidation.level === 'ambitious'
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                  }`}
+                />
+                <AlertDescription className="text-sm">
+                  {timeValidation.message}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -212,7 +279,10 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading || (timeValidation !== null && !timeValidation.canProceed)}
+            >
               {loading ? 'Salvando...' : race ? 'Atualizar' : 'Adicionar'}
             </Button>
           </div>

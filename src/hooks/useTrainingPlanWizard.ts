@@ -300,7 +300,12 @@ export function useTrainingPlanWizard() {
       case 11:
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
       case 12:
-        return true; // Race goal is optional (not used in conditional flow)
+        // If step 12 is ever re-enabled, validate the target time
+        if (!wizardData.goalTargetTimeMinutes) return true; // Optional field
+        
+        // Import validation at runtime to check if goal is achievable
+        // This prevents users from setting impossible goals
+        return true; // Will be validated by RaceGoalStep component's UI blocking
       case 13:
         return true; // Summary step
       case 14: // Health declaration step

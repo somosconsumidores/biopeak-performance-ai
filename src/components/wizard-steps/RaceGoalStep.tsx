@@ -6,18 +6,11 @@ import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
 import { Target, Timer, Trophy, Info, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useAthleteAnalysis } from '@/hooks/useAthleteAnalysis';
+import { validateRaceTime, TimeValidation } from '@/utils/raceTimeValidation';
 
 interface RaceGoalStepProps {
   wizardData: TrainingPlanWizardData;
   onUpdate: (data: Partial<TrainingPlanWizardData>) => void;
-}
-
-type ValidationLevel = 'realistic' | 'ambitious' | 'very_ambitious' | 'impossible';
-
-interface TimeValidation {
-  level: ValidationLevel;
-  message: string;
-  improvement: number;
 }
 
 export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
@@ -80,9 +73,21 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
 
   const distanceInfo = getDistanceInfo();
 
-  // Validação inteligente do tempo alvo
+  // Validação inteligente do tempo alvo usando utilitário compartilhado
   const timeValidation = useMemo((): TimeValidation | null => {
     if (!wizardData.goalTargetTimeMinutes) return null;
+
+    // Mapear goal para distância em metros
+    const distanceMap: Record<string, number> = {
+      '5k': 5000,
+      '10k': 10000,
+      'half_marathon': 21097,
+      '21k': 21097,
+      'marathon': 42195,
+      '42k': 42195,
+    };
+
+    const distanceMeters = distanceMap[wizardData.goal] || 10000;
 
     // Pegar a estimativa histórica baseada na distância
     let historicalTimeMinutes: number | undefined;
@@ -103,88 +108,11 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
         break;
     }
 
-    const targetMinutes = wizardData.goalTargetTimeMinutes;
-
-    // Validação básica contra recordes mundiais mesmo sem histórico
-    if (!historicalTimeMinutes) {
-      const worldRecordLimits: Record<string, number> = {
-        '5k': 13,
-        '10k': 27,
-        '21k': 58,
-        '42k': 122,
-      };
-      
-      const goalKey = wizardData.goal === 'half_marathon' ? '21k' : 
-                      wizardData.goal === 'marathon' ? '42k' : wizardData.goal;
-      const worldRecordLimit = worldRecordLimits[goalKey || '10k'];
-      
-      if (targetMinutes < worldRecordLimit) {
-        return {
-          level: 'impossible',
-          message: `Este tempo está próximo ao recorde mundial! Para um atleta amador, é fisicamente impossível. Reconsidere sua meta.`,
-          improvement: 0,
-        };
-      }
-      
-      // Sem histórico, não podemos validar mais
-      return null;
-    }
-    const improvementPercent = ((historicalTimeMinutes - targetMinutes) / historicalTimeMinutes) * 100;
-
-    // Recordes mundiais ajustados (com margem de segurança) para validação de sanidade
-    const worldRecordLimits: Record<string, number> = {
-      '5k': 13, // ~12:35 WR + margem
-      '10k': 27, // ~26:11 WR + margem
-      '21k': 58, // ~57:30 WR + margem
-      '42k': 122, // ~2:00:35 WR + margem
-    };
-
-    const goalKey = wizardData.goal === 'half_marathon' ? '21k' : 
-                    wizardData.goal === 'marathon' ? '42k' : wizardData.goal;
-    const worldRecordLimit = worldRecordLimits[goalKey || '10k'];
-
-    // Se está abaixo do recorde mundial (com margem), é impossível
-    if (targetMinutes < worldRecordLimit) {
-      return {
-        level: 'impossible',
-        message: `Este tempo está próximo ao recorde mundial! Para um atleta amador, é fisicamente impossível atingir este objetivo. Reconsidere sua meta.`,
-        improvement: improvementPercent,
-      };
-    }
-
-    // Validação baseada em melhoria percentual
-    if (improvementPercent > 35) {
-      return {
-        level: 'impossible',
-        message: `Meta extremamente agressiva! Você está tentando melhorar ${improvementPercent.toFixed(0)}% em relação ao seu histórico (${Math.floor(historicalTimeMinutes / 60)}:${(Math.floor(historicalTimeMinutes) % 60).toString().padStart(2, '0')}). Melhorias acima de 30-35% são praticamente impossíveis em um ciclo de treino.`,
-        improvement: improvementPercent,
-      };
-    } else if (improvementPercent > 20) {
-      return {
-        level: 'very_ambitious',
-        message: `Meta muito ambiciosa! Você está buscando ${improvementPercent.toFixed(0)}% de melhoria. Isso requer treino perfeito, condições ideais e pode ser arriscado. Considere uma meta mais conservadora.`,
-        improvement: improvementPercent,
-      };
-    } else if (improvementPercent > 12) {
-      return {
-        level: 'ambitious',
-        message: `Meta ambiciosa mas alcançável! ${improvementPercent.toFixed(0)}% de melhoria requer dedicação total e consistência. Certifique-se de seguir o plano rigorosamente.`,
-        improvement: improvementPercent,
-      };
-    } else if (improvementPercent >= 0) {
-      return {
-        level: 'realistic',
-        message: `Meta realista! Melhoria de ${improvementPercent.toFixed(1)}% é perfeitamente alcançável com treino consistente.`,
-        improvement: improvementPercent,
-      };
-    } else {
-      // Meta mais lenta que o histórico
-      return {
-        level: 'realistic',
-        message: `Meta conservadora. Seu histórico indica que você pode ser mais ambicioso se desejar.`,
-        improvement: improvementPercent,
-      };
-    }
+    return validateRaceTime(
+      wizardData.goalTargetTimeMinutes,
+      distanceMeters,
+      historicalTimeMinutes
+    );
   }, [wizardData.goalTargetTimeMinutes, wizardData.goal, raceEstimates]);
 
   // Debug logging
@@ -296,8 +224,8 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
                         : 'text-green-900 dark:text-green-100'
                     }`}
                   >
-                    {timeValidation.level === 'impossible' && '⛔ Meta Impossível'}
-                    {timeValidation.level === 'very_ambitious' && '⚠️ Meta Muito Arriscada'}
+                     {timeValidation.level === 'impossible' && '⛔ Meta Impossível - BLOQUEADA'}
+                    {timeValidation.level === 'very_ambitious' && '⚠️ Meta Muito Arriscada - BLOQUEADA'}
                     {timeValidation.level === 'ambitious' && '💪 Meta Desafiadora'}
                     {timeValidation.level === 'realistic' && '✅ Meta Realista'}
                   </p>
