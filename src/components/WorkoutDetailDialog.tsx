@@ -187,16 +187,17 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
                 variant={workout.status === 'completed' ? 'outline' : 'default'}
                 onClick={handleStatusToggle}
                 disabled={isUpdating}
+                className="whitespace-nowrap flex items-center gap-1.5"
               >
                 {workout.status === 'completed' ? (
                   <>
-                    <PlayCircle className="h-4 w-4 mr-1" />
-                    Marcar como Planejado
+                    <PlayCircle className="h-4 w-4 flex-shrink-0" />
+                    <span className="inline-block">Marcar como Planejado</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Marcar como Completo
+                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                    <span className="inline-block">Marcar como Completo</span>
                   </>
                 )}
               </Button>
