@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface ScrollableTimePickerProps {
@@ -26,8 +25,10 @@ export function ScrollableTimePicker({
   className,
 }: ScrollableTimePickerProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [isScrolling, setIsScrolling] = React.useState(false);
-  const scrollTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
+  const [localValue, setLocalValue] = React.useState(value);
+  const isUserScrollingRef = React.useRef(false);
+  const debounceTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
+  const snapTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Generate array of time options
   const timeOptions = React.useMemo(() => {
@@ -65,22 +66,22 @@ export function ScrollableTimePicker({
   const calculateOpacity = (index: number, selectedIndex: number): number => {
     const distance = Math.abs(index - selectedIndex);
     if (distance === 0) return 1;
-    if (distance === 1) return 0.6;
-    if (distance === 2) return 0.4;
-    return 0.2;
+    if (distance === 1) return 0.7;
+    if (distance === 2) return 0.5;
+    return 0.3;
   };
 
   // Calculate scale based on distance from selected item
   const calculateScale = (index: number, selectedIndex: number): number => {
     const distance = Math.abs(index - selectedIndex);
-    if (distance === 0) return 1.1;
-    if (distance === 1) return 0.95;
-    return 0.9;
+    if (distance === 0) return 1;
+    if (distance === 1) return 0.9;
+    return 0.85;
   };
 
-  // Scroll to selected value on mount and when value changes externally
+  // Initial scroll to value on mount
   React.useEffect(() => {
-    if (scrollRef.current && !isScrolling) {
+    if (scrollRef.current && !isUserScrollingRef.current) {
       const index = timeOptions.findIndex(opt => opt === value);
       if (index !== -1) {
         const itemHeight = 60;
@@ -89,41 +90,74 @@ export function ScrollableTimePicker({
         
         scrollRef.current.scrollTo({
           top: Math.max(0, scrollTop),
-          behavior: 'smooth'
+          behavior: 'auto'
         });
       }
     }
-  }, [value, timeOptions, isScrolling]);
+  }, [timeOptions]);
 
-  // Handle scroll events
-  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
+  // Snap to nearest item after scroll ends
+  const snapToNearestItem = React.useCallback(() => {
+    if (!scrollRef.current) return;
+    
+    const container = scrollRef.current;
     const scrollTop = container.scrollTop;
     const itemHeight = 60;
     const containerHeight = 300;
     
-    // Calculate which item is in the center
+    // Calculate which item is closest to center
     const centerOffset = scrollTop + (containerHeight / 2);
     const centerIndex = Math.round(centerOffset / itemHeight);
-    const selectedValue = timeOptions[centerIndex];
+    const clampedIndex = Math.max(0, Math.min(centerIndex, timeOptions.length - 1));
+    const selectedValue = timeOptions[clampedIndex];
     
-    if (selectedValue !== undefined && selectedValue !== value) {
-      setIsScrolling(true);
-      onChange(selectedValue);
+    // Snap scroll to exact center position
+    const targetScrollTop = (clampedIndex * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
+    container.scrollTo({
+      top: Math.max(0, targetScrollTop),
+      behavior: 'smooth'
+    });
+    
+    // Update value with debounce
+    if (selectedValue !== undefined && selectedValue !== localValue) {
+      setLocalValue(selectedValue);
       
       // Clear existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
       
-      // Set new timeout to stop scrolling state
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
+      // Debounced onChange call
+      debounceTimeoutRef.current = setTimeout(() => {
+        onChange(selectedValue);
+        isUserScrollingRef.current = false;
+      }, 200);
     }
-  }, [timeOptions, value, onChange]);
+  }, [timeOptions, localValue, onChange]);
 
-  const selectedIndex = timeOptions.findIndex(opt => opt === value);
+  // Handle scroll events
+  const handleScroll = React.useCallback(() => {
+    isUserScrollingRef.current = true;
+    
+    // Clear existing snap timeout
+    if (snapTimeoutRef.current) {
+      clearTimeout(snapTimeoutRef.current);
+    }
+    
+    // Snap after scroll settles
+    snapTimeoutRef.current = setTimeout(() => {
+      snapToNearestItem();
+    }, 150);
+  }, [snapToNearestItem]);
+
+  // Handle touch end for mobile precision
+  const handleTouchEnd = React.useCallback(() => {
+    setTimeout(() => {
+      snapToNearestItem();
+    }, 50);
+  }, [snapToNearestItem]);
+
+  const selectedIndex = timeOptions.findIndex(opt => opt === localValue);
 
   return (
     <div className={cn('relative', className)}>
@@ -135,19 +169,23 @@ export function ScrollableTimePicker({
       )}
 
       {/* Scrollable picker container */}
-      <div className="relative h-[300px] overflow-hidden rounded-lg border border-border bg-background/50">
+      <div className="relative h-[300px] overflow-hidden rounded-xl border border-border/50 bg-background/30 backdrop-blur-md">
         {/* Top fade gradient */}
-        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-10" />
+        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/90 to-transparent pointer-events-none z-10" />
         
         {/* Selection indicator */}
-        <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-[60px] border-y-2 border-primary/30 bg-primary/5 pointer-events-none z-10" />
+        <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 h-[60px] border-y border-primary/50 bg-primary/10 rounded-lg pointer-events-none z-10" />
 
         {/* Scrollable content */}
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="h-[300px] overflow-y-auto py-[120px] scroll-smooth"
-          style={{ scrollSnapType: 'y mandatory' }}
+          onTouchEnd={handleTouchEnd}
+          className="h-[300px] overflow-y-auto py-[120px] scrollbar-hide"
+          style={{ 
+            scrollSnapType: 'y mandatory',
+            WebkitOverflowScrolling: 'touch'
+          }}
         >
           {timeOptions.map((time, index) => {
             const isSelected = index === selectedIndex;
@@ -158,9 +196,8 @@ export function ScrollableTimePicker({
               <div
                 key={time}
                 className={cn(
-                  'h-[60px] flex items-center justify-center transition-all duration-200',
-                  'cursor-pointer select-none',
-                  isSelected && 'font-bold'
+                  'h-[60px] flex items-center justify-center transition-all duration-300',
+                  'cursor-pointer select-none'
                 )}
                 style={{
                   opacity,
@@ -168,22 +205,27 @@ export function ScrollableTimePicker({
                   scrollSnapAlign: 'center'
                 }}
                 onClick={() => {
+                  setLocalValue(time);
                   onChange(time);
+                  isUserScrollingRef.current = false;
                 }}
               >
                 <div className="text-center">
                   <div
                     className={cn(
-                      'font-mono transition-all duration-200',
+                      'font-semibold transition-all duration-300',
                       isSelected
-                        ? 'text-2xl font-bold text-primary'
-                        : 'text-lg text-muted-foreground'
+                        ? 'text-3xl text-primary'
+                        : 'text-lg text-muted-foreground/70'
                     )}
+                    style={isSelected ? {
+                      textShadow: '0 0 20px hsl(var(--primary) / 0.3)'
+                    } : undefined}
                   >
                     {formatTime(time)}{' '}
                     <span className={cn(
-                      'text-sm',
-                      isSelected ? 'text-primary/80' : 'text-muted-foreground/60'
+                      'text-sm font-medium',
+                      isSelected ? 'text-primary/80' : 'text-muted-foreground/50'
                     )}>
                       ({calculatePace(time)}/km)
                     </span>
@@ -195,13 +237,13 @@ export function ScrollableTimePicker({
         </div>
 
         {/* Bottom fade gradient */}
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-10" />
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none z-10" />
       </div>
 
       {/* Range info */}
-      <div className="text-center mt-2">
-        <p className="text-xs text-muted-foreground">
-          Faixa válida: <span className="font-mono font-medium">{formatTime(min)} - {formatTime(max)}</span>
+      <div className="text-center mt-3">
+        <p className="text-xs text-muted-foreground/60 font-medium">
+          Faixa válida: <span className="font-mono">{formatTime(min)} - {formatTime(max)}</span>
         </p>
       </div>
     </div>
