@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
 import { Timer, Sparkles, Edit3, CheckCircle2 } from 'lucide-react';
+import { TimeSpinner } from '@/components/ui/time-spinner';
 
 interface EstimatedTimesStepProps {
   wizardData: TrainingPlanWizardData;
@@ -14,30 +13,65 @@ interface EstimatedTimesStepProps {
 
 export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTimesStepProps) {
   const [editingTimes, setEditingTimes] = useState(false);
-  const [tempTimes, setTempTimes] = useState(wizardData.estimatedTimes);
+  const [tempTimesMinutes, setTempTimesMinutes] = useState({
+    k5: parseTimeToMinutes(wizardData.estimatedTimes.k5) || 30,
+    k10: parseTimeToMinutes(wizardData.estimatedTimes.k10) || 50,
+    k21: parseTimeToMinutes(wizardData.estimatedTimes.k21) || 120,
+    k42: parseTimeToMinutes(wizardData.estimatedTimes.k42) || 240,
+  });
 
-  const distances = [
-    { key: 'k5', label: '5K', distance: '5 km' },
-    { key: 'k10', label: '10K', distance: '10 km' },
-    { key: 'k21', label: '21K', distance: '21,1 km (Meia Maratona)' },
-    { key: 'k42', label: '42K', distance: '42,2 km (Maratona)' },
-  ];
+  // Configurações de limites por distância
+  const distanceConfigs = {
+    k5: { label: '5K', distance: '5 km', min: 15, max: 45, step: 0.5, format: 'MM:SS' as const, default: 30 },
+    k10: { label: '10K', distance: '10 km', min: 30, max: 90, step: 1, format: 'MM:SS' as const, default: 50 },
+    k21: { label: '21K', distance: '21,1 km (Meia Maratona)', min: 75, max: 240, step: 5, format: 'H:MM' as const, default: 120 },
+    k42: { label: '42K', distance: '42,2 km (Maratona)', min: 150, max: 480, step: 5, format: 'H:MM' as const, default: 240 },
+  };
 
   const hasEstimatedTimes = Object.values(wizardData.estimatedTimes).some(time => time);
 
+  // Helper para converter tempo string para minutos
+  function parseTimeToMinutes(timeStr: string | undefined): number | undefined {
+    if (!timeStr) return undefined;
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+      // MM:SS format
+      const [min, sec] = parts.map(Number);
+      return min + (sec / 60);
+    } else if (parts.length === 3) {
+      // H:MM:SS format
+      const [hr, min, sec] = parts.map(Number);
+      return (hr * 60) + min + (sec / 60);
+    }
+    return undefined;
+  }
+
+  // Helper para converter minutos para tempo string
+  function formatMinutesToTime(minutes: number, format: 'MM:SS' | 'H:MM'): string {
+    if (format === 'MM:SS') {
+      const mins = Math.floor(minutes);
+      const secs = Math.round((minutes - mins) * 60);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      const hrs = Math.floor(minutes / 60);
+      const mins = Math.round(minutes % 60);
+      return `${hrs}:${mins.toString().padStart(2, '0')}:00`;
+    }
+  }
+
   const handleSaveTimes = () => {
+    const formattedTimes = {
+      k5: formatMinutesToTime(tempTimesMinutes.k5, 'MM:SS'),
+      k10: formatMinutesToTime(tempTimesMinutes.k10, 'MM:SS'),
+      k21: formatMinutesToTime(tempTimesMinutes.k21, 'H:MM'),
+      k42: formatMinutesToTime(tempTimesMinutes.k42, 'H:MM'),
+    };
+    
     updateWizardData({ 
-      estimatedTimes: tempTimes,
+      estimatedTimes: formattedTimes,
       adjustedTimes: true 
     });
     setEditingTimes(false);
-  };
-
-  const formatTimeInput = (value: string) => {
-    // Remove non-numeric characters except colons
-    const cleaned = value.replace(/[^\d:]/g, '');
-    // Ensure proper format MM:SS or HH:MM:SS
-    return cleaned;
   };
 
   return (
@@ -69,12 +103,12 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {distances.map((distance) => {
-                const time = wizardData.estimatedTimes[distance.key as keyof typeof wizardData.estimatedTimes];
+              {Object.entries(distanceConfigs).map(([key, config]) => {
+                const time = wizardData.estimatedTimes[key as keyof typeof wizardData.estimatedTimes];
                 return (
-                  <div key={distance.key} className="text-center p-3 rounded-lg bg-background/50">
+                  <div key={key} className="text-center p-3 rounded-lg bg-background/50">
                     <div className="font-bold text-lg text-primary">{time || 'N/A'}</div>
-                    <div className="text-xs text-muted-foreground">{distance.label}</div>
+                    <div className="text-xs text-muted-foreground">{config.label}</div>
                   </div>
                 );
               })}
@@ -93,38 +127,42 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
             </div>
           </div>
 
-          {/* Edit mode */}
+          {/* Edit mode com TimeSpinners */}
           {editingTimes && (
             <Card className="border-primary/20">
               <CardHeader>
-                <CardTitle className="text-base">Definir Tempo Alvo</CardTitle>
+                <CardTitle className="text-base">Definir Tempos Alvo</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4">
-                  {distances.map((distance) => (
-                    <div key={distance.key} className="space-y-2">
-                      <Label htmlFor={distance.key} className="text-sm font-medium">
-                        {distance.distance}
-                      </Label>
-                      <Input
-                        id={distance.key}
-                        placeholder="Ex: 25:30 ou 1:45:20"
-                        value={tempTimes[distance.key as keyof typeof tempTimes] || ''}
-                        onChange={(e) => setTempTimes(prev => ({
-                          ...prev,
-                          [distance.key]: formatTimeInput(e.target.value)
-                        }))}
-                        className="text-center font-mono"
-                      />
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="space-y-6">
+                {Object.entries(distanceConfigs).map(([key, config]) => (
+                  <div key={key} className="space-y-2">
+                    <h4 className="text-sm font-medium text-center">{config.distance}</h4>
+                    <TimeSpinner
+                      value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
+                      onChange={(minutes) => setTempTimesMinutes(prev => ({
+                        ...prev,
+                        [key]: minutes
+                      }))}
+                      min={config.min}
+                      max={config.max}
+                      step={config.step}
+                      format={config.format}
+                      distance={config.distance}
+                    />
+                  </div>
+                ))}
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setTempTimes(wizardData.estimatedTimes);
+                      // Reset to original values
+                      setTempTimesMinutes({
+                        k5: parseTimeToMinutes(wizardData.estimatedTimes.k5) || 30,
+                        k10: parseTimeToMinutes(wizardData.estimatedTimes.k10) || 50,
+                        k21: parseTimeToMinutes(wizardData.estimatedTimes.k21) || 120,
+                        k42: parseTimeToMinutes(wizardData.estimatedTimes.k42) || 240,
+                      });
                       setEditingTimes(false);
                     }}
                   >
@@ -140,7 +178,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           )}
         </div>
       ) : (
-        /* Manual time entry for users without historical data */
+        /* Manual time entry com TimeSpinners para usuários sem histórico */
         <div className="space-y-4">
           <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
             <p className="text-sm text-amber-800 dark:text-amber-200">
@@ -153,30 +191,36 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
             <CardHeader>
               <CardTitle className="text-base">Tempos Conhecidos (Opcional)</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
-                {distances.map((distance) => (
-                  <div key={distance.key} className="space-y-2">
-                    <Label htmlFor={distance.key} className="text-sm font-medium">
-                      {distance.distance}
-                    </Label>
-                    <Input
-                      id={distance.key}
-                      placeholder="Ex: 25:30 ou 1:45:20"
-                      value={tempTimes[distance.key as keyof typeof tempTimes] || ''}
-                      onChange={(e) => {
-                        const newTimes = {
-                          ...tempTimes,
-                          [distance.key]: formatTimeInput(e.target.value)
-                        };
-                        setTempTimes(newTimes);
-                        updateWizardData({ estimatedTimes: newTimes });
-                      }}
-                      className="text-center font-mono"
-                    />
-                  </div>
-                ))}
-              </div>
+            <CardContent className="space-y-6">
+              {Object.entries(distanceConfigs).map(([key, config]) => (
+                <div key={key} className="space-y-2">
+                  <h4 className="text-sm font-medium text-center">{config.distance}</h4>
+                  <TimeSpinner
+                    value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
+                    onChange={(minutes) => {
+                      const newTimesMinutes = {
+                        ...tempTimesMinutes,
+                        [key]: minutes
+                      };
+                      setTempTimesMinutes(newTimesMinutes);
+                      
+                      // Auto-save: converter e atualizar wizardData
+                      const formattedTimes = {
+                        k5: formatMinutesToTime(newTimesMinutes.k5, 'MM:SS'),
+                        k10: formatMinutesToTime(newTimesMinutes.k10, 'MM:SS'),
+                        k21: formatMinutesToTime(newTimesMinutes.k21, 'H:MM'),
+                        k42: formatMinutesToTime(newTimesMinutes.k42, 'H:MM'),
+                      };
+                      updateWizardData({ estimatedTimes: formattedTimes });
+                    }}
+                    min={config.min}
+                    max={config.max}
+                    step={config.step}
+                    format={config.format}
+                    distance={config.distance}
+                  />
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
