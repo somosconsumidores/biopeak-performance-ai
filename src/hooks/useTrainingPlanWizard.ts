@@ -177,9 +177,19 @@ export function useTrainingPlanWizard() {
   const calculateTargetTime = () => {
     if (!isRaceGoal()) return undefined;
     
+    // 🆕 PRIORIDADE 1: Meta específica definida pelo usuário no Step 12 (RaceGoalStep)
+    // Esta é a meta REAL que o usuário quer atingir
+    if (wizardData.goalTargetTimeMinutes !== undefined) {
+      console.log('✅ Using user-defined goal from Step 12:', {
+        goalTargetTimeMinutes: wizardData.goalTargetTimeMinutes,
+        goal: wizardData.goal
+      });
+      return wizardData.goalTargetTimeMinutes;
+    }
+    
     let targetMinutes: number | undefined;
     
-    // Check if user has adjusted times manually
+    // PRIORIDADE 2: Tempos ajustados manualmente no Step 5
     if (wizardData.adjustedTimes && wizardData.estimatedTimes) {
       // Use user-adjusted times
       switch (wizardData.goal) {
@@ -198,8 +208,13 @@ export function useTrainingPlanWizard() {
           targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k42);
           break;
       }
-    } else if (athleteAnalysis.raceEstimates) {
-      // Use historical estimates
+      
+      console.log('📊 Using adjusted times from Step 5:', { targetMinutes, goal: wizardData.goal });
+      return targetMinutes;
+    }
+    
+    // PRIORIDADE 3: Estimativas históricas com fator de melhoria
+    if (athleteAnalysis.raceEstimates) {
       const estimates = athleteAnalysis.raceEstimates;
       switch (wizardData.goal) {
         case '5k':
@@ -217,12 +232,19 @@ export function useTrainingPlanWizard() {
           targetMinutes = estimates.k42?.seconds ? estimates.k42.seconds / 60 : undefined;
           break;
       }
-    }
-    
-    // Apply improvement factor based on plan duration and athlete level
-    if (targetMinutes) {
-      const improvementFactor = getImprovementFactor();
-      return Math.round(targetMinutes * (1 - improvementFactor));
+      
+      // Aplicar fator de melhoria APENAS para estimativas históricas
+      if (targetMinutes) {
+        const improvementFactor = getImprovementFactor();
+        const improvedTime = Math.round(targetMinutes * (1 - improvementFactor));
+        console.log('📈 Using historical estimates with improvement:', { 
+          originalMinutes: targetMinutes,
+          improvementFactor,
+          improvedTime,
+          goal: wizardData.goal 
+        });
+        return improvedTime;
+      }
     }
     
     return undefined;
@@ -435,6 +457,20 @@ export function useTrainingPlanWizard() {
       // Create the training plan (required for preferences foreign key)
       const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
       const planId = uuidv4();
+      
+      // Calculate target time for race goals
+      const calculatedTargetTime = calculateTargetTime();
+      
+      console.log('💾 Creating training plan with:', {
+        planId,
+        goal: wizardData.goal,
+        goalTargetTimeMinutes: wizardData.goalTargetTimeMinutes,
+        calculatedTargetTime,
+        source: wizardData.goalTargetTimeMinutes ? 'user-defined (Step 12)' : 
+                wizardData.adjustedTimes ? 'adjusted-times (Step 5)' : 
+                'historical-estimates'
+      });
+      
       const { error: planError } = await supabase
         .from('training_plans')
         .insert({
@@ -447,6 +483,7 @@ export function useTrainingPlanWizard() {
           weeks: wizardData.planDurationWeeks,
           status: 'pending',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+          goal_target_time_minutes: calculatedTargetTime, // 🆕 Salvar tempo alvo calculado
         });
 
       if (planError) {
@@ -465,9 +502,6 @@ export function useTrainingPlanWizard() {
       const daysArray = wizardData.availableDays.map(d => dayIdx[d] ?? 0);
       const longRunIdx = dayIdx[wizardData.longRunDay] ?? 6;
 
-      // Calculate target time for race goals
-      const calculatedTargetTime = calculateTargetTime();
-      
       // VALIDATION: Log if target time seems impossible, but don't block plan creation
       if (calculatedTargetTime && isRaceGoal()) {
         const distanceMap: Record<string, number> = {
