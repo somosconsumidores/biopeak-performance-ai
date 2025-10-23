@@ -27,7 +27,7 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
     race_name: race?.race_name || '',
     race_date: race?.race_date || '',
     distance_meters: race?.distance_meters || 5000,
-    target_time_minutes: race?.target_time_minutes || '',
+    target_time_minutes: race?.target_time_minutes || undefined as number | undefined,
     race_location: race?.race_location || '',
     race_url: race?.race_url || '',
     notes: race?.notes || '',
@@ -44,11 +44,11 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
 
   // Validate target time against historical data
   const timeValidation = useMemo(() => {
-    if (!formData.target_time_minutes || formData.target_time_minutes === '') {
+    if (!formData.target_time_minutes) {
       return null;
     }
 
-    const targetMinutes = Number(formData.target_time_minutes);
+    const targetMinutes = formData.target_time_minutes;
     const distanceMeters = formData.distance_meters;
 
     console.log('🔍 AddRaceDialog validation input:', {
@@ -114,7 +114,7 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
         race_name: '',
         race_date: '',
         distance_meters: 5000,
-        target_time_minutes: '',
+        target_time_minutes: undefined,
         race_location: '',
         race_url: '',
         notes: '',
@@ -208,11 +208,12 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
                 id="target_time"
                 type="number"
                 min="1"
+                step="0.1"
                 placeholder="Ex: 180 (para 3 horas)"
                 value={formData.target_time_minutes || ''}
                 onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
-                  target_time_minutes: e.target.value
+                  target_time_minutes: e.target.value ? Number(e.target.value) : undefined
                 }))}
               />
             </div>

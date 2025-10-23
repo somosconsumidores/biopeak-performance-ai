@@ -468,7 +468,7 @@ export function useTrainingPlanWizard() {
       // Calculate target time for race goals
       const calculatedTargetTime = calculateTargetTime();
       
-      // CRITICAL VALIDATION: Block impossible target times before creating plan
+      // VALIDATION: Log if target time seems impossible, but don't block plan creation
       if (calculatedTargetTime && isRaceGoal()) {
         const distanceMap: Record<string, number> = {
           '5k': 5000,
@@ -482,21 +482,21 @@ export function useTrainingPlanWizard() {
         const distanceMeters = distanceMap[wizardData.goal] || 10000;
         const validation = validateRaceTime(calculatedTargetTime, distanceMeters, undefined);
         
-        console.log('🔍 WIZARD VALIDATION:', {
+        console.log('🔍 WIZARD VALIDATION (informational only):', {
           goal: wizardData.goal,
           calculatedTargetTime,
           distanceMeters,
           validation
         });
         
+        // Show warning toast if time is questionable, but allow plan creation
         if (!validation.canProceed) {
-          console.error('🚫 WIZARD: Blocked plan creation with impossible target time:', validation);
+          console.warn('⚠️ WIZARD: Questionable target time detected:', validation);
           toast({
-            title: "Meta impossível detectada",
-            description: validation.message,
-            variant: "destructive",
+            title: "Aviso sobre meta",
+            description: `Meta calculada pode ser ambiciosa: ${validation.message}`,
+            variant: "default",
           });
-          return false;
         }
       }
       
