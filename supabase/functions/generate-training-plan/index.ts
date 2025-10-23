@@ -55,9 +55,15 @@ function uniqueSorted(nums: number[]) {
 class SafetyCalibrator {
   runs: any[];
   profile: any;
+  avgWeeklyKm: number;
+  longestRunLast8W: number;
+  
   constructor(runs: any[], profile: any) {
     this.runs = runs || [];
     this.profile = profile;
+    this.avgWeeklyKm = 0;
+    this.longestRunLast8W = 0;
+    this.calculateHistoricalMetrics();
   }
 
   getValidRunData() {
@@ -77,6 +83,34 @@ class SafetyCalibrator {
     });
   }
 
+  calculateHistoricalMetrics() {
+    const valid = this.getValidRunData();
+    if (!valid.length) {
+      this.avgWeeklyKm = 25;
+      this.longestRunLast8W = 12;
+      return;
+    }
+
+    // Calculate average weekly km from last 90 days
+    const totalKm = valid.reduce((sum: number, r: any) => 
+      sum + (Number(r.total_distance_meters || 0) / 1000), 0
+    );
+    const weeksInData = Math.max(1, valid.length > 0 ? 12 : 1);
+    this.avgWeeklyKm = Math.max(20, totalKm / weeksInData);
+
+    // Find longest run in last 8 weeks
+    const now = new Date();
+    const eightWeeksAgo = new Date(now.getTime() - 56 * 24 * 3600 * 1000);
+    const recentRuns = valid.filter((r: any) => new Date(r.activity_date) >= eightWeeksAgo);
+    const distances = recentRuns.map((r: any) => Number(r.total_distance_meters || 0) / 1000);
+    this.longestRunLast8W = distances.length > 0 ? Math.max(...distances, 10) : 10;
+
+    console.log('[SafetyCalibrator]', { 
+      avgWeeklyKm: this.avgWeeklyKm.toFixed(1), 
+      longestRunLast8W: this.longestRunLast8W.toFixed(1) 
+    });
+  }
+
   calculateBaselines() {
     const valid = this.getValidRunData();
     if (!valid.length) return this.getDefaults();
@@ -86,7 +120,7 @@ class SafetyCalibrator {
     const median = paces[Math.floor(paces.length / 2)];
     const p75 = paces[Math.floor(paces.length * 0.75)];
 
-    const base5kMin = median * 5; // use median for robustness
+    const base5kMin = median * 5;
     const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
 
     const pace_10k = riegel(base5kMin, 5, 10) / 10;
@@ -101,13 +135,13 @@ class SafetyCalibrator {
       pace_10k,
       pace_half,
       pace_marathon,
-      // training zones
-      pace_easy: Math.max(median + 1.0, p75),
-      pace_long: Math.max(median + 0.7, p75),
-      pace_tempo: best + 0.35,
+      // training zones - more physiologically coherent
+      pace_easy: pace_marathon + 0.75,
+      pace_long: pace_marathon + 0.45,
+      pace_tempo: pace_half - 0.12,
       pace_interval_400m: best - 0.15,
       pace_interval_800m: best,
-      pace_interval_1km: best + 0.10,
+      pace_interval_1km: pace_10k - 0.08,
     };
   }
 
@@ -124,17 +158,25 @@ class SafetyCalibrator {
       pace_10k: base * 1.08,
       pace_half: base * 1.15,
       pace_marathon: base * 1.25,
-      pace_easy: base + 1.0,
-      pace_long: base + 0.7,
-      pace_tempo: base * 0.95,
+      pace_easy: base * 1.25 + 0.75,
+      pace_long: base * 1.25 + 0.45,
+      pace_tempo: base * 1.15 - 0.12,
       pace_interval_400m: base * 0.9,
       pace_interval_800m: base * 0.95,
-      pace_interval_1km: base,
+      pace_interval_1km: base * 1.08 - 0.08,
     };
   }
 
   getSafeTargetPaces() {
     return this.calculateBaselines();
+  }
+
+  getMaxWeeklyKm(): number {
+    return Math.min(70, this.avgWeeklyKm * 1.15);
+  }
+
+  getMaxLongRunKm(): number {
+    return Math.min(32, Math.max(20, this.longestRunLast8W * 1.2));
   }
 }
 
@@ -175,9 +217,10 @@ function normalizeGoal(goalRaw: string): GoalType {
 }
 
 function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' | 'taper' {
-  if (week <= Math.max(1, Math.floor(totalWeeks * 0.4))) return 'base';
-  if (week <= Math.max(2, Math.floor(totalWeeks * 0.75))) return 'build';
-  if (week <= Math.max(3, Math.floor(totalWeeks * 0.9))) return 'peak';
+  // Base: 50%, Build: 30%, Peak: 15%, Taper: 5%
+  if (week <= Math.max(1, Math.floor(totalWeeks * 0.5))) return 'base';
+  if (week <= Math.max(2, Math.floor(totalWeeks * 0.8))) return 'build';
+  if (week < Math.max(totalWeeks - 1, Math.floor(totalWeeks * 0.95))) return 'peak';
   return 'taper';
 }
 
@@ -203,56 +246,131 @@ function defaultDaysFromPrefs(prefs: any, longDayIdx: number): number[] {
   return indices;
 }
 
-function generatePlan(goalRaw: string, weeks: number, targetPaces: Paces, prefs: any) {
+function generatePlan(
+  goalRaw: string, 
+  weeks: number, 
+  targetPaces: Paces, 
+  prefs: any, 
+  calibrator: SafetyCalibrator
+) {
   const goal = normalizeGoal(goalRaw);
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
   const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
 
   const workouts: any[] = [];
+  const loadCyclePattern = [1.0, 1.05, 1.1, 0.75]; // 4:1 cycle
+  let longRunCount30Plus = 0;
+  let lastLongRun30PlusWeek = 0;
 
   for (let w = 1; w <= weeks; w++) {
     const phase = getPhase(w, weeks);
-    const isRecovery = w % 4 === 0 && phase !== 'taper';
-    const volumeMultiplier = isRecovery ? 0.7 : 1.0;
+    const cycleIndex = (w - 1) % 4;
+    const isCutbackWeek = cycleIndex === 3 && phase !== 'taper';
+    
+    // Apply load cycle multiplier
+    let volumeMultiplier = loadCyclePattern[cycleIndex];
+    
+    // Taper: reduce volume progressively
+    if (phase === 'taper') {
+      const weeksFromEnd = weeks - w + 1;
+      volumeMultiplier = weeksFromEnd === 1 ? 0.5 : 0.7;
+    }
 
     for (const dow of dayIndices) {
       const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
       const isLong = dow === longDayIdx;
+      
       const session = isLong
-        ? generateLongRun(goal, w, phase, volumeMultiplier, targetPaces)
-        : generateSession(goal, w, phase, volumeMultiplier, targetPaces);
+        ? generateLongRun(
+            goal, w, phase, volumeMultiplier, targetPaces, calibrator,
+            { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek }
+          )
+        : generateSession(goal, w, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length);
 
-      workouts.push({ ...session, week: w, weekday });
+      // Track 30+ km long runs
+      if (isLong && session.distance_km && session.distance_km >= 30) {
+        longRunCount30Plus++;
+        lastLongRun30PlusWeek = w;
+      }
+
+      workouts.push({ 
+        ...session, 
+        week: w, 
+        weekday,
+        is_cutback_week: isCutbackWeek,
+        week_load_factor: volumeMultiplier 
+      });
     }
   }
 
   return workouts;
 }
 
-function generateLongRun(goal: GoalType, week: number, phase: string, vol: number, p: Paces) {
-  let dist = 10 + week * 0.8;
+function generateLongRun(
+  goal: GoalType, 
+  week: number, 
+  phase: string, 
+  vol: number, 
+  p: Paces,
+  calibrator: SafetyCalibrator,
+  longRunTracker: { count30Plus: number; lastWeek30Plus: number }
+) {
+  const maxLongRun = calibrator.getMaxLongRunKm();
+  
+  // Start at 14-16km and progress gradually
+  let dist = 0;
   switch (goal) {
-    case '5k': dist = 6 + week * 0.3; break;
-    case '10k': dist = 8 + week * 0.5; break;
-    case '21k': dist = Math.min(22, 12 + week * 1.0); break;
-    case '42k': dist = Math.min(32, 15 + week * 1.5); break;
-    case 'condicionamento': dist = 8 + week * 0.4; break;
-    case 'perda_de_peso': dist = 7 + week * 0.4; break;
-    case 'manutencao': dist = 10 + week * 0.3; break;
-    case 'retorno': dist = Math.min(14, 6 + week * 0.6); break;
-    case 'melhorar_tempos': dist = 12 + week * 0.7; break;
+    case '5k': 
+      dist = Math.min(12, 8 + week * 0.3); 
+      break;
+    case '10k': 
+      dist = Math.min(16, 10 + week * 0.4); 
+      break;
+    case '21k': 
+      dist = Math.min(Math.min(22, maxLongRun), 14 + week * 0.8); 
+      break;
+    case '42k': 
+      // Progress from 14-16km to max 32km
+      dist = Math.min(maxLongRun, 14 + week * 1.2); 
+      // Limit to 3 runs ≥30km, with 2-week spacing
+      if (dist >= 30) {
+        if (longRunTracker.count30Plus >= 3 || (week - longRunTracker.lastWeek30Plus < 2)) {
+          dist = Math.min(28, dist);
+        }
+      }
+      break;
+    case 'condicionamento': 
+      dist = Math.min(14, 10 + week * 0.3); 
+      break;
+    case 'perda_de_peso': 
+      dist = Math.min(12, 8 + week * 0.3); 
+      break;
+    case 'manutencao': 
+      dist = Math.min(16, 10 + week * 0.3); 
+      break;
+    case 'retorno': 
+      dist = Math.min(12, 6 + week * 0.5); 
+      break;
+    case 'melhorar_tempos': 
+      dist = Math.min(18, 12 + week * 0.6); 
+      break;
   }
 
-  dist = Math.max(6, Math.round(dist * vol));
+  // Apply volume multiplier
+  dist = Math.round(dist * vol);
+  
+  // Taper: cap long runs at 20km
+  if (phase === 'taper') {
+    dist = Math.min(16, dist);
+  }
 
-  const baseDesc = (phase === 'build' || phase === 'peak')
-    ? `${dist}km incluindo blocos em ritmo de prova`
+  // Vary long run type
+  const hasBlocks = (phase === 'build' || phase === 'peak') && week % 2 === 0 && goal === '42k';
+  const baseDesc = hasBlocks
+    ? `${dist}km com blocos em ritmo maratona (MP) nos últimos 8-12km`
     : `${dist}km contínuos em Z2`;
 
-  const pace = goal === '42k' ? p.pace_marathon
-    : goal === '21k' ? p.pace_half
-    : goal === '10k' ? p.pace_10k
-    : p.pace_long;
+  const pace = (goal === '42k' || goal === '21k') ? p.pace_long : p.pace_long + 0.2;
 
   return {
     type: 'long_run',
@@ -266,7 +384,15 @@ function generateLongRun(goal: GoalType, week: number, phase: string, vol: numbe
   };
 }
 
-function generateSession(goal: GoalType, week: number, phase: string, vol: number, p: Paces) {
+function generateSession(
+  goal: GoalType, 
+  week: number, 
+  phase: string, 
+  vol: number, 
+  p: Paces,
+  isCutbackWeek: boolean,
+  totalSessions: number
+) {
   // Defaults: easy session
   let type = 'easy';
   let title = 'Corrida leve';
@@ -277,110 +403,177 @@ function generateSession(goal: GoalType, week: number, phase: string, vol: numbe
   let zone = 2;
   let intensity = 'low';
 
-  if (goal === '5k') {
-    if (phase !== 'base' && week % 2 === 0) {
-      type = 'interval';
-      title = '8x400m';
-      description = 'Aquecimento + 8x400m ritmo 5k, 90s rec';
-      duration_min = 25;
-      distance_km = null as any;
-      pace = p.pace_interval_400m;
-      zone = 4;
-      intensity = 'high';
-    }
-  } else if (goal === '10k') {
-    if (phase !== 'base' && week % 2 === 0) {
-      type = 'tempo';
-      title = 'Tempo run 30min';
-      description = 'Aquecimento + 30min em ritmo de limiar';
-      duration_min = 30;
-      distance_km = null as any;
-      pace = p.pace_tempo;
-      zone = 3;
-      intensity = 'moderate';
-    }
-  } else if (goal === '21k') {
-    if (phase !== 'taper' && week % 3 === 0) {
-      type = 'interval';
-      title = '5x1000m';
-      description = 'Aquecimento + 5x1km ritmo 10k, rec 2min';
-      duration_min = 35;
-      distance_km = null as any;
-      pace = p.pace_interval_1km;
-      zone = 4;
-      intensity = 'high';
-    }
-  } else if (goal === '42k') {
-    if (phase === 'build' && week % 2 === 0) {
-      type = 'tempo';
-      title = 'Tempo longo 40min';
-      description = 'Aquecimento + 40min ritmo maratona';
-      duration_min = 40;
-      distance_km = null as any;
-      pace = p.pace_marathon;
-      zone = 3;
-      intensity = 'moderate';
-    }
-  } else if (goal === 'condicionamento') {
-    if (week % 3 === 0) {
-      type = 'fartlek';
-      title = 'Fartlek 30min';
-      description = 'Aquecimento + variações 1-2min moderado/leve';
-      duration_min = 30;
-      distance_km = null as any;
-      pace = p.pace_tempo;
-      zone = 3;
-      intensity = 'moderate';
-    }
-  } else if (goal === 'perda_de_peso') {
-    // foco em Z2/Z3 e sessões mais longas
-    if (week % 2 === 1) {
-      type = 'moderate';
-      title = 'Z2-Z3 contínuo';
-      description = '30-45min em Z2 com breves progressões';
-      duration_min = 40;
-      distance_km = null as any;
-      pace = (p.pace_easy + p.pace_tempo) / 2;
+  // During cutback weeks, keep it simple - all easy
+  if (isCutbackWeek) {
+    distance_km = Math.round(distance_km * 0.8);
+    return {
+      type,
+      title,
+      description,
+      distance_km,
+      duration_min: null,
+      target_hr_zone: zone,
+      target_pace_min_per_km: Number(pace.toFixed(2)),
+      intensity,
+    };
+  }
+
+  // Add quality session variety (not on cutback weeks)
+  const qualitySessionIndex = week % totalSessions;
+  const shouldAddQuality = phase !== 'base' && phase !== 'taper' && qualitySessionIndex === 1;
+
+  if (shouldAddQuality) {
+    // Rotate through different quality sessions
+    const qualityType = week % 5;
+    
+    if (goal === '42k' || goal === '21k') {
+      switch (qualityType) {
+        case 0: // Tempo
+          type = 'tempo';
+          title = goal === '42k' ? 'Tempo 30min' : 'Tempo 25min';
+          description = `Aquecimento + ${goal === '42k' ? '30' : '25'}min em ritmo limiar`;
+          duration_min = goal === '42k' ? 30 : 25;
+          distance_km = null as any;
+          pace = p.pace_tempo;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+        case 1: // Marathon Pace blocks
+          if (goal === '42k') {
+            type = 'mp_block';
+            title = 'Blocos MP';
+            description = 'Aquecimento + 3x4km em ritmo maratona, rec 2min';
+            duration_min = 55;
+            distance_km = null as any;
+            pace = p.pace_marathon;
+            zone = 3;
+            intensity = 'moderate';
+          } else {
+            type = 'progressivo';
+            title = 'Progressivo 35min';
+            description = 'Inicie Z2 leve, termine próximo ao ritmo de meia';
+            duration_min = 35;
+            distance_km = null as any;
+            pace = (p.pace_easy + p.pace_half) / 2;
+            zone = 3;
+            intensity = 'moderate';
+          }
+          break;
+        case 2: // Intervals
+          type = 'interval';
+          title = '5x1km';
+          description = 'Aquecimento + 5x1km ritmo 10k, rec 2min';
+          duration_min = 40;
+          distance_km = null as any;
+          pace = p.pace_interval_1km;
+          zone = 4;
+          intensity = 'high';
+          break;
+        case 3: // Progressivo
+          type = 'progressivo';
+          title = 'Progressivo 40min';
+          description = 'Inicie Z2 leve, termine em ritmo de prova';
+          duration_min = 40;
+          distance_km = null as any;
+          pace = (p.pace_easy + p.pace_marathon) / 2;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+        case 4: // Fartlek
+          type = 'fartlek';
+          title = 'Fartlek 35min';
+          description = 'Aquecimento + 10x(2min moderado/1min leve)';
+          duration_min = 35;
+          distance_km = null as any;
+          pace = (p.pace_easy + p.pace_tempo) / 2;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+      }
+    } else if (goal === '5k') {
+      if (week % 2 === 0) {
+        type = 'interval';
+        title = '8x400m';
+        description = 'Aquecimento + 8x400m ritmo 5k, 90s rec';
+        duration_min = 25;
+        distance_km = null as any;
+        pace = p.pace_interval_400m;
+        zone = 4;
+        intensity = 'high';
+      }
+    } else if (goal === '10k') {
+      if (week % 2 === 0) {
+        type = 'tempo';
+        title = 'Tempo 25min';
+        description = 'Aquecimento + 25min em ritmo de limiar';
+        duration_min = 25;
+        distance_km = null as any;
+        pace = p.pace_tempo;
+        zone = 3;
+        intensity = 'moderate';
+      }
+    } else if (goal === 'condicionamento') {
+      if (week % 3 === 0) {
+        type = 'fartlek';
+        title = 'Fartlek 30min';
+        description = 'Aquecimento + variações 1-2min moderado/leve';
+        duration_min = 30;
+        distance_km = null as any;
+        pace = p.pace_tempo;
+        zone = 3;
+        intensity = 'moderate';
+      }
+    } else if (goal === 'perda_de_peso') {
+      if (week % 2 === 1) {
+        type = 'moderate';
+        title = 'Z2-Z3 contínuo';
+        description = '35-40min em Z2 com breves progressões';
+        duration_min = 38;
+        distance_km = null as any;
+        pace = (p.pace_easy + p.pace_tempo) / 2;
+        zone = 2;
+        intensity = 'moderate';
+      }
+    } else if (goal === 'manutencao') {
+      if (week % 3 === 2) {
+        type = 'progressivo';
+        title = 'Progressivo 30min';
+        description = 'Comece em Z2 e termine próximo ao limiar';
+        duration_min = 30;
+        distance_km = null as any;
+        pace = (p.pace_easy + p.pace_tempo) / 2;
+        zone = 3;
+        intensity = 'moderate';
+      }
+    } else if (goal === 'retorno') {
+      distance_km = Math.max(3, Math.round((3 + week * 0.4) * vol));
+      pace = p.pace_easy + 0.3;
       zone = 2;
-      intensity = 'moderate';
+      intensity = 'low';
+    } else if (goal === 'melhorar_tempos') {
+      if (week % 2 === 1) {
+        type = 'interval';
+        title = '6x800m';
+        description = 'Aquecimento + 6x800m ritmo 5-10k, rec 2min';
+        duration_min = 35;
+        distance_km = null as any;
+        pace = p.pace_interval_800m;
+        zone = 4;
+        intensity = 'high';
+      }
     }
-  } else if (goal === 'manutencao') {
-    if (week % 3 === 2) {
-      type = 'progressivo';
-      title = 'Progressivo 30min';
-      description = 'Comece em Z2 e termine próximo ao limiar';
-      duration_min = 30;
-      distance_km = null as any;
-      pace = (p.pace_easy + p.pace_tempo) / 2;
-      zone = 3;
-      intensity = 'moderate';
-    }
-  } else if (goal === 'retorno') {
-    // retorno gradual
-    distance_km = Math.max(3, Math.round((3 + week * 0.4) * vol));
-    pace = p.pace_easy + 0.3; // ainda mais conservador
-    zone = 2;
-    intensity = 'low';
-  } else if (goal === 'melhorar_tempos') {
-    if (phase !== 'base' && week % 2 === 1) {
-      type = 'interval';
-      title = '6x800m';
-      description = 'Aquecimento + 6x800m ritmo 5-10k, rec 2min';
-      duration_min = 35;
-      distance_km = null as any;
-      pace = p.pace_interval_800m;
-      zone = 4;
-      intensity = 'high';
-    } else if (phase === 'peak') {
-      type = 'tempo';
-      title = 'Tempo 20min';
-      description = 'Aquecimento + 20min em limiar';
-      duration_min = 20;
-      distance_km = null as any;
-      pace = p.pace_tempo;
-      zone = 3;
-      intensity = 'moderate';
-    }
+  }
+
+  // Taper phase: keep only short maintenance sessions
+  if (phase === 'taper' && shouldAddQuality) {
+    type = 'tempo';
+    title = 'Manutenção MP';
+    description = 'Aquecimento + 2x10min em ritmo de prova, rec 3min';
+    duration_min = 30;
+    distance_km = null as any;
+    pace = goal === '42k' ? p.pace_marathon : p.pace_half;
+    zone = 3;
+    intensity = 'moderate';
   }
 
   return {
@@ -395,9 +588,27 @@ function generateSession(goal: GoalType, week: number, phase: string, vol: numbe
   };
 }
 
-function buildPlanSummary(goal: string, weeks: number, p: Paces) {
+function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]) {
   const phases: Array<'base' | 'build' | 'peak' | 'taper'> = [];
   for (let w = 1; w <= weeks; w++) phases.push(getPhase(w, weeks));
+
+  // Calculate plan statistics
+  const totalKm = workouts.reduce((sum, w) => sum + (w.distance_km || 0), 0);
+  const longestRun = Math.max(...workouts.map(w => w.distance_km || 0));
+  const avgWeeklyKm = totalKm / weeks;
+  
+  // Count workout types
+  const workoutTypes = workouts.reduce((acc: any, w: any) => {
+    const type = w.type || 'easy';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Phase distribution
+  const phaseDistribution = phases.reduce((acc: any, phase) => {
+    acc[phase] = (acc[phase] || 0) + 1;
+    return acc;
+  }, {});
 
   // Targets: estimate race time when applicable
   let target_pace_min_km: number | null = null;
@@ -422,7 +633,14 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces) {
 
   return {
     periodization: phases,
-    notes: 'Plano determinístico gerado sem IA com paces personalizados.',
+    notes: 'Plano fisiologicamente otimizado com periodização 4:1, controle de carga e progressão segura.',
+    statistics: {
+      total_km: Math.round(totalKm),
+      longest_run_km: longestRun,
+      avg_weekly_km: Math.round(avgWeeklyKm * 10) / 10,
+      workout_types: workoutTypes,
+      phase_distribution: phaseDistribution,
+    },
     targets: {
       target_pace_min_km: Number((target_pace_min_km ?? p.pace_median).toFixed(2)),
       target_time_minutes: target_time_minutes ? Math.round(target_time_minutes) : null,
@@ -493,7 +711,7 @@ serve(async (req) => {
     const safeTargetPaces = safetyCalibrator.getSafeTargetPaces();
 
     const weeks = Math.max(1, Math.floor(plan.weeks || 4));
-    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs);
+    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, safetyCalibrator);
 
     const startDateIso = prefs?.start_date || plan?.start_date;
     if (!startDateIso) throw new Error('Missing start_date to schedule workouts');
@@ -527,7 +745,7 @@ serve(async (req) => {
     }
 
     // Build and save plan summary and status
-    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces);
+    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces, workouts);
     const goalMinutes = planSummary?.targets?.target_time_minutes ?? null;
 
     const { error: updErr } = await supabase
