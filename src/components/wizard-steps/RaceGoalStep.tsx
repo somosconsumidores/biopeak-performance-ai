@@ -5,7 +5,7 @@ import { Target, Timer, Trophy, Info, AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useAthleteAnalysis } from '@/hooks/useAthleteAnalysis';
 import { validateRaceTime, TimeValidation } from '@/utils/raceTimeValidation';
-import { ScrollableTimePicker } from '@/components/ui/scrollable-time-picker';
+import { PaceStepper } from '@/components/ui/pace-stepper';
 
 interface RaceGoalStepProps {
   wizardData: TrainingPlanWizardData;
@@ -194,7 +194,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ScrollableTimePicker
+          <PaceStepper
             value={wizardData.goalTargetTimeMinutes || timeConfig.default}
             onChange={(minutes) => onUpdate({ goalTargetTimeMinutes: minutes })}
             min={timeConfig.min}

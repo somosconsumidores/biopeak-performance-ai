@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
 import { Timer, Sparkles, Edit3, CheckCircle2 } from 'lucide-react';
-import { ScrollableTimePicker } from '@/components/ui/scrollable-time-picker';
+import { PaceStepper } from '@/components/ui/pace-stepper';
 
 interface EstimatedTimesStepProps {
   wizardData: TrainingPlanWizardData;
@@ -136,7 +136,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
               <CardContent className="space-y-6">
                 {Object.entries(distanceConfigs).map(([key, config]) => (
                   <div key={key} className="space-y-2">
-                    <ScrollableTimePicker
+                    <PaceStepper
                       value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
                       onChange={(minutes) => setTempTimesMinutes(prev => ({
                         ...prev,
@@ -194,7 +194,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
             <CardContent className="space-y-6">
               {Object.entries(distanceConfigs).map(([key, config]) => (
                 <div key={key} className="space-y-2">
-                  <ScrollableTimePicker
+                  <PaceStepper
                     value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
                     onChange={(minutes) => {
                       const newTimesMinutes = {
