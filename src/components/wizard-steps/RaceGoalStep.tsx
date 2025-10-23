@@ -22,7 +22,7 @@ interface TimeValidation {
 
 export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   const [timeInput, setTimeInput] = useState('');
-  const { raceEstimates } = useAthleteAnalysis();
+  const { raceEstimates, loading: analysisLoading } = useAthleteAnalysis();
   
   useEffect(() => {
     if (wizardData.goalTargetTimeMinutes) {
@@ -35,7 +35,7 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   const handleTimeChange = (value: string) => {
     setTimeInput(value);
     
-    // Parse time input (format: HH:MM or MM:SS)
+    // Parse time input based on race distance
     const match = value.match(/^(\d{1,2}):(\d{2})$/);
     if (match) {
       const [, first, second] = match;
@@ -44,12 +44,14 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
       
       let totalMinutes: number;
       
-      // If first number is > 60, assume it's minutes:seconds format
-      if (firstNum > 60 || (firstNum <= 60 && secondNum < 60 && firstNum < 10)) {
-        // Minutes:seconds format (e.g., 25:30 for 5K)
+      // Determinar formato baseado na distância da prova
+      const isShortDistance = ['5k', '10k'].includes(wizardData.goal || '');
+      
+      if (isShortDistance) {
+        // Para 5k/10k: sempre interpretar como MM:SS
         totalMinutes = firstNum + (secondNum / 60);
       } else {
-        // Hours:minutes format (e.g., 1:30 for half marathon)
+        // Para 21k/42k: sempre interpretar como H:MM
         totalMinutes = (firstNum * 60) + secondNum;
       }
       
@@ -62,15 +64,15 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   const getDistanceInfo = () => {
     switch (wizardData.goal) {
       case '5k':
-        return { distance: '5 km', example: '25:00 (25 minutos)', format: 'MM:SS' };
+        return { distance: '5 km', example: '25:00 (vinte e cinco minutos)', format: 'MM:SS' };
       case '10k':
-        return { distance: '10 km', example: '50:00 (50 minutos)', format: 'MM:SS ou H:MM' };
+        return { distance: '10 km', example: '50:00 (cinquenta minutos)', format: 'MM:SS' };
       case 'half_marathon':
       case '21k':
-        return { distance: '21 km', example: '1:45 (1h45min)', format: 'H:MM' };
+        return { distance: '21 km', example: '1:45 (1 hora e 45 minutos)', format: 'H:MM' };
       case 'marathon':
       case '42k':
-        return { distance: '42 km', example: '3:30 (3h30min)', format: 'H:MM' };
+        return { distance: '42 km', example: '3:30 (3 horas e 30 minutos)', format: 'H:MM' };
       default:
         return { distance: 'prova', example: '1:30', format: 'H:MM' };
     }
@@ -101,9 +103,32 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
         break;
     }
 
-    if (!historicalTimeMinutes) return null;
-
     const targetMinutes = wizardData.goalTargetTimeMinutes;
+
+    // Validação básica contra recordes mundiais mesmo sem histórico
+    if (!historicalTimeMinutes) {
+      const worldRecordLimits: Record<string, number> = {
+        '5k': 13,
+        '10k': 27,
+        '21k': 58,
+        '42k': 122,
+      };
+      
+      const goalKey = wizardData.goal === 'half_marathon' ? '21k' : 
+                      wizardData.goal === 'marathon' ? '42k' : wizardData.goal;
+      const worldRecordLimit = worldRecordLimits[goalKey || '10k'];
+      
+      if (targetMinutes < worldRecordLimit) {
+        return {
+          level: 'impossible',
+          message: `Este tempo está próximo ao recorde mundial! Para um atleta amador, é fisicamente impossível. Reconsidere sua meta.`,
+          improvement: 0,
+        };
+      }
+      
+      // Sem histórico, não podemos validar mais
+      return null;
+    }
     const improvementPercent = ((historicalTimeMinutes - targetMinutes) / historicalTimeMinutes) * 100;
 
     // Recordes mundiais ajustados (com margem de segurança) para validação de sanidade
@@ -162,6 +187,17 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
     }
   }, [wizardData.goalTargetTimeMinutes, wizardData.goal, raceEstimates]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 DEBUG RaceGoalStep:', {
+      goal: wizardData.goal,
+      targetMinutes: wizardData.goalTargetTimeMinutes,
+      raceEstimates,
+      historicalK10: raceEstimates.k10?.seconds,
+      timeValidation
+    });
+  }, [wizardData.goal, wizardData.goalTargetTimeMinutes, raceEstimates, timeValidation]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -201,6 +237,15 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
               Formato: {distanceInfo.format}
             </p>
           </div>
+
+          {/* Loading feedback */}
+          {analysisLoading && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                ⏳ Analisando seu histórico para validar a meta...
+              </p>
+            </div>
+          )}
 
           {wizardData.goalTargetTimeMinutes && (
             <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
