@@ -76,9 +76,10 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Block submission if time is impossible or very ambitious
-    if (timeValidation && !timeValidation.canProceed) {
-      return; // Don't submit - button will be disabled
+    // CRITICAL: Block submission if validation failed
+    if (timeValidation?.canProceed === false) {
+      console.error('🚫 Submission blocked - impossible or very ambitious goal', timeValidation);
+      return;
     }
 
     setLoading(true);
@@ -212,6 +213,7 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
             {/* Validation feedback */}
             {timeValidation && (
               <Alert 
+                variant={timeValidation.canProceed ? "default" : "destructive"}
                 className={`${
                   timeValidation.level === 'impossible' || timeValidation.level === 'very_ambitious'
                     ? 'border-destructive bg-destructive/10'
@@ -229,8 +231,23 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
                       : 'text-green-600'
                   }`}
                 />
-                <AlertDescription className="text-sm">
+                <AlertDescription className="text-sm font-medium">
                   {timeValidation.message}
+                  {!timeValidation.canProceed && (
+                    <p className="mt-2 text-xs opacity-90">
+                      💡 Ajuste seu tempo alvo para continuar.
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Show warning when no historical data available */}
+            {formData.target_time_minutes && !timeValidation && (
+              <Alert className="border-blue-500 bg-blue-500/10">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+                  ℹ️ Não temos dados históricos para validar este tempo. Certifique-se de que é realista para você.
                 </AlertDescription>
               </Alert>
             )}
@@ -281,7 +298,7 @@ export function AddRaceDialog({ open, onOpenChange, race, onSuccess }: AddRaceDi
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || (timeValidation !== null && !timeValidation.canProceed)}
+              disabled={loading || timeValidation?.canProceed === false}
             >
               {loading ? 'Salvando...' : race ? 'Atualizar' : 'Adicionar'}
             </Button>

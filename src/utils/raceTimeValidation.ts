@@ -24,6 +24,15 @@ const WORLD_RECORD_LIMITS: WorldRecordLimits = {
   '42195': 122,  // ~2:00:35 WR + margin
 };
 
+// Minimum realistic times for amateur runners (safety floor)
+// These prevent absurdly fast times that no amateur could achieve
+const AMATEUR_MINIMUM_TIMES: WorldRecordLimits = {
+  '5000': 15,    // 15 minutes for 5km (3:00/km pace)
+  '10000': 30,   // 30 minutes for 10km (3:00/km pace)
+  '21097': 65,   // 1h05min for half marathon (3:05/km pace)
+  '42195': 135,  // 2h15min for marathon (3:12/km pace)
+};
+
 /**
  * Validates a target time against historical performance and world records
  * @param targetMinutes - Target time in minutes
@@ -36,10 +45,20 @@ export function validateRaceTime(
   distanceMeters: number,
   historicalMinutes?: number
 ): TimeValidation {
-  // Get world record limit for this distance
-  const worldRecordLimit = WORLD_RECORD_LIMITS[distanceMeters.toString()];
+  // LAYER 1: Sanity check - Block absurdly fast times (faster than 3:00/km pace)
+  const amateurMinimum = AMATEUR_MINIMUM_TIMES[distanceMeters.toString()];
+  if (amateurMinimum && targetMinutes < amateurMinimum) {
+    const pacePerKm = targetMinutes / (distanceMeters / 1000);
+    return {
+      level: 'impossible',
+      message: `⛔ Este tempo (${formatMinutes(targetMinutes)}) é fisicamente impossível para atletas amadores! Ritmo médio seria de ${pacePerKm.toFixed(2)} min/km. Para referência, o mínimo realista é ${formatMinutes(amateurMinimum)}.`,
+      improvement: 0,
+      canProceed: false,
+    };
+  }
 
-  // Check against world records even without historical data
+  // LAYER 2: Check against world records even without historical data
+  const worldRecordLimit = WORLD_RECORD_LIMITS[distanceMeters.toString()];
   if (worldRecordLimit && targetMinutes < worldRecordLimit) {
     return {
       level: 'impossible',

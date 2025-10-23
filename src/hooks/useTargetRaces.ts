@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { validateRaceTime } from "@/utils/raceTimeValidation";
 
 export interface TargetRace {
   id: string;
@@ -65,6 +66,30 @@ export function useTargetRaces() {
   const addRace = async (raceData: Omit<TargetRace, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!user) return null;
 
+    // SERVER-SIDE VALIDATION: Critical layer to prevent impossible times
+    if (raceData.target_time_minutes && raceData.distance_meters) {
+      const validation = validateRaceTime(
+        raceData.target_time_minutes,
+        raceData.distance_meters,
+        undefined // No historical data at this level
+      );
+
+      if (!validation.canProceed) {
+        console.error('🚫 Server-side validation blocked race creation:', {
+          targetMinutes: raceData.target_time_minutes,
+          distanceMeters: raceData.distance_meters,
+          validation
+        });
+
+        toast({
+          title: "Tempo impossível detectado",
+          description: validation.message,
+          variant: "destructive",
+        });
+        return null;
+      }
+    }
+
     try {
       const { data, error } = await supabase
         .from('user_target_races')
@@ -96,6 +121,30 @@ export function useTargetRaces() {
   };
 
   const updateRace = async (raceId: string, updates: Partial<TargetRace>) => {
+    // SERVER-SIDE VALIDATION: Critical layer to prevent impossible times
+    if (updates.target_time_minutes && updates.distance_meters) {
+      const validation = validateRaceTime(
+        updates.target_time_minutes,
+        updates.distance_meters,
+        undefined // No historical data at this level
+      );
+
+      if (!validation.canProceed) {
+        console.error('🚫 Server-side validation blocked race update:', {
+          targetMinutes: updates.target_time_minutes,
+          distanceMeters: updates.distance_meters,
+          validation
+        });
+
+        toast({
+          title: "Tempo impossível detectado",
+          description: validation.message,
+          variant: "destructive",
+        });
+        return null;
+      }
+    }
+
     try {
       const { data, error } = await supabase
         .from('user_target_races')
