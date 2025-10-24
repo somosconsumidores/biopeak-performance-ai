@@ -463,7 +463,6 @@ export const LandingPage = () => {
             <div>
               <h3 className="font-semibold mb-4">{t('support')}</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li>{t('helpCenter')}</li>
                 <li>
                   <a href="/termos-condicoes" className="hover:text-foreground transition-colors">
                     Termos e Condições
