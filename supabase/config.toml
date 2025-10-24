@@ -215,3 +215,12 @@ verify_jwt = true
 
 [functions.test-error-notification]
 verify_jwt = false
+
+[functions.coach-get-context]
+verify_jwt = false
+
+[functions.coach-mark-done]
+verify_jwt = false
+
+[functions.coach-reschedule]
+verify_jwt = false

@@ -673,6 +673,89 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_events: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: number
+          message_id: string | null
+          payload: Json | null
+          phone: string | null
+          plan_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: number
+          message_id?: string | null
+          payload?: Json | null
+          phone?: string | null
+          plan_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: number
+          message_id?: string | null
+          payload?: Json | null
+          phone?: string | null
+          plan_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_threads: {
+        Row: {
+          context: Json
+          created_at: string | null
+          id: string
+          last_intent: string | null
+          last_message_at: string | null
+          phone: string
+          plan_id: string
+          provider: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string | null
+          id?: string
+          last_intent?: string | null
+          last_message_at?: string | null
+          phone: string
+          plan_id: string
+          provider?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string | null
+          id?: string
+          last_intent?: string | null
+          last_message_at?: string | null
+          phone?: string
+          plan_id?: string
+          provider?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_threads_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       faturamento: {
         Row: {
           created_at: string
@@ -4659,6 +4742,35 @@ export type Database = {
           users_with_polar_tokens: number
           users_with_strava_activities: number
           users_with_strava_tokens: number
+        }[]
+      }
+      get_today_incomplete_workouts: {
+        Args: never
+        Returns: {
+          display_name: string
+          phone: string
+          plan_id: string
+          title: string
+          user_id: string
+          workout_date: string
+          workout_id: string
+        }[]
+      }
+      get_tomorrow_workouts_for_reminder: {
+        Args: never
+        Returns: {
+          description: string
+          display_name: string
+          distance_meters: number
+          phone: string
+          plan_id: string
+          provider: string
+          target_pace_min_km: number
+          title: string
+          user_id: string
+          workout_date: string
+          workout_id: string
+          workout_type: string
         }[]
       }
       get_top_login_users: {
