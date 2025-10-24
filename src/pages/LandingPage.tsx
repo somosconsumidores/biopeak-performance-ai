@@ -468,7 +468,7 @@ export const LandingPage = () => {
                     Termos e Condições
                   </a>
                 </li>
-                <li>{t('contact')}</li>
+                <li>Contato (relacionamento@biopeak-ai.com)</li>
                 <li>{t('status')}</li>
               </ul>
             </div>
