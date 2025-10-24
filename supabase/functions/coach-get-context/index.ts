@@ -100,6 +100,7 @@ serve(async (req) => {
     const nextWorkout = workouts?.find((w: any) => w.status === 'planned');
 
     const response = {
+      user_id: plan.user_id,
       plan: {
         id: plan.id,
         plan_name: plan.plan_name,
