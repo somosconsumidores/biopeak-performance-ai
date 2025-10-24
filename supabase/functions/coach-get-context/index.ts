@@ -101,6 +101,7 @@ serve(async (req) => {
 
     const response = {
       user_id: plan.user_id,
+      display_name: profile?.display_name || null,
       plan: {
         id: plan.id,
         plan_name: plan.plan_name,
