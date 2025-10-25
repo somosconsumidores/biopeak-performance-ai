@@ -44,20 +44,21 @@ export const useSubscription = () => {
     try {
       if (!background) setLoading(true);
       
-      // For iOS native, check RevenueCat first
+      // For iOS native, check RevenueCat first (with aggressive timeout)
       if (isIOS && isNative) {
         try {
+          debugLog('🍎 iOS Native: Attempting RevenueCat check...');
           await Promise.race([
             revenueCat.initialize(user.id),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('RevenueCat initialization timeout')), 5000)
+              setTimeout(() => reject(new Error('RevenueCat initialization timeout')), 3000)
             )
           ]);
           
           const customerInfo = await Promise.race([
             revenueCat.getCustomerInfo(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('RevenueCat getCustomerInfo timeout')), 5000)
+              setTimeout(() => reject(new Error('RevenueCat getCustomerInfo timeout')), 3000)
             )
           ]) as any;
           
@@ -65,6 +66,7 @@ export const useSubscription = () => {
             const activeEntitlements = Object.keys(customerInfo.entitlements.active);
             if (activeEntitlements.length > 0) {
               const entitlement = customerInfo.entitlements.active[activeEntitlements[0]];
+              debugLog('✅ RevenueCat: Active subscription found', { tier: 'premium', expiration: entitlement.expirationDate });
               clearTimeout(timeoutId);
               const data = {
                 subscribed: entitlement.isActive,
@@ -80,8 +82,9 @@ export const useSubscription = () => {
               return;
             }
           }
+          debugLog('⚠️ RevenueCat: No active entitlements found, falling back to server check');
         } catch (rcError) {
-          debugLog('RevenueCat check failed, falling back to server:', rcError);
+          debugError('❌ RevenueCat check failed, falling back to server check:', rcError);
         }
       }
       
@@ -108,6 +111,7 @@ export const useSubscription = () => {
       }
 
       // PRIORITY 1: Try quick database check first (< 200ms)
+      debugLog('🔍 Starting quick database check...');
       try {
         const { data: quickData, error: quickError } = await Promise.race([
           supabase.functions.invoke('quick-check-subscription', {
@@ -119,7 +123,11 @@ export const useSubscription = () => {
         ]) as any;
 
         if (!quickError && quickData?.subscribed) {
-          debugLog('Quick check: Active subscription found', quickData);
+          debugLog('✅ Quick check: Active subscription found in database', {
+            tier: quickData.subscription_tier,
+            end: quickData.subscription_end,
+            userId: user.id
+          });
           clearTimeout(timeoutId);
           setSubscriptionData(quickData);
           localStorage.setItem(CACHE_KEY, JSON.stringify({ data: quickData, timestamp: Date.now() }));
@@ -128,12 +136,13 @@ export const useSubscription = () => {
           return;
         }
         
-        debugLog('Quick check: No active subscription, proceeding to full check');
+        debugLog('⚠️ Quick check: No active subscription in database, proceeding to full Stripe check');
       } catch (quickCheckError) {
-        debugLog('Quick check failed, proceeding to full check', quickCheckError);
+        debugWarn('❌ Quick check failed, proceeding to full Stripe check', quickCheckError);
       }
 
       // PRIORITY 2: Full Stripe verification (only if quick check failed)
+      debugLog('🔄 Starting full Stripe verification...');
       const invokeCheck = async (accessToken: string) =>
         Promise.race([
           supabase.functions.invoke('check-subscription', {
@@ -169,17 +178,18 @@ export const useSubscription = () => {
       }
 
       if (error) {
-        debugError('Erro ao verificar assinatura:', error);
+        debugError('❌ Erro ao verificar assinatura via Stripe:', error);
         
         // CRITICAL: In background mode, don't reset to false
         if (background) {
-          debugWarn('Background check failed, keeping current subscription status');
+          debugWarn('⚠️ Background check failed, keeping current subscription status');
           clearTimeout(timeoutId);
           return;
         }
         
-        // Fallback to database cache
-        const { data: cachedData } = await Promise.race([
+        // Fallback to database cache (CRITICAL for iOS when Stripe fails)
+        debugLog('🔄 Attempting fallback to direct database query...');
+        const { data: cachedData, error: dbError } = await Promise.race([
           supabase
             .from('subscribers')
             .select('*')
@@ -190,7 +200,12 @@ export const useSubscription = () => {
           )
         ]) as any;
         
-        if (cachedData) {
+        if (cachedData && !dbError) {
+          debugLog('✅ Database fallback: Found subscription record', {
+            subscribed: cachedData.subscribed,
+            tier: cachedData.subscription_tier,
+            end: cachedData.subscription_end
+          });
           clearTimeout(timeoutId);
           const fallbackData = {
             subscribed: cachedData.subscribed,
@@ -204,10 +219,12 @@ export const useSubscription = () => {
             sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(fallbackData));
           }
         } else {
+          debugError('❌ Database fallback failed, no subscription found', dbError);
           clearTimeout(timeoutId);
           setSubscriptionData({ subscribed: false });
         }
       } else {
+        debugLog('✅ Stripe verification successful', data);
         clearTimeout(timeoutId);
         setSubscriptionData(data);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
