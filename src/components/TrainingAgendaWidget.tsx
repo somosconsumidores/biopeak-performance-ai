@@ -18,20 +18,12 @@ export function TrainingAgendaWidget() {
 
   const handleCreatePlan = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!isSubscribed) {
-      navigate('/paywall2');
-    } else {
-      navigate('/training-plan');
-    }
+    navigate('/training-plan');
   };
 
   const handleViewAll = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!isSubscribed) {
-      navigate('/paywall2');
-    } else {
-      navigate('/training-plan');
-    }
+    navigate('/training-plan');
   };
 
   if (loading) {
