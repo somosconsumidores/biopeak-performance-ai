@@ -10,16 +10,28 @@ import { PremiumButton } from '@/components/PremiumButton';
 import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
 import { WorkoutCalendar } from '@/components/WorkoutCalendar';
 import { WorkoutDetailDialog } from '@/components/WorkoutDetailDialog';
+import { TrainingPlanRestricted } from '@/components/TrainingPlanRestricted';
 import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 
 const TrainingPlan = () => {
   const { plan, workouts, loading, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const { isSubscribed } = useSubscription();
+  const { profile, flagTrainingPlanInterest } = useProfile();
   const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
+
+  // Allowed emails for training plan feature
+  const ALLOWED_EMAILS = [
+    'augustoccguga_@hotmail.com',
+    'sandro.leao@biopeak-ai.com',
+    'sandro.biopeak@biopeak.com'
+  ];
+
+  const isAllowedUser = profile?.email && ALLOWED_EMAILS.includes(profile.email.toLowerCase());
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
@@ -28,6 +40,10 @@ const TrainingPlan = () => {
       title: "Plano criado com sucesso!",
       description: "Seu plano de treino personalizado foi gerado.",
     });
+  };
+
+  const handleNotifyClick = () => {
+    flagTrainingPlanInterest();
   };
 
   return (
@@ -66,7 +82,7 @@ const TrainingPlan = () => {
                   onDeletePlan={deletePlan}
                   onRefreshPlan={refreshPlan}
                 />
-              ) : (
+              ) : isAllowedUser ? (
                 <div className="text-center py-8">
                   <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">Nenhum plano de treino ativo</h3>
@@ -81,6 +97,11 @@ const TrainingPlan = () => {
                     Criar Plano
                   </Button>
                 </div>
+              ) : (
+                <TrainingPlanRestricted 
+                  onNotifyClick={handleNotifyClick}
+                  alreadyFlagged={profile?.flag_training_plan || false}
+                />
               )}
             </CardContent>
           </Card>

@@ -13,6 +13,7 @@ interface Profile {
   birth_date: string | null;
   weight_kg: number | null;
   height_cm: number | null;
+  flag_training_plan: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -161,12 +162,42 @@ export function useProfile() {
     return age;
   };
 
+  const flagTrainingPlanInterest = async () => {
+    if (!user || !profile) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          flag_training_plan: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, flag_training_plan: true } : null);
+      toast({
+        title: 'Confirmado!',
+        description: 'Você será notificado quando a ferramenta estiver pronta'
+      });
+    } catch (error) {
+      console.error('Error flagging training plan interest:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível registrar seu interesse',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return {
     profile,
     loading,
     updating,
     updateProfile,
     uploadAvatar,
+    flagTrainingPlanInterest,
     refetch: fetchProfile,
     age: calculateAge(profile?.birth_date || null)
   };

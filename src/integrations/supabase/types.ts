@@ -2710,6 +2710,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          flag_training_plan: boolean | null
           gender: string | null
           height_cm: number | null
           id: string
@@ -2728,6 +2729,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          flag_training_plan?: boolean | null
           gender?: string | null
           height_cm?: number | null
           id?: string
@@ -2746,6 +2748,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          flag_training_plan?: boolean | null
           gender?: string | null
           height_cm?: number | null
           id?: string
