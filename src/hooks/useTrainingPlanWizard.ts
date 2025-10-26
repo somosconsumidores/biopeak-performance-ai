@@ -99,7 +99,7 @@ export function useTrainingPlanWizard() {
   const athleteAnalysis = useAthleteAnalysis();
   const { toast } = useToast();
   
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0); // Start at step 0 (disclaimer)
   const [loading, setLoading] = useState(false);
   const [wizardData, setWizardData] = useState<TrainingPlanWizardData>({
     goal: '',
@@ -264,7 +264,7 @@ export function useTrainingPlanWizard() {
 
   // Dynamic step calculation
   const getStepSequence = () => {
-    const baseSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Core steps 1-10
+    const baseSteps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Step 0 = Disclaimer, then core steps 1-10
     
     if (shouldShowRaceDate()) {
       baseSteps.push(11); // Race date step
@@ -302,6 +302,8 @@ export function useTrainingPlanWizard() {
 
   const canProceed = () => {
     switch (currentStep) {
+      case 0:
+        return false; // Disclaimer step handles its own navigation
       case 1:
         return !!wizardData.goal;
       case 2:

@@ -2717,6 +2717,7 @@ export type Database = {
           last_login_at: string | null
           onboarding_completed: boolean | null
           phone: string | null
+          training_plan_accepted: boolean | null
           updated_at: string
           user_id: string
           utm_source: string | null
@@ -2736,6 +2737,7 @@ export type Database = {
           last_login_at?: string | null
           onboarding_completed?: boolean | null
           phone?: string | null
+          training_plan_accepted?: boolean | null
           updated_at?: string
           user_id: string
           utm_source?: string | null
@@ -2755,6 +2757,7 @@ export type Database = {
           last_login_at?: string | null
           onboarding_completed?: boolean | null
           phone?: string | null
+          training_plan_accepted?: boolean | null
           updated_at?: string
           user_id?: string
           utm_source?: string | null

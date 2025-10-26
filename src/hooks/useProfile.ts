@@ -191,6 +191,32 @@ export function useProfile() {
     }
   };
 
+  const updateTrainingPlanAcceptance = async (accepted: boolean) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          training_plan_accepted: accepted,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, training_plan_accepted: accepted } : null);
+    } catch (error) {
+      console.error('Error updating training plan acceptance:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível registrar sua decisão',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   return {
     profile,
     loading,
@@ -198,6 +224,7 @@ export function useProfile() {
     updateProfile,
     uploadAvatar,
     flagTrainingPlanInterest,
+    updateTrainingPlanAcceptance,
     refetch: fetchProfile,
     age: calculateAge(profile?.birth_date || null)
   };

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 // Step Components
+import { DisclaimerStep } from './wizard-steps/DisclaimerStep';
 import { GoalSelectionStep } from './wizard-steps/GoalSelectionStep';
 import { AthleteLevelStep } from './wizard-steps/AthleteLevelStep';
 import { BirthDateStep } from './wizard-steps/BirthDateStep';
@@ -37,6 +38,7 @@ interface TrainingPlanWizardProps {
 }
 
 const STEP_TITLES: Record<number, string> = {
+  0: 'Termos e Condições',
   1: 'Qual é seu objetivo?',
   2: 'Confirme seu nível',
   3: 'Data de nascimento',
@@ -54,6 +56,7 @@ const STEP_TITLES: Record<number, string> = {
 };
 
 const STEP_DESCRIPTIONS: Record<number, string> = {
+  0: 'Leia e aceite os termos antes de prosseguir',
   1: 'Escolha o objetivo principal do seu plano de treino',
   2: 'Validamos automaticamente seu nível baseado no histórico',
   3: 'Confirme ou atualize sua data de nascimento',
@@ -127,8 +130,24 @@ export function TrainingPlanWizard({
     setIsGenerating(false);
   };
 
+  const handleDisclaimerAccept = () => {
+    nextStep(); // Continue to step 1
+  };
+
+  const handleDisclaimerDecline = () => {
+    toast({
+      title: "Aceite necessário",
+      description: "É necessário aceitar os termos para continuar com a criação do plano de treino.",
+      variant: "destructive",
+    });
+    onOpenChange?.(false);
+    onClose?.();
+  };
+
   const renderCurrentStep = () => {
     switch (currentStep) {
+      case 0:
+        return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
       case 1:
         return <GoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 2:
@@ -214,50 +233,52 @@ export function TrainingPlanWizard({
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border bg-muted/20">
-            <div className="flex justify-between items-center">
-              <Button
-                variant="outline"
-                onClick={previousStep}
-                disabled={stepSequence.indexOf(currentStep) === 0 || loading || isGenerating}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Voltar
-              </Button>
+          {currentStep !== 0 && ( // Hide footer on disclaimer step
+            <div className="p-6 border-t border-border bg-muted/20">
+              <div className="flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  onClick={previousStep}
+                  disabled={stepSequence.indexOf(currentStep) === 0 || loading || isGenerating}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Voltar
+                </Button>
 
-              <div className="flex items-center gap-2">
-                {stepSequence.indexOf(currentStep) === stepSequence.length - 1 ? (
-                  <Button
-                    onClick={handleFinish}
-                    disabled={!canProceed() || loading || isGenerating}
-                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold px-8"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Sparkles className="h-4 w-4 animate-spin" />
-                        Gerando Plano...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4" />
-                        Gerar Plano
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!canProceed() || loading}
-                    className="flex items-center gap-2"
-                  >
-                    Próximo
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {stepSequence.indexOf(currentStep) === stepSequence.length - 1 ? (
+                    <Button
+                      onClick={handleFinish}
+                      disabled={!canProceed() || loading || isGenerating}
+                      className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold px-8"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Sparkles className="h-4 w-4 animate-spin" />
+                          Gerando Plano...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4" />
+                          Gerar Plano
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleNext}
+                      disabled={!canProceed() || loading}
+                      className="flex items-center gap-2"
+                    >
+                      Próximo
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
