@@ -29,7 +29,8 @@ const TrainingPlan = () => {
     'augustoccguga_@hotmail.com',
     'sandro.leao@biopeak-ai.com',
     'sandro.biopeak@biopeak.com',
-    'joana.vmello@gmail.com'
+    'joana.vmello@gmail.com',
+    'mreisl2012@gmail.com'
   ];
 
   const isAllowedUser = profile?.email && ALLOWED_EMAILS.includes(profile.email.toLowerCase());
