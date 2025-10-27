@@ -683,6 +683,7 @@ export type Database = {
           payload: Json | null
           phone: string | null
           plan_id: string
+          resolved_at: string | null
           user_id: string
         }
         Insert: {
@@ -694,6 +695,7 @@ export type Database = {
           payload?: Json | null
           phone?: string | null
           plan_id: string
+          resolved_at?: string | null
           user_id: string
         }
         Update: {
@@ -705,6 +707,7 @@ export type Database = {
           payload?: Json | null
           phone?: string | null
           plan_id?: string
+          resolved_at?: string | null
           user_id?: string
         }
         Relationships: []
