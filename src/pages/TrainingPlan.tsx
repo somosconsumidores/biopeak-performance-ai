@@ -28,7 +28,8 @@ const TrainingPlan = () => {
   const ALLOWED_EMAILS = [
     'augustoccguga_@hotmail.com',
     'sandro.leao@biopeak-ai.com',
-    'sandro.biopeak@biopeak.com'
+    'sandro.biopeak@biopeak.com',
+    'joana.vmello@gmail.com'
   ];
 
   const isAllowedUser = profile?.email && ALLOWED_EMAILS.includes(profile.email.toLowerCase());
