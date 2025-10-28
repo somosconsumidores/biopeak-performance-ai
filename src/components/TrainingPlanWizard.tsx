@@ -15,6 +15,7 @@ import {
 
 // Step Components
 import { DisclaimerStep } from './wizard-steps/DisclaimerStep';
+import { PhoneNumberStep } from './wizard-steps/PhoneNumberStep';
 import { GoalSelectionStep } from './wizard-steps/GoalSelectionStep';
 import { AthleteLevelStep } from './wizard-steps/AthleteLevelStep';
 import { BirthDateStep } from './wizard-steps/BirthDateStep';
@@ -39,38 +40,40 @@ interface TrainingPlanWizardProps {
 
 const STEP_TITLES: Record<number, string> = {
   0: 'Termos e Condições',
-  1: 'Qual é seu objetivo?',
-  2: 'Confirme seu nível',
-  3: 'Data de nascimento',
-  4: 'Gênero',
-  5: 'Tempos estimados',
-  6: 'Frequência semanal',
-  7: 'Dias disponíveis',
-  8: 'Dia da corrida longa',
-  9: 'Data de início',
-  10: 'Duração do plano',
-  11: 'Data da prova',
-  12: 'Meta da prova',
-  13: 'Resumo e geração',
-  14: 'Declaração de saúde'
+  1: 'Número de celular',
+  2: 'Qual é seu objetivo?',
+  3: 'Confirme seu nível',
+  4: 'Data de nascimento',
+  5: 'Gênero',
+  6: 'Tempos estimados',
+  7: 'Frequência semanal',
+  8: 'Dias disponíveis',
+  9: 'Dia da corrida longa',
+  10: 'Data de início',
+  11: 'Duração do plano',
+  12: 'Data da prova',
+  13: 'Meta da prova',
+  14: 'Resumo e geração',
+  15: 'Declaração de saúde'
 };
 
 const STEP_DESCRIPTIONS: Record<number, string> = {
   0: 'Leia e aceite os termos antes de prosseguir',
-  1: 'Escolha o objetivo principal do seu plano de treino',
-  2: 'Validamos automaticamente seu nível baseado no histórico',
-  3: 'Confirme ou atualize sua data de nascimento',
-  4: 'Informação necessária para personalização do plano',
-  5: 'Confirme ou ajuste seus tempos estimados atuais',
-  6: 'Quantos treinos por semana você quer fazer?',
-  7: 'Em quais dias da semana você pode treinar?',
-  8: 'Qual dia prefere para o treino mais longo?',
-  9: 'Quando você gostaria de começar o plano?',
-  10: 'Por quantas semanas você quer treinar?',
-  11: 'Tem alguma prova específica como objetivo?',
-  12: 'Defina seu tempo objetivo para a prova',
-  13: 'Revise tudo antes de gerar seu plano personalizado',
-  14: 'Questionário de saúde obrigatório para sua segurança'
+  1: 'Para o BioPeak AI Coach te acompanhar melhor',
+  2: 'Escolha o objetivo principal do seu plano de treino',
+  3: 'Validamos automaticamente seu nível baseado no histórico',
+  4: 'Confirme ou atualize sua data de nascimento',
+  5: 'Informação necessária para personalização do plano',
+  6: 'Confirme ou ajuste seus tempos estimados atuais',
+  7: 'Quantos treinos por semana você quer fazer?',
+  8: 'Em quais dias da semana você pode treinar?',
+  9: 'Qual dia prefere para o treino mais longo?',
+  10: 'Quando você gostaria de começar o plano?',
+  11: 'Por quantas semanas você quer treinar?',
+  12: 'Tem alguma prova específica como objetivo?',
+  13: 'Defina seu tempo objetivo para a prova',
+  14: 'Revise tudo antes de gerar seu plano personalizado',
+  15: 'Questionário de saúde obrigatório para sua segurança'
 };
 
 export function TrainingPlanWizard({ 
@@ -149,35 +152,37 @@ export function TrainingPlanWizard({
       case 0:
         return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
       case 1:
-        return <GoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 2:
-        return <AthleteLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <GoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 3:
-        return <BirthDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <AthleteLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 4:
-        return <GenderStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <BirthDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 5:
-        return <EstimatedTimesStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <GenderStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 6:
-        return <WeeklyFrequencyStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <EstimatedTimesStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 7:
-        return <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <WeeklyFrequencyStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 8:
-        return <LongRunDayStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 9:
-        return <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <LongRunDayStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 10:
-        return <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 11:
+        return <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+      case 12:
         return <RaceDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
-        case 12:
-          return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
-        case 13:
-          return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
-        case 14:
-          return <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
-        default:
-          return null;
+      case 13:
+        return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
+      case 14:
+        return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
+      case 15:
+        return <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+      default:
+        return null;
     }
   };
 

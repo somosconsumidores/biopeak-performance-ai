@@ -9,21 +9,24 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateRaceTime } from '@/utils/raceTimeValidation';
 
 export interface TrainingPlanWizardData {
-  // Step 1: Goal selection
+  // Step 1: Phone number
+  phone?: string;
+  
+  // Step 2: Goal selection
   goal: string;
   goalDescription?: string;
   
-  // Step 2: Athlete level confirmation/adjustment
+  // Step 3: Athlete level confirmation/adjustment
   athleteLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
   adjustedLevel?: boolean;
   
-  // Step 3: Birth date confirmation
+  // Step 4: Birth date confirmation
   birthDate?: Date;
   
-  // Step 4: Gender collection
+  // Step 5: Gender collection
   gender?: 'male' | 'female';
   
-  // Step 5: Current time confirmation
+  // Step 6: Current time confirmation
   estimatedTimes: {
     k5?: string;
     k10?: string;
@@ -32,32 +35,32 @@ export interface TrainingPlanWizardData {
   };
   adjustedTimes?: boolean;
   
-  // Step 6: Weekly frequency
+  // Step 7: Weekly frequency
   weeklyFrequency: number;
   
-  // Step 7: Available days
+  // Step 8: Available days
   availableDays: string[];
   
-  // Step 8: Long run day preference
+  // Step 9: Long run day preference
   longRunDay: string;
   
-  // Step 9: Start date
+  // Step 10: Start date
   startDate: Date;
   
-  // Step 10: Plan duration
+  // Step 11: Plan duration
   planDurationWeeks: number;
   
-  // Step 11: Race date (optional)
+  // Step 12: Race date (optional)
   raceDate?: Date;
   hasRaceDate: boolean;
   
-  // Step 12: Race goal (optional)
+  // Step 13: Race goal (optional)
   raceGoal?: string;
   goalTargetTimeMinutes?: number;
   
-  // Step 13: Summary and generation (no additional data)
+  // Step 14: Summary and generation (no additional data)
   
-  // Step 14: Health declaration (PAR-Q)
+  // Step 15: Health declaration (PAR-Q)
   healthDeclaration?: {
     question_1_heart_problem?: boolean;
     question_2_chest_pain_during_activity?: boolean;
@@ -264,16 +267,16 @@ export function useTrainingPlanWizard() {
 
   // Dynamic step calculation
   const getStepSequence = () => {
-    const baseSteps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Step 0 = Disclaimer, then core steps 1-10
+    const baseSteps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // Step 0 = Disclaimer, Step 1 = Phone, then core steps 2-11
     
     if (shouldShowRaceDate()) {
-      baseSteps.push(11); // Race date step
+      baseSteps.push(12); // Race date step
     }
     
-    // Never add step 12 (race goal) as we calculate it automatically
+    // Never add step 13 (race goal) as we calculate it automatically
     
-    baseSteps.push(13); // Summary step
-    baseSteps.push(14); // Health declaration step (must be last before generation)
+    baseSteps.push(14); // Summary step
+    baseSteps.push(15); // Health declaration step (must be last before generation)
     return baseSteps;
   };
 
@@ -304,29 +307,35 @@ export function useTrainingPlanWizard() {
     switch (currentStep) {
       case 0:
         return false; // Disclaimer step handles its own navigation
-      case 1:
-        return !!wizardData.goal;
+      case 1: {
+        // Phone validation - require Brazilian format (11 digits)
+        if (!wizardData.phone) return false;
+        const digitsOnly = wizardData.phone.replace(/\D/g, '');
+        return digitsOnly.length === 11;
+      }
       case 2:
-        return !!wizardData.athleteLevel;
+        return !!wizardData.goal;
       case 3:
-        return !!wizardData.birthDate;
+        return !!wizardData.athleteLevel;
       case 4:
-        return !!wizardData.gender;
+        return !!wizardData.birthDate;
       case 5:
-        return true; // Times are optional/can be estimated
+        return !!wizardData.gender;
       case 6:
-        return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
+        return true; // Times are optional/can be estimated
       case 7:
-        return wizardData.availableDays.length >= wizardData.weeklyFrequency;
+        return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
       case 8:
-        return !!wizardData.longRunDay && wizardData.availableDays.includes(wizardData.longRunDay);
+        return wizardData.availableDays.length >= wizardData.weeklyFrequency;
       case 9:
-        return !!wizardData.startDate;
+        return !!wizardData.longRunDay && wizardData.availableDays.includes(wizardData.longRunDay);
       case 10:
-        return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
+        return !!wizardData.startDate;
       case 11:
+        return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
+      case 12:
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
-      case 12: {
+      case 13: {
         // RaceGoalStep validation - block impossible target times
         if (!wizardData.goalTargetTimeMinutes) return true; // Optional field
         
@@ -351,9 +360,9 @@ export function useTrainingPlanWizard() {
         
         return validation.canProceed;
       }
-      case 13:
+      case 14:
         return true; // Summary step
-      case 14: // Health declaration step
+      case 15: // Health declaration step
         if (!wizardData.healthDeclaration) return false;
         
         // Check all 7 questions are answered
@@ -419,6 +428,10 @@ export function useTrainingPlanWizard() {
       }
       if (wizardData.gender) {
         profileUpdates.gender = wizardData.gender;
+      }
+      if (wizardData.phone) {
+        // Store phone without formatting
+        profileUpdates.phone = wizardData.phone.replace(/\D/g, '');
       }
 
       if (Object.keys(profileUpdates).length > 0) {

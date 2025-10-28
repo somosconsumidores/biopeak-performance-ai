@@ -217,6 +217,31 @@ export function useProfile() {
     }
   };
 
+  const updatePhone = async (phone: string) => {
+    if (!user) return false;
+
+    try {
+      setUpdating(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      await fetchProfile();
+      return true;
+    } catch (error) {
+      console.error('Error updating phone:', error);
+      return false;
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return {
     profile,
     loading,
@@ -225,6 +250,7 @@ export function useProfile() {
     uploadAvatar,
     flagTrainingPlanInterest,
     updateTrainingPlanAcceptance,
+    updatePhone,
     refetch: fetchProfile,
     age: calculateAge(profile?.birth_date || null)
   };
