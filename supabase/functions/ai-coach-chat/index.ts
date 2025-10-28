@@ -24,8 +24,8 @@ async function fetchUserProfile(userId: string, supabase: any) {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
-    .single();
+    .eq('user_id', userId)
+    .maybeSingle();
   
   if (error) {
     console.error('Error fetching profile:', error);
@@ -178,7 +178,7 @@ async function fetchTrainingData(userId: string, supabase: any) {
     .select('*')
     .eq('user_id', userId)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
   
   if (!plan) return null;
   
