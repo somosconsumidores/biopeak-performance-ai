@@ -53,6 +53,78 @@ async function fetchRecentActivities(userId: string, supabase: any, days: number
   return data || [];
 }
 
+// Fetch detailed data for last activity
+async function fetchLastActivityDetails(userId: string, supabase: any) {
+  // Get the most recent activity
+  const { data: recentActivity } = await supabase
+    .from('all_activities')
+    .select('*')
+    .eq('user_id', userId)
+    .order('activity_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (!recentActivity) return null;
+
+  // Try to get detailed metrics from statistics_metrics
+  const { data: stats } = await supabase
+    .from('statistics_metrics')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('activity_id', recentActivity.id)
+    .maybeSingle();
+
+  // Try to get performance metrics
+  const { data: performance } = await supabase
+    .from('performance_metrics')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('activity_id', recentActivity.id)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  // Try to get variation analysis
+  const { data: variation } = await supabase
+    .from('activity_variation_analysis')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('activity_id', recentActivity.id)
+    .maybeSingle();
+
+  // Try to get Strava activity details if it's a Strava activity
+  let stravaDetails = null;
+  if (recentActivity.source === 'strava' && recentActivity.source_activity_id) {
+    const { data: strava } = await supabase
+      .from('strava_activities')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('strava_id', recentActivity.source_activity_id)
+      .maybeSingle();
+    stravaDetails = strava;
+  }
+
+  // Try to get Garmin activity details if it's a Garmin activity
+  let garminDetails = null;
+  if (recentActivity.source === 'garmin' && recentActivity.source_activity_id) {
+    const { data: garmin } = await supabase
+      .from('garmin_activities')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('activity_id', recentActivity.source_activity_id)
+      .maybeSingle();
+    garminDetails = garmin;
+  }
+
+  return {
+    activity: recentActivity,
+    statistics: stats,
+    performance: performance || [],
+    variation: variation,
+    stravaDetails: stravaDetails,
+    garminDetails: garminDetails
+  };
+}
+
 // Fetch performance metrics
 async function fetchPerformanceMetrics(userId: string, supabase: any) {
   const { data, error } = await supabase
@@ -224,6 +296,7 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
   const context: any = {
     profile: null,
     recentActivities: null,
+    lastActivityDetails: null,
     performance: null,
     statistics: null,
     sleep: null,
@@ -246,7 +319,22 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
   // Semantic analysis of user message to fetch relevant data
   const messageLower = userMessage.toLowerCase();
   
+  // Check if user is asking about last activity/workout
+  const askingAboutLastActivity = messageLower.includes('último treino') || 
+                                   messageLower.includes('ultima atividade') ||
+                                   messageLower.includes('último workout') ||
+                                   messageLower.includes('treino de hoje') ||
+                                   messageLower.includes('treino mais recente') ||
+                                   (messageLower.includes('último') && (messageLower.includes('treino') || messageLower.includes('atividade')));
+  
   const fetchPromises: Promise<void>[] = [];
+  
+  // If asking about last activity, fetch detailed data
+  if (askingAboutLastActivity) {
+    fetchPromises.push(
+      fetchLastActivityDetails(userId, supabase).then(data => { context.lastActivityDetails = data; })
+    );
+  }
   
   if (messageLower.includes('sono') || messageLower.includes('dormi') || messageLower.includes('descanso')) {
     fetchPromises.push(
@@ -255,7 +343,7 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
   }
   
   if (messageLower.includes('pace') || messageLower.includes('ritmo') || messageLower.includes('velocidade') || 
-      messageLower.includes('performance') || messageLower.includes('evolução')) {
+      messageLower.includes('performance') || messageLower.includes('evolução') || askingAboutLastActivity) {
     fetchPromises.push(
       fetchPerformanceMetrics(userId, supabase).then(data => { context.performance = data; }),
       fetchVariationAnalysis(userId, supabase).then(data => { context.variationAnalysis = data; }),
@@ -320,6 +408,57 @@ ${context.recentActivities && context.recentActivities.length > 0 ? `
 - Última atividade: ${context.recentActivities[0]?.activity_date} (${context.recentActivities[0]?.activity_type})
 - Tipos de atividade: ${[...new Set(context.recentActivities.map((a: any) => a.activity_type))].join(', ')}
 ` : 'Sem dados de atividades recentes'}
+
+${context.lastActivityDetails ? `
+📊 DETALHES COMPLETOS DO ÚLTIMO TREINO:
+Atividade: ${context.lastActivityDetails.activity.activity_type} em ${context.lastActivityDetails.activity.activity_date}
+${context.lastActivityDetails.activity.total_distance_meters ? `- Distância: ${(context.lastActivityDetails.activity.total_distance_meters / 1000).toFixed(2)} km` : ''}
+${context.lastActivityDetails.activity.total_time_minutes ? `- Duração: ${Math.floor(context.lastActivityDetails.activity.total_time_minutes)} min` : ''}
+${context.lastActivityDetails.activity.avg_pace_min_per_km ? `- Pace médio: ${context.lastActivityDetails.activity.avg_pace_min_per_km}` : ''}
+${context.lastActivityDetails.activity.avg_heart_rate ? `- FC média: ${context.lastActivityDetails.activity.avg_heart_rate} bpm` : ''}
+${context.lastActivityDetails.activity.max_heart_rate ? `- FC máxima: ${context.lastActivityDetails.activity.max_heart_rate} bpm` : ''}
+${context.lastActivityDetails.activity.avg_cadence ? `- Cadência média: ${context.lastActivityDetails.activity.avg_cadence} spm` : ''}
+${context.lastActivityDetails.activity.elevation_gain_meters ? `- Elevação: ${context.lastActivityDetails.activity.elevation_gain_meters}m` : ''}
+${context.lastActivityDetails.activity.total_calories ? `- Calorias: ${context.lastActivityDetails.activity.total_calories} kcal` : ''}
+
+${context.lastActivityDetails.statistics ? `
+Estatísticas detalhadas:
+${context.lastActivityDetails.statistics.avg_pace_min_per_km ? `- Pace médio: ${context.lastActivityDetails.statistics.avg_pace_min_per_km}` : ''}
+${context.lastActivityDetails.statistics.avg_heart_rate ? `- FC média: ${context.lastActivityDetails.statistics.avg_heart_rate} bpm` : ''}
+${context.lastActivityDetails.statistics.max_heart_rate ? `- FC máxima: ${context.lastActivityDetails.statistics.max_heart_rate} bpm` : ''}
+${context.lastActivityDetails.statistics.avg_cadence ? `- Cadência média: ${context.lastActivityDetails.statistics.avg_cadence} spm` : ''}
+${context.lastActivityDetails.statistics.total_steps ? `- Total de passos: ${context.lastActivityDetails.statistics.total_steps}` : ''}
+` : ''}
+
+${context.lastActivityDetails.variation ? `
+Análise de consistência:
+- Variação de pace: ${context.lastActivityDetails.variation.pace_cv_category || 'N/A'} (${context.lastActivityDetails.variation.pace_cv_percent ? context.lastActivityDetails.variation.pace_cv_percent.toFixed(1) + '%' : 'N/A'})
+- Variação de FC: ${context.lastActivityDetails.variation.heart_rate_cv_category || 'N/A'} (${context.lastActivityDetails.variation.heart_rate_cv_percent ? context.lastActivityDetails.variation.heart_rate_cv_percent.toFixed(1) + '%' : 'N/A'})
+- Diagnóstico: ${context.lastActivityDetails.variation.diagnosis || 'N/A'}
+` : ''}
+
+${context.lastActivityDetails.performance && context.lastActivityDetails.performance.length > 0 ? `
+Métricas de performance:
+${context.lastActivityDetails.performance.map((p: any) => `- ${p.metric_type}: ${p.metric_value}${p.metric_unit || ''}`).join('\n')}
+` : ''}
+
+${context.lastActivityDetails.stravaDetails ? `
+Dados adicionais do Strava:
+${context.lastActivityDetails.stravaDetails.average_speed ? `- Velocidade média: ${(context.lastActivityDetails.stravaDetails.average_speed * 3.6).toFixed(2)} km/h` : ''}
+${context.lastActivityDetails.stravaDetails.max_speed ? `- Velocidade máxima: ${(context.lastActivityDetails.stravaDetails.max_speed * 3.6).toFixed(2)} km/h` : ''}
+${context.lastActivityDetails.stravaDetails.average_watts ? `- Potência média: ${context.lastActivityDetails.stravaDetails.average_watts}W` : ''}
+${context.lastActivityDetails.stravaDetails.weighted_average_watts ? `- Potência normalizada: ${context.lastActivityDetails.stravaDetails.weighted_average_watts}W` : ''}
+${context.lastActivityDetails.stravaDetails.suffer_score ? `- Suffer Score: ${context.lastActivityDetails.stravaDetails.suffer_score}` : ''}
+` : ''}
+
+${context.lastActivityDetails.garminDetails ? `
+Dados adicionais do Garmin:
+${context.lastActivityDetails.garminDetails.avg_speed ? `- Velocidade média: ${(context.lastActivityDetails.garminDetails.avg_speed * 3.6).toFixed(2)} km/h` : ''}
+${context.lastActivityDetails.garminDetails.max_speed ? `- Velocidade máxima: ${(context.lastActivityDetails.garminDetails.max_speed * 3.6).toFixed(2)} km/h` : ''}
+${context.lastActivityDetails.garminDetails.training_effect ? `- Training Effect: ${context.lastActivityDetails.garminDetails.training_effect}` : ''}
+${context.lastActivityDetails.garminDetails.training_effect_label ? `- Tipo de efeito: ${context.lastActivityDetails.garminDetails.training_effect_label}` : ''}
+` : ''}
+` : ''}
 
 ${context.performance && context.performance.length > 0 ? `
 MÉTRICAS DE PERFORMANCE:
