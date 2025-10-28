@@ -53,13 +53,25 @@ async function fetchRecentActivities(userId: string, supabase: any, days: number
   return data || [];
 }
 
-// Fetch detailed data for last activity
-async function fetchLastActivityDetails(userId: string, supabase: any) {
-  // Get the most recent activity
-  const { data: recentActivity } = await supabase
+// Fetch detailed data for specific activity or last activity
+async function fetchLastActivityDetails(userId: string, supabase: any, activityDate?: string, activityType?: string) {
+  let query = supabase
     .from('all_activities')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', userId);
+  
+  // Filter by specific date if provided
+  if (activityDate) {
+    query = query.eq('activity_date', activityDate);
+  }
+  
+  // Filter by specific activity type if provided
+  if (activityType) {
+    query = query.eq('activity_type', activityType);
+  }
+  
+  // Get the most recent activity matching the filters
+  const { data: recentActivity } = await query
     .order('activity_date', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -319,7 +331,7 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
   // Semantic analysis of user message to fetch relevant data
   const messageLower = userMessage.toLowerCase();
   
-  // Check if user is asking about last activity/workout
+  // Check if user is asking about last activity/workout or specific activity
   const askingAboutLastActivity = messageLower.includes('último treino') || 
                                    messageLower.includes('ultima atividade') ||
                                    messageLower.includes('último workout') ||
@@ -327,12 +339,40 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
                                    messageLower.includes('treino mais recente') ||
                                    (messageLower.includes('último') && (messageLower.includes('treino') || messageLower.includes('atividade')));
   
+  // Extract specific date from message (format: DD/MM or DD/MM/YYYY)
+  let specificDate: string | undefined;
+  const dateMatch = messageLower.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+  if (dateMatch) {
+    const day = dateMatch[1].padStart(2, '0');
+    const month = dateMatch[2].padStart(2, '0');
+    const year = dateMatch[3] || '2025';
+    specificDate = `${year}-${month}-${day}`;
+  }
+  
+  // Extract specific activity type from message
+  let specificActivityType: string | undefined;
+  const activityTypes = [
+    'OPEN_WATER_SWIMMING', 'LAP_SWIMMING', 'SWIMMING',
+    'RUNNING', 'TREADMILL_RUNNING', 'RUN',
+    'CYCLING', 'INDOOR_CYCLING', 'MOUNTAIN_BIKING', 'RIDE',
+    'STRENGTH_TRAINING', 'WEIGHTTRAINING', 'WORKOUT',
+    'PILATES', 'YOGA'
+  ];
+  for (const type of activityTypes) {
+    if (messageLower.includes(type.toLowerCase().replace(/_/g, ' ')) || 
+        messageLower.includes(type.toLowerCase().replace(/_/g, ''))) {
+      specificActivityType = type;
+      break;
+    }
+  }
+  
   const fetchPromises: Promise<void>[] = [];
   
-  // If asking about last activity, fetch detailed data
-  if (askingAboutLastActivity) {
+  // If asking about specific activity or last activity, fetch detailed data
+  if (askingAboutLastActivity || specificDate || specificActivityType) {
     fetchPromises.push(
-      fetchLastActivityDetails(userId, supabase).then(data => { context.lastActivityDetails = data; })
+      fetchLastActivityDetails(userId, supabase, specificDate, specificActivityType)
+        .then(data => { context.lastActivityDetails = data; })
     );
   }
   
@@ -550,11 +590,13 @@ REGRAS CRÍTICAS:
 ✅ Foque em insights ACIONÁVEIS, não genéricos ou óbvios
 ✅ Use linguagem acessível, evitando jargão técnico excessivo
 ✅ Responda SEMPRE em português brasileiro
+✅ CRÍTICO: Se o usuário perguntar sobre uma atividade específica (data e/ou tipo) e lastActivityDetails for null, isso significa que a atividade NÃO FOI ENCONTRADA. Informe claramente ao usuário que não há registro dessa atividade e peça para verificar a data ou tipo de atividade mencionados.
 
 ❌ NÃO dê conselhos médicos ou de lesões - recomende procurar profissionais
 ❌ NÃO seja genérico - toda resposta deve ser personalizada aos dados do atleta
 ❌ NÃO ignore sinais de alerta nos dados
 ❌ NÃO faça promessas irrealistas sobre resultados
+❌ NÃO invente dados ou estatísticas de atividades que não existem nos dados fornecidos
 
 FORMATO DE RESPOSTA:
 - Use parágrafos curtos e objetivos (máximo 3-4 linhas cada)
