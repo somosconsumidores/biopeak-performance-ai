@@ -13,8 +13,8 @@ export const AICoach = () => {
   const { user, loading } = useAuth();
   const { isIOS, isNative } = usePlatform();
 
-  // Show feature only for iOS native app
-  const hasAccess = isIOS && isNative;
+  // Universal access to AI Coach
+  const hasAccess = true;
 
   if (loading) {
     return (
