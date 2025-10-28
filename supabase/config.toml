@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.coach-reschedule]
 verify_jwt = false
+
+[functions.ai-coach-chat]
+verify_jwt = true
