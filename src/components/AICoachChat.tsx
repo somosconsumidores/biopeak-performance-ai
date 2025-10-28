@@ -68,7 +68,7 @@ export const AICoachChat = () => {
   };
 
   return (
-    <Card className="h-[600px] flex flex-col">
+    <Card className="flex flex-col w-full h-[700px]">
       <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -109,10 +109,10 @@ export const AICoachChat = () => {
         <Separator />
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col p-3 gap-3">
+      <CardContent className="flex-1 flex flex-col p-4 gap-3 min-h-0">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 pr-3" ref={scrollAreaRef}>
-          <div className="space-y-4">
+        <ScrollArea className="flex-1 h-full" ref={scrollAreaRef}>
+          <div className="space-y-4 pr-4 pb-2">
             {messages.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -131,14 +131,14 @@ export const AICoachChat = () => {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                  className={`max-w-[85%] rounded-lg px-4 py-3 text-sm break-words ${
                     message.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{message.content}</div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
+                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                  <div className="flex items-center justify-between mt-2 gap-2">
                     <div
                       className={`text-xs opacity-70 ${
                         message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
@@ -164,7 +164,7 @@ export const AICoachChat = () => {
             
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-3 py-2 text-sm">
+                <div className="bg-muted rounded-lg px-4 py-3 text-sm">
                   <div className="flex items-center gap-2">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
@@ -180,7 +180,7 @@ export const AICoachChat = () => {
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="flex-shrink-0 flex gap-2">
+        <div className="flex-shrink-0 flex gap-2 pt-2">
           <Input
             ref={inputRef}
             value={inputMessage}
@@ -201,7 +201,7 @@ export const AICoachChat = () => {
         </div>
 
         {error && (
-          <div className="text-xs text-destructive text-center">
+          <div className="text-xs text-destructive text-center py-2">
             {error}
           </div>
         )}
