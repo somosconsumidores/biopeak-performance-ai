@@ -539,6 +539,102 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_coach_conversation_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          message_count: number | null
+          title: string | null
+          total_tokens_used: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          message_count?: number | null
+          title?: string | null
+          total_tokens_used?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          message_count?: number | null
+          title?: string | null
+          total_tokens_used?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_coach_conversations: {
+        Row: {
+          content: string
+          context_used: Json | null
+          conversation_id: string
+          created_at: string | null
+          id: string
+          role: string
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          context_used?: Json | null
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          role: string
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          context_used?: Json | null
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_coach_insights_history: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          insight_data: Json
+          insight_type: string
+          mentioned_in_conversation_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          insight_data?: Json
+          insight_type: string
+          mentioned_in_conversation_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          insight_data?: Json
+          insight_type?: string
+          mentioned_in_conversation_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_prescriptions: {
         Row: {
           actual_performance: Json

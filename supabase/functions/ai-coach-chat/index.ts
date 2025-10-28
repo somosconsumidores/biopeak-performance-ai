@@ -1,277 +1,606 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to calculate age from birth date
+function calculateAge(birthDate: string): number {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+// Fetch user profile
+async function fetchUserProfile(userId: string, supabase: any) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+  return data;
+}
+
+// Fetch recent activities (last N days)
+async function fetchRecentActivities(userId: string, supabase: any, days: number = 30) {
+  const dateThreshold = new Date();
+  dateThreshold.setDate(dateThreshold.getDate() - days);
+  
+  const { data, error } = await supabase
+    .from('all_activities')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('activity_date', dateThreshold.toISOString().split('T')[0])
+    .order('activity_date', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching activities:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch performance metrics
+async function fetchPerformanceMetrics(userId: string, supabase: any) {
+  const { data, error } = await supabase
+    .from('performance_metrics')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  
+  if (error) {
+    console.error('Error fetching performance metrics:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch statistics metrics
+async function fetchStatisticsMetrics(userId: string, supabase: any, limit: number = 10) {
+  const { data, error } = await supabase
+    .from('statistics_metrics')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) {
+    console.error('Error fetching statistics metrics:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch sleep data
+async function fetchSleepData(userId: string, supabase: any, days: number) {
+  const dateThreshold = new Date();
+  dateThreshold.setDate(dateThreshold.getDate() - days);
+  const dateStr = dateThreshold.toISOString().split('T')[0];
+  
+  const { data: garminSleep } = await supabase
+    .from('garmin_sleep_summaries')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('calendar_date', dateStr)
+    .order('calendar_date', { ascending: false });
+    
+  const sleepRecords = garminSleep || [];
+  
+  if (sleepRecords.length === 0) {
+    return null;
+  }
+  
+  // Calculate averages
+  const avgSleepScore = sleepRecords.reduce((sum: number, s: any) => sum + (s.sleep_score || 0), 0) / sleepRecords.length;
+  const avgSleepTime = sleepRecords.reduce((sum: number, s: any) => sum + (s.sleep_time_in_seconds || 0), 0) / sleepRecords.length;
+  
+  return {
+    records: sleepRecords.slice(0, 7), // Only include last 7 days in detail
+    summary: {
+      avgSleepScore: avgSleepScore.toFixed(0),
+      avgSleepTimeHours: (avgSleepTime / 3600).toFixed(1),
+      daysTracked: sleepRecords.length
+    }
+  };
+}
+
+// Fetch fitness scores
+async function fetchFitnessScores(userId: string, supabase: any, days: number) {
+  const dateThreshold = new Date();
+  dateThreshold.setDate(dateThreshold.getDate() - days);
+  const dateStr = dateThreshold.toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('fitness_scores_daily')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('calendar_date', dateStr)
+    .order('calendar_date', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching fitness scores:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch variation analysis
+async function fetchVariationAnalysis(userId: string, supabase: any) {
+  const { data, error } = await supabase
+    .from('activity_variation_analysis')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('has_valid_data', true)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  
+  if (error) {
+    console.error('Error fetching variation analysis:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch user goals/commitments
+async function fetchUserGoals(userId: string, supabase: any) {
+  const { data, error } = await supabase
+    .from('user_commitments')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false});
+  
+  if (error) {
+    console.error('Error fetching user goals:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch training plan and workouts
+async function fetchTrainingData(userId: string, supabase: any) {
+  // Fetch active training plan
+  const { data: plan } = await supabase
+    .from('training_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+  
+  if (!plan) return null;
+  
+  // Fetch workouts
+  const { data: workouts } = await supabase
+    .from('training_plan_workouts')
+    .select('*')
+    .eq('training_plan_id', plan.id)
+    .order('scheduled_date', { ascending: true });
+  
+  const completedWorkouts = workouts?.filter((w: any) => w.status === 'completed').length || 0;
+  const totalWorkouts = workouts?.length || 0;
+  const completionRate = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
+  
+  return {
+    plan,
+    workouts: workouts || [],
+    completionRate
+  };
+}
+
+// Fetch recent insights to avoid repetition
+async function fetchRecentInsights(userId: string, supabase: any, days: number) {
+  const dateThreshold = new Date();
+  dateThreshold.setDate(dateThreshold.getDate() - days);
+  
+  const { data, error } = await supabase
+    .from('ai_coach_insights_history')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', dateThreshold.toISOString())
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching insights:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Build intelligent context based on user message
+async function buildIntelligentContext(userId: string, userMessage: string, supabase: any) {
+  const context: any = {
+    profile: null,
+    recentActivities: null,
+    performance: null,
+    statistics: null,
+    sleep: null,
+    training: null,
+    goals: null,
+    fitness: null,
+    variationAnalysis: null,
+    insights: null
+  };
+
+  // Always fetch profile and recent activities
+  const [profile, recentActivities] = await Promise.all([
+    fetchUserProfile(userId, supabase),
+    fetchRecentActivities(userId, supabase, 30)
+  ]);
+  
+  context.profile = profile;
+  context.recentActivities = recentActivities;
+
+  // Semantic analysis of user message to fetch relevant data
+  const messageLower = userMessage.toLowerCase();
+  
+  const fetchPromises: Promise<void>[] = [];
+  
+  if (messageLower.includes('sono') || messageLower.includes('dormi') || messageLower.includes('descanso')) {
+    fetchPromises.push(
+      fetchSleepData(userId, supabase, 14).then(data => { context.sleep = data; })
+    );
+  }
+  
+  if (messageLower.includes('pace') || messageLower.includes('ritmo') || messageLower.includes('velocidade') || 
+      messageLower.includes('performance') || messageLower.includes('evolução')) {
+    fetchPromises.push(
+      fetchPerformanceMetrics(userId, supabase).then(data => { context.performance = data; }),
+      fetchVariationAnalysis(userId, supabase).then(data => { context.variationAnalysis = data; }),
+      fetchStatisticsMetrics(userId, supabase).then(data => { context.statistics = data; })
+    );
+  }
+  
+  if (messageLower.includes('treino') || messageLower.includes('plano') || messageLower.includes('workout')) {
+    fetchPromises.push(
+      fetchTrainingData(userId, supabase).then(data => { context.training = data; })
+    );
+  }
+  
+  if (messageLower.includes('objetivo') || messageLower.includes('meta') || messageLower.includes('prova') || messageLower.includes('corrida')) {
+    fetchPromises.push(
+      fetchUserGoals(userId, supabase).then(data => { context.goals = data; })
+    );
+  }
+  
+  if (messageLower.includes('cansado') || messageLower.includes('fadiga') || messageLower.includes('recuperação') || 
+      messageLower.includes('forma') || messageLower.includes('fitness')) {
+    fetchPromises.push(
+      fetchFitnessScores(userId, supabase, 14).then(data => { context.fitness = data; })
+    );
+    
+    // Also fetch sleep if not already fetching
+    if (!context.sleep) {
+      fetchPromises.push(
+        fetchSleepData(userId, supabase, 7).then(data => { context.sleep = data; })
+      );
+    }
+  }
+  
+  // Always fetch recent insights to avoid repetition
+  fetchPromises.push(
+    fetchRecentInsights(userId, supabase, 30).then(data => { context.insights = data; })
+  );
+
+  // Wait for all fetches to complete
+  await Promise.all(fetchPromises);
+
+  return context;
+}
+
+// Build enriched system prompt
+function buildEnrichedSystemPrompt(context: any): string {
+  const enrichedContext = `
+PERFIL DO ATLETA:
+${context.profile ? `
+- Nome: ${context.profile.display_name || 'Não informado'}
+- Membro desde: ${new Date(context.profile.created_at).toLocaleDateString('pt-BR')}
+${context.profile.birth_date ? `- Idade: ${calculateAge(context.profile.birth_date)} anos` : ''}
+${context.profile.weight_kg ? `- Peso: ${context.profile.weight_kg} kg` : ''}
+${context.profile.vo2_max ? `- VO2 max: ${context.profile.vo2_max}` : ''}
+` : 'Sem dados de perfil'}
+
+ATIVIDADES RECENTES (últimos 30 dias):
+${context.recentActivities && context.recentActivities.length > 0 ? `
+- Total: ${context.recentActivities.length} atividades
+- Distância acumulada: ${(context.recentActivities.reduce((sum: number, a: any) => sum + (a.total_distance_meters || 0), 0) / 1000).toFixed(1)} km
+- Tempo total: ${(context.recentActivities.reduce((sum: number, a: any) => sum + (a.total_time_minutes || 0), 0) / 60).toFixed(1)} horas
+- Última atividade: ${context.recentActivities[0]?.activity_date} (${context.recentActivities[0]?.activity_type})
+- Tipos de atividade: ${[...new Set(context.recentActivities.map((a: any) => a.activity_type))].join(', ')}
+` : 'Sem dados de atividades recentes'}
+
+${context.performance && context.performance.length > 0 ? `
+MÉTRICAS DE PERFORMANCE:
+${context.performance.slice(0, 5).map((p: any) => `- ${p.activity_date}: ${p.metric_type} = ${p.metric_value}`).join('\n')}
+` : ''}
+
+${context.statistics && context.statistics.length > 0 ? `
+ESTATÍSTICAS DETALHADAS (últimas atividades):
+${context.statistics.slice(0, 3).map((s: any) => `
+- Atividade ${new Date(s.created_at).toLocaleDateString('pt-BR')}:
+  * Pace médio: ${s.avg_pace_min_per_km || 'N/A'}
+  * FC média: ${s.avg_heart_rate || 'N/A'} bpm
+  * Cadência média: ${s.avg_cadence || 'N/A'} spm
+`).join('')}
+` : ''}
+
+${context.variationAnalysis && context.variationAnalysis.length > 0 ? `
+ANÁLISE DE CONSISTÊNCIA (pace e FC):
+${context.variationAnalysis.slice(0, 3).map((v: any) => `
+- ${new Date(v.created_at).toLocaleDateString('pt-BR')}:
+  * Variação de pace: ${v.pace_cv_category || 'N/A'}
+  * Variação de FC: ${v.heart_rate_cv_category || 'N/A'}
+  * Diagnóstico: ${v.diagnosis || 'N/A'}
+`).join('')}
+` : ''}
+
+${context.sleep?.summary ? `
+DADOS DE SONO (últimos ${context.sleep.summary.daysTracked} dias):
+- Score médio: ${context.sleep.summary.avgSleepScore}/100
+- Tempo médio: ${context.sleep.summary.avgSleepTimeHours}h por noite
+${context.sleep.records[0] ? `- Última noite: ${context.sleep.records[0].sleep_score || 'N/A'}/100 (${(context.sleep.records[0].sleep_time_in_seconds / 3600).toFixed(1)}h)` : ''}
+${context.sleep.records[0]?.deep_sleep_duration_in_seconds ? `  * Sono profundo: ${(context.sleep.records[0].deep_sleep_duration_in_seconds / 3600).toFixed(1)}h` : ''}
+${context.sleep.records[0]?.rem_sleep_duration_in_seconds ? `  * Sono REM: ${(context.sleep.records[0].rem_sleep_duration_in_seconds / 3600).toFixed(1)}h` : ''}
+` : ''}
+
+${context.fitness && context.fitness.length > 0 ? `
+FITNESS SCORES (últimos dias):
+- Fitness atual: ${context.fitness[0]?.fitness_score?.toFixed(1) || 'N/A'}
+- ATL (fadiga aguda - 7 dias): ${context.fitness[0]?.atl_7day?.toFixed(1) || 'N/A'}
+- CTL (forma crônica - 42 dias): ${context.fitness[0]?.ctl_42day?.toFixed(1) || 'N/A'}
+- TSB (frescor): ${context.fitness[0]?.ctl_42day && context.fitness[0]?.atl_7day ? (context.fitness[0].ctl_42day - context.fitness[0].atl_7day).toFixed(1) : 'N/A'}
+${context.fitness[0]?.daily_strain ? `- Carga de treino diária: ${context.fitness[0].daily_strain.toFixed(0)}` : ''}
+` : ''}
+
+${context.goals && context.goals.length > 0 ? `
+OBJETIVOS DO ATLETA:
+${context.goals.map((g: any) => `- ${g.goal_description} ${g.target_date ? `(meta: ${new Date(g.target_date).toLocaleDateString('pt-BR')})` : '(sem prazo)'}`).join('\n')}
+` : ''}
+
+${context.training ? `
+PLANO DE TREINO ATIVO:
+${context.training.plan ? `
+- Nome: ${context.training.plan.plan_name}
+- Objetivo: ${context.training.plan.goal_type}
+- Duração: ${context.training.plan.duration_weeks} semanas
+- Progresso: ${context.training.completionRate.toFixed(1)}% concluído (${context.training.workouts.filter((w: any) => w.status === 'completed').length}/${context.training.workouts.length} treinos)
+- Próximos treinos: ${context.training.workouts.filter((w: any) => w.status === 'planned').slice(0, 3).map((w: any) => `${w.workout_type} em ${new Date(w.scheduled_date).toLocaleDateString('pt-BR')}`).join(', ')}
+` : 'Sem plano de treino ativo'}
+` : ''}
+
+${context.insights && context.insights.length > 0 ? `
+⚠️ INSIGHTS JÁ MENCIONADOS (últimos 30 dias):
+${context.insights.map((i: any) => `- [${i.insight_type}] em ${new Date(i.created_at).toLocaleDateString('pt-BR')}`).join('\n')}
+⚠️ IMPORTANTE: Evite repetir exatamente estes insights, a menos que haja mudanças significativas nos dados ou o usuário pergunte especificamente sobre eles.
+` : ''}
+`;
+
+  const systemPrompt = `Você é o BioPeak AI Coach, um treinador inteligente especializado em corrida e esportes de resistência.
+
+CONTEXTO COMPLETO DO ATLETA:
+${enrichedContext}
+
+SUAS RESPONSABILIDADES:
+1. Analisar TODOS os dados disponíveis do atleta de forma holística
+2. Fornecer insights personalizados, específicos e acionáveis
+3. Identificar padrões, tendências e correlações entre diferentes métricas
+4. Alertar proativamente sobre sinais de sobrecarga, fadiga ou risco de lesão
+5. Motivar baseado em progresso real e conquistas mensuráveis
+6. Sugerir ajustes específicos e práticos no treino
+7. Responder perguntas com base em DADOS CONCRETOS do atleta
+
+REGRAS CRÍTICAS:
+✅ SEMPRE cite números e dados específicos nas suas respostas
+✅ Faça correlações entre diferentes métricas (ex: sono ruim + FC elevada + treino pesado = risco de overtraining)
+✅ Se detectar algo preocupante, alerte de forma clara mas não alarmista
+✅ Evite repetir insights já mencionados (veja seção INSIGHTS JÁ MENCIONADOS)
+✅ Se não tiver dados suficientes para responder, seja honesto e explique o que falta
+✅ Mantenha tom profissional, motivacional mas realista
+✅ Foque em insights ACIONÁVEIS, não genéricos ou óbvios
+✅ Use linguagem acessível, evitando jargão técnico excessivo
+✅ Responda SEMPRE em português brasileiro
+
+❌ NÃO dê conselhos médicos ou de lesões - recomende procurar profissionais
+❌ NÃO seja genérico - toda resposta deve ser personalizada aos dados do atleta
+❌ NÃO ignore sinais de alerta nos dados
+❌ NÃO faça promessas irrealistas sobre resultados
+
+FORMATO DE RESPOSTA:
+- Use parágrafos curtos e objetivos (máximo 3-4 linhas cada)
+- Quando relevante, use emojis para destacar pontos importantes (mas com moderação)
+- Estruture respostas longas em tópicos ou seções
+- Sempre termine com uma recomendação clara, pergunta ou próximo passo
+- Seja conversacional mas profissional
+
+EXEMPLOS DE BOA ANÁLISE:
+"Notei que nos últimos 7 dias sua carga de treino está 15% acima da média, mas seu score de sono caiu para 68/100 (vs 82 habitual). Isso pode indicar fadiga acumulada. Recomendo priorizar uma noite de sono de 8h+ hoje e considerar transformar o treino de amanhã em um treino leve ou descanso ativo."
+
+"Excelente progressão! 🎉 Comparando com há 4 semanas, seu pace médio melhorou 8 seg/km e sua consistência aumentou (variação de pace caiu de 12% para 7%). Seus treinos intervalados estão dando resultado. Continue nessa linha!"
+`;
+
+  return systemPrompt;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const requestBody = await req.json();
+    const { message, conversationHistory = [], conversationId: requestConversationId } = requestBody;
 
-    // Get user from Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
+    if (!message || typeof message !== 'string') {
+      throw new Error('Message is required and must be a string');
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Generate or use existing conversation ID
+    const conversationId = requestConversationId || crypto.randomUUID();
+
+    // Load conversation history if conversationId is provided and no history in request
+    let fullConversationHistory = conversationHistory;
     
-    if (authError || !user) {
-      throw new Error('Invalid authentication');
-    }
-
-    const { message, conversationHistory = [], trainingPlanContext } = await req.json();
-
-    console.log('🤖 AI Coach Chat: Processing message for user:', user.id, 'hasTrainingPlan:', !!trainingPlanContext);
-
-    // Fetch user's active training plan if not provided in context
-    let planContext = trainingPlanContext;
-    if (!planContext) {
-      const { data: activePlan } = await supabase
-        .from('training_plans')
-        .select(`
-          *,
-          training_plan_workouts (*)
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (activePlan) {
-        const workouts = activePlan.training_plan_workouts || [];
-        planContext = {
-          plan: {
-            name: activePlan.plan_name,
-            goal: activePlan.goal_type,
-            weeks: activePlan.weeks,
-            startDate: activePlan.start_date,
-            endDate: activePlan.end_date,
-            targetEventDate: activePlan.target_event_date
-          },
-          workouts: workouts.map((w: any) => ({
-            week: w.week_number,
-            day: w.day_of_week,
-            type: w.workout_type,
-            name: w.workout_name,
-            description: w.description,
-            completed: w.is_completed,
-            scheduledDate: w.scheduled_date
-          })),
-          progress: {
-            totalWorkouts: workouts.length,
-            completedWorkouts: workouts.filter((w: any) => w.is_completed).length,
-            completionRate: workouts.length > 0 ? (workouts.filter((w: any) => w.is_completed).length / workouts.length) * 100 : 0
-          }
-        };
+    if (requestConversationId && conversationHistory.length === 0) {
+      const { data: previousMessages } = await supabaseClient
+        .from('ai_coach_conversations')
+        .select('role, content, created_at')
+        .eq('conversation_id', requestConversationId)
+        .order('created_at', { ascending: true });
+        
+      if (previousMessages && previousMessages.length > 0) {
+        fullConversationHistory = previousMessages.map((m: any) => ({
+          role: m.role,
+          content: m.content
+        }));
       }
     }
-    const { data: activities, error: activitiesError } = await supabase
-      .from('all_activities')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('activity_date', { ascending: false })
-      .limit(50);
 
-    if (activitiesError) {
-      console.error('Error fetching activities:', activitiesError);
-    }
+    // Build intelligent context based on user message
+    console.log('Building intelligent context for user:', user.id);
+    const intelligentContext = await buildIntelligentContext(user.id, message, supabaseClient);
 
-    // Fetch user's recent VO2max data
-    const { data: vo2maxData, error: vo2Error } = await supabase
-      .from('garmin_tokens')
-      .select('garmin_user_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
+    // Build enriched system prompt
+    const systemPrompt = buildEnrichedSystemPrompt(intelligentContext);
 
-    let recentVo2Max = null;
-    if (vo2maxData && !vo2Error) {
-      const { data: vo2Records } = await supabase
-        .from('garmin_vo2max')
-        .select('*')
-        .eq('garmin_user_id', vo2maxData.garmin_user_id)
-        .order('calendar_date', { ascending: false })
-        .limit(5);
-      recentVo2Max = vo2Records;
-    }
-
-    // Fetch user profile for personalization
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('display_name, created_at')
-      .eq('user_id', user.id)
-      .single();
-
-    // Calculate activity summary for context
-    const activitySummary = activities ? {
-      totalActivities: activities.length,
-      totalDistance: activities.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0),
-      totalTime: activities.reduce((sum, act) => sum + (act.total_time_minutes || 0), 0),
-      averagePace: activities
-        .filter(act => act.pace_min_per_km && act.activity_type?.toLowerCase().includes('run'))
-        .reduce((sum, act, _, arr) => sum + (act.pace_min_per_km / arr.length), 0),
-      lastActivity: activities[0]?.activity_date,
-      mostCommonType: activities.length > 0 ? 
-        activities.reduce((acc, act) => {
-          acc[act.activity_type] = (acc[act.activity_type] || 0) + 1;
-          return acc;
-        }, {})[Object.keys(activities.reduce((acc, act) => {
-          acc[act.activity_type] = (acc[act.activity_type] || 0) + 1;
-          return acc;
-        }, {})).reduce((a, b) => activities.reduce((acc, act) => {
-          acc[act.activity_type] = (acc[act.activity_type] || 0) + 1;
-          return acc;
-        }, {})[a] > activities.reduce((acc, act) => {
-          acc[act.activity_type] = (acc[act.activity_type] || 0) + 1;
-          return acc;
-        }, {})[b] ? a : b)] : null
-    } : null;
-
-    // Create context for AI
-    const userContext = `
-Usuário: ${profile?.display_name || 'Atleta'}
-Membro desde: ${profile?.created_at ? new Date(profile.created_at).toLocaleDateString('pt-BR') : 'N/A'}
-
-${planContext ? `
-PLANO DE TREINO ATIVO:
-- Nome: ${planContext.plan.name}
-- Objetivo: ${planContext.plan.goal}
-- Duração: ${planContext.plan.weeks} semanas
-- Período: ${planContext.plan.startDate} até ${planContext.plan.endDate}
-${planContext.plan.targetEventDate ? `- Data da Prova: ${planContext.plan.targetEventDate}` : ''}
-
-PROGRESSO DO PLANO:
-- Total de treinos: ${planContext.progress.totalWorkouts}
-- Treinos completos: ${planContext.progress.completedWorkouts}
-- Taxa de conclusão: ${planContext.progress.completionRate.toFixed(1)}%
-
-PRÓXIMOS TREINOS:
-${planContext.workouts.filter((w: any) => !w.completed).slice(0, 3).map((w: any) => 
-  `- Semana ${w.week}, ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][w.day]}: ${w.name} (${w.type})`
-).join('\n')}
-` : ''}
-
-Resumo de Atividades (últimas 50):
-- Total de atividades: ${activitySummary?.totalActivities || 0}
-- Distância total: ${activitySummary?.totalDistance ? (activitySummary.totalDistance / 1000).toFixed(1) + ' km' : 'N/A'}
-- Tempo total: ${activitySummary?.totalTime ? (activitySummary.totalTime / 60).toFixed(1) + ' horas' : 'N/A'}
-- Pace médio (corrida): ${activitySummary?.averagePace ? activitySummary.averagePace.toFixed(2) + ' min/km' : 'N/A'}
-- Última atividade: ${activitySummary?.lastActivity || 'N/A'}
-- Tipo mais comum: ${activitySummary?.mostCommonType || 'N/A'}
-
-${recentVo2Max && recentVo2Max.length > 0 ? `
-VO2max recente:
-- Corrida: ${recentVo2Max[0]?.vo2_max_running || 'N/A'}
-- Ciclismo: ${recentVo2Max[0]?.vo2_max_cycling || 'N/A'}
-- Data: ${recentVo2Max[0]?.calendar_date || 'N/A'}
-` : ''}
-
-Dados disponíveis: ${activities ? 'Sim' : 'Limitados'}
-    `;
-
-    // Prepare messages for OpenAI
+    // Prepare messages for AI
     const messages = [
-      {
-        role: 'system',
-        content: `Você é o BioPeak AI Coach, um treinador inteligente especializado em corrida e esportes. 
-
-CONTEXTO DO USUÁRIO:
-${userContext}
-
-SUAS RESPONSABILIDADES:
-1. Analisar os dados de treino do usuário
-2. Fornecer recomendações personalizadas baseadas no histórico
-3. Identificar padrões e tendências de performance
-4. Sugerir melhorias e ajustes no treino
-5. Responder perguntas sobre performance e treino
-${planContext ? '6. Dar conselhos específicos sobre o plano de treino ativo\n7. Motivar baseado no progresso do plano\n8. Sugerir ajustes no plano quando necessário' : ''}
-
-REGRAS:
-- Sempre use os dados reais do usuário para personalizar respostas
-- Seja específico e cite números quando relevante
-- Ofereça conselhos práticos e aplicáveis
-- Se não tiver dados suficientes, sugira como coletar mais informações
-- Mantenha tom motivacional mas realista
-- Responda em português brasileiro
-- Foque em insights acionáveis
-
-ESPECIALIDADES:
-- Análise de pace e consistência
-- Interpretação de VO2max
-- Planejamento de treinos progressivos
-- Prevenção de lesões
-- Otimização de performance`
-      },
-      ...conversationHistory.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content
-      })),
-      {
-        role: 'user',
-        content: message
-      }
+      { role: 'system', content: systemPrompt },
+      ...fullConversationHistory,
+      { role: 'user', content: message }
     ];
 
-    console.log('🤖 Calling OpenAI with context for user:', user.id);
+    // Save user message
+    await supabaseClient.from('ai_coach_conversations').insert({
+      user_id: user.id,
+      conversation_id: conversationId,
+      role: 'user',
+      content: message
+    });
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'google/gemini-2.0-flash-exp',
         messages: messages,
-        max_completion_tokens: 800,
-        stream: false
-      }),
+        temperature: 0.7,
+        max_tokens: 1500
+      })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', errorText);
+      throw new Error(`AI API error: ${aiResponse.status} - ${errorText}`);
     }
 
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    const data = await aiResponse.json();
+    const responseText = data.choices[0].message.content;
+    const tokensUsed = data.usage?.total_tokens || 0;
 
-    console.log('✅ AI Coach response generated successfully');
-
-    return new Response(JSON.stringify({ 
-      response: aiResponse,
-      userContext: activitySummary,
-      hasTrainingPlan: !!planContext
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Save assistant message
+    await supabaseClient.from('ai_coach_conversations').insert({
+      user_id: user.id,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: responseText,
+      context_used: {
+        tables_queried: Object.keys(intelligentContext).filter(k => intelligentContext[k] !== null),
+        activity_count: intelligentContext.recentActivities?.length || 0,
+        has_sleep_data: !!intelligentContext.sleep,
+        has_training_plan: !!intelligentContext.training,
+        has_performance_data: !!intelligentContext.performance,
+        has_fitness_data: !!intelligentContext.fitness
+      },
+      tokens_used: tokensUsed
     });
+
+    // Update or create conversation session
+    const { data: existingSession } = await supabaseClient
+      .from('ai_coach_conversation_sessions')
+      .select('*')
+      .eq('id', conversationId)
+      .single();
+
+    if (existingSession) {
+      await supabaseClient
+        .from('ai_coach_conversation_sessions')
+        .update({
+          last_message_at: new Date().toISOString(),
+          message_count: existingSession.message_count + 2,
+          total_tokens_used: (existingSession.total_tokens_used || 0) + tokensUsed,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+    } else {
+      // Generate title from first message
+      const title = message.length > 50 ? message.substring(0, 47) + '...' : message;
+      
+      await supabaseClient
+        .from('ai_coach_conversation_sessions')
+        .insert({
+          id: conversationId,
+          user_id: user.id,
+          title: title,
+          last_message_at: new Date().toISOString(),
+          message_count: 2,
+          total_tokens_used: tokensUsed
+        });
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        response: responseText,
+        conversationId: conversationId,
+        tokensUsed: tokensUsed
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
+    );
 
   } catch (error) {
     console.error('Error in ai-coach-chat function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error',
-      details: 'Failed to process AI coach chat request'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || 'Internal server error',
+        details: error.toString()
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    );
   }
 });

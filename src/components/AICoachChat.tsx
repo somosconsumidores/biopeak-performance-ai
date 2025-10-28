@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Send, MessageCircle, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Send, MessageCircle, Trash2, Volume2, VolumeX, Plus } from 'lucide-react';
 import { useEnhancedAICoachChat } from '@/hooks/useEnhancedAICoachChat';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
 import { toast } from 'sonner';
 
 export const AICoachChat = () => {
-  const { messages, loading, error, sendMessage, clearMessages } = useEnhancedAICoachChat();
+  const { messages, loading, error, sendMessage, clearMessages, startNewConversation } = useEnhancedAICoachChat();
   const { speak, stop, isEnabled, isSpeaking, toggle: toggleTTS } = useEnhancedTTS();
   const [inputMessage, setInputMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -76,6 +76,16 @@ export const AICoachChat = () => {
             <CardTitle className="text-lg">BioPeak AI Coach</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={startNewConversation}
+              className="h-8 px-2 text-muted-foreground hover:text-primary"
+              title="Nova conversa"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="text-xs">Nova</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

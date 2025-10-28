@@ -17,6 +17,7 @@ interface UseEnhancedAICoachChatReturn {
   error: string | null;
   sendMessage: (message: string) => Promise<void>;
   clearMessages: () => void;
+  startNewConversation: () => void;
 }
 
 export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
@@ -25,6 +26,13 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
+  const startNewConversation = useCallback(() => {
+    setCurrentConversationId(null);
+    setMessages([]);
+    setError(null);
+  }, []);
 
   const sendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
@@ -51,36 +59,12 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
         content: msg.content
       }));
 
-      // Prepare training plan context if available
-      const trainingPlanContext = plan ? {
-        plan: {
-          name: plan.plan_name,
-          goal: plan.goal_type,
-          weeks: plan.weeks,
-          startDate: plan.start_date,
-          endDate: plan.end_date,
-          targetEventDate: plan.target_event_date
-        },
-        workouts: workouts.map(w => ({
-          type: w.workout_type,
-          name: w.title,
-          description: w.description,
-          completed: w.status === 'completed',
-          scheduledDate: w.workout_date
-        })),
-        progress: {
-          totalWorkouts: workouts.length,
-          completedWorkouts: workouts.filter(w => w.status === 'completed').length,
-          completionRate: workouts.length > 0 ? (workouts.filter(w => w.status === 'completed').length / workouts.length) * 100 : 0
-        }
-      } : null;
-
       const { data, error: functionError } = await supabase.functions.invoke('ai-coach-chat', {
         body: {
           message: message.trim(),
           conversationHistory,
-          trainingPlanContext,
-          userId: user?.id
+          userId: user?.id,
+          conversationId: currentConversationId
         }
       });
 
@@ -93,6 +77,11 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
         throw new Error('No response received from AI coach');
       }
 
+      // Update conversation ID if new
+      if (!currentConversationId && data?.conversationId) {
+        setCurrentConversationId(data.conversationId);
+      }
+
       console.log('✅ Enhanced AI Coach response received');
 
       // Add AI response to chat
@@ -100,8 +89,7 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
         id: `ai-${Date.now()}`,
         role: 'assistant',
         content: data.response,
-        timestamp: new Date(),
-        context: trainingPlanContext ? 'training_plan' : 'general'
+        timestamp: new Date()
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -123,7 +111,7 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
     } finally {
       setLoading(false);
     }
-  }, [messages, plan, workouts, user]);
+  }, [messages, user, currentConversationId]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -136,5 +124,6 @@ export const useEnhancedAICoachChat = (): UseEnhancedAICoachChatReturn => {
     error,
     sendMessage,
     clearMessages,
+    startNewConversation,
   };
 };
