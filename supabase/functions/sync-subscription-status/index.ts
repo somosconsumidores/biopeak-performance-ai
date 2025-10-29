@@ -70,6 +70,22 @@ Deno.serve(async (req) => {
       throw updateError;
     }
 
+    // Insert into subscription_updates to trigger Realtime notification
+    const { error: notificationError } = await supabase
+      .from('subscription_updates')
+      .insert({
+        user_id,
+        action: subscribed ? 'subscription_activated' : 'subscription_deleted',
+        metadata: { platform, expiration_date }
+      });
+
+    if (notificationError) {
+      console.error('⚠️ Failed to insert notification:', notificationError);
+      // Don't throw - subscription was synced successfully
+    } else {
+      console.log('🔔 Realtime notification sent');
+    }
+
     console.log('✅ Subscription synced successfully');
 
     return new Response(
