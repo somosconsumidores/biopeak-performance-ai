@@ -18,19 +18,30 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get('Authorization')!;
-    const { data: user, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const body = await req.json();
+    
+    let userId: string;
 
-    if (authError || !user?.user) {
-      console.error('Authentication error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Check if this is an internal call with user_id in body (from strava-sync-background)
+    if (body.user_id && authHeader.includes(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')) {
+      userId = body.user_id;
+      console.log(`[StravaSync] Internal call for user: ${userId}`);
+    } else {
+      // External call - authenticate with JWT
+      const { data: user, error: authError } = await supabase.auth.getUser(
+        authHeader.replace('Bearer ', '')
       );
-    }
 
-    const userId = user.user.id;
+      if (authError || !user?.user) {
+        console.error('Authentication error:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Authentication required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = user.user.id;
+    }
     console.log(`[StravaSync] Starting optimized sync for user: ${userId}`);
 
     // Get user's Strava credentials
