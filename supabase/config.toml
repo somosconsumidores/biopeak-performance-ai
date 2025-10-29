@@ -230,3 +230,12 @@ verify_jwt = true
 
 [functions.validate-subscription-unified]
 verify_jwt = true
+
+[functions.strava-sync-optimized]
+verify_jwt = true
+
+[functions.strava-sync-background]
+verify_jwt = false
+
+[functions.sync-subscription-status]
+verify_jwt = false

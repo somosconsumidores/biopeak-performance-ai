@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { useStravaSync } from '@/hooks/useStravaSync';
+import { useStravaSyncStatus } from '@/hooks/useStravaSyncStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -13,6 +14,7 @@ export default function StravaCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { syncActivities, syncActivitiesOptimized, isLoading: isSyncing } = useStravaSync();
+  const { currentJob } = useStravaSyncStatus();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processando autenticação...');
@@ -173,8 +175,9 @@ export default function StravaCallback() {
         console.log('[StravaCallback] Flow detection:', { isNativeFlow, isNativePlatform });
         
         // Se for fluxo nativo, enviar deep link (iOS fecha Safari automaticamente)
+        // Sincronização acontecerá em background via strava-sync-background
         if (isNativeFlow || isNativePlatform) {
-          console.log('📱 [StravaCallback] Native flow - Sending deep link');
+          console.log('📱 [StravaCallback] Native flow - Deep link sent, sync will happen in background');
           window.location.href = 'biopeak://strava-success';
           return;
         }

@@ -3423,6 +3423,48 @@ export type Database = {
         }
         Relationships: []
       }
+      strava_sync_jobs: {
+        Row: {
+          activities_synced: number | null
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          started_at: string | null
+          status: string
+          total_activities: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activities_synced?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string | null
+          status?: string
+          total_activities?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activities_synced?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string | null
+          status?: string
+          total_activities?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       strava_sync_status: {
         Row: {
           created_at: string
@@ -4797,6 +4839,7 @@ export type Database = {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_function_calls: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      cleanup_old_strava_sync_jobs: { Args: never; Returns: undefined }
       cleanup_old_subscription_updates: { Args: never; Returns: undefined }
       deactivate_garmin_user: {
         Args: { garmin_user_id_param: string }
