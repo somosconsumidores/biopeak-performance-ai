@@ -276,6 +276,9 @@ function generatePlan(
       volumeMultiplier = weeksFromEnd === 1 ? 0.5 : 0.7;
     }
 
+    // Track weekly quality sessions (max 2 per week)
+    let weeklyQualityCount = 0;
+
     for (const dow of dayIndices) {
       const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
       const isLong = dow === longDayIdx;
@@ -285,12 +288,17 @@ function generatePlan(
             goal, w, phase, volumeMultiplier, targetPaces, calibrator,
             { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek }
           )
-        : generateSession(goal, w, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length);
+        : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator);
 
       // Track 30+ km long runs
       if (isLong && session.distance_km && session.distance_km >= 30) {
         longRunCount30Plus++;
         lastLongRun30PlusWeek = w;
+      }
+
+      // Count quality sessions this week
+      if (session.intensity === 'high' || (session.intensity === 'moderate' && session.type !== 'easy')) {
+        weeklyQualityCount++;
       }
 
       workouts.push({ 
@@ -386,18 +394,22 @@ function generateLongRun(
 
 function generateSession(
   goal: GoalType, 
-  week: number, 
+  week: number,
+  dow: number, // dia da semana (0-6)
   phase: string, 
   vol: number, 
   p: Paces,
   isCutbackWeek: boolean,
-  totalSessions: number
+  totalSessions: number,
+  weeklyQualityCount: number,
+  calibrator: SafetyCalibrator
 ) {
   // Defaults: easy session
   let type = 'easy';
   let title = 'Corrida leve';
   let description = 'Corrida confortável em Z2';
-  let distance_km = Math.round((5 + week * 0.5) * vol);
+  // Controle de volume: limite de 12km para easy runs, progressão gradual
+  let distance_km = Math.min(12, Math.round((5 + week * 0.4) * vol));
   let duration_min: number | null = null;
   let pace = p.pace_easy;
   let zone = 2;
@@ -418,9 +430,10 @@ function generateSession(
     };
   }
 
-  // Add quality session variety (not on cutback weeks)
-  const qualitySessionIndex = week % totalSessions;
-  const shouldAddQuality = phase !== 'base' && phase !== 'taper' && qualitySessionIndex === 1;
+  // Distribuição de qualidade baseada em dias fixos (terça=2, quinta=4)
+  // Max 2 treinos intensos por semana
+  const isQualityDay = (dow === 2 || dow === 4) && weeklyQualityCount < 2;
+  const shouldAddQuality = phase !== 'base' && phase !== 'taper' && isQualityDay;
 
   if (shouldAddQuality) {
     // Rotate through different quality sessions
@@ -555,16 +568,21 @@ function generateSession(
       // Semana % 4: 1=Tempo, 2=Intervalado, 3=Progressivo, 0=Fartlek
       const mod = week % 4;
       
+      // Dia da semana define o tipo de estímulo (terça=moderado, quinta=intenso)
+      const isIntenseDay = dow === 4; // quinta-feira
+      
       switch (mod) {
         case 1: // Tempo Run - ritmo limiar
           type = 'tempo';
-          title = 'Tempo 25min';
-          description = 'Aquecimento + 25min em ritmo limiar (Z3)';
-          duration_min = 25;
+          title = isIntenseDay && phase === 'peak' ? 'Tempo 20min forte' : 'Tempo 25min';
+          description = isIntenseDay && phase === 'peak' 
+            ? 'Aquecimento + 20min próximo ao ritmo 10k (Z4)'
+            : 'Aquecimento + 25min em ritmo limiar (Z3)';
+          duration_min = isIntenseDay && phase === 'peak' ? 20 : 25;
           distance_km = null as any;
-          pace = p.pace_tempo;
-          zone = 3;
-          intensity = 'moderate';
+          pace = isIntenseDay && phase === 'peak' ? p.pace_10k - 0.1 : p.pace_tempo;
+          zone = isIntenseDay && phase === 'peak' ? 4 : 3;
+          intensity = isIntenseDay && phase === 'peak' ? 'high' : 'moderate';
           break;
           
         case 2: // Intervalado - treino de velocidade
@@ -580,13 +598,15 @@ function generateSession(
           
         case 3: // Progressivo - aumenta gradualmente
           type = 'progressivo';
-          title = 'Progressivo 40min';
-          description = 'Inicie leve e termine próximo ao ritmo 10k';
-          duration_min = 40;
+          title = isIntenseDay && phase === 'peak' ? 'Progressivo 35min forte' : 'Progressivo 40min';
+          description = isIntenseDay && phase === 'peak'
+            ? 'Inicie leve e termine em ritmo 10k (Z4)'
+            : 'Inicie leve e termine próximo ao ritmo 10k';
+          duration_min = isIntenseDay && phase === 'peak' ? 35 : 40;
           distance_km = null as any;
           pace = (p.pace_easy + p.pace_10k) / 2;
-          zone = 3;
-          intensity = 'moderate';
+          zone = isIntenseDay && phase === 'peak' ? 4 : 3;
+          intensity = isIntenseDay && phase === 'peak' ? 'high' : 'moderate';
           break;
           
         default: // case 0: Fartlek - variações de ritmo
@@ -602,12 +622,10 @@ function generateSession(
       }
       
       // Progressão conforme a fase do plano
-      if (phase === 'peak') {
-        // Na fase peak, aumentar levemente a intensidade dos intervalados
-        if (mod === 2) {
-          zone = 5;
-          intensity = 'high';
-        }
+      if (phase === 'peak' && mod === 2) {
+        // Na fase peak, aumentar intensidade dos intervalados para Z5
+        zone = 5;
+        intensity = 'high';
       } else if (phase === 'taper') {
         // Na fase taper, reduzir volume mantendo intensidade
         if (duration_min) {
@@ -663,6 +681,31 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
     return acc;
   }, {});
 
+  // Estatísticas de intensidade por zona (controle de polarização)
+  const zoneDistribution = workouts.reduce((acc: any, w: any) => {
+    const zone = `Z${w.target_hr_zone || 2}`;
+    acc[zone] = (acc[zone] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Contagem de sessões por intensidade
+  const intensityDistribution = workouts.reduce((acc: any, w: any) => {
+    const intensity = w.intensity || 'low';
+    acc[intensity] = (acc[intensity] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Cálculo de proporção de polarização (ideal: ~80% Z2, ~20% Z3-Z5)
+  const totalSessions = workouts.length;
+  const z2Count = zoneDistribution.Z2 || 0;
+  const z3PlusCount = (zoneDistribution.Z3 || 0) + (zoneDistribution.Z4 || 0) + (zoneDistribution.Z5 || 0);
+  const polarizationRatio = totalSessions > 0 
+    ? { 
+        easy_pct: Math.round((z2Count / totalSessions) * 100),
+        quality_pct: Math.round((z3PlusCount / totalSessions) * 100)
+      }
+    : null;
+
   // Targets: estimate race time when applicable
   let target_pace_min_km: number | null = null;
   let target_time_minutes: number | null = null;
@@ -686,13 +729,16 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
 
   return {
     periodization: phases,
-    notes: 'Plano fisiologicamente otimizado com periodização 4:1, controle de carga e progressão segura.',
+    notes: 'Plano fisiologicamente otimizado com periodização 4:1, distribuição de intensidade baseada em dias fixos (terça/quinta), controle de carga progressivo e polarização de treino.',
     statistics: {
       total_km: Math.round(totalKm),
       longest_run_km: longestRun,
       avg_weekly_km: Math.round(avgWeeklyKm * 10) / 10,
       workout_types: workoutTypes,
       phase_distribution: phaseDistribution,
+      zone_distribution: zoneDistribution,
+      intensity_distribution: intensityDistribution,
+      polarization_ratio: polarizationRatio,
     },
     targets: {
       target_pace_min_km: Number((target_pace_min_km ?? p.pace_median).toFixed(2)),
