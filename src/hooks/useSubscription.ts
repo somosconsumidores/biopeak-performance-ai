@@ -144,12 +144,40 @@ export const useSubscription = () => {
         }
       }
 
-      // Step 3: Fallback to Supabase check
-      debugLog('🔑 Getting fresh token for Supabase check...');
-      const token = await getValidToken(supabase);
+      // Step 3: Fallback to Supabase direct query
+      debugLog('🔑 Checking Supabase subscription...');
       
-      if (!token) {
-        debugError('❌ No valid token available');
+      try {
+        const { data: subData, error: subError } = await supabase
+          .from('subscribers')
+          .select('subscription_type, subscription_tier, subscription_end, subscribed')
+          .eq('user_id', user.id)
+          .eq('subscribed', true)
+          .maybeSingle();
+
+        if (subError) {
+          debugWarn('⚠️ Supabase query error:', subError);
+          throw subError;
+        }
+
+        const now = new Date();
+        const isActive = subData?.subscribed && 
+          (!subData.subscription_end || new Date(subData.subscription_end) > now);
+
+        const finalData: SubscriptionData = {
+          subscribed: isActive || false,
+          subscription_tier: subData?.subscription_tier,
+          subscription_end: subData?.subscription_end
+        };
+
+        debugLog('✅ Supabase result:', finalData);
+        
+        if (isMountedRef.current) {
+          setSubscriptionData(finalData);
+          cacheSubscription(finalData);
+        }
+      } catch (supabaseError) {
+        debugError('❌ Supabase check failed:', supabaseError);
         
         // Use old cache even if expired (offline mode)
         const oldCache = getCachedSubscription();
@@ -159,28 +187,11 @@ export const useSubscription = () => {
             setSubscriptionData(oldCache);
           }
         } else {
-          debugWarn('⚠️ Offline with no cache available');
+          debugWarn('⚠️ No cache available, setting to not subscribed');
           if (isMountedRef.current) {
             setSubscriptionData({ subscribed: false });
           }
         }
-        return;
-      }
-
-      debugLog('🌐 Calling quick-check-subscription...');
-      const { data: quickData, error: quickError } = await supabase.functions.invoke(
-        'quick-check-subscription',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (quickError) throw quickError;
-
-      debugLog('✅ Quick check result:', quickData);
-      const finalData = quickData || { subscribed: false };
-      
-      if (isMountedRef.current) {
-        setSubscriptionData(finalData);
-        cacheSubscription(finalData);
       }
 
     } catch (error) {
