@@ -142,8 +142,13 @@ export const AICoachChat = () => {
                       ? message.content
                           .replace(/[*_`~>#]/g, '')
                           .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
-                          .replace(/\s{2,}/g, ' ')
-                          .trim()
+                          .split('\n')
+                          .map((line, i) => (
+                            <span key={i}>
+                              {line}
+                              {i < message.content.split('\n').length - 1 && <br />}
+                            </span>
+                          ))
                       : message.content
                     }
                   </div>

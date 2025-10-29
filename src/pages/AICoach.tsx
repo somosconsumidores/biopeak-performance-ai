@@ -2,7 +2,6 @@ import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
-import DanielsVo2MaxCard from '@/components/DanielsVo2MaxCard';
 import { AICoachChat } from '@/components/AICoachChat';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlatform } from '@/hooks/usePlatform';
@@ -63,10 +62,6 @@ export const AICoach = () => {
               </ScrollReveal>
               
               <ScrollReveal delay={200}>
-                <DanielsVo2MaxCard />
-              </ScrollReveal>
-              
-              <ScrollReveal delay={300}>
                 <AICoachChat />
               </ScrollReveal>
             </div>

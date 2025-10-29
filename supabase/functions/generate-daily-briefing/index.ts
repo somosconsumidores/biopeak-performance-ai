@@ -95,10 +95,10 @@ serve(async (req) => {
     let todayWorkout = null;
     if (activePlan) {
       const { data: workouts } = await supabase
-        .from('training_workouts')
+        .from('training_plan_workouts')
         .select('*')
         .eq('plan_id', activePlan.id)
-        .eq('scheduled_date', todayStr)
+        .eq('workout_date', todayStr)
         .maybeSingle();
       
       todayWorkout = workouts;
@@ -129,10 +129,10 @@ serve(async (req) => {
       } : null,
       todayWorkout: todayWorkout ? {
         type: todayWorkout.workout_type,
-        title: todayWorkout.workout_title,
+        title: todayWorkout.title,
         description: todayWorkout.description,
         duration_min: todayWorkout.duration_minutes,
-        distance_km: todayWorkout.distance_km
+        distance_km: todayWorkout.distance_meters ? (todayWorkout.distance_meters / 1000) : null
       } : null
     };
 
