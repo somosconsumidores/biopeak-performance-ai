@@ -40,7 +40,7 @@ export function useGarminVo2Max(): GarminVo2MaxData {
     try {
       setData(prev => ({ ...prev, loading: true, error: null }));
 
-      // Primeiro buscar o garmin_user_id do usuário
+      // Buscar o garmin_user_id do usuário
       const { data: tokens, error: tokenError } = await supabase
         .from('garmin_tokens')
         .select('garmin_user_id')
@@ -63,22 +63,17 @@ export function useGarminVo2Max(): GarminVo2MaxData {
 
       const garminUserId = tokens[0].garmin_user_id;
 
-      // Buscar os últimos registros de VO2Max do Garmin
-      console.log('🔍 VO2MAX DEBUG: Buscando dados para garmin_user_id:', garminUserId);
-      
+      // Buscar os 2 últimos registros válidos de VO2 Max
+      // Priorizando running, mas considerando cycling se running for null
       const { data: vo2MaxRecords, error: vo2Error } = await supabase
         .from('garmin_vo2max')
         .select('vo2_max_running, vo2_max_cycling, calendar_date')
         .eq('garmin_user_id', garminUserId)
+        .or('vo2_max_running.gt.0,vo2_max_cycling.gt.0')
         .order('calendar_date', { ascending: false })
-        .limit(50); // Aumentar limite para garantir que encontremos valores não-nulos
-      
-      console.log('🔍 VO2MAX DEBUG: Dados retornados:', vo2MaxRecords);
-      console.log('🔍 VO2MAX DEBUG: Erro na consulta:', vo2Error);
+        .limit(2);
 
-      if (vo2Error) {
-        throw vo2Error;
-      }
+      if (vo2Error) throw vo2Error;
 
       if (!vo2MaxRecords || vo2MaxRecords.length === 0) {
         setData({
@@ -93,68 +88,21 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         return;
       }
 
-      // Filtrar apenas registros com valores não-nulos
-      // vo2_max_running é int4 no banco, então pode vir como number ou string
-      const validRecords = vo2MaxRecords
-        .filter(record => {
-          const runningValue = record.vo2_max_running;
-          const cyclingValue = record.vo2_max_cycling;
-          
-          console.log('🔍 VO2MAX DEBUG: Verificando registro:', { 
-            runningValue, 
-            cyclingValue, 
-            calendar_date: record.calendar_date,
-            runningType: typeof runningValue,
-            cyclingType: typeof cyclingValue 
-          });
-          
-          // Verificar se algum dos valores é válido (não-nulo e não-zero)
-          const hasValidRunning = runningValue !== null && runningValue !== undefined && runningValue > 0;
-          const hasValidCycling = cyclingValue !== null && cyclingValue !== undefined && Number(cyclingValue) > 0;
-          
-          const isValid = hasValidRunning || hasValidCycling;
-          console.log('🔍 VO2MAX DEBUG: Registro válido?', isValid);
-          
-          return isValid;
-        })
-        .map(record => {
-          // Priorizar running (que é int4), depois cycling (que é numeric)
-          const vo2Value = record.vo2_max_running || Number(record.vo2_max_cycling);
-          console.log('🔍 VO2MAX DEBUG: VO2 final calculado:', vo2Value);
-          return {
-            ...record,
-            vo2Value: Number(vo2Value)
-          };
-        });
-      
-      console.log('🔍 VO2MAX DEBUG: Registros válidos encontrados:', validRecords.length, validRecords);
+      // Extrair valores válidos (priorizar running sobre cycling)
+      const validRecords = vo2MaxRecords.map(record => ({
+        vo2Value: Number(record.vo2_max_running || record.vo2_max_cycling),
+        calendar_date: record.calendar_date
+      }));
 
-      if (validRecords.length === 0) {
-        setData({
-          currentVo2Max: null,
-          previousVo2Max: null,
-          change: 0,
-          trend: 'stable',
-          lastRecordDate: null,
-          loading: false,
-          error: null
-        });
-        return;
-      }
-
-      // Pegar o primeiro (mais recente) valor válido como atual
-      const currentRecord = validRecords[0];
-      const currentVo2Max = currentRecord.vo2Value;
-      const lastRecordDate = new Date(currentRecord.calendar_date).toLocaleDateString('pt-BR');
-
-      // Pegar o segundo valor válido como anterior (se existir)
+      const currentVo2Max = validRecords[0].vo2Value;
+      const lastRecordDate = new Date(validRecords[0].calendar_date).toLocaleDateString('pt-BR');
       const previousVo2Max = validRecords.length > 1 ? validRecords[1].vo2Value : null;
 
       // Calcular mudança e tendência
       let change = 0;
       let trend: 'up' | 'down' | 'stable' = 'stable';
 
-      if (currentVo2Max !== null && previousVo2Max !== null) {
+      if (currentVo2Max && previousVo2Max) {
         change = ((currentVo2Max - previousVo2Max) / previousVo2Max) * 100;
         if (Math.abs(change) < 1) {
           trend = 'stable';
@@ -165,19 +113,15 @@ export function useGarminVo2Max(): GarminVo2MaxData {
         }
       }
 
-      const finalData = {
+      setData({
         currentVo2Max,
         previousVo2Max,
-        change: Math.round(change * 10) / 10, // Arredondar para 1 casa decimal
+        change: Math.round(change * 10) / 10,
         trend,
         lastRecordDate,
         loading: false,
         error: null
-      };
-      
-      console.log('🔍 VO2MAX DEBUG: Dados finais sendo retornados:', finalData);
-      
-      setData(finalData);
+      });
 
     } catch (error) {
       console.error('Error fetching Garmin VO2Max:', error);
