@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { usePlatform } from '@/hooks/usePlatform';
 import { debugLog, debugError, debugWarn } from '@/lib/debug';
 import { cacheSubscription, getCachedSubscription, clearSubscriptionCache } from '@/lib/subscription/cache-ios';
 import { getValidToken } from '@/lib/subscription/token';
@@ -18,10 +18,13 @@ export const useSubscription = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
-  const { isIOS, isNative } = usePlatform();
   
   const initializingRef = useRef(false);
   const checkingRef = useRef(false);
+  
+  // Get platform info directly without extra hook to avoid React queue issues
+  const isIOS = Capacitor.getPlatform() === 'ios';
+  const isNative = Capacitor.isNativePlatform();
 
   // Sync subscription status to Supabase in background
   const syncToSupabase = useCallback(async (data: SubscriptionData) => {
