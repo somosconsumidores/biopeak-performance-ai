@@ -1,0 +1,117 @@
+name: Validate Edge Functions
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Detect changed functions
+        id: changed-functions
+        run: |
+          # Get list of changed function directories
+          CHANGED_FUNCTIONS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^supabase/functions/' | cut -d'/' -f3 | sort -u | tr '\n' ' ')
+          
+          if [ -z "$CHANGED_FUNCTIONS" ]; then
+            echo "No function changes detected"
+            echo "functions=" >> $GITHUB_OUTPUT
+          else
+            echo "Changed functions: $CHANGED_FUNCTIONS"
+            echo "functions=$CHANGED_FUNCTIONS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate function structure
+        if: steps.changed-functions.outputs.functions != ''
+        run: |
+          VALIDATION_FAILED=0
+          
+          for func in ${{ steps.changed-functions.outputs.functions }}; do
+            echo "🔍 Validating structure: $func"
+            
+            if [ ! -d "supabase/functions/$func" ]; then
+              echo "❌ Function directory not found: $func"
+              VALIDATION_FAILED=1
+              continue
+            fi
+            
+            if [ ! -f "supabase/functions/$func/index.ts" ]; then
+              echo "❌ index.ts not found in: $func"
+              VALIDATION_FAILED=1
+              continue
+            fi
+            
+            echo "✅ Structure valid: $func"
+          done
+          
+          if [ $VALIDATION_FAILED -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Lint functions
+        if: steps.changed-functions.outputs.functions != ''
+        run: |
+          LINT_FAILED=0
+          
+          for func in ${{ steps.changed-functions.outputs.functions }}; do
+            echo "🔍 Linting: $func"
+            
+            if deno lint "supabase/functions/$func"; then
+              echo "✅ Lint passed: $func"
+            else
+              echo "❌ Lint failed: $func"
+              LINT_FAILED=1
+            fi
+          done
+          
+          if [ $LINT_FAILED -eq 1 ]; then
+            echo "⚠️ Some functions have linting issues"
+            exit 1
+          fi
+
+      - name: Type check functions
+        if: steps.changed-functions.outputs.functions != ''
+        run: |
+          TYPECHECK_FAILED=0
+          
+          for func in ${{ steps.changed-functions.outputs.functions }}; do
+            echo "🔍 Type checking: $func"
+            
+            if deno check "supabase/functions/$func/index.ts"; then
+              echo "✅ Type check passed: $func"
+            else
+              echo "❌ Type check failed: $func"
+              TYPECHECK_FAILED=1
+            fi
+          done
+          
+          if [ $TYPECHECK_FAILED -eq 1 ]; then
+            echo "⚠️ Some functions have type errors"
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Validation Summary 🔍" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Changed Functions:** ${{ steps.changed-functions.outputs.functions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All validations passed! Safe to merge." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Validation failed. Please fix the issues before merging." >> $GITHUB_STEP_SUMMARY
+          fi
