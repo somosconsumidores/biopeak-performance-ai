@@ -98,10 +98,19 @@ serve(async (req) => {
       console.error('❌ Error fetching training plan:', planError);
     }
 
-    console.log(`📅 Active plan: ${activePlan ? `${activePlan.plan_name} (ID: ${activePlan.id})` : 'none'}`);
+    if (activePlan) {
+      console.log(`✅ Active plan found: ${activePlan.plan_name} (ID: ${activePlan.id})`);
+      console.log(`📅 Plan period: ${activePlan.start_date} to ${activePlan.end_date}`);
+      console.log(`📅 Today: ${todayStr}`);
+    } else {
+      console.log('ℹ️ No active plan found');
+    }
 
     let todayWorkout = null;
+    let nextWorkout = null;
+    
     if (activePlan) {
+      // Try to fetch today's workout
       console.log(`🔍 Looking for workout on ${todayStr} for plan ${activePlan.id}`);
       const { data: workouts, error: workoutError } = await supabase
         .from('training_plan_workouts')
@@ -115,7 +124,27 @@ serve(async (req) => {
       }
 
       todayWorkout = workouts;
-      console.log(`💪 Today's workout: ${todayWorkout ? `${todayWorkout.title} (${todayWorkout.workout_type})` : 'none scheduled'}`);
+      console.log(`💪 Today's workout: ${todayWorkout ? `${todayWorkout.title} (${todayWorkout.workout_type})` : 'none (rest day)'}`);
+      
+      // If no workout today, fetch the next upcoming workout
+      if (!todayWorkout) {
+        console.log(`🔍 Fetching next upcoming workout...`);
+        const { data: nextData, error: nextError } = await supabase
+          .from('training_plan_workouts')
+          .select('*')
+          .eq('plan_id', activePlan.id)
+          .gte('workout_date', todayStr)
+          .order('workout_date', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        
+        if (nextError) {
+          console.error('❌ Error fetching next workout:', nextError);
+        }
+        
+        nextWorkout = nextData;
+        console.log(`📆 Next workout: ${nextWorkout ? `${nextWorkout.workout_date} - ${nextWorkout.title}` : 'none'}`);
+      }
     }
 
     // Compose prompt
@@ -147,7 +176,16 @@ serve(async (req) => {
         description: todayWorkout.description,
         duration_min: todayWorkout.duration_minutes,
         distance_km: todayWorkout.distance_meters ? (todayWorkout.distance_meters / 1000) : null
-      } : null
+      } : null,
+      nextWorkout: nextWorkout ? {
+        date: nextWorkout.workout_date,
+        type: nextWorkout.workout_type,
+        title: nextWorkout.title,
+        description: nextWorkout.description,
+        duration_min: nextWorkout.duration_minutes,
+        distance_km: nextWorkout.distance_meters ? (nextWorkout.distance_meters / 1000) : null
+      } : null,
+      isRestDay: !!activePlan && !todayWorkout
     };
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -190,7 +228,9 @@ serve(async (req) => {
 
 Regras:
 - O briefing deve mencionar a recuperação (sono) e a carga recente.
-- CRÍTICO: Se o atleta tem um plano de treino ativo e há treino agendado para hoje, o workout deve corresponder EXATAMENTE ao treino agendado. Se não houver treino agendado ou plano ativo, sugira um treino apropriado.
+- CRÍTICO: Se o atleta tem um plano de treino ativo e há treino agendado para hoje, o workout deve corresponder EXATAMENTE ao treino agendado.
+- Se HOJE É DIA DE DESCANSO (plano ativo mas sem treino hoje): NO campo "workout" retorne null, mencione no briefing que é dia de descanso e fale brevemente sobre o próximo treino se houver.
+- Se não houver plano ativo: sugira um treino apropriado baseado nos dados.
 - O treino do dia deve estar concretamente especificado: esporte, duração e FAIXA de intensidade por pace (min/km) e/ou faixa de FC (bpm) ou zona (Z1–Z5).
 - Ajuste a intensidade considerando o sono da última noite, média 7d e carga 7d.
 - Se faltarem dados, use valores conservadores e seja explícito.
@@ -202,7 +242,8 @@ DADOS:
 - Carga 7d: ${parts.load7d.distance_km} km, ${parts.load7d.duration_min} min
 - VO2max atual: ${parts.vo2max ?? 'n/d'}
 - Plano de treino ativo: ${parts.activePlan ? `${parts.activePlan.name} (${parts.activePlan.goal}, ${parts.activePlan.weeks} semanas)` : 'nenhum'}
-- Treino agendado hoje: ${parts.todayWorkout ? `${parts.todayWorkout.type} - ${parts.todayWorkout.title}${parts.todayWorkout.duration_min ? `, ${parts.todayWorkout.duration_min}min` : ''}${parts.todayWorkout.distance_km ? `, ${parts.todayWorkout.distance_km}km` : ''}` : 'nenhum'}`;
+- ${parts.isRestDay ? `HOJE É DIA DE DESCANSO PROGRAMADO` : `Treino agendado hoje: ${parts.todayWorkout ? `${parts.todayWorkout.type} - ${parts.todayWorkout.title}${parts.todayWorkout.duration_min ? `, ${parts.todayWorkout.duration_min}min` : ''}${parts.todayWorkout.distance_km ? `, ${parts.todayWorkout.distance_km}km` : ''}` : 'nenhum'}`}
+- Próximo treino: ${parts.nextWorkout ? `${parts.nextWorkout.date} - ${parts.nextWorkout.type} - ${parts.nextWorkout.title}${parts.nextWorkout.duration_min ? `, ${parts.nextWorkout.duration_min}min` : ''}` : 'nenhum agendado'}`;
 
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -170,6 +170,11 @@ export default function WeeklyAIPlanCard() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {!briefing?.workout && briefing?.briefing && (
+                    <Badge variant="secondary" className="mb-2">
+                      🌙 Hoje é dia de descanso programado
+                    </Badge>
+                  )}
                   <p className="text-sm leading-relaxed text-foreground/90">
                     {briefing?.briefing || 'Carregando sua análise personalizada...'}
                   </p>

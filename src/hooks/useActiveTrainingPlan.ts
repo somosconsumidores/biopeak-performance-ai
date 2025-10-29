@@ -74,6 +74,13 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
         throw planError;
       }
 
+      // Clear briefing cache if plan changed
+      if (planData && (!plan || planData.id !== plan.id)) {
+        const todayKey = new Date().toISOString().slice(0, 10);
+        localStorage.removeItem(`daily_briefing_${todayKey}`);
+        console.log('🔄 Cleared briefing cache due to plan change');
+      }
+
       setPlan(planData || null);
 
       if (planData) {
