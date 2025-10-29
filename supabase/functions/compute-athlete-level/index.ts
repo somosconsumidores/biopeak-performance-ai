@@ -257,6 +257,33 @@ Deno.serve(async (req) => {
 
     // Extract target user row
     const idxUser = rows.findIndex((r) => r.uid === user_id)
+    
+    // If user not found in the activity data, return Beginner
+    if (idxUser === -1) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        level: 'Beginner', 
+        reason: 'no_user_data',
+        features: {
+          weekly_distance_km: 0,
+          weekly_frequency: 0,
+          weekly_duration_minutes: 0,
+          best_sustained_pace_min_km: null,
+        },
+        percentiles: {
+          weekly_distance_km: null,
+          weekly_frequency: null,
+          weekly_duration_minutes: null,
+          sustained_speed_km_per_min: null,
+          composite: null,
+        },
+        method: 'no_data'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+    
     const userRow = rows[idxUser]
     const userLabelIdx = labels[idxUser]
     const levelCluster = (clusterLabelMap.get(userLabelIdx) || 'Beginner') as 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite'
