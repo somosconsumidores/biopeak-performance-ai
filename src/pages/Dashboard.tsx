@@ -257,17 +257,17 @@ export const Dashboard = () => {
                     gradient: 'from-amber-500 to-orange-500'
                   },
                   {
-                    id: 'commitments',
+                    id: 'training-plan',
                     icon: TargetIcon,
-                    title: 'Compromissos',
-                    subtitle: 'de Melhoria',
+                    title: 'Plano de',
+                    subtitle: 'Treino',
                     gradient: 'from-blue-500 to-indigo-500'
                   },
                   {
-                    id: 'achievements',
-                    icon: Trophy,
-                    title: 'Suas',
-                    subtitle: 'Conquistas',
+                    id: 'insights',
+                    icon: Sparkles,
+                    title: 'Insights',
+                    subtitle: '',
                     gradient: 'from-purple-500 to-pink-500'
                   }
                 ].map((section) => {
@@ -332,8 +332,8 @@ export const Dashboard = () => {
                   {[
                     { id: 'fitness-score', label: 'BioPeak Fitness Score' },
                     { id: 'overtraining-risk', label: 'Risco de Overtraining' },
-                    { id: 'commitments', label: 'Compromissos de Melhoria' },
-                    { id: 'achievements', label: 'Suas Conquistas' }
+                    { id: 'training-plan', label: 'Plano de Treino' },
+                    { id: 'insights', label: 'Insights' }
                   ].map((section) => {
                     const isActive = activeSection === section.id;
                     
@@ -360,7 +360,7 @@ export const Dashboard = () => {
 
           {/* Dynamic Section Content */}
           <ScrollReveal delay={40}>
-            <div className="mb-6 md:mb-8">
+            <div className="space-y-6 md:space-y-8 mb-6 md:mb-8">
               {loading && (
                 <Card className="glass-card border-glass-border">
                   <CardContent className="py-12">
@@ -373,16 +373,336 @@ export const Dashboard = () => {
                 </Card>
               )}
               
+              {/* BioPeak Fitness Score Section */}
               {!loading && activeSection === 'fitness-score' && (
-                isSubscribed ? (
-                  <BioPeakFitnessCard />
-                ) : (
-                  <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
+                <>
+                  {isSubscribed ? (
                     <BioPeakFitnessCard />
-                  </PremiumBlur>
-                )
+                  ) : (
+                    <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
+                      <BioPeakFitnessCard />
+                    </PremiumBlur>
+                  )}
+                  
+                  {/* Main Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+                    {formattedMetrics.map((metric, index) => {
+                      const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
+                      return (
+                        <Card key={index} className="glass-card border-glass-border hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                          <CardContent className="p-5 sm:p-6">
+                            {/* Header with Icon */}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-medium text-muted-foreground leading-relaxed mb-1">
+                                  {metric.title}
+                                </h3>
+                                {metric.source && (
+                                  <div className="text-xs text-muted-foreground/70 leading-relaxed">
+                                    {metric.source}
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`
+                                p-2.5 rounded-2xl transition-all duration-300
+                                ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
+                                  metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
+                                  'bg-blue-500/10 text-blue-500'}
+                              `}>
+                                <IconComponent className="h-5 w-5" />
+                              </div>
+                            </div>
+                            
+                            {/* Main Value */}
+                            <div className="space-y-2 mb-4">
+                              <div className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">
+                                {metric.value}
+                              </div>
+                              <div className="text-sm text-muted-foreground font-medium">
+                                {metric.unit}
+                              </div>
+                            </div>
+                            
+                            {/* Change Indicator */}
+                            {metric.change && (
+                              <div className="flex items-center space-x-2">
+                                <div className={`
+                                  px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+                                  ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
+                                    metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
+                                    'bg-blue-500/10 text-blue-500'}
+                                `}>
+                                  {metric.change}
+                                </div>
+                                <span className="text-xs text-muted-foreground">este mês</span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+
+                  {/* Charts Section */}
+                  <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+                    {/* Activity Distribution */}
+                    <Card className="glass-card border-glass-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <PieChartIcon className="h-5 w-5 text-primary" />
+                          <span>Distribuição dos Treinos</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                         {activityDistribution.length > 0 ? (
+                           <div className="text-center space-y-4">
+                             <div className={`relative mx-auto ${isMobile ? 'w-24 h-24' : 'w-32 h-32'}`}>
+                               <svg className={`${isMobile ? 'w-24 h-24' : 'w-32 h-32'} transform -rotate-90`}>
+                                 {/* Background circle */}
+                                 <circle
+                                   cx={isMobile ? "48" : "64"}
+                                   cy={isMobile ? "48" : "64"}
+                                   r={isMobile ? "40" : "56"}
+                                   stroke="hsl(var(--muted))"
+                                   strokeWidth={isMobile ? "6" : "8"}
+                                   fill="transparent"
+                                 />
+                                 
+                                 {/* Activity segments */}
+                                 {activityDistribution.map((activity, index) => {
+                                   const prevPercentage = activityDistribution
+                                     .slice(0, index)
+                                     .reduce((sum, act) => sum + act.percentage, 0);
+                                   const currentPercentage = activity.percentage;
+                                   const radius = isMobile ? 40 : 56;
+                                   const circumference = 2 * Math.PI * radius;
+                                   const strokeDasharray = `${(currentPercentage / 100) * circumference} ${circumference}`;
+                                   const strokeDashoffset = -((prevPercentage / 100) * circumference);
+                                   
+                                   return (
+                                     <circle
+                                       key={index}
+                                       cx={isMobile ? "48" : "64"}
+                                       cy={isMobile ? "48" : "64"}
+                                       r={radius}
+                                       stroke={activity.color}
+                                       strokeWidth={isMobile ? "6" : "8"}
+                                       fill="transparent"
+                                       strokeDasharray={strokeDasharray}
+                                       strokeDashoffset={strokeDashoffset}
+                                       className="transition-all duration-500"
+                                       style={{
+                                         filter: 'drop-shadow(0 0 4px rgba(var(--primary-rgb), 0.3))'
+                                       }}
+                                     />
+                                   );
+                                 })}
+                               </svg>
+                               <div className="absolute inset-0 flex items-center justify-center">
+                                 <div className="text-center">
+                                   <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>{activityDistribution.length}</div>
+                                   <div className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-xs'}`}>Tipos</div>
+                                 </div>
+                               </div>
+                             </div>
+                            
+                             {/* Legend */}
+                             <div className={`space-y-2 ${isMobile ? 'space-y-1' : 'space-y-2'}`}>
+                               {activityDistribution.slice(0, 3).map((activity, index) => (
+                                 <div key={index} className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                                   <div className="flex items-center space-x-2">
+                                     <div 
+                                       className={`rounded-full ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`}
+                                       style={{ backgroundColor: activity.color }}
+                                     />
+                                     <span className="text-muted-foreground truncate">{activity.name}</span>
+                                   </div>
+                                   <span className="font-medium flex-shrink-0">{activity.percentage}%</span>
+                                 </div>
+                               ))}
+                               {activityDistribution.length > 3 && (
+                                 <div className="text-xs text-muted-foreground text-center pt-1">
+                                   +{activityDistribution.length - 3} outros tipos
+                                 </div>
+                               )}
+                             </div>
+                          </div>
+                        ) : (
+                          <div className="h-64 flex items-center justify-center text-muted-foreground">
+                            <div className="text-center">
+                              <PieChartIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                              <p>Nenhuma atividade encontrada</p>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Peak Performance Indicator */}
+                    <Card className="glass-card border-glass-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <Target className="h-5 w-5 text-primary" />
+                          <span>Pico de Performance</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center space-y-4">
+                          <div className="relative w-32 h-32 mx-auto">
+                            <svg className="w-32 h-32 transform -rotate-90">
+                              <circle
+                                cx="64"
+                                cy="64"
+                                r="56"
+                                stroke="hsl(var(--muted))"
+                                strokeWidth="8"
+                                fill="transparent"
+                              />
+                              <circle
+                                cx="64"
+                                cy="64"
+                                r="56"
+                                stroke="hsl(var(--primary))"
+                                strokeWidth="8"
+                                fill="transparent"
+                                strokeDasharray={`${2 * Math.PI * 56 * ((peakPerformance?.current || 0) / 100)} ${2 * Math.PI * 56}`}
+                                className="data-glow"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold">{peakPerformance?.current || 0}%</div>
+                                <div className="text-xs text-muted-foreground">Atual</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="text-sm text-muted-foreground">
+                              Previsão de pico: <span className="text-primary font-medium">
+                                {peakPerformance?.prediction || 'Calculando...'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Potencial máximo: <span className="text-primary font-medium">
+                                {peakPerformance?.potential || 0}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Recent Workouts */}
+                  <Card className="glass-card border-glass-border">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center space-x-2 text-sm sm:text-base">
+                          <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                          <span>Treinos Recentes</span>
+                        </CardTitle>
+                        {recentActivities.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            Ver Todos
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 sm:p-6">
+                      {recentActivities.length > 0 ? (
+                        <div className="space-y-3">
+                          {recentActivities.slice(0, 5).map((activity, index) => {
+                            // Define colors for different activity types
+                            const getActivityColor = (type: string) => {
+                              const typeMap: { [key: string]: string } = {
+                                'RUNNING': '#10b981',
+                                'CYCLING': '#3b82f6', 
+                                'SWIMMING': '#06b6d4',
+                                'OPEN_WATER_SWIMMING': '#06b6d4',
+                                'WALKING': '#84cc16',
+                                'HIKING': '#eab308',
+                                'default': '#8b5cf6'
+                              };
+                              return typeMap[type.toUpperCase()] || typeMap.default;
+                            };
+
+                            const activityColor = getActivityColor(activity.type);
+                            const performanceBadge = activity.performance;
+
+                            return (
+                              <div 
+                                key={index} 
+                                className="relative p-3 sm:p-4 glass-card rounded-lg border-l-4 overflow-hidden"
+                                style={{ borderLeftColor: activityColor }}
+                              >
+                                {/* Activity header */}
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-sm sm:text-base text-foreground mb-1 truncate">
+                                      {activity.type.replace(/_/g, ' ')}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      {activity.date}
+                                    </p>
+                                  </div>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="ml-2 text-xs font-medium flex-shrink-0"
+                                    style={{ 
+                                      backgroundColor: `${activityColor}20`,
+                                      color: activityColor,
+                                      border: `1px solid ${activityColor}40`
+                                    }}
+                                  >
+                                    {performanceBadge}
+                                  </Badge>
+                                </div>
+
+                                {/* Activity stats */}
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Distância</p>
+                                    <p className="text-sm sm:text-base font-semibold text-foreground">
+                                      {activity.distance || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      {activity.type.includes('SWIMMING') ? 'Pace Médio' : 'Duração'}
+                                    </p>
+                                    <p className="text-sm sm:text-base font-semibold text-foreground">
+                                      {activity.duration}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Activity type indicator bar */}
+                                <div 
+                                  className="absolute top-3 left-0 w-1 h-8 rounded-r-full opacity-80"
+                                  style={{ backgroundColor: activityColor }}
+                                >
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
+                          <div className="text-center">
+                            <Activity className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Nenhuma atividade recente</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Sincronize suas atividades do Garmin para ver os dados
+                            </p>
+                          </div>
+                         </div>
+                       )}
+                    </CardContent>
+                  </Card>
+                </>
               )}
               
+              {/* Overtraining Risk Section */}
               {!loading && activeSection === 'overtraining-risk' && overtrainingRisk && (
                 isSubscribed ? (
                 <Card className="glass-card border-glass-border">
@@ -511,557 +831,223 @@ export const Dashboard = () => {
                 )
               )}
               
-              {!loading && activeSection === 'commitments' && <CommitmentsCard />}
+              {/* Training Plan Section */}
+              {!loading && activeSection === 'training-plan' && (
+                <>
+                  {/* Training Agenda Widget */}
+                  <TrainingAgendaWidget />
+
+                  {/* Race Calendar */}
+                  <RaceCalendar />
+
+                  {/* Race Planning Card */}
+                  <Card className="glass-card border-glass-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Trophy className="h-5 w-5 text-primary" />
+                        <span>Planejador de Prova</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.
+                      </p>
+                      <div className={`flex ${hasStrategies ? 'flex-col sm:flex-row' : ''} gap-2`}>
+                        <Link to="/race-planning" className={hasStrategies ? 'flex-1' : 'w-full'}>
+                          <Button className="w-full">
+                            <Trophy className="h-4 w-4 mr-2" />
+                            Nova Estratégia
+                          </Button>
+                        </Link>
+                        {hasStrategies && (
+                          <Link to="/saved-strategies" className="flex-1">
+                            <Button variant="outline" className="w-full">
+                              Minhas Estratégias
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
               
-              {!loading && activeSection === 'achievements' && <AchievementSection maxItems={6} />}
-            </div>
-          </ScrollReveal>
-
-          {/* Race Planning Card */}
-          <ScrollReveal delay={60}>
-            <div className="mb-6 md:mb-8">
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Trophy className="h-5 w-5 text-primary" />
-                    <span>Planejador de Prova</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Planeje sua estratégia de corrida com precisão. Defina seu objetivo e descubra a melhor distribuição de pace para alcançar seu melhor desempenho.
-                  </p>
-                  <div className={`flex ${hasStrategies ? 'flex-col sm:flex-row' : ''} gap-2`}>
-                    <Link to="/race-planning" className={hasStrategies ? 'flex-1' : 'w-full'}>
-                      <Button className="w-full">
-                        <Trophy className="h-4 w-4 mr-2" />
-                        Nova Estratégia
-                      </Button>
-                    </Link>
-                    {hasStrategies && (
-                      <Link to="/saved-strategies" className="flex-1">
-                        <Button variant="outline" className="w-full">
-                          Minhas Estratégias
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </ScrollReveal>
-
-          {/* Training Agenda Widget */}
-          <ScrollReveal delay={80}>
-            <div className="mb-6 md:mb-8">
-              <TrainingAgendaWidget />
-            </div>
-          </ScrollReveal>
-
-
-          {/* Race Calendar */}
-          <ScrollReveal delay={100}>
-            <div className="mb-6 md:mb-8">
-              <RaceCalendar />
-            </div>
-          </ScrollReveal>
-
-          {/* Alerts */}
-          <ScrollReveal delay={120}>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 mb-6 md:mb-8">
-              {alerts.map((alert, index) => {
-                const IconComponent = alert.type === 'warning' ? AlertTriangle : 
-                                    alert.type === 'success' ? TrendingUp : 
-                                    Activity;
-                
-                return (
-                  <Card key={index} className="glass-card border-glass-border">
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex items-start space-x-2 sm:space-x-3">
-                        <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
-                          alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                          alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                          'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-1 gap-2">
-                            <h3 className="font-semibold text-sm sm:text-base leading-tight">{alert.title}</h3>
-                            <Badge 
-                              variant={alert.priority === 'high' ? 'destructive' : 'secondary'}
-                              className="text-xs flex-shrink-0"
-                            >
-                              {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
-                            </Badge>
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{alert.message}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollReveal>
-
-          {/* Main Metrics */}
-          <ScrollReveal delay={200}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
-              {formattedMetrics.map((metric, index) => {
-                const IconComponent = metric.icon || (metric.trend === 'up' ? TrendingUp : TrendingDown);
-                return (
-                  <Card key={index} className="glass-card border-glass-border hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                    <CardContent className="p-5 sm:p-6">
-                      {/* Header with Icon */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-muted-foreground leading-relaxed mb-1">
-                            {metric.title}
-                          </h3>
-                          {metric.source && (
-                            <div className="text-xs text-muted-foreground/70 leading-relaxed">
-                              {metric.source}
-                            </div>
-                          )}
-                        </div>
-                        <div className={`
-                          p-2.5 rounded-2xl transition-all duration-300
-                          ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
-                            metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
-                            'bg-blue-500/10 text-blue-500'}
-                        `}>
-                          <IconComponent className="h-5 w-5" />
-                        </div>
-                      </div>
+              {/* Insights Section */}
+              {!loading && activeSection === 'insights' && (
+                <>
+                  {/* Alerts */}
+                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                    {alerts.map((alert, index) => {
+                      const IconComponent = alert.type === 'warning' ? AlertTriangle : 
+                                          alert.type === 'success' ? TrendingUp : 
+                                          Activity;
                       
-                      {/* Main Value */}
-                      <div className="space-y-2 mb-4">
-                        <div className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">
-                          {metric.value}
-                        </div>
-                        <div className="text-sm text-muted-foreground font-medium">
-                          {metric.unit}
-                        </div>
-                      </div>
-                      
-                      {/* Change Indicator */}
-                      {metric.change && (
-                        <div className="flex items-center space-x-2">
-                          <div className={`
-                            px-3 py-1.5 rounded-full text-xs font-medium transition-colors
-                            ${metric.trend === 'up' ? 'bg-emerald-500/10 text-emerald-500' : 
-                              metric.trend === 'down' ? 'bg-red-500/10 text-red-500' : 
-                              'bg-blue-500/10 text-blue-500'}
-                          `}>
-                            {metric.change}
-                          </div>
-                          <span className="text-xs text-muted-foreground">este mês</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollReveal>
-
-          {/* Charts Section */}
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 mb-6 md:mb-8">
-            {/* Activity Distribution */}
-            <ScrollReveal delay={220}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <PieChartIcon className="h-5 w-5 text-primary" />
-                    <span>Distribuição dos Treinos</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   {activityDistribution.length > 0 ? (
-                     <div className="text-center space-y-4">
-                       <div className={`relative mx-auto ${isMobile ? 'w-24 h-24' : 'w-32 h-32'}`}>
-                         <svg className={`${isMobile ? 'w-24 h-24' : 'w-32 h-32'} transform -rotate-90`}>
-                           {/* Background circle */}
-                           <circle
-                             cx={isMobile ? "48" : "64"}
-                             cy={isMobile ? "48" : "64"}
-                             r={isMobile ? "40" : "56"}
-                             stroke="hsl(var(--muted))"
-                             strokeWidth={isMobile ? "6" : "8"}
-                             fill="transparent"
-                           />
-                           
-                           {/* Activity segments */}
-                           {activityDistribution.map((activity, index) => {
-                             const prevPercentage = activityDistribution
-                               .slice(0, index)
-                               .reduce((sum, act) => sum + act.percentage, 0);
-                             const currentPercentage = activity.percentage;
-                             const radius = isMobile ? 40 : 56;
-                             const circumference = 2 * Math.PI * radius;
-                             const strokeDasharray = `${(currentPercentage / 100) * circumference} ${circumference}`;
-                             const strokeDashoffset = -((prevPercentage / 100) * circumference);
-                             
-                             return (
-                               <circle
-                                 key={index}
-                                 cx={isMobile ? "48" : "64"}
-                                 cy={isMobile ? "48" : "64"}
-                                 r={radius}
-                                 stroke={activity.color}
-                                 strokeWidth={isMobile ? "6" : "8"}
-                                 fill="transparent"
-                                 strokeDasharray={strokeDasharray}
-                                 strokeDashoffset={strokeDashoffset}
-                                 className="transition-all duration-500"
-                                 style={{
-                                   filter: 'drop-shadow(0 0 4px rgba(var(--primary-rgb), 0.3))'
-                                 }}
-                               />
-                             );
-                           })}
-                         </svg>
-                         <div className="absolute inset-0 flex items-center justify-center">
-                           <div className="text-center">
-                             <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>{activityDistribution.length}</div>
-                             <div className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-xs'}`}>Tipos</div>
-                           </div>
-                         </div>
-                       </div>
-                      
-                       {/* Legend */}
-                       <div className={`space-y-2 ${isMobile ? 'space-y-1' : 'space-y-2'}`}>
-                         {activityDistribution.slice(0, 3).map((activity, index) => (
-                           <div key={index} className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                             <div className="flex items-center space-x-2">
-                               <div 
-                                 className={`rounded-full ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`}
-                                 style={{ backgroundColor: activity.color }}
-                               />
-                               <span className="text-muted-foreground truncate">{activity.name}</span>
-                             </div>
-                             <span className="font-medium flex-shrink-0">{activity.percentage}%</span>
-                           </div>
-                         ))}
-                         {activityDistribution.length > 3 && (
-                           <div className="text-xs text-muted-foreground text-center pt-1">
-                             +{activityDistribution.length - 3} outros tipos
-                           </div>
-                         )}
-                       </div>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <PieChartIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhuma atividade encontrada</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-
-            {/* Peak Performance Indicator */}
-            <ScrollReveal delay={240}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <span>Pico de Performance</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center space-y-4">
-                    <div className="relative w-32 h-32 mx-auto">
-                      <svg className="w-32 h-32 transform -rotate-90">
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="hsl(var(--muted))"
-                          strokeWidth="8"
-                          fill="transparent"
-                        />
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth="8"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 56 * ((peakPerformance?.current || 0) / 100)} ${2 * Math.PI * 56}`}
-                          className="data-glow"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{peakPerformance?.current || 0}%</div>
-                          <div className="text-xs text-muted-foreground">Atual</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">
-                        Previsão de pico: <span className="text-primary font-medium">
-                          {peakPerformance?.prediction || 'Calculando...'}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Potencial máximo: <span className="text-primary font-medium">
-                          {peakPerformance?.potential || 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          </div>
-
-          {/* Sleep Analytics */}
-          {sleepAnalytics && (
-            <ScrollReveal delay={260}>
-              <Card className="glass-card border-glass-border mb-6 md:mb-8">
-                 <CardHeader>
-                   <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
-                     <div className="flex items-center gap-2">
-                       <Moon className="w-4 h-4 text-primary" />
-                       <h3 className="text-lg font-semibold">Análise do Sono</h3>
-                     </div>
-                      {(() => {
-                        const analysisData = getSleepAnalysisData();
-                        return analysisData ? (
-                          <div className={isMobile ? 'w-full mt-2' : ''}>
-                            {isSubscribed ? (
-                              <SleepAnalysisDialog 
-                                sleepData={analysisData.sleepData}
-                                overtrainingData={analysisData.overtrainingData}
-                              />
-                            ) : (
-                              <PremiumButton>
-                                Analisar Sono com IA
-                              </PremiumButton>
-                            )}
-                          </div>
-                        ) : null;
-                      })()}
-                   </div>
-                 </CardHeader>
-                <CardContent>
-                  <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Sleep Score & Duration */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-3xl font-bold text-foreground">
-                            {sleepAnalytics.sleepScore || 'N/A'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Score de Sono</div>
-                          <div className="text-xs text-muted-foreground">
-                            {sleepAnalytics.lastSleepDate ? `Última noite: ${sleepAnalytics.lastSleepDate}` : 'Sem dados recentes'}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">
-                            {sleepAnalytics.hoursSlept || 'N/A'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Tempo Dormido</div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-lg bg-muted/20 border border-muted">
-                        <h4 className="font-semibold mb-2 text-primary flex items-center space-x-2">
-                          <Clock className="h-4 w-4" />
-                          <span>Qualidade do Sono</span>
-                        </h4>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {sleepAnalytics.qualityComment}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Sleep Stages Distribution */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-foreground flex items-center space-x-2">
-                        <Brain className="h-4 w-4" />
-                        <span>Distribuição das Fases do Sono</span>
-                      </h4>
-                      
-                      <div className="space-y-3">
-                        {/* Deep Sleep */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Sono Profundo</span>
-                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.deepSleepPercentage}%</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${sleepAnalytics.deepSleepPercentage}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Light Sleep */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Sono Leve</span>
-                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.lightSleepPercentage}%</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${sleepAnalytics.lightSleepPercentage}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* REM Sleep */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Sono REM</span>
-                            <span className="text-sm font-medium text-foreground">{sleepAnalytics.remSleepPercentage}%</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${sleepAnalytics.remSleepPercentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 text-center pt-2">
-                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <div className="text-xs text-blue-400 font-medium">Profundo</div>
-                          <div className="text-xs text-muted-foreground">Recuperação</div>
-                        </div>
-                        <div className="p-2 rounded-lg bg-cyan-400/10 border border-cyan-400/20">
-                          <div className="text-xs text-cyan-400 font-medium">Leve</div>
-                          <div className="text-xs text-muted-foreground">Transição</div>
-                        </div>
-                        <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                          <div className="text-xs text-purple-400 font-medium">REM</div>
-                          <div className="text-xs text-muted-foreground">Memória</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          )}
-
-          {/* Recent Workouts */}
-          <ScrollReveal delay={280}>
-            <Card className="glass-card border-glass-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2 text-sm sm:text-base">
-                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <span>Treinos Recentes</span>
-                  </CardTitle>
-                  {recentActivities.length > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      Ver Todos
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                {recentActivities.length > 0 ? (
-                  <div className="space-y-3">
-                    {recentActivities.slice(0, 5).map((activity, index) => {
-                      // Define colors for different activity types
-                      const getActivityColor = (type: string) => {
-                        const typeMap: { [key: string]: string } = {
-                          'RUNNING': '#10b981',
-                          'CYCLING': '#3b82f6', 
-                          'SWIMMING': '#06b6d4',
-                          'OPEN_WATER_SWIMMING': '#06b6d4',
-                          'WALKING': '#84cc16',
-                          'HIKING': '#eab308',
-                          'default': '#8b5cf6'
-                        };
-                        return typeMap[type.toUpperCase()] || typeMap.default;
-                      };
-
-                      const activityColor = getActivityColor(activity.type);
-                      const performanceBadge = activity.performance;
-
                       return (
-                        <div 
-                          key={index} 
-                          className="relative p-3 sm:p-4 glass-card rounded-lg border-l-4 overflow-hidden"
-                          style={{ borderLeftColor: activityColor }}
-                        >
-                          {/* Activity header */}
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-sm sm:text-base text-foreground mb-1 truncate">
-                                {activity.type.replace(/_/g, ' ')}
-                              </h4>
-                              <p className="text-xs text-muted-foreground">
-                                {activity.date}
-                              </p>
+                        <Card key={index} className="glass-card border-glass-border">
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex items-start space-x-2 sm:space-x-3">
+                              <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
+                                alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                                alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                                'bg-blue-500/20 text-blue-400'
+                              }`}>
+                                <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between mb-1 gap-2">
+                                  <h3 className="font-semibold text-sm sm:text-base leading-tight">{alert.title}</h3>
+                                  <Badge 
+                                    variant={alert.priority === 'high' ? 'destructive' : 'secondary'}
+                                    className="text-xs flex-shrink-0"
+                                  >
+                                    {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{alert.message}</p>
+                              </div>
                             </div>
-                            <Badge 
-                              variant="secondary" 
-                              className="ml-2 text-xs font-medium flex-shrink-0"
-                              style={{ 
-                                backgroundColor: `${activityColor}20`,
-                                color: activityColor,
-                                border: `1px solid ${activityColor}40`
-                              }}
-                            >
-                              {performanceBadge}
-                            </Badge>
-                          </div>
-
-                          {/* Activity stats */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Distância</p>
-                              <p className="text-sm sm:text-base font-semibold text-foreground">
-                                {activity.distance || 'N/A'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">
-                                {activity.type.includes('SWIMMING') ? 'Pace Médio' : 'Duração'}
-                              </p>
-                              <p className="text-sm sm:text-base font-semibold text-foreground">
-                                {activity.duration}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Activity type indicator bar */}
-                          <div 
-                            className="absolute top-3 left-0 w-1 h-8 rounded-r-full opacity-80"
-                            style={{ backgroundColor: activityColor }}
-                          >
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>
-                ) : (
-                  <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <Activity className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Nenhuma atividade recente</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Sincronize suas atividades do Garmin para ver os dados
-                      </p>
-                    </div>
-                   </div>
-                 )}
-              </CardContent>
-            </Card>
+
+                  {/* Sleep Analytics */}
+                  {sleepAnalytics && (
+                    <Card className="glass-card border-glass-border">
+                       <CardHeader>
+                         <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
+                           <div className="flex items-center gap-2">
+                             <Moon className="w-4 h-4 text-primary" />
+                             <h3 className="text-lg font-semibold">Análise do Sono</h3>
+                           </div>
+                            {(() => {
+                              const analysisData = getSleepAnalysisData();
+                              return analysisData ? (
+                                <div className={isMobile ? 'w-full mt-2' : ''}>
+                                  {isSubscribed ? (
+                                    <SleepAnalysisDialog 
+                                      sleepData={analysisData.sleepData}
+                                      overtrainingData={analysisData.overtrainingData}
+                                    />
+                                  ) : (
+                                    <PremiumButton>
+                                      Analisar Sono com IA
+                                    </PremiumButton>
+                                  )}
+                                </div>
+                              ) : null;
+                            })()}
+                         </div>
+                       </CardHeader>
+                      <CardContent>
+                        <div className="grid lg:grid-cols-2 gap-6">
+                          {/* Sleep Score & Duration */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-3xl font-bold text-foreground">
+                                  {sleepAnalytics.sleepScore || 'N/A'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">Score de Sono</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {sleepAnalytics.lastSleepDate ? `Última noite: ${sleepAnalytics.lastSleepDate}` : 'Sem dados recentes'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-primary">
+                                  {sleepAnalytics.hoursSlept || 'N/A'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">Tempo Dormido</div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted">
+                              <h4 className="font-semibold mb-2 text-primary flex items-center space-x-2">
+                                <Clock className="h-4 w-4" />
+                                <span>Qualidade do Sono</span>
+                              </h4>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {sleepAnalytics.qualityComment}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Sleep Stages Distribution */}
+                          <div className="space-y-4">
+                            <h4 className="font-semibold text-foreground flex items-center space-x-2">
+                              <Brain className="h-4 w-4" />
+                              <span>Distribuição das Fases do Sono</span>
+                            </h4>
+                            
+                            <div className="space-y-3">
+                              {/* Deep Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono Profundo</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.deepSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.deepSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Light Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono Leve</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.lightSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.lightSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* REM Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono REM</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.remSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.remSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <div className="text-xs text-blue-400 font-medium">Profundo</div>
+                                <div className="text-xs text-muted-foreground">Recuperação</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-cyan-400/10 border border-cyan-400/20">
+                                <div className="text-xs text-cyan-400 font-medium">Leve</div>
+                                <div className="text-xs text-muted-foreground">Transição</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                <div className="text-xs text-purple-400 font-medium">REM</div>
+                                <div className="text-xs text-muted-foreground">Memória</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </div>
           </ScrollReveal>
+
         </div>
       </div>
     </div>
