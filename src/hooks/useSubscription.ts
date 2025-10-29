@@ -21,10 +21,10 @@ export const useSubscription = () => {
   
   const initializingRef = useRef(false);
   const checkingRef = useRef(false);
+  const isMountedRef = useRef(true);
   
   // Get platform info directly without extra hook to avoid React queue issues
-  const isIOS = Capacitor.getPlatform() === 'ios';
-  const isNative = Capacitor.isNativePlatform();
+  const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
 
   // Sync subscription status to Supabase in background
   const syncToSupabase = useCallback(async (data: SubscriptionData) => {
@@ -35,13 +35,16 @@ export const useSubscription = () => {
       debugLog('📤 Syncing subscription to Supabase...');
       
       await supabase.functions.invoke('sync-subscription-status', {
-        headers: { Authorization: `Bearer ${token}` },
-        body: {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           user_id: user?.id,
           platform: 'ios',
           subscribed: data.subscribed,
           expiration_date: data.subscription_end
-        }
+        })
       });
       
       debugLog('✅ Subscription synced to Supabase');
@@ -75,27 +78,60 @@ export const useSubscription = () => {
       const cached = getCachedSubscription();
       if (cached && !isManualRefresh) {
         debugLog('✅ Using valid cache:', cached);
-        setSubscriptionData(cached);
-        setLoading(false);
+        if (isMountedRef.current) {
+          setSubscriptionData(cached);
+          setLoading(false);
+        }
         checkingRef.current = false;
         
-        // Still check RevenueCat in background to refresh cache
-        setTimeout(() => {
-          checkingRef.current = false;
-          checkSubscription(false);
-        }, 1000);
+        // Fire-and-forget background refresh (no recursion)
+        (async () => {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (!checkingRef.current && isMountedRef.current) {
+            checkingRef.current = true;
+            try {
+              if (isIOSNative) {
+                debugLog('🔄 Background refresh: checking RevenueCat...');
+                const rcData = await Promise.race([
+                  checkRevenueCatLight(user.id),
+                  new Promise<SubscriptionData>((_, reject) => 
+                    setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
+                  )
+                ]);
+                if (isMountedRef.current) {
+                  setSubscriptionData(rcData);
+                  cacheSubscription(rcData);
+                  syncToSupabase(rcData).catch(err => 
+                    debugError('Background sync failed:', err)
+                  );
+                }
+              }
+            } catch (error) {
+              debugWarn('⚠️ Background refresh failed:', error);
+            } finally {
+              checkingRef.current = false;
+            }
+          }
+        })();
         return;
       }
 
-      // Step 2: Check RevenueCat (iOS native only)
-      if (isIOS && isNative) {
+      // Step 2: Check RevenueCat (iOS native only) with timeout
+      if (isIOSNative) {
         try {
           debugLog('📱 Checking RevenueCat...');
-          const rcData = await checkRevenueCatLight(user.id);
+          const rcData = await Promise.race([
+            checkRevenueCatLight(user.id),
+            new Promise<SubscriptionData>((_, reject) => 
+              setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
+            )
+          ]);
           
           debugLog('✅ RevenueCat result:', rcData);
-          setSubscriptionData(rcData);
-          cacheSubscription(rcData);
+          if (isMountedRef.current) {
+            setSubscriptionData(rcData);
+            cacheSubscription(rcData);
+          }
           
           // Sync to Supabase in background (non-blocking)
           syncToSupabase(rcData).catch(err => 
@@ -119,9 +155,14 @@ export const useSubscription = () => {
         const oldCache = getCachedSubscription();
         if (oldCache) {
           debugWarn('⚠️ Using expired cache (offline mode)');
-          setSubscriptionData(oldCache);
+          if (isMountedRef.current) {
+            setSubscriptionData(oldCache);
+          }
         } else {
-          setSubscriptionData({ subscribed: false });
+          debugWarn('⚠️ Offline with no cache available');
+          if (isMountedRef.current) {
+            setSubscriptionData({ subscribed: false });
+          }
         }
         return;
       }
@@ -137,8 +178,10 @@ export const useSubscription = () => {
       debugLog('✅ Quick check result:', quickData);
       const finalData = quickData || { subscribed: false };
       
-      setSubscriptionData(finalData);
-      cacheSubscription(finalData);
+      if (isMountedRef.current) {
+        setSubscriptionData(finalData);
+        cacheSubscription(finalData);
+      }
 
     } catch (error) {
       debugError('❌ Subscription check failed:', error);
@@ -147,20 +190,29 @@ export const useSubscription = () => {
       const fallbackCache = getCachedSubscription();
       if (fallbackCache) {
         debugWarn('⚠️ Using cached data due to error');
-        setSubscriptionData(fallbackCache);
+        if (isMountedRef.current) {
+          setSubscriptionData(fallbackCache);
+        }
       } else {
-        setSubscriptionData({ subscribed: false });
+        debugWarn('⚠️ Error with no cache available');
+        if (isMountedRef.current) {
+          setSubscriptionData({ subscribed: false });
+        }
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
       checkingRef.current = false;
       debugLog('✅ Subscription check complete');
     }
-  }, [user, isIOS, isNative, syncToSupabase]);
+  }, [user, isIOSNative, syncToSupabase]);
 
   // Initialize on mount and user change
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (initializingRef.current) return;
     
     const initialize = async () => {
@@ -169,8 +221,10 @@ export const useSubscription = () => {
       
       if (!user) {
         debugLog('👤 No user found');
-        setSubscriptionData({ subscribed: false });
-        setLoading(false);
+        if (isMountedRef.current) {
+          setSubscriptionData({ subscribed: false });
+          setLoading(false);
+        }
         initializingRef.current = false;
         return;
       }
@@ -183,6 +237,7 @@ export const useSubscription = () => {
 
     // Cleanup function
     return () => {
+      isMountedRef.current = false;
       initializingRef.current = false;
       checkingRef.current = false;
     };
@@ -194,7 +249,9 @@ export const useSubscription = () => {
       if (event === 'SIGNED_OUT') {
         debugLog('👋 User signed out, clearing cache');
         clearSubscriptionCache();
-        setSubscriptionData({ subscribed: false });
+        if (isMountedRef.current) {
+          setSubscriptionData({ subscribed: false });
+        }
       }
     });
 
