@@ -42,15 +42,6 @@ export const useSubscription = () => {
 
     checkingRef.current = true;
 
-    const timeoutId = setTimeout(() => {
-      debugError('❌ Subscription check timed out after 10 seconds');
-      if (!background) {
-        setSubscriptionData({ subscribed: false });
-        setLoading(false);
-      }
-      checkingRef.current = false;
-    }, 10000);
-
     try {
       if (!background) setLoading(true);
       
@@ -77,7 +68,6 @@ export const useSubscription = () => {
             if (activeEntitlements.length > 0) {
               const entitlement = customerInfo.entitlements.active[activeEntitlements[0]];
               debugLog('✅ RevenueCat: Active subscription found', { tier: 'premium', expiration: entitlement.expirationDate });
-              clearTimeout(timeoutId);
               const data = {
                 subscribed: entitlement.isActive,
                 subscription_tier: 'premium',
@@ -88,7 +78,7 @@ export const useSubscription = () => {
               if (data.subscribed) {
                 sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(data));
               }
-              setLoading(false);
+              if (!background) setLoading(false);
               return;
             }
           }
@@ -112,7 +102,6 @@ export const useSubscription = () => {
 
       if (!token) {
         debugWarn('No valid session token available after refresh');
-        clearTimeout(timeoutId);
         if (!background) {
           setSubscriptionData({ subscribed: false });
           setLoading(false);
@@ -138,7 +127,6 @@ export const useSubscription = () => {
             end: quickData.subscription_end,
             userId: user.id
           });
-          clearTimeout(timeoutId);
           setSubscriptionData(quickData);
           localStorage.setItem(CACHE_KEY, JSON.stringify({ data: quickData, timestamp: Date.now() }));
           sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(quickData));
@@ -159,7 +147,7 @@ export const useSubscription = () => {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Function invoke timeout')), 8000)
+            setTimeout(() => reject(new Error('Function invoke timeout')), 15000)
           )
         ]) as any;
 
@@ -193,7 +181,6 @@ export const useSubscription = () => {
         // CRITICAL: In background mode, don't reset to false
         if (background) {
           debugWarn('⚠️ Background check failed, keeping current subscription status');
-          clearTimeout(timeoutId);
           return;
         }
         
@@ -216,7 +203,6 @@ export const useSubscription = () => {
             tier: cachedData.subscription_tier,
             end: cachedData.subscription_end
           });
-          clearTimeout(timeoutId);
           const fallbackData = {
             subscribed: cachedData.subscribed,
             subscription_tier: cachedData.subscription_tier,
@@ -230,12 +216,10 @@ export const useSubscription = () => {
           }
         } else {
           debugError('❌ Database fallback failed, no subscription found', dbError);
-          clearTimeout(timeoutId);
           setSubscriptionData({ subscribed: false });
         }
       } else {
         debugLog('✅ Stripe verification successful', data);
-        clearTimeout(timeoutId);
         setSubscriptionData(data);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
         
@@ -245,13 +229,11 @@ export const useSubscription = () => {
       }
     } catch (error) {
       debugError('Erro na verificação de assinatura:', error);
-      clearTimeout(timeoutId);
       
       if (!background) {
         setSubscriptionData({ subscribed: false });
       }
     } finally {
-      clearTimeout(timeoutId);
       checkingRef.current = false;
       if (!background) setLoading(false);
     }
