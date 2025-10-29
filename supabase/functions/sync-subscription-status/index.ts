@@ -16,8 +16,34 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse request body
-    const { user_id, platform, subscribed, expiration_date } = await req.json();
+    // Parse request body with validation
+    const body = await req.text();
+    if (!body || body.trim() === '') {
+      console.error('❌ Empty body received');
+      return new Response(
+        JSON.stringify({ error: 'Empty body - expected JSON with user_id, platform, subscribed, expiration_date' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      );
+    }
+
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(body);
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      );
+    }
+
+    const { user_id, platform, subscribed, expiration_date } = parsedBody;
 
     console.log('📥 Syncing subscription:', { user_id, platform, subscribed, expiration_date });
 

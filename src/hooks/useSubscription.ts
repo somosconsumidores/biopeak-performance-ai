@@ -39,12 +39,12 @@ export const useSubscription = () => {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
+        body: {
           user_id: user?.id,
           platform: 'ios',
           subscribed: data.subscribed,
           expiration_date: data.subscription_end
-        })
+        }
       });
       
       debugLog('✅ Subscription synced to Supabase');
@@ -54,6 +54,43 @@ export const useSubscription = () => {
   }, [user?.id]);
 
   // Main check function
+  // Função helper para validação completa via edge function
+  const checkFullSubscriptionStatus = useCallback(async () => {
+    try {
+      debugLog('📡 Calling check-subscription edge function...');
+      const token = await getValidToken(supabase);
+      if (!token) {
+        debugWarn('⚠️ No valid token for full check');
+        return;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (error) {
+        debugError('❌ Full check failed:', error);
+        return;
+      }
+      
+      if (data?.subscribed && isMountedRef.current) {
+        debugLog('✅ Full check returned subscribed, updating state and cache');
+        const fullData: SubscriptionData = {
+          subscribed: data.subscribed,
+          subscription_tier: data.subscription_tier,
+          subscription_end: data.subscription_end
+        };
+        setSubscriptionData(fullData);
+        cacheSubscription(fullData);
+      }
+    } catch (error) {
+      debugError('❌ Full check exception:', error);
+    }
+  }, []);
+
   const checkSubscription = useCallback(async (isManualRefresh = false) => {
     if (!user) {
       debugLog('👤 No user, setting subscribed to false');

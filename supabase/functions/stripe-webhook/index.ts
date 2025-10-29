@@ -249,13 +249,30 @@ serve(async (req) => {
           email: profile.email,
           stripe_customer_id: subscription.customer as string,
           subscribed: isActive,
-          subscription_type: isActive ? 'monthly' : null,
-          subscription_tier: isActive ? 'Premium' : null,
+          subscription_type: isActive ? 'stripe' : null,
+          subscription_tier: isActive ? 'premium' : null,
           subscription_end: isActive 
             ? new Date(subscription.current_period_end * 1000).toISOString() 
             : null,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'email' });
+        }, { onConflict: 'user_id' });
+        
+        // Notificar apps via Realtime
+        if (profile?.user_id) {
+          await supabaseAdmin
+            .from('subscription_updates')
+            .insert({
+              user_id: profile.user_id,
+              action: 'subscription_updated',
+              metadata: {
+                subscription_id: subscription.id,
+                status: subscription.status,
+                subscribed: isActive
+              }
+            });
+          
+          logStep('Realtime notification sent', { userId: profile.user_id });
+        }
         
         logStep('Subscription status updated in database', { 
           userId: profile.user_id, 
@@ -293,7 +310,22 @@ serve(async (req) => {
           subscription_tier: null,
           subscription_end: null,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'email' });
+        }, { onConflict: 'user_id' });
+        
+        // Notificar apps via Realtime
+        if (profile?.user_id) {
+          await supabaseAdmin
+            .from('subscription_updates')
+            .insert({
+              user_id: profile.user_id,
+              action: 'subscription_deleted',
+              metadata: {
+                subscription_id: subscription.id
+              }
+            });
+          
+          logStep('Realtime notification sent', { userId: profile.user_id });
+        }
         
         logStep('User marked as unsubscribed due to subscription deletion', { 
           userId: profile.user_id,
@@ -332,7 +364,22 @@ serve(async (req) => {
           subscription_tier: null,
           subscription_end: null,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'email' });
+        }, { onConflict: 'user_id' });
+        
+        // Notificar apps via Realtime
+        if (profile?.user_id) {
+          await supabaseAdmin
+            .from('subscription_updates')
+            .insert({
+              user_id: profile.user_id,
+              action: 'payment_failed',
+              metadata: {
+                invoice_id: invoice.id
+              }
+            });
+          
+          logStep('Realtime notification sent', { userId: profile.user_id });
+        }
         
         logStep('User marked as unsubscribed due to payment failure', { 
           userId: profile.user_id,
