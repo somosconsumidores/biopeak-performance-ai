@@ -6,6 +6,8 @@ import { debugLog, debugError, debugWarn } from '@/lib/debug';
 import { cacheSubscription, getCachedSubscription, clearSubscriptionCache } from '@/lib/subscription/cache-ios';
 import { getValidToken } from '@/lib/subscription/token';
 import { checkRevenueCatLight } from '@/lib/subscription/revenuecat-ios';
+import { detectSubscriptionSource, type SubscriptionSource } from '@/lib/subscription/detect-subscription-source';
+import { checkSupabaseSubscription } from '@/lib/subscription/supabase-check';
 
 interface SubscriptionData {
   subscribed: boolean;
@@ -53,7 +55,6 @@ export const useSubscription = () => {
     }
   }, [user?.id]);
 
-  // Main check function
   // Função helper para validação completa via edge function
   const checkFullSubscriptionStatus = useCallback(async () => {
     try {
@@ -84,7 +85,7 @@ export const useSubscription = () => {
           subscription_end: data.subscription_end
         };
         setSubscriptionData(fullData);
-        cacheSubscription(fullData);
+        cacheSubscription(fullData, 'stripe');
       }
     } catch (error) {
       debugError('❌ Full check exception:', error);
@@ -111,8 +112,12 @@ export const useSubscription = () => {
     try {
       debugLog('🔍 Starting subscription check for user:', user.id);
 
-      // Step 1: Check cache first (instant response)
-      const cached = getCachedSubscription();
+      // Step 0: Detect subscription source (Stripe vs RevenueCat)
+      const source: SubscriptionSource = await detectSubscriptionSource(user.id);
+      debugLog('📍 Detected subscription source:', source);
+
+      // Step 1: Check cache first (instant response) - validate source match
+      const cached = getCachedSubscription(source === 'stripe' ? 'stripe' : source === 'revenuecat' ? 'revenuecat' : undefined);
       if (cached && !isManualRefresh) {
         debugLog('✅ Using valid cache:', cached);
         if (isMountedRef.current) {
@@ -121,13 +126,22 @@ export const useSubscription = () => {
         }
         checkingRef.current = false;
         
-        // Fire-and-forget background refresh (no recursion)
+        // Fire-and-forget background refresh based on source
         (async () => {
           await new Promise(resolve => setTimeout(resolve, 1000));
           if (!checkingRef.current && isMountedRef.current) {
             checkingRef.current = true;
             try {
-              if (isIOSNative) {
+              if (source === 'stripe') {
+                // For Stripe subscribers, do a quick Supabase refresh
+                debugLog('🔄 Background refresh: checking Supabase for Stripe subscriber...');
+                const supabaseData = await checkSupabaseSubscription(user.id);
+                if (isMountedRef.current && supabaseData.subscribed) {
+                  setSubscriptionData(supabaseData);
+                  cacheSubscription(supabaseData, 'stripe');
+                }
+              } else if (source === 'revenuecat' && isIOSNative) {
+                // For RevenueCat subscribers, check RevenueCat
                 debugLog('🔄 Background refresh: checking RevenueCat...');
                 const rcData = await Promise.race([
                   checkRevenueCatLight(user.id),
@@ -137,7 +151,7 @@ export const useSubscription = () => {
                 ]);
                 if (isMountedRef.current) {
                   setSubscriptionData(rcData);
-                  cacheSubscription(rcData);
+                  cacheSubscription(rcData, 'revenuecat');
                   syncToSupabase(rcData).catch(err => 
                     debugError('Background sync failed:', err)
                   );
@@ -153,10 +167,30 @@ export const useSubscription = () => {
         return;
       }
 
-      // Step 2: Check RevenueCat (iOS native only) with timeout
-      if (isIOSNative) {
+      // Step 2: SMART CHECK - Skip RevenueCat if user is Stripe subscriber
+      if (source === 'stripe') {
+        debugLog('💳 User is Stripe subscriber, skipping RevenueCat check');
+        
+        // Go directly to Supabase for fast verification
         try {
-          debugLog('📱 Checking RevenueCat...');
+          const supabaseData = await checkSupabaseSubscription(user.id);
+          debugLog('✅ Supabase result for Stripe subscriber:', supabaseData);
+          
+          if (isMountedRef.current) {
+            setSubscriptionData(supabaseData);
+            cacheSubscription(supabaseData, 'stripe');
+          }
+          return;
+        } catch (error) {
+          debugError('❌ Supabase check failed for Stripe subscriber:', error);
+          // Continue to fallback logic below
+        }
+      }
+
+      // Step 3: Check RevenueCat (iOS native only, and only if NOT a Stripe subscriber)
+      if (isIOSNative && source === 'revenuecat') {
+        try {
+          debugLog('📱 Checking RevenueCat for RevenueCat subscriber...');
           const rcData = await Promise.race([
             checkRevenueCatLight(user.id),
             new Promise<SubscriptionData>((_, reject) => 
@@ -167,7 +201,7 @@ export const useSubscription = () => {
           debugLog('✅ RevenueCat result:', rcData);
           if (isMountedRef.current) {
             setSubscriptionData(rcData);
-            cacheSubscription(rcData);
+            cacheSubscription(rcData, 'revenuecat');
           }
           
           // Sync to Supabase in background (non-blocking)
@@ -181,8 +215,8 @@ export const useSubscription = () => {
         }
       }
 
-      // Step 3: Fallback to Supabase direct query
-      debugLog('🔑 Checking Supabase subscription...');
+      // Step 4: Fallback to Supabase direct query (for all cases)
+      debugLog('🔑 Checking Supabase subscription (fallback)...');
       
       try {
         const { data: subData, error: subError } = await supabase
@@ -207,24 +241,26 @@ export const useSubscription = () => {
           subscription_end: subData?.subscription_end
         };
 
-        debugLog('✅ Supabase result:', finalData);
+        debugLog('✅ Supabase fallback result:', finalData);
         
         if (isMountedRef.current) {
           setSubscriptionData(finalData);
-          cacheSubscription(finalData);
+          // Cache with appropriate source
+          const cacheSource = source === 'revenuecat' ? 'revenuecat' : 'stripe';
+          cacheSubscription(finalData, cacheSource);
         }
       } catch (supabaseError) {
         debugError('❌ Supabase check failed:', supabaseError);
         
-        // Use old cache even if expired (offline mode)
+        // CRITICAL: Use old cache even if expired (offline mode) - maintain UX
         const oldCache = getCachedSubscription();
-        if (oldCache) {
-          debugWarn('⚠️ Using expired cache (offline mode)');
+        if (oldCache && oldCache.subscribed) {
+          debugWarn('⚠️ Using expired cache to maintain UX (offline mode)');
           if (isMountedRef.current) {
             setSubscriptionData(oldCache);
           }
         } else {
-          debugWarn('⚠️ No cache available, setting to not subscribed');
+          debugWarn('⚠️ No valid cache available, setting to not subscribed');
           if (isMountedRef.current) {
             setSubscriptionData({ subscribed: false });
           }
@@ -234,15 +270,15 @@ export const useSubscription = () => {
     } catch (error) {
       debugError('❌ Subscription check failed:', error);
       
-      // Use cached data if available (offline mode)
+      // CRITICAL: Use cached data if available (offline mode) - maintain UX
       const fallbackCache = getCachedSubscription();
-      if (fallbackCache) {
-        debugWarn('⚠️ Using cached data due to error');
+      if (fallbackCache && fallbackCache.subscribed) {
+        debugWarn('⚠️ Using cached data to maintain UX during error');
         if (isMountedRef.current) {
           setSubscriptionData(fallbackCache);
         }
       } else {
-        debugWarn('⚠️ Error with no cache available');
+        debugWarn('⚠️ Error with no valid cache available');
         if (isMountedRef.current) {
           setSubscriptionData({ subscribed: false });
         }
