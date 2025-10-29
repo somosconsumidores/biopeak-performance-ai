@@ -257,6 +257,18 @@ export const useSubscription = () => {
     }
   }, [user, isIOSNative, syncToSupabase]);
 
+  // Forçar refresh completo após login (iOS)
+  useEffect(() => {
+    if (user && isIOSNative) {
+      debugLog('🔄 iOS login detected, scheduling full subscription check...');
+      const timeoutId = setTimeout(() => {
+        checkFullSubscriptionStatus();
+      }, 2000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user?.id, isIOSNative, checkFullSubscriptionStatus]);
+
   // Initialize on mount and user change
   useEffect(() => {
     isMountedRef.current = true;
@@ -288,6 +300,38 @@ export const useSubscription = () => {
       isMountedRef.current = false;
       initializingRef.current = false;
       checkingRef.current = false;
+    };
+  }, [user?.id, checkSubscription]);
+
+  // Listen for subscription updates via Realtime
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    debugLog('🔔 Setting up Realtime listener for subscription updates');
+    
+    const channel = supabase
+      .channel('subscription-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'subscription_updates',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          debugLog('🔔 Subscription update received via Realtime:', payload);
+          clearSubscriptionCache();
+          checkSubscription(true);
+        }
+      )
+      .subscribe((status) => {
+        debugLog('📡 Realtime subscription status:', status);
+      });
+    
+    return () => {
+      debugLog('🔕 Unsubscribing from Realtime channel');
+      channel.unsubscribe();
     };
   }, [user?.id, checkSubscription]);
 

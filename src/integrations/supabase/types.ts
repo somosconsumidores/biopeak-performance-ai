@@ -3576,6 +3576,30 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_updates: {
+        Row: {
+          action: string
+          id: string
+          metadata: Json | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       survey_campaigns: {
         Row: {
           created_at: string
@@ -4773,6 +4797,7 @@ export type Database = {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_function_calls: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      cleanup_old_subscription_updates: { Args: never; Returns: undefined }
       deactivate_garmin_user: {
         Args: { garmin_user_id_param: string }
         Returns: undefined

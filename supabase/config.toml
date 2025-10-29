@@ -227,3 +227,6 @@ verify_jwt = false
 
 [functions.ai-coach-chat]
 verify_jwt = true
+
+[functions.validate-subscription-unified]
+verify_jwt = true
