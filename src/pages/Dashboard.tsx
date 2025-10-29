@@ -9,8 +9,9 @@ import { AchievementSection } from '@/components/AchievementSection';
 import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
 import { RaceCalendar } from '@/components/RaceCalendar';
 import { useRaceStrategies } from '@/hooks/useRaceStrategies';
-
-
+import { useInsights } from '@/hooks/useInsights';
+import { useCommitments } from '@/hooks/useCommitments';
+import TrainingRecommendationsCard from '@/components/TrainingRecommendationsCard';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,8 +50,14 @@ import {
   Sparkles,
   TrendingUp as TrendingUpIcon,
   Trophy,
-  Target as TargetIcon
+  Target as TargetIcon,
+  Lightbulb,
+  Star,
+  RefreshCw,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 export const Dashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -85,6 +92,8 @@ export const Dashboard = () => {
   const { isMobile, isTablet } = useScreenSize();
   const { t } = useTranslation();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const { insights, loading: insightsLoading, error: insightsError, refreshInsights } = useInsights();
+  const { applyRecommendation } = useCommitments();
 
   // Verificar conquistas quando o dashboard carrega
   useEffect(() => {
@@ -593,6 +602,138 @@ export const Dashboard = () => {
                     </Card>
                   </div>
 
+                  {/* Sleep Analytics */}
+                  {sleepAnalytics && (
+                    <Card className="glass-card border-glass-border">
+                       <CardHeader>
+                         <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
+                           <div className="flex items-center gap-2">
+                             <Moon className="w-4 h-4 text-primary" />
+                             <h3 className="text-lg font-semibold">Análise do Sono</h3>
+                           </div>
+                            {(() => {
+                              const analysisData = getSleepAnalysisData();
+                              return analysisData ? (
+                                <div className={isMobile ? 'w-full mt-2' : ''}>
+                                  {isSubscribed ? (
+                                    <SleepAnalysisDialog 
+                                      sleepData={analysisData.sleepData}
+                                      overtrainingData={analysisData.overtrainingData}
+                                    />
+                                  ) : (
+                                    <PremiumButton>
+                                      Analisar Sono com IA
+                                    </PremiumButton>
+                                  )}
+                                </div>
+                              ) : null;
+                            })()}
+                         </div>
+                       </CardHeader>
+                      <CardContent>
+                        <div className="grid lg:grid-cols-2 gap-6">
+                          {/* Sleep Score & Duration */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-3xl font-bold text-foreground">
+                                  {sleepAnalytics.sleepScore || 'N/A'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">Score de Sono</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {sleepAnalytics.lastSleepDate ? `Última noite: ${sleepAnalytics.lastSleepDate}` : 'Sem dados recentes'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-primary">
+                                  {sleepAnalytics.hoursSlept || 'N/A'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">Tempo Dormido</div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted">
+                              <h4 className="font-semibold mb-2 text-primary flex items-center space-x-2">
+                                <Clock className="h-4 w-4" />
+                                <span>Qualidade do Sono</span>
+                              </h4>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {sleepAnalytics.qualityComment}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Sleep Stages Distribution */}
+                          <div className="space-y-4">
+                            <h4 className="font-semibold text-foreground flex items-center space-x-2">
+                              <Brain className="h-4 w-4" />
+                              <span>Distribuição das Fases do Sono</span>
+                            </h4>
+                            
+                            <div className="space-y-3">
+                              {/* Deep Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono Profundo</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.deepSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.deepSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Light Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono Leve</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.lightSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.lightSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* REM Sleep */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Sono REM</span>
+                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.remSleepPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${sleepAnalytics.remSleepPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <div className="text-xs text-blue-400 font-medium">Profundo</div>
+                                <div className="text-xs text-muted-foreground">Recuperação</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-cyan-400/10 border border-cyan-400/20">
+                                <div className="text-xs text-cyan-400 font-medium">Leve</div>
+                                <div className="text-xs text-muted-foreground">Transição</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                <div className="text-xs text-purple-400 font-medium">REM</div>
+                                <div className="text-xs text-muted-foreground">Memória</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Recent Workouts */}
                   <Card className="glass-card border-glass-border">
                     <CardHeader>
@@ -875,173 +1016,240 @@ export const Dashboard = () => {
               {/* Insights Section */}
               {!loading && activeSection === 'insights' && (
                 <>
-                  {/* Alerts */}
-                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-                    {alerts.map((alert, index) => {
-                      const IconComponent = alert.type === 'warning' ? AlertTriangle : 
-                                          alert.type === 'success' ? TrendingUp : 
-                                          Activity;
-                      
-                      return (
-                        <Card key={index} className="glass-card border-glass-border">
-                          <CardContent className="p-3 sm:p-4">
-                            <div className="flex items-start space-x-2 sm:space-x-3">
-                              <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
-                                alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                                alert.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                                'bg-blue-500/20 text-blue-400'
-                              }`}>
-                                <IconComponent className="h-4 w-4 sm:h-5 sm:w-5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between mb-1 gap-2">
-                                  <h3 className="font-semibold text-sm sm:text-base leading-tight">{alert.title}</h3>
-                                  <Badge 
-                                    variant={alert.priority === 'high' ? 'destructive' : 'secondary'}
-                                    className="text-xs flex-shrink-0"
-                                  >
-                                    {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
-                                  </Badge>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{alert.message}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-
-                  {/* Sleep Analytics */}
-                  {sleepAnalytics && (
+                  {insightsLoading && (
                     <Card className="glass-card border-glass-border">
-                       <CardHeader>
-                         <div className={`flex gap-4 ${isMobile ? 'flex-col items-start' : 'items-center justify-between'}`}>
-                           <div className="flex items-center gap-2">
-                             <Moon className="w-4 h-4 text-primary" />
-                             <h3 className="text-lg font-semibold">Análise do Sono</h3>
-                           </div>
-                            {(() => {
-                              const analysisData = getSleepAnalysisData();
-                              return analysisData ? (
-                                <div className={isMobile ? 'w-full mt-2' : ''}>
-                                  {isSubscribed ? (
-                                    <SleepAnalysisDialog 
-                                      sleepData={analysisData.sleepData}
-                                      overtrainingData={analysisData.overtrainingData}
-                                    />
-                                  ) : (
-                                    <PremiumButton>
-                                      Analisar Sono com IA
-                                    </PremiumButton>
-                                  )}
-                                </div>
-                              ) : null;
-                            })()}
-                         </div>
-                       </CardHeader>
-                      <CardContent>
-                        <div className="grid lg:grid-cols-2 gap-6">
-                          {/* Sleep Score & Duration */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-3xl font-bold text-foreground">
-                                  {sleepAnalytics.sleepScore || 'N/A'}
-                                </div>
-                                <div className="text-sm text-muted-foreground">Score de Sono</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {sleepAnalytics.lastSleepDate ? `Última noite: ${sleepAnalytics.lastSleepDate}` : 'Sem dados recentes'}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-2xl font-bold text-primary">
-                                  {sleepAnalytics.hoursSlept || 'N/A'}
-                                </div>
-                                <div className="text-sm text-muted-foreground">Tempo Dormido</div>
-                              </div>
-                            </div>
-
-                            <div className="p-4 rounded-lg bg-muted/20 border border-muted">
-                              <h4 className="font-semibold mb-2 text-primary flex items-center space-x-2">
-                                <Clock className="h-4 w-4" />
-                                <span>Qualidade do Sono</span>
-                              </h4>
-                              <p className="text-sm text-muted-foreground leading-relaxed">
-                                {sleepAnalytics.qualityComment}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Sleep Stages Distribution */}
-                          <div className="space-y-4">
-                            <h4 className="font-semibold text-foreground flex items-center space-x-2">
-                              <Brain className="h-4 w-4" />
-                              <span>Distribuição das Fases do Sono</span>
-                            </h4>
-                            
-                            <div className="space-y-3">
-                              {/* Deep Sleep */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Sono Profundo</span>
-                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.deepSleepPercentage}%</span>
-                                </div>
-                                <div className="w-full bg-muted rounded-full h-2">
-                                  <div 
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                                    style={{ width: `${sleepAnalytics.deepSleepPercentage}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Light Sleep */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Sono Leve</span>
-                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.lightSleepPercentage}%</span>
-                                </div>
-                                <div className="w-full bg-muted rounded-full h-2">
-                                  <div 
-                                    className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
-                                    style={{ width: `${sleepAnalytics.lightSleepPercentage}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* REM Sleep */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Sono REM</span>
-                                  <span className="text-sm font-medium text-foreground">{sleepAnalytics.remSleepPercentage}%</span>
-                                </div>
-                                <div className="w-full bg-muted rounded-full h-2">
-                                  <div 
-                                    className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                                    style={{ width: `${sleepAnalytics.remSleepPercentage}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2 text-center pt-2">
-                              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                <div className="text-xs text-blue-400 font-medium">Profundo</div>
-                                <div className="text-xs text-muted-foreground">Recuperação</div>
-                              </div>
-                              <div className="p-2 rounded-lg bg-cyan-400/10 border border-cyan-400/20">
-                                <div className="text-xs text-cyan-400 font-medium">Leve</div>
-                                <div className="text-xs text-muted-foreground">Transição</div>
-                              </div>
-                              <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                                <div className="text-xs text-purple-400 font-medium">REM</div>
-                                <div className="text-xs text-muted-foreground">Memória</div>
-                              </div>
-                            </div>
-                          </div>
+                      <CardContent className="py-12">
+                        <div className="flex flex-col items-center justify-center space-y-4">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          <p className="text-sm text-muted-foreground">Gerando Insights com IA</p>
+                          <p className="text-xs text-muted-foreground/60">
+                            Analisando seus dados de treino dos últimos 60 dias para criar insights personalizados...
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
+                  )}
+
+                  {insightsError && (
+                    <Card className="glass-card border-glass-border">
+                      <CardContent className="py-12">
+                        <div className="flex flex-col items-center justify-center space-y-4">
+                          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+                          <h2 className="text-xl font-semibold mb-2">Erro ao Carregar Insights</h2>
+                          <p className="text-muted-foreground text-center max-w-md mb-6">{insightsError}</p>
+                          <Button onClick={refreshInsights} variant="outline">
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Tentar Novamente
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {!insightsLoading && !insightsError && insights && (
+                    <>
+                      {/* Header with refresh button */}
+                      {isSubscribed ? (
+                        <>
+                          <div className="flex items-center justify-between mb-6">
+                            <div>
+                              <h2 className="text-2xl font-bold mb-2">
+                                Insights <span className="bg-gradient-primary bg-clip-text text-transparent">Personalizados</span>
+                              </h2>
+                              <p className="text-sm text-muted-foreground">
+                                Análise inteligente da sua performance com recomendações baseadas em IA
+                              </p>
+                            </div>
+                            <Button onClick={refreshInsights} variant="outline" size="sm">
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Atualizar
+                            </Button>
+                          </div>
+
+                          {/* Weekly Insights */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground">Insights da Semana</h3>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                              {insights.weeklyInsights.map((insight, index) => (
+                                <Card key={index} className="glass-card border-glass-border">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                      <h4 className="font-semibold text-sm text-foreground">{insight.title}</h4>
+                                      <Badge variant={insight.isPositive ? "default" : "destructive"} className="text-xs">
+                                        {insight.change}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">{insight.description}</p>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Personalized Metrics */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground">Métricas Personalizadas</h3>
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              {insights.personalizedMetrics.map((metric, index) => (
+                                <Card key={index} className="glass-card border-glass-border">
+                                  <CardContent className="p-4 text-center">
+                                    <div className="flex items-center justify-center mb-2">
+                                      <Heart className="h-5 w-5 mr-2 text-primary" />
+                                      <span className="text-sm text-muted-foreground">{metric.label}</span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-foreground mb-1">
+                                      {metric.value}
+                                      <span className="text-sm text-muted-foreground ml-1">{metric.unit}</span>
+                                    </div>
+                                    <Badge variant={metric.isPositive ? "default" : "secondary"} className="text-xs">
+                                      {metric.change}
+                                    </Badge>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Zone Effectiveness */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground">Efetividade por Zona</h3>
+                            <Card className="glass-card border-glass-border">
+                              <CardContent className="p-4">
+                                <div className="space-y-4">
+                                  {insights.zoneEffectiveness.map((zone, index) => (
+                                    <div key={index} className="flex items-center justify-between">
+                                      <span className="text-sm font-medium text-foreground">{zone.zone}</span>
+                                      <div className="flex items-center gap-3">
+                                        <Progress value={zone.percentage} className="w-32 h-2" />
+                                        <span className="text-sm font-semibold text-foreground min-w-10">
+                                          {zone.percentage}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* Weekly Goals */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground">Metas Semanais</h3>
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              {insights.weeklyGoals.map((goal, index) => (
+                                <Card key={index} className="glass-card border-glass-border">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <TargetIcon className="h-5 w-5 text-primary" />
+                                      <Badge variant="outline" className="text-xs">
+                                        {Math.round((goal.current / goal.target) * 100)}%
+                                      </Badge>
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-foreground mb-2">{goal.title}</h4>
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>Atual: {goal.current} {goal.unit}</span>
+                                        <span>Meta: {goal.target} {goal.unit}</span>
+                                      </div>
+                                      <Progress value={(goal.current / goal.target) * 100} className="h-2" />
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* AI Recommendations */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground flex items-center gap-2">
+                              <Brain className="h-6 w-6 text-primary" />
+                              Recomendações da IA
+                            </h3>
+                            <div className="space-y-4">
+                              {insights.aiRecommendations.map((rec, index) => (
+                                <Card key={index} className="glass-card border-glass-border">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <Lightbulb className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                                        <h4 className="font-semibold text-sm text-foreground">{rec.title}</h4>
+                                      </div>
+                                      <Badge 
+                                        variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                      >
+                                        {rec.priority === 'high' ? 'Alta' : rec.priority === 'medium' ? 'Média' : 'Baixa'}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">{rec.description}</p>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Performance Predictions */}
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold mb-4 text-foreground flex items-center gap-2">
+                              <BarChart3 className="h-6 w-6 text-primary" />
+                              Previsões de Performance
+                            </h3>
+                            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                              {insights.performancePredictions.map((pred, index) => (
+                                <Card key={index} className="glass-card border-glass-border">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h4 className="font-semibold text-sm text-foreground">{pred.metric}</h4>
+                                      <Badge variant="outline" className="text-xs">{pred.confidence}% confiança</Badge>
+                                    </div>
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-xs text-muted-foreground">Atual</span>
+                                        <span className="font-semibold text-foreground">
+                                          {pred.currentValue}
+                                          {pred.metric.includes('VO₂') ? ' ml/kg/min' : 
+                                           pred.metric.includes('Tempo') ? ' min' : ' bpm'}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-xs text-muted-foreground">Previsto em {pred.timeframe}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-primary">
+                                            {pred.predictedValue}
+                                            {pred.metric.includes('VO₂') ? ' ml/kg/min' : 
+                                             pred.metric.includes('Tempo') ? ' min' : ' bpm'}
+                                          </span>
+                                          {pred.predictedValue > pred.currentValue ? (
+                                            <TrendingUp className="h-4 w-4 text-green-500" />
+                                          ) : (
+                                            <TrendingDown className="h-4 w-4 text-red-500" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <PremiumBlur message="Insights personalizados é um recurso premium exclusivo para assinantes">
+                          <Card className="glass-card border-glass-border">
+                            <CardContent className="py-12">
+                              <div className="space-y-6">
+                                <div className="h-32 bg-muted/20 rounded"></div>
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="h-24 bg-muted/20 rounded"></div>
+                                  <div className="h-24 bg-muted/20 rounded"></div>
+                                  <div className="h-24 bg-muted/20 rounded"></div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </PremiumBlur>
+                      )}
+                    </>
                   )}
                 </>
               )}
