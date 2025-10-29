@@ -46,6 +46,7 @@ on:
           - strava-disconnect
           - strava-refresh-token
           - strava-sync-background
+          - strava-sync-optimized
           - strava-webhook
           - sync-activities-with-statistics-and-charts
           - sync-garmin-activities
