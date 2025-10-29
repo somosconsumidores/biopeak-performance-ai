@@ -82,6 +82,28 @@ serve(async (req) => {
       vo2MaxCurrent = vo2?.vo2_max_running ?? null;
     }
 
+    // Fetch active training plan
+    const { data: activePlan } = await supabase
+      .from('training_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let todayWorkout = null;
+    if (activePlan) {
+      const { data: workouts } = await supabase
+        .from('training_workouts')
+        .select('*')
+        .eq('plan_id', activePlan.id)
+        .eq('scheduled_date', todayStr)
+        .maybeSingle();
+      
+      todayWorkout = workouts;
+    }
+
     // Compose prompt
     const parts = {
       date: todayStr,
@@ -99,7 +121,19 @@ serve(async (req) => {
         distance_km: Math.round(totalKm7d * 10) / 10,
         duration_min: Math.round(totalMin7d)
       },
-      vo2max: vo2MaxCurrent
+      vo2max: vo2MaxCurrent,
+      activePlan: activePlan ? {
+        name: activePlan.plan_name,
+        goal: activePlan.goal_type,
+        weeks: activePlan.duration_weeks
+      } : null,
+      todayWorkout: todayWorkout ? {
+        type: todayWorkout.workout_type,
+        title: todayWorkout.workout_title,
+        description: todayWorkout.description,
+        duration_min: todayWorkout.duration_minutes,
+        distance_km: todayWorkout.distance_km
+      } : null
     };
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -142,6 +176,7 @@ serve(async (req) => {
 
 Regras:
 - O briefing deve mencionar a recuperação (sono) e a carga recente.
+- CRÍTICO: Se o atleta tem um plano de treino ativo e há treino agendado para hoje, o workout deve corresponder EXATAMENTE ao treino agendado. Se não houver treino agendado ou plano ativo, sugira um treino apropriado.
 - O treino do dia deve estar concretamente especificado: esporte, duração e FAIXA de intensidade por pace (min/km) e/ou faixa de FC (bpm) ou zona (Z1–Z5).
 - Ajuste a intensidade considerando o sono da última noite, média 7d e carga 7d.
 - Se faltarem dados, use valores conservadores e seja explícito.
@@ -151,7 +186,9 @@ DADOS:
 - Sono última noite: score ${parts.sleep.last?.score ?? 'n/d'}, duração ${parts.sleep.last?.duration_min ?? 'n/d'} min
 - Sono média 7d: ${parts.sleep.avg7d ?? 'n/d'}
 - Carga 7d: ${parts.load7d.distance_km} km, ${parts.load7d.duration_min} min
-- VO2max atual: ${parts.vo2max ?? 'n/d'}`;
+- VO2max atual: ${parts.vo2max ?? 'n/d'}
+- Plano de treino ativo: ${parts.activePlan ? `${parts.activePlan.name} (${parts.activePlan.goal}, ${parts.activePlan.weeks} semanas)` : 'nenhum'}
+- Treino agendado hoje: ${parts.todayWorkout ? `${parts.todayWorkout.type} - ${parts.todayWorkout.title}${parts.todayWorkout.duration_min ? `, ${parts.todayWorkout.duration_min}min` : ''}${parts.todayWorkout.distance_km ? `, ${parts.todayWorkout.distance_km}km` : ''}` : 'nenhum'}`;
 
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

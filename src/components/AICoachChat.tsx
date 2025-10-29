@@ -137,7 +137,16 @@ export const AICoachChat = () => {
                       : 'bg-muted'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                  <div className="whitespace-pre-wrap break-words">
+                    {message.role === 'assistant' 
+                      ? message.content
+                          .replace(/[*_`~>#]/g, '')
+                          .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+                          .replace(/\s{2,}/g, ' ')
+                          .trim()
+                      : message.content
+                    }
+                  </div>
                   <div className="flex items-center justify-between mt-2 gap-2">
                     <div
                       className={`text-xs opacity-70 ${

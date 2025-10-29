@@ -76,14 +76,18 @@ import { Badge } from '@/components/ui/badge';
 import { useTrainingRecommendations } from '@/hooks/useTrainingRecommendations';
 import { useDailyBriefing } from '@/hooks/useDailyBriefing';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
+import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { Loader2, RefreshCw, Play, Pause, Calendar } from 'lucide-react';
 
 export default function WeeklyAIPlanCard() {
   const { recommendations, loading: recLoading, error: recError, refreshRecommendations } = useTrainingRecommendations();
   const { briefing, loading: briefLoading, error: briefError, refresh } = useDailyBriefing();
   const { speak, stop, isSpeaking } = useEnhancedTTS();
+  const { plan, workouts, loading: planLoading } = useActiveTrainingPlan();
 
-  const week = recommendations?.weeklyPlan;
+  // Se houver plano ativo, usar workouts do plano; caso contrário, usar recomendações
+  const hasActivePlan = !!plan && workouts.length > 0;
+  const week = hasActivePlan ? null : recommendations?.weeklyPlan;
   const weekDays = useMemo(() => ([
     { key: 'monday', label: 'SEG' },
     { key: 'tuesday', label: 'TER' },
@@ -334,7 +338,66 @@ export default function WeeklyAIPlanCard() {
           
           {/* Layout Mobile - Lista Vertical */}
           <div className="block sm:hidden space-y-2">
-            {week ? (
+            {hasActivePlan ? (
+              // Usar workouts do plano ativo
+              (() => {
+                const today = new Date();
+                const nextWeekWorkouts = workouts
+                  .filter(w => {
+                    const workoutDate = new Date(w.workout_date);
+                    const diffDays = Math.floor((workoutDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays < 7;
+                  })
+                  .sort((a, b) => new Date(a.workout_date).getTime() - new Date(b.workout_date).getTime());
+
+                const workoutsByDay = weekDays.map(d => {
+                  const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(d.key.toLowerCase());
+                  const workout = nextWeekWorkouts.find(w => new Date(w.workout_date).getDay() === dayIndex);
+                  return { day: d, workout };
+                });
+
+                return workoutsByDay.map(({ day: d, workout }, index) => {
+                  const isToday = new Date().getDay() === (['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(d.key.toLowerCase()));
+                  const isRest = !workout || workout.workout_type.toLowerCase().includes('descanso');
+
+                  return (
+                    <div 
+                      key={d.key} 
+                      className={`relative p-4 rounded-lg border transition-all duration-200 ${
+                        isToday 
+                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 shadow-md'
+                          : 'bg-card/50 border-muted hover:border-primary/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {d.label}
+                          </span>
+                          {isToday && (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5">HOJE</Badge>
+                          )}
+                        </div>
+                        <Badge 
+                          variant={isRest ? 'outline' : 'secondary'} 
+                          className="text-[10px] px-2 py-0.5"
+                        >
+                          {workout?.status === 'completed' ? '✓ Feito' : isRest ? 'Descanso' : 'Planejado'}
+                        </Badge>
+                      </div>
+                      <p className={`text-sm font-medium ${isToday ? 'text-foreground' : 'text-foreground/80'}`}>
+                        {workout ? workout.title : 'Descanso'}
+                      </p>
+                      {workout && workout.duration_minutes && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {workout.duration_minutes} min{workout.distance_meters ? ` • ${(workout.distance_meters / 1000).toFixed(1)} km` : ''}
+                        </p>
+                      )}
+                    </div>
+                  );
+                });
+              })()
+            ) : week ? (
               weekDays.map((d, index) => {
                 const dayPlan = (week as any)[d.key.toLowerCase()] || (week as any)[d.key] || 'Descanso';
                 const isRest = dayPlan.toLowerCase().includes('descanso') || dayPlan.toLowerCase().includes('rest');
@@ -390,7 +453,65 @@ export default function WeeklyAIPlanCard() {
 
           {/* Layout Desktop - Grid 7 colunas */}
           <div className="hidden sm:grid grid-cols-7 gap-2">
-            {week ? (
+            {hasActivePlan ? (
+              // Usar workouts do plano ativo
+              (() => {
+                const today = new Date();
+                const nextWeekWorkouts = workouts
+                  .filter(w => {
+                    const workoutDate = new Date(w.workout_date);
+                    const diffDays = Math.floor((workoutDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays < 7;
+                  })
+                  .sort((a, b) => new Date(a.workout_date).getTime() - new Date(b.workout_date).getTime());
+
+                const workoutsByDay = weekDays.map(d => {
+                  const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(d.key.toLowerCase());
+                  const workout = nextWeekWorkouts.find(w => new Date(w.workout_date).getDay() === dayIndex);
+                  return { day: d, workout };
+                });
+
+                return workoutsByDay.map(({ day: d, workout }, index) => {
+                  const isToday = new Date().getDay() === (['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(d.key.toLowerCase()));
+                  const isRest = !workout || workout.workout_type.toLowerCase().includes('descanso');
+
+                  return (
+                    <div 
+                      key={d.key} 
+                      className={`relative p-3 rounded-lg border transition-all duration-200 hover:scale-105 ${
+                        isToday 
+                          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 shadow-md'
+                          : isRest 
+                            ? 'bg-muted/20 border-muted/40 hover:bg-muted/30' 
+                            : 'bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:from-primary/10 hover:to-primary/15'
+                      }`}
+                    >
+                      <div className={`text-xs font-bold text-center mb-2 uppercase tracking-wider ${
+                        isToday ? 'text-primary' : 'text-muted-foreground'
+                      }`}>
+                        {d.label}
+                      </div>
+                      <div className={`text-xs leading-tight text-center min-h-[3rem] ${
+                        isRest ? 'text-muted-foreground' : 'text-foreground font-medium'
+                      }`}>
+                        {workout ? workout.title : 'Descanso'}
+                      </div>
+                      {workout && workout.duration_minutes && (
+                        <div className="text-[10px] text-muted-foreground text-center mt-1">
+                          {workout.duration_minutes}min
+                        </div>
+                      )}
+                      {isToday && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-primary to-primary/70 animate-pulse" />
+                      )}
+                      {workout && workout.status === 'completed' && (
+                        <div className="absolute top-1 right-1 text-xs">✓</div>
+                      )}
+                    </div>
+                  );
+                });
+              })()
+            ) : week ? (
               weekDays.map((d, index) => {
                 const dayPlan = (week as any)[d.key.toLowerCase()] || (week as any)[d.key] || 'Descanso';
                 const isRest = dayPlan.toLowerCase().includes('descanso') || dayPlan.toLowerCase().includes('rest');
