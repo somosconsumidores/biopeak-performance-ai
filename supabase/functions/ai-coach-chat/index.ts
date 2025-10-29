@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // AI Coach Chat - Phase 1: Enhanced context and conversation memory
 // Last updated: 2025-10-28 - Fixed specific activity date/type search
 // Redeploy trigger: 2025-10-28T19:25:00
+// Force redeploy: 2025-10-28T19:30:00
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
