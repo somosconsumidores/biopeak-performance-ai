@@ -82,26 +82,40 @@ serve(async (req) => {
       vo2MaxCurrent = vo2?.vo2_max_running ?? null;
     }
 
-    // Fetch active training plan
-    const { data: activePlan } = await supabase
+    // Fetch active training plan (only non-deleted, active plans)
+    console.log('📋 Fetching active training plan...');
+    const { data: activePlan, error: planError } = await supabase
       .from('training_plans')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'active')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (planError) {
+      console.error('❌ Error fetching training plan:', planError);
+    }
+
+    console.log(`📅 Active plan: ${activePlan ? `${activePlan.plan_name} (ID: ${activePlan.id})` : 'none'}`);
+
     let todayWorkout = null;
     if (activePlan) {
-      const { data: workouts } = await supabase
+      console.log(`🔍 Looking for workout on ${todayStr} for plan ${activePlan.id}`);
+      const { data: workouts, error: workoutError } = await supabase
         .from('training_plan_workouts')
         .select('*')
         .eq('plan_id', activePlan.id)
         .eq('workout_date', todayStr)
         .maybeSingle();
       
+      if (workoutError) {
+        console.error('❌ Error fetching today\'s workout:', workoutError);
+      }
+
       todayWorkout = workouts;
+      console.log(`💪 Today's workout: ${todayWorkout ? `${todayWorkout.title} (${todayWorkout.workout_type})` : 'none scheduled'}`);
     }
 
     // Compose prompt

@@ -118,6 +118,10 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
           ? { ...w, status: 'completed', completed_activity_id: activityId, completed_activity_source: activitySource }
           : w
       ));
+
+      // Clear briefing cache to regenerate with updated workout status
+      const todayKey = new Date().toISOString().slice(0, 10);
+      localStorage.removeItem(`daily_briefing_${todayKey}`);
     } catch (err) {
       console.error('Error marking workout as completed:', err);
       setError(err instanceof Error ? err.message : 'Failed to mark workout as completed');
@@ -142,6 +146,10 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
           ? { ...w, status: 'planned', completed_activity_id: null, completed_activity_source: null }
           : w
       ));
+
+      // Clear briefing cache to regenerate with updated workout status
+      const todayKey = new Date().toISOString().slice(0, 10);
+      localStorage.removeItem(`daily_briefing_${todayKey}`);
     } catch (err) {
       console.error('Error marking workout as planned:', err);
       setError(err instanceof Error ? err.message : 'Failed to mark workout as planned');
@@ -158,6 +166,10 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
         .eq('id', plan.id);
 
       if (error) throw error;
+
+      // Clear briefing cache to regenerate without this plan
+      const todayKey = new Date().toISOString().slice(0, 10);
+      localStorage.removeItem(`daily_briefing_${todayKey}`);
 
       // Clear local state
       setPlan(null);
