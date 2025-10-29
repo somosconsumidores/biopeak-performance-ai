@@ -551,15 +551,68 @@ function generateSession(
       zone = 2;
       intensity = 'low';
     } else if (goal === 'melhorar_tempos') {
-      if (week % 2 === 1) {
-        type = 'interval';
-        title = '6x800m';
-        description = 'Aquecimento + 6x800m ritmo 5-10k, rec 2min';
-        duration_min = 35;
-        distance_km = null as any;
-        pace = p.pace_interval_800m;
-        zone = 4;
-        intensity = 'high';
+      // Rotação de treinos de qualidade para melhorar tempos (ciclo de 4 semanas)
+      // Semana % 4: 1=Tempo, 2=Intervalado, 3=Progressivo, 0=Fartlek
+      const mod = week % 4;
+      
+      switch (mod) {
+        case 1: // Tempo Run - ritmo limiar
+          type = 'tempo';
+          title = 'Tempo 25min';
+          description = 'Aquecimento + 25min em ritmo limiar (Z3)';
+          duration_min = 25;
+          distance_km = null as any;
+          pace = p.pace_tempo;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+          
+        case 2: // Intervalado - treino de velocidade
+          type = 'interval';
+          title = '6x800m';
+          description = 'Aquecimento + 6x800m ritmo 5-10k, rec 2min';
+          duration_min = 35;
+          distance_km = null as any;
+          pace = p.pace_interval_800m;
+          zone = 4;
+          intensity = 'high';
+          break;
+          
+        case 3: // Progressivo - aumenta gradualmente
+          type = 'progressivo';
+          title = 'Progressivo 40min';
+          description = 'Inicie leve e termine próximo ao ritmo 10k';
+          duration_min = 40;
+          distance_km = null as any;
+          pace = (p.pace_easy + p.pace_10k) / 2;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+          
+        default: // case 0: Fartlek - variações de ritmo
+          type = 'fartlek';
+          title = 'Fartlek 35min';
+          description = '10x(2min moderado/1min leve)';
+          duration_min = 35;
+          distance_km = null as any;
+          pace = (p.pace_easy + p.pace_tempo) / 2;
+          zone = 3;
+          intensity = 'moderate';
+          break;
+      }
+      
+      // Progressão conforme a fase do plano
+      if (phase === 'peak') {
+        // Na fase peak, aumentar levemente a intensidade dos intervalados
+        if (mod === 2) {
+          zone = 5;
+          intensity = 'high';
+        }
+      } else if (phase === 'taper') {
+        // Na fase taper, reduzir volume mantendo intensidade
+        if (duration_min) {
+          duration_min = Math.round(duration_min * 0.7);
+        }
       }
     }
   }
