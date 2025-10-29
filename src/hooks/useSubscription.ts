@@ -24,6 +24,7 @@ export const useSubscription = () => {
   const { toast } = useToast();
   const { isIOS, isNative } = usePlatform();
   const initializingRef = useRef(false);
+  const checkingRef = useRef(false); // Prevent concurrent checks
 
   // Memoize checkSubscription with useCallback to prevent re-renders
   const checkSubscription = useCallback(async (background = false) => {
@@ -33,12 +34,21 @@ export const useSubscription = () => {
       return;
     }
 
+    // Prevent concurrent checks
+    if (checkingRef.current) {
+      debugWarn('⚠️ Subscription check already in progress, skipping...');
+      return;
+    }
+
+    checkingRef.current = true;
+
     const timeoutId = setTimeout(() => {
       debugError('❌ Subscription check timed out after 10 seconds');
       if (!background) {
         setSubscriptionData({ subscribed: false });
         setLoading(false);
       }
+      checkingRef.current = false;
     }, 10000);
 
     try {
@@ -242,6 +252,7 @@ export const useSubscription = () => {
       }
     } finally {
       clearTimeout(timeoutId);
+      checkingRef.current = false;
       if (!background) setLoading(false);
     }
   }, [user, isIOS, isNative]); // Stable dependencies
@@ -275,16 +286,11 @@ export const useSubscription = () => {
             sessionStorage.removeItem(SESSION_SUBSCRIPTION_KEY);
             // Continue to full check below
           } else {
-            debugLog('Using session-verified subscription data', sessionData);
+            debugLog('✅ Using cached session subscription data (valid)', sessionData);
             setSubscriptionData(sessionData);
             setLoading(false);
-            
-            // Verify in background to ensure accuracy
-            setTimeout(() => {
-              checkSubscription(true);
-            }, 1000);
-            
             initializingRef.current = false;
+            // NO background verification - trust the session cache
             return;
           }
         } catch (e) {
@@ -302,26 +308,22 @@ export const useSubscription = () => {
             .eq('user_id', user.id)
             .single(),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('DB query timeout')), 2000)
+            setTimeout(() => reject(new Error('DB query timeout')), 5000)
           )
         ]) as any;
         
         if (dbSub && dbSub.subscription_end && new Date(dbSub.subscription_end) > new Date()) {
-          debugLog('Fast DB check: Active subscription found', dbSub);
+          debugLog('✅ Fast DB check: Active subscription found', dbSub);
           const fastData = {
             subscribed: dbSub.subscribed,
             subscription_tier: dbSub.subscription_tier,
             subscription_end: dbSub.subscription_end
           };
           setSubscriptionData(fastData);
+          sessionStorage.setItem(SESSION_SUBSCRIPTION_KEY, JSON.stringify(fastData));
           setLoading(false);
-          
-          // Verify with Stripe in background
-          setTimeout(() => {
-            checkSubscription(true);
-          }, 2000);
-          
           initializingRef.current = false;
+          // NO background verification - trust the DB data
           return;
         }
       } catch (e) {
