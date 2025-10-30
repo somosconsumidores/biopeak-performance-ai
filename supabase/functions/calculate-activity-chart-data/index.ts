@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-type Source = 'garmin' | 'strava' | 'polar' | 'strava_gpx' | 'zepp_gpx' | 'healthkit'
+type Source = 'garmin' | 'strava' | 'polar' | 'strava_gpx' | 'zepp_gpx' | 'healthkit' | 'biopeak_app'
 
 interface CalcBody {
   user_id?: string
@@ -165,6 +165,7 @@ Deno.serve(async (req) => {
       if (activity_source === 'polar') summaryLookups.push({ table: 'polar_activities', column: 'activity_id', value: activity_id })
       if (activity_source === 'strava') summaryLookups.push({ table: 'strava_activities', column: 'strava_activity_id', value: Number(activity_id) })
       if (activity_source === 'healthkit') summaryLookups.push({ table: 'healthkit_activities', column: 'healthkit_uuid', value: activity_id })
+      if (activity_source === 'biopeak_app') summaryLookups.push({ table: 'training_sessions', column: 'id', value: activity_id })
       for (const s of summaryLookups) {
         const { data, error } = await supabase.from(s.table).select('user_id').eq(s.column, s.value).limit(1)
         if (!error && data && data.length > 0 && data[0]?.user_id) return data[0].user_id
@@ -369,6 +370,33 @@ Deno.serve(async (req) => {
         // Merge and sort by time
         rows = [...rows, ...additionalRows].sort((a, b) => a.sample_timestamp - b.sample_timestamp)
       }
+    } else if (activity_source === 'biopeak_app') {
+      // Fetch performance snapshots for BioPeak App activities
+      const { data: snapshots, error } = await supabase
+        .from('performance_snapshots')
+        .select('*')
+        .eq('session_id', activity_id)
+        .order('snapshot_time', { ascending: true })
+      
+      if (error) throw error
+      
+      if (!snapshots || snapshots.length === 0) {
+        return new Response(JSON.stringify({ success: false, message: 'No BioPeak performance snapshots found' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      
+      // Transform snapshots into normalized format
+      rows = snapshots.map(s => ({
+        sample_timestamp: new Date(s.snapshot_time).getTime() / 1000,
+        timer_duration_in_seconds: s.snapshot_at_duration_seconds,
+        total_distance_in_meters: s.snapshot_at_distance_meters,
+        speed_meters_per_second: s.current_speed_ms,
+        heart_rate: s.current_heart_rate,
+        latitude_in_degree: s.latitude,
+        longitude_in_degree: s.longitude
+      }))
     }
 
     if (!rows || rows.length === 0) {
@@ -579,6 +607,57 @@ Deno.serve(async (req) => {
         .upsert(coordPayload, { onConflict: 'user_id,activity_source,activity_id' })
       if (upsertCoordErr) throw upsertCoordErr
       
+    }
+
+    // Automatically invoke additional analytics functions for complete analysis
+    console.log(`[calculate-activity-chart-data] Invoking additional analytics for ${activity_source}:${activity_id}`)
+    
+    try {
+      // Calculate best 1km segments
+      const segmentsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/calculate-best-1km-segments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+        },
+        body: JSON.stringify({
+          activity_id,
+          user_id: uid,
+          activity_source
+        })
+      })
+      
+      if (!segmentsResponse.ok) {
+        console.warn(`[calculate-activity-chart-data] Failed to calculate best segments: ${segmentsResponse.status}`)
+      } else {
+        console.log(`[calculate-activity-chart-data] ✅ Best 1km segments calculated`)
+      }
+    } catch (segErr) {
+      console.warn(`[calculate-activity-chart-data] Error invoking best segments:`, segErr)
+    }
+    
+    try {
+      // Calculate statistics metrics
+      const statsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/calculate-statistics-metrics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+        },
+        body: JSON.stringify({
+          activity_id,
+          user_id: uid,
+          activity_source
+        })
+      })
+      
+      if (!statsResponse.ok) {
+        console.warn(`[calculate-activity-chart-data] Failed to calculate statistics: ${statsResponse.status}`)
+      } else {
+        console.log(`[calculate-activity-chart-data] ✅ Statistics metrics calculated`)
+      }
+    } catch (statsErr) {
+      console.warn(`[calculate-activity-chart-data] Error invoking statistics:`, statsErr)
     }
 
     return new Response(
