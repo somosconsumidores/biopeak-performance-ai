@@ -168,14 +168,42 @@ export const useRealtimeSession = () => {
   }, []);
 
   // Simulate GPS movement for development/testing
-  const startSimulationMode = useCallback(() => {
+  const startSimulationMode = useCallback(async () => {
     console.log('🧪 Starting GPS simulation mode for development');
     setIsSimulationMode(true);
     setLocationError(null);
     
-    // Starting location (São Paulo, Brazil)
-    let currentLat = -23.5505;
+    // Try to get real location first, fallback to São Paulo if unavailable
+    let currentLat = -23.5505; // Default: São Paulo, Brazil
     let currentLng = -46.6333;
+    let usingRealLocation = false;
+    
+    try {
+      // Attempt to get real GPS location with 5 second timeout
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('GPS timeout')), 5000);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            clearTimeout(timeout);
+            resolve(pos);
+          },
+          (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      });
+      
+      currentLat = position.coords.latitude;
+      currentLng = position.coords.longitude;
+      usingRealLocation = true;
+      console.log('🧪 Using real GPS location for simulation:', { latitude: currentLat, longitude: currentLng });
+    } catch (error) {
+      console.warn('⚠️ Could not get real GPS location, using default (São Paulo):', error);
+      console.log('🧪 Using default location for simulation:', { latitude: currentLat, longitude: currentLng });
+    }
+    
     let totalDistance = 0;
     
     lastLocationRef.current = {
@@ -219,7 +247,7 @@ export const useRealtimeSession = () => {
     watchIdRef.current = simulationInterval as any;
     setIsWatchingLocation(true);
     
-    return Promise.resolve(true);
+    return true;
   }, []);
 
   // Enhanced GPS troubleshooting
