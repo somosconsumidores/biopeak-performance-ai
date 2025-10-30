@@ -603,12 +603,13 @@ export const useRealtimeSession = () => {
   }, []);
 
   // Start training session
-  const startSession = useCallback(async (goal: TrainingGoal) => {
+  const startSession = useCallback(async (goal: TrainingGoal, workoutId?: string) => {
     if (!user) return null;
 
     try {
       console.log('🚀 [AI COACH DEBUG] Starting new training session...');
       console.log('🎯 [AI COACH DEBUG] Goal:', goal);
+      console.log('📋 [AI COACH DEBUG] Workout ID:', workoutId);
       
       // Reset distance accumulator for new session
       distanceAccumulatorRef.current = 0;

@@ -18,6 +18,10 @@ import { GPSStatusIndicator } from '@/components/GPSStatusIndicator';
 import { useEnhancedGPS } from '@/hooks/useEnhancedGPS';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
+import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
+import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { useDailyBriefing } from '@/hooks/useDailyBriefing';
+import { isSameDay, parseISO } from 'date-fns';
 import { 
   Play, 
   Pause, 
@@ -34,7 +38,8 @@ import {
   Power,
   AlertCircle,
   Settings,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from 'lucide-react';
 
 const TrainingSession: React.FC = () => {
@@ -68,6 +73,16 @@ const TrainingSession: React.FC = () => {
   // Enhanced GPS management
   const enhancedGPS = useEnhancedGPS();
 
+  // Training plan & briefing
+  const { plan, workouts, markWorkoutCompleted } = useActiveTrainingPlan();
+  const { briefing } = useDailyBriefing();
+
+  // Find today's workout
+  const todayWorkout = workouts.find(w => 
+    isSameDay(parseISO(w.workout_date), new Date()) && 
+    w.status === 'planned'
+  );
+
   const [showGoalSetup, setShowGoalSetup] = useState(false);
   const [goalType, setGoalType] = useState<TrainingGoal['type']>('free_run');
   const [targetDistance, setTargetDistance] = useState('');
@@ -78,6 +93,8 @@ const TrainingSession: React.FC = () => {
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [subjectiveFeedback, setSubjectiveFeedback] = useState<number>(3);
   const [showGPSDialog, setShowGPSDialog] = useState(false);
+  const [showFreeTraining, setShowFreeTraining] = useState(false);
+  const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -169,7 +186,65 @@ const TrainingSession: React.FC = () => {
     }
   };
 
-  // Handle session start
+  // Convert workout to goal
+  const workoutToGoal = (workout: TrainingWorkout): TrainingGoal => {
+    if (workout.target_pace_min_km && workout.distance_meters) {
+      return {
+        type: 'target_pace',
+        targetPace: workout.target_pace_min_km,
+        targetDistance: workout.distance_meters
+      };
+    } else if (workout.distance_meters) {
+      return {
+        type: 'target_distance',
+        targetDistance: workout.distance_meters
+      };
+    } else if (workout.duration_minutes) {
+      return {
+        type: 'target_duration',
+        targetDuration: workout.duration_minutes * 60
+      };
+    }
+    return { type: 'free_run' };
+  };
+
+  // Handle starting workout from agenda
+  const handleStartScheduledWorkout = async () => {
+    if (!todayWorkout) return;
+    
+    const goal = workoutToGoal(todayWorkout);
+    setCurrentWorkoutId(todayWorkout.id);
+
+    toast({
+      title: "Iniciando treino agendado...",
+      description: "Aguarde enquanto configuramos o GPS",
+    });
+
+    try {
+      const sessionId = await startSession(goal, todayWorkout.id);
+      if (sessionId) {
+        toast({
+          title: "Treino iniciado!",
+          description: "Boa corrida! O AI Coach irá te acompanhar.",
+        });
+      } else {
+        toast({
+          title: "Erro ao iniciar treino",
+          description: "Houve um problema interno. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Error starting session:', error);
+      toast({
+        title: "Erro de localização",
+        description: error.message || "Verifique se as permissões de localização estão habilitadas.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle session start (free training)
   const handleStartSession = async () => {
     const goal = createGoal();
     if (!goal) return;
@@ -183,6 +258,7 @@ const TrainingSession: React.FC = () => {
       const sessionId = await startSession(goal);
       if (sessionId) {
         setShowGoalSetup(false);
+        setShowFreeTraining(false);
         toast({
           title: "Treino iniciado!",
           description: "Boa corrida! O AI Coach irá te acompanhar.",
@@ -211,7 +287,8 @@ const TrainingSession: React.FC = () => {
       sessionId: sessionData?.sessionId,
       distance: sessionData?.currentDistance,
       duration: sessionData?.currentDuration,
-      status: sessionData?.status
+      status: sessionData?.status,
+      workoutId: currentWorkoutId
     });
     console.log('🔴 [COMPLETION] Subjective feedback:', subjectiveFeedback);
     
@@ -220,6 +297,13 @@ const TrainingSession: React.FC = () => {
       await completeSession(subjectiveFeedback);
       
       console.log('✅ [COMPLETION] completeSession finished successfully');
+      
+      // Mark workout as completed if from agenda
+      if (currentWorkoutId && sessionData?.sessionId) {
+        console.log('📋 Marking workout as completed:', currentWorkoutId);
+        await markWorkoutCompleted(currentWorkoutId, sessionData.sessionId, 'biopeak_ai_coach');
+      }
+      
       setShowCompletionDialog(false);
       
       toast({
@@ -324,13 +408,39 @@ const TrainingSession: React.FC = () => {
             diagnosis={enhancedGPS.error || ''}
           />
 
-          {/* Goal Setup */}
-          <Card className="bg-card/80 backdrop-blur border-primary/20">
+          {/* Today's Workout Card - Only show if there's a scheduled workout */}
+          {todayWorkout && (
+            <TodayWorkoutCard
+              workout={todayWorkout}
+              briefing={briefing}
+              onStartWorkout={handleStartScheduledWorkout}
+            />
+          )}
+
+          {/* Free Training Section */}
+          {(!todayWorkout || showFreeTraining) && (
+            <Card className="bg-card/80 backdrop-blur border-primary/20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-6 w-6" />
-                Definir Objetivo do Treino
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-6 w-6" />
+                  {todayWorkout ? 'Treino Livre (Opcional)' : 'Definir Objetivo do Treino'}
+                </CardTitle>
+                {todayWorkout && showFreeTraining && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFreeTraining(false)}
+                  >
+                    Ocultar
+                  </Button>
+                )}
+              </div>
+              {todayWorkout && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Ou configure um treino diferente do planejado
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Goal Type Selection */}
@@ -424,10 +534,24 @@ const TrainingSession: React.FC = () => {
 
               <Button onClick={handleStartSession} className="w-full" size="lg">
                 <Play className="h-5 w-5 mr-2" />
-                Iniciar Treino
+                Iniciar Treino Livre
               </Button>
             </CardContent>
             </Card>
+          )}
+
+          {/* Show "Configure Free Training" button if there's a workout and free training is hidden */}
+          {todayWorkout && !showFreeTraining && (
+            <Button
+              variant="outline"
+              className="w-full glass-card border-glass-border"
+              onClick={() => setShowFreeTraining(true)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configurar Treino Livre
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+          )}
             </div>
             {/* Spacer for mobile bottom bar */}
             <div className="h-24 md:hidden" />
