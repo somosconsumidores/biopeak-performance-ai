@@ -2,10 +2,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Calendar, ArrowRight, Dumbbell } from 'lucide-react';
 
 export const TodayTrainingAlert = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workouts, loading } = useActiveTrainingPlan();
 
   if (loading) return null;
@@ -19,39 +21,38 @@ export const TodayTrainingAlert = () => {
   if (!todayWorkout) return null;
 
   return (
-    <Card className="glass-card border-glass-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent hover:shadow-2xl transition-all duration-300 overflow-hidden">
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-            <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary shrink-0">
-              <Dumbbell className="h-5 w-5 sm:h-6 sm:w-6" />
+    <Card className="glass-card border-glass-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent hover:shadow-xl transition-all duration-300 overflow-hidden">
+      <CardContent className="p-4">
+        <div className={isMobile ? "flex flex-col gap-3" : "flex items-center justify-between gap-4"}>
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Dumbbell className="h-5 w-5" />
             </div>
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-base sm:text-lg font-bold text-foreground">
+                <h3 className="text-sm font-bold text-foreground">
                   Treino de Hoje
                 </h3>
                 <div className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
                   Planejado
                 </div>
               </div>
-              <p className="text-sm sm:text-base text-foreground/90 font-medium mb-1 truncate">
+              <p className="text-base text-foreground font-semibold mb-1.5 truncate">
                 {todayWorkout.title}
               </p>
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Você tem um treino agendado para hoje</span>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>Agendado para hoje</span>
               </div>
             </div>
           </div>
 
           <Button 
             onClick={() => navigate('/training')}
-            className="shrink-0 gap-2 shadow-lg hover:shadow-xl transition-all"
+            className={`gap-2 shadow-lg hover:shadow-xl transition-all ${isMobile ? 'w-full' : 'shrink-0'}`}
           >
-            <span className="hidden sm:inline">Realizar Treino</span>
-            <span className="sm:hidden">Iniciar</span>
+            {isMobile ? 'Iniciar Treino' : 'Realizar Treino'}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
