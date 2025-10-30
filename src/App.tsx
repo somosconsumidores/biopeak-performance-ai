@@ -38,6 +38,7 @@ import { TermosCondicoes } from "./pages/TermosCondicoes";
 import { ContratoLicenca } from "./pages/ContratoLicenca";
 import { AdminPanel } from "./pages/AdminPanel";
 import { AdminSubscriptions } from "./pages/AdminSubscriptions";
+import AdminFixSubscription from "./pages/AdminFixSubscription";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
@@ -235,6 +236,11 @@ function AppRoutes() {
         <Route path="/admin/subscriptions" element={
           <ProtectedRoute>
             <AdminSubscriptions />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/fix-subscription" element={
+          <ProtectedRoute>
+            <AdminFixSubscription />
           </ProtectedRoute>
         } />
         <Route path="/sleep-feedbacks" element={
