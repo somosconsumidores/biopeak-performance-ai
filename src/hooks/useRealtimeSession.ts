@@ -723,6 +723,25 @@ export const useRealtimeSession = () => {
             // DO NOT update lastSnapshot here - only in createSnapshot function
           };
 
+          // Check if goal was achieved and auto-complete session
+          const goalAchieved = checkGoalAchievement(updated);
+          if (goalAchieved && updated.goal.type !== 'free_run') {
+            console.log('🎯 [AUTO-COMPLETE] Goal achieved! Auto-completing session...', {
+              type: updated.goal.type,
+              currentDistance: updated.currentDistance,
+              targetDistance: updated.goal.targetDistance,
+              currentDuration: updated.currentDuration,
+              targetDuration: updated.goal.targetDuration
+            });
+            
+            // Auto-complete session asynchronously
+            setTimeout(() => {
+              completeSession().catch(error => {
+                console.error('❌ Error auto-completing session:', error);
+              });
+            }, 0);
+          }
+
           // Create snapshot more frequently during active sessions
           // Ensure lastSnapshot is a Date object too
           const lastSnapshot = current.lastSnapshot instanceof Date ? current.lastSnapshot : new Date(current.lastSnapshot);
@@ -837,7 +856,7 @@ export const useRealtimeSession = () => {
           const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
           const calories = calculateCalories(distanceKm, durationSeconds / 60);
 
-          return {
+          const updated = {
             ...current,
             currentDistance: distanceAccumulatorRef.current,
             currentDuration: durationSeconds,
@@ -846,6 +865,27 @@ export const useRealtimeSession = () => {
             calories,
             // DO NOT update lastSnapshot here - only in createSnapshot function
           };
+
+          // Check if goal was achieved and auto-complete session
+          const goalAchieved = checkGoalAchievement(updated);
+          if (goalAchieved && updated.goal.type !== 'free_run') {
+            console.log('🎯 [AUTO-COMPLETE] Goal achieved! Auto-completing session...', {
+              type: updated.goal.type,
+              currentDistance: updated.currentDistance,
+              targetDistance: updated.goal.targetDistance,
+              currentDuration: updated.currentDuration,
+              targetDuration: updated.goal.targetDuration
+            });
+            
+            // Auto-complete session asynchronously
+            setTimeout(() => {
+              completeSession().catch(error => {
+                console.error('❌ Error auto-completing session:', error);
+              });
+            }, 0);
+          }
+
+          return updated;
         });
       }, 1000);
     }
@@ -939,10 +979,12 @@ export const useRealtimeSession = () => {
       
       console.log('📝 Update payload:', updateData);
       
-      const { error } = await supabase
+      const { data: sessionResult, error } = await supabase
         .from('training_sessions')
         .update(updateData)
-        .eq('id', sessionData.sessionId);
+        .eq('id', sessionData.sessionId)
+        .select('workout_id')
+        .single();
 
       if (error) {
         console.error('❌ Supabase error updating session:', error);
@@ -954,6 +996,33 @@ export const useRealtimeSession = () => {
       }
       
       console.log('✅ Session completed successfully in database with ID:', sessionData.sessionId);
+      
+      // Update training_plan_workouts if this session is linked to a workout
+      if (sessionResult?.workout_id) {
+        console.log('📋 Updating training_plan_workouts for workout_id:', sessionResult.workout_id);
+        
+        const workoutUpdateData = {
+          completed: true,
+          actual_duration: sessionData.currentDuration,
+          actual_distance: sessionData.currentDistance,
+          completion_notes: goalAchieved 
+            ? `✅ Objetivo alcançado! Distância: ${(sessionData.currentDistance / 1000).toFixed(2)}km, Duração: ${Math.floor(sessionData.currentDuration / 60)}min, Pace: ${sessionData.averagePace.toFixed(1)} min/km`
+            : `Treino concluído. Distância: ${(sessionData.currentDistance / 1000).toFixed(2)}km, Duração: ${Math.floor(sessionData.currentDuration / 60)}min, Pace: ${sessionData.averagePace.toFixed(1)} min/km`
+        };
+        
+        const { error: workoutError } = await supabase
+          .from('training_plan_workouts')
+          .update(workoutUpdateData)
+          .eq('id', sessionResult.workout_id);
+        
+        if (workoutError) {
+          console.error('⚠️ Error updating training_plan_workouts:', workoutError);
+          // Don't throw here - session is already completed, workout update is secondary
+        } else {
+          console.log('✅ Training plan workout marked as completed');
+        }
+      }
+      
       setSessionData(current => current ? { ...current, status: 'completed' } : null);
       
     } catch (error) {
@@ -1010,7 +1079,7 @@ export const useRealtimeSession = () => {
           const currentPace = durationSeconds > 0 && distanceKm > 0 ? (durationSeconds / 60) / distanceKm : 0;
           const calories = calculateCalories(distanceKm, durationSeconds / 60);
 
-          return {
+          const updated = {
             ...current,
             currentDistance: distanceAccumulatorRef.current,
             currentDuration: durationSeconds,
@@ -1019,6 +1088,27 @@ export const useRealtimeSession = () => {
             calories,
             lastSnapshot: now
           };
+
+          // Check if goal was achieved and auto-complete session
+          const goalAchieved = checkGoalAchievement(updated);
+          if (goalAchieved && updated.goal.type !== 'free_run') {
+            console.log('🎯 [AUTO-COMPLETE] Goal achieved! Auto-completing session...', {
+              type: updated.goal.type,
+              currentDistance: updated.currentDistance,
+              targetDistance: updated.goal.targetDistance,
+              currentDuration: updated.currentDuration,
+              targetDuration: updated.goal.targetDuration
+            });
+            
+            // Auto-complete session asynchronously
+            setTimeout(() => {
+              completeSession().catch(error => {
+                console.error('❌ Error auto-completing session:', error);
+              });
+            }, 0);
+          }
+
+          return updated;
         });
       }, 1000);
     }
