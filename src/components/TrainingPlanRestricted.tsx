@@ -1,13 +1,10 @@
-import { Bell, Calendar } from 'lucide-react';
+import { Calendar, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 
-interface TrainingPlanRestrictedProps {
-  onNotifyClick: () => void;
-  alreadyFlagged: boolean;
-}
+export const TrainingPlanRestricted = () => {
+  const navigate = useNavigate();
 
-export const TrainingPlanRestricted = ({ onNotifyClick, alreadyFlagged }: TrainingPlanRestrictedProps) => {
   return (
     <div className="text-center py-8">
       <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -17,14 +14,10 @@ export const TrainingPlanRestricted = ({ onNotifyClick, alreadyFlagged }: Traini
       </p>
       <Button 
         className="w-full max-w-xs"
-        onClick={onNotifyClick}
-        disabled={alreadyFlagged}
+        onClick={() => navigate('/paywall2')}
       >
-        <Bell className="h-4 w-4 mr-2" />
-        {alreadyFlagged 
-          ? 'Interesse registrado' 
-          : 'Tenho interesse em assinar'
-        }
+        <Sparkles className="h-4 w-4 mr-2" />
+        Tenho interesse em assinar
       </Button>
     </div>
   );

@@ -13,17 +13,14 @@ import { WorkoutDetailDialog } from '@/components/WorkoutDetailDialog';
 import { TrainingPlanRestricted } from '@/components/TrainingPlanRestricted';
 import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 
 const TrainingPlan = () => {
   const { plan, workouts, loading, refreshPlan, deletePlan } = useActiveTrainingPlan();
   const { isSubscribed } = useSubscription();
-  const { profile, flagTrainingPlanInterest } = useProfile();
   const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
-
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
@@ -32,10 +29,6 @@ const TrainingPlan = () => {
       title: "Plano criado com sucesso!",
       description: "Seu plano de treino personalizado foi gerado.",
     });
-  };
-
-  const handleNotifyClick = () => {
-    flagTrainingPlanInterest();
   };
 
   return (
@@ -90,10 +83,7 @@ const TrainingPlan = () => {
                   </Button>
                 </div>
               ) : (
-                <TrainingPlanRestricted 
-                  onNotifyClick={handleNotifyClick}
-                  alreadyFlagged={profile?.flag_training_plan || false}
-                />
+                <TrainingPlanRestricted />
               )}
             </CardContent>
           </Card>
