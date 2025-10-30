@@ -7,9 +7,15 @@ import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 interface VariationAnalysisCardProps {
   activity: UnifiedActivity;
+  activitySource?: string;
 }
 
-export const VariationAnalysisCard = ({ activity }: VariationAnalysisCardProps) => {
+export const VariationAnalysisCard = ({ activity, activitySource }: VariationAnalysisCardProps) => {
+  // Don't show for biopeak activities (no heart rate data)
+  if (activitySource === 'biopeak') {
+    return null;
+  }
+
   const { analysis, loading, error, refetch } = useVariationAnalysis(activity);
 
   if (loading) {

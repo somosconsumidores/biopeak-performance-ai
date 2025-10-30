@@ -9,10 +9,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface HistogramChartProps {
   activityId: string;
   refreshTrigger?: number;
+  activitySource?: string;
 }
 
-export const HistogramChart = ({ activityId, refreshTrigger }: HistogramChartProps) => {
-  const [activeView, setActiveView] = useState<'heart_rate' | 'pace'>('heart_rate');
+export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: HistogramChartProps) => {
+  // Default to 'pace' for biopeak activities (no heart rate data)
+  const defaultView = activitySource === 'biopeak' ? 'pace' : 'heart_rate';
+  const [activeView, setActiveView] = useState<'heart_rate' | 'pace'>(defaultView);
   const { data: chartData, loading, error } = useActivityDetailsChart(activityId, refreshTrigger);
 
   if (loading) {

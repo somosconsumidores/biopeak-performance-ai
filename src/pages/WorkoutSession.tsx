@@ -522,7 +522,11 @@ export const WorkoutSession = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <HistogramChart activityId={currentActivity.activity_id} refreshTrigger={combinedRefreshTrigger} />
+                <HistogramChart 
+                  activityId={currentActivity.activity_id} 
+                  refreshTrigger={combinedRefreshTrigger}
+                  activitySource={(currentActivity as any)?.source?.toLowerCase()}
+                />
               )}
             </div>
           </ScrollReveal>
@@ -585,7 +589,10 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="detailed_metrics" 
               />
-              <PerformanceIndicators activityId={currentActivity.activity_id} />
+              <PerformanceIndicators 
+                activityId={currentActivity.activity_id}
+                activitySource={(currentActivity as any)?.source?.toLowerCase()}
+              />
             </div>
           </ScrollReveal>
 
@@ -596,7 +603,10 @@ export const WorkoutSession = () => {
                 activity={currentActivity as UnifiedActivity} 
                 feature="detailed_metrics" 
               />
-              <VariationAnalysisCard activity={currentActivity as UnifiedActivity} />
+              <VariationAnalysisCard 
+                activity={currentActivity as UnifiedActivity}
+                activitySource={(currentActivity as any)?.source?.toLowerCase()}
+              />
             </div>
           </ScrollReveal>
 
@@ -731,6 +741,7 @@ export const WorkoutSession = () => {
         open={aiAnalysisDialogOpen}
         onOpenChange={setAiAnalysisDialogOpen}
         activityId={currentActivity?.activity_id || null}
+        activitySource={(currentActivity as any)?.source?.toLowerCase()}
       />
     </div>
   );

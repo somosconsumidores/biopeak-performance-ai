@@ -35,12 +35,14 @@ interface WorkoutAIAnalysisDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activityId: string | null;
+  activitySource?: string;
 }
 
 export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = ({
   open,
   onOpenChange,
-  activityId
+  activityId,
+  activitySource
 }) => {
   const { comparison, loading, error, analyzeWorkout } = useWorkoutComparison();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
@@ -348,24 +350,27 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
                   </CardContent>
                 </Card>
 
-                <Card className="glass-card border-glass-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Target className="h-5 w-5 text-yellow-400" />
-                      <span>Áreas para Melhorar</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {comparison.aiRecommendations.areasToImprove.map((area, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-2 flex-shrink-0" />
-                          <p className="text-sm">{area}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Hide "Áreas para Melhorar" for biopeak activities (no HR data compromises AI analysis) */}
+                {activitySource !== 'biopeak' && (
+                  <Card className="glass-card border-glass-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Target className="h-5 w-5 text-yellow-400" />
+                        <span>Áreas para Melhorar</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {comparison.aiRecommendations.areasToImprove.map((area, index) => (
+                          <div key={index} className="flex items-start space-x-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-2 flex-shrink-0" />
+                            <p className="text-sm">{area}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
 
@@ -407,17 +412,8 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
                   </CardContent>
                 </Card>
 
-                <Card className="glass-card border-glass-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Target className="h-5 w-5 text-primary" />
-                      <span>Próximo Treino</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{comparison.aiRecommendations.nextWorkoutSuggestions}</p>
-                  </CardContent>
-                </Card>
+                {/* Hide "Próximo Treino" for all users (user is already on a training plan) */}
+              
               </div>
             </div>
           </div>

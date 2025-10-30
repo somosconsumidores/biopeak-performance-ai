@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface PerformanceIndicatorsProps {
   activityId: string;
+  activitySource?: string;
 }
 
 interface MetricCardProps {
@@ -111,7 +112,7 @@ const MetricCard = ({
   </Card>
 );
 
-export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps) => {
+export const PerformanceIndicators = ({ activityId, activitySource }: PerformanceIndicatorsProps) => {
   const { metrics, loading, error } = usePerformanceMetrics(activityId);
   const recalculateMetrics = useRecalculateMetrics();
   const isMobile = useIsMobile();
@@ -323,6 +324,11 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
     }
   ];
 
+  // Filter out heart rate cards for biopeak activities
+  const filteredMetricCards = activitySource === 'biopeak' 
+    ? metricCards.filter((_, index) => index !== 2 && index !== 3) // Remove "Frequência Cardíaca" and "Distribuição do Esforço"
+    : metricCards;
+
   return (
     <div className="w-full space-y-6">
       {/* Header */}
@@ -380,7 +386,7 @@ export const PerformanceIndicators = ({ activityId }: PerformanceIndicatorsProps
 
       {/* Metrics Grid */}
       <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
-        {metricCards.map((card, index) => (
+        {filteredMetricCards.map((card, index) => (
           <MetricCard key={index} {...card} />
         ))}
       </div>
