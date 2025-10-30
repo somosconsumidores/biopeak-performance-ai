@@ -268,7 +268,7 @@ export const Profile = () => {
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-primary">
-                          {stats ? formatDistance(stats.totalDistance) : '0 km'}
+                          {stats ? Math.round(stats.totalDistance / 1000) : 0} km
                         </div>
                         <div className="text-xs text-muted-foreground">Distância Total</div>
                       </div>
