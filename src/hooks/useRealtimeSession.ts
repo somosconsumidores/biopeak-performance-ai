@@ -4,6 +4,10 @@ import { useAuth } from './useAuth';
 import { useWakeLock } from './useWakeLock';
 import { useSessionPersistence } from './useSessionPersistence';
 import { useHibernationDetection } from './useHibernationDetection';
+import { useBackgroundAudio } from './useBackgroundAudio';
+import { useBackgroundNotifications } from './useBackgroundNotifications';
+import { Capacitor } from '@capacitor/core';
+import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 
 export interface TrainingGoal {
   type: 'free_run' | 'target_distance' | 'target_pace' | 'target_duration' | 'target_calories';
@@ -59,6 +63,16 @@ export const useRealtimeSession = () => {
   // Wake lock for keeping screen active
   const { isActive: isWakeLockActive } = useWakeLock({ 
     enabled: keepScreenOn && isRecording 
+  });
+
+  // Background audio for iOS (keeps TTS working during hibernation)
+  const backgroundAudio = useBackgroundAudio({
+    enabled: isRecording && Capacitor.getPlatform() === 'ios'
+  });
+
+  // Background notifications (fallback for when audio fails)
+  const backgroundNotifications = useBackgroundNotifications({
+    enabled: isRecording
   });
 
   // Session persistence for recovery
@@ -549,7 +563,20 @@ export const useRealtimeSession = () => {
         console.log('💬 AI Feedback received:', data.feedback);
         setLastFeedback(data.feedback);
         
-        // Enhanced TTS with better voice quality
+        // Check if app is in background
+        const isInBackground = document.visibilityState === 'hidden';
+        
+        // If in background, send notification as primary method
+        if (isInBackground && backgroundNotifications.isSupported && backgroundNotifications.hasPermission) {
+          console.log('📱 App in background, sending notification');
+          await backgroundNotifications.scheduleNotification({
+            title: '🏃 BioPeak Coach',
+            body: data.feedback,
+            sound: true,
+          });
+        }
+        
+        // Enhanced TTS with better voice quality (works in background on iOS with background audio)
         try {
           console.log('🔊 Speaking AI feedback with enhanced TTS');
           const { data: ttsData, error: ttsError } = await supabase.functions.invoke('text-to-speech', {
@@ -572,7 +599,7 @@ export const useRealtimeSession = () => {
               speechSynthesis.speak(utterance);
             }
           } else {
-            // Play enhanced TTS audio
+            // Play enhanced TTS audio (works with background audio on iOS)
             const binaryString = atob(ttsData.audioContent);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
@@ -586,6 +613,14 @@ export const useRealtimeSession = () => {
           }
         } catch (error) {
           console.error('❌ TTS Error:', error);
+          // If TTS fails and we're in background, make sure notification was sent
+          if (isInBackground && backgroundNotifications.isSupported && backgroundNotifications.hasPermission) {
+            await backgroundNotifications.scheduleNotification({
+              title: '🏃 BioPeak Coach',
+              body: data.feedback,
+              sound: true,
+            });
+          }
         }
       } else {
         console.warn('⚠️ No feedback received from AI Coach');
@@ -593,7 +628,7 @@ export const useRealtimeSession = () => {
     } catch (error) {
       console.error('❌ Error requesting AI feedback:', error);
     }
-  }, []);
+  }, [backgroundNotifications]);
 
   // Start training session
   const startSession = useCallback(async (goal: TrainingGoal, workoutId?: string) => {
@@ -639,6 +674,27 @@ export const useRealtimeSession = () => {
       };
 
       setSessionData(newSessionData);
+      
+      // Start Android Foreground Service for background tracking
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          await ForegroundService.startForegroundService({
+            body: 'Rastreando seu treino em tempo real',
+            buttons: [
+              {
+                id: 1,
+                title: 'Ver treino'
+              }
+            ],
+            id: 1,
+            smallIcon: 'ic_notification',
+            title: '🏃 BioPeak - Treino Ativo'
+          });
+          console.log('✅ Android Foreground Service started');
+        } catch (error) {
+          console.warn('⚠️ Failed to start Android Foreground Service:', error);
+        }
+      }
       
       // Start GPS tracking - this will throw an error if it fails
       await startLocationTracking();
@@ -712,6 +768,17 @@ export const useRealtimeSession = () => {
     if (!sessionData) return;
 
     setIsRecording(false);
+    
+    // Stop Android Foreground Service when pausing
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        await ForegroundService.stopForegroundService();
+        console.log('✅ Android Foreground Service stopped (paused)');
+      } catch (error) {
+        console.warn('⚠️ Failed to stop Android Foreground Service:', error);
+      }
+    }
+    
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -734,6 +801,27 @@ export const useRealtimeSession = () => {
     if (!sessionData) return;
 
     setIsRecording(true);
+    
+    // Restart Android Foreground Service when resuming
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        await ForegroundService.startForegroundService({
+          body: 'Rastreando seu treino em tempo real',
+          buttons: [
+            {
+              id: 1,
+              title: 'Ver treino'
+            }
+          ],
+          id: 1,
+          smallIcon: 'ic_notification',
+          title: '🏃 BioPeak - Treino Ativo'
+        });
+        console.log('✅ Android Foreground Service restarted (resumed)');
+      } catch (error) {
+        console.warn('⚠️ Failed to restart Android Foreground Service:', error);
+      }
+    }
     
     // Restart interval
     if (!intervalRef.current) {
@@ -811,6 +899,21 @@ export const useRealtimeSession = () => {
 
     setIsRecording(false);
     stopLocationTracking();
+    
+    // Stop Android Foreground Service
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        await ForegroundService.stopForegroundService();
+        console.log('✅ Android Foreground Service stopped');
+      } catch (error) {
+        console.warn('⚠️ Failed to stop Android Foreground Service:', error);
+      }
+    }
+    
+    // Cancel all pending notifications
+    if (backgroundNotifications.isSupported) {
+      await backgroundNotifications.cancelAllNotifications();
+    }
     
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
