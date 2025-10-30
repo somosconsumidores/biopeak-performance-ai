@@ -49,12 +49,26 @@ Deno.serve(async (req) => {
       console.error('Error deleting existing segments:', segError)
     }
 
+    // Detect activity source
+    let activity_source = 'strava_gpx';
+    
+    // Check if this is a BioPeak App activity
+    const { data: sessionCheck } = await supabase
+      .from('training_sessions')
+      .select('id')
+      .eq('id', activity_id)
+      .single();
+    
+    if (sessionCheck) {
+      activity_source = 'biopeak_app';
+    }
+
     // Recalculate activity chart data with full precision
     const { data: chartResult, error: chartError } = await supabase.functions.invoke('calculate-activity-chart-data', {
       body: {
         activity_id,
         user_id,
-        activity_source: 'strava_gpx',
+        activity_source,
         full_precision: true,
         internal_call: true,
       },
@@ -75,7 +89,7 @@ Deno.serve(async (req) => {
       body: {
         activity_id,
         user_id,
-        activity_source: 'strava_gpx',
+        activity_source,
       },
     })
 
@@ -90,7 +104,7 @@ Deno.serve(async (req) => {
       body: {
         activity_id,
         user_id,
-        activity_source: 'strava_gpx',
+        activity_source,
       },
     })
 

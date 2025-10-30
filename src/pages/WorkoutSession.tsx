@@ -52,6 +52,7 @@ import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { PaceHeatmap } from '@/components/PaceHeatmap';
 import { WorkoutAIAnalysisDialog } from '@/components/WorkoutAIAnalysisDialog';
 import { useStravaAnalysisRecovery } from '@/hooks/useStravaAnalysisRecovery';
+import { useActivityRecalculate } from '@/hooks/useActivityRecalculate';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 
 
@@ -102,15 +103,23 @@ export const WorkoutSession = () => {
   const { classification, loading: classificationLoading } = useWorkoutClassification(currentActivity?.activity_id || null);
 
   // Strava analysis recovery hook
-  const { triggerAnalysis, isProcessing: isRecoveringAnalysis, error: recoveryError, refreshTrigger } = useStravaAnalysisRecovery();
+  const { triggerAnalysis, isProcessing: isRecoveringAnalysis, error: recoveryError, refreshTrigger: stravaRefreshTrigger } = useStravaAnalysisRecovery();
+
+  // Activity recalculate hook (for BioPeak and other sources)
+  const { recalculate, isProcessing: isRecalculating, refreshTrigger: recalculateRefreshTrigger } = useActivityRecalculate();
+
+  // Combine refresh triggers
+  const combinedRefreshTrigger = stravaRefreshTrigger + recalculateRefreshTrigger;
 
   // Get pace data for heatmap
-  const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null, refreshTrigger);
+  const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null, combinedRefreshTrigger);
 
   // Check if current activity is Strava and missing analysis data
   const isStravaActivity = (currentActivity as any)?.source === 'STRAVA';
+  const isBioPeakActivity = (currentActivity as any)?.source === 'BIOPEAK_APP';
   const hasAnalysisData = paceData && paceData.length > 0;
   const showRecoveryButton = isStravaActivity && !hasAnalysisData && !paceLoading && !paceError;
+  const showRecalculateButton = (isBioPeakActivity || !isStravaActivity) && !hasAnalysisData && !paceLoading && !paceError;
 
   // Update URL when activity is selected
   useEffect(() => {
@@ -392,7 +401,27 @@ export const WorkoutSession = () => {
                       ) : (
                         <>
                           <RefreshCw className="h-4 w-4 mr-2" />
-                          Recuperar análise
+                          Recuperar Análise
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {showRecalculateButton && user && (
+                    <Button
+                      onClick={() => recalculate(currentActivity?.activity_id, user.id)}
+                      disabled={isRecalculating}
+                      size="sm"
+                      className="ml-2"
+                    >
+                      {isRecalculating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Recalculando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Recalcular Análise
                         </>
                       )}
                     </Button>
@@ -440,6 +469,34 @@ export const WorkoutSession = () => {
                       )}
                     </div>
                   </div>
+                ) : !hasAnalysisData && showRecalculateButton && user ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Análise não disponível</h3>
+                      <p className="text-muted-foreground mb-4 max-w-sm">
+                        Esta atividade não possui dados de análise detalhada. 
+                        Clique no botão abaixo para recalcular os dados.
+                      </p>
+                      <Button
+                        onClick={() => recalculate(currentActivity?.activity_id, user.id)}
+                        disabled={isRecalculating}
+                        className="mt-2"
+                      >
+                        {isRecalculating ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Recalculando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Recalcular análise da atividade
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <PaceHeatmap 
                     data={paceData} 
@@ -465,7 +522,7 @@ export const WorkoutSession = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <HistogramChart activityId={currentActivity.activity_id} refreshTrigger={refreshTrigger} />
+                <HistogramChart activityId={currentActivity.activity_id} refreshTrigger={combinedRefreshTrigger} />
               )}
             </div>
           </ScrollReveal>
@@ -492,7 +549,7 @@ export const WorkoutSession = () => {
                     activityId={currentActivity.activity_id} 
                     activityStartTime={currentActivity.start_time_in_seconds}
                     activityDate={currentActivity.activity_date}
-                    refreshTrigger={refreshTrigger}
+                    refreshTrigger={combinedRefreshTrigger}
                   />
                 )
               )}
