@@ -102,7 +102,7 @@ export const TodayWorkoutCard = ({ workout, briefing, onStartWorkout, onViewDeta
       text += 'Métricas: ' + metrics.join(', ') + '.';
     }
 
-    speak(text, { voice: 'Aria', speed: 1.0 });
+    speak(text, { voice: 'nova', speed: 1.0 });
   };
 
   return (

@@ -105,7 +105,7 @@ export default function WeeklyAIPlanCard() {
       `${w?.guidance?.pace_min_per_km ? `, pace ${w.guidance.pace_min_per_km.min}-${w.guidance.pace_min_per_km.max} min por km` : ''}` +
       `${w?.guidance?.hr_bpm ? `, frequência cardíaca ${w.guidance.hr_bpm.min}-${w.guidance.hr_bpm.max} bpm` : w?.guidance?.hr_zone ? `, ${w.guidance.hr_zone}` : ''}` : '';
     const text = `${briefing.briefing} ${details}`.replace(/[*_`~>#\-+|]/g, ' ').replace(/[\u{1F300}-\u{1FAFF}]/gu, '').replace(/\s{2,}/g,' ');
-    speak(text, { voice: 'Aria', speed: 1.0 });
+    speak(text, { voice: 'nova', speed: 1.0 });
   };
 
   return (
