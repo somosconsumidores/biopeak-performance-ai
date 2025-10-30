@@ -60,6 +60,7 @@ on:
           - sync-garmin-stress
           - sync-garmin-user-metrics
           - sync-recent-activities
+          - text-to-speech
           - update-subscription-status
 
 jobs:
