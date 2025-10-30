@@ -11,9 +11,11 @@ import { TrainingPlanWizard } from '@/components/TrainingPlanWizard';
 import { WorkoutCalendar } from '@/components/WorkoutCalendar';
 import { WorkoutDetailDialog } from '@/components/WorkoutDetailDialog';
 import { TrainingPlanRestricted } from '@/components/TrainingPlanRestricted';
+import { TrainingPlanAnalysisDialog } from '@/components/TrainingPlanAnalysisDialog';
 import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
+import { useTrainingPlanAnalysis } from '@/hooks/useTrainingPlanAnalysis';
 
 const TrainingPlan = () => {
   const { plan, workouts, loading, refreshPlan, deletePlan } = useActiveTrainingPlan();
@@ -21,6 +23,8 @@ const TrainingPlan = () => {
   const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
+  const { result: analysisResult, loading: analysisLoading, error: analysisError, analyzePlan, clearAnalysis } = useTrainingPlanAnalysis();
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
@@ -29,6 +33,18 @@ const TrainingPlan = () => {
       title: "Plano criado com sucesso!",
       description: "Seu plano de treino personalizado foi gerado.",
     });
+  };
+
+  const handleAnalysisClick = async () => {
+    if (!plan) return;
+    
+    setAnalysisDialogOpen(true);
+    await analyzePlan(plan.id);
+  };
+
+  const handleAnalysisDialogClose = () => {
+    setAnalysisDialogOpen(false);
+    clearAnalysis();
   };
 
   return (
@@ -122,7 +138,10 @@ const TrainingPlan = () => {
                 <CardContent>
                   <div className="text-center py-6">
                     {isSubscribed ? (
-                      <Button className="w-full max-w-xs">
+                      <Button 
+                        className="w-full max-w-xs"
+                        onClick={handleAnalysisClick}
+                      >
                         <Target className="h-4 w-4 mr-2" />
                         Análise
                       </Button>
@@ -153,6 +172,14 @@ const TrainingPlan = () => {
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
+      />
+
+      <TrainingPlanAnalysisDialog
+        open={analysisDialogOpen}
+        onClose={handleAnalysisDialogClose}
+        result={analysisResult}
+        loading={analysisLoading}
+        error={analysisError}
       />
     </div>
   );
