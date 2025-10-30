@@ -139,21 +139,40 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { activity_id, user_id } = await req.json()
+    const { activity_id, user_id, activity_source } = await req.json()
     
     if (!activity_id || !user_id) {
       throw new Error('Missing required parameters: activity_id and user_id')
     }
 
-    console.log('🔄 Calculating best 1km segment for activity:', activity_id, 'user:', user_id)
+    const source = activity_source || 'garmin' // Default to garmin for backward compatibility
 
-    // Get activity basic info
-    const { data: activity, error: activityError } = await supabase
-      .from('garmin_activities')
-      .select('activity_date, distance_in_meters')
-      .eq('activity_id', activity_id)
-      .eq('user_id', user_id)
-      .single()
+    console.log('🔄 Calculating best 1km segment for activity:', activity_id, 'user:', user_id, 'source:', source)
+
+    // Get activity info based on source
+    let activity, activityError
+
+    if (source === 'biopeak_app') {
+      // For BioPeak App, fetch from training_sessions
+      const result = await supabase
+        .from('training_sessions')
+        .select('total_distance_meters')
+        .eq('id', activity_id)
+        .eq('user_id', user_id)
+        .single()
+      activity = result.data ? { distance_in_meters: result.data.total_distance_meters } : null
+      activityError = result.error
+    } else {
+      // For Garmin and other sources
+      const result = await supabase
+        .from('garmin_activities')
+        .select('activity_date, distance_in_meters')
+        .eq('activity_id', activity_id)
+        .eq('user_id', user_id)
+        .single()
+      activity = result.data
+      activityError = result.error
+    }
 
     if (activityError) {
       console.error('❌ Activity not found:', activityError)
@@ -161,7 +180,7 @@ Deno.serve(async (req) => {
     }
 
     // Skip if activity is less than 1km
-    if (!activity.distance_in_meters || activity.distance_in_meters < 1000) {
+    if (!activity || !activity.distance_in_meters || activity.distance_in_meters < 1000) {
       console.log('⏭️ Skipping activity - less than 1km distance')
       return new Response(
         JSON.stringify({
@@ -176,13 +195,40 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get activity details with GPS data
-    const { data: activityDetails, error: detailsError } = await supabase
-      .from('garmin_activity_details')
-      .select('samples, latitude_in_degree, longitude_in_degree, start_time_in_seconds, total_distance_in_meters')
-      .eq('activity_id', activity_id)
-      .eq('user_id', user_id)
-      .order('start_time_in_seconds', { ascending: true })
+    // Get activity details with GPS data based on source
+    let activityDetails, detailsError
+
+    if (source === 'biopeak_app') {
+      // For BioPeak App, fetch from activity_chart_data
+      console.log('📊 Fetching BioPeak App chart data')
+      const result = await supabase
+        .from('activity_chart_data')
+        .select('data_points')
+        .eq('activity_id', activity_id)
+        .eq('activity_source', 'biopeak_app')
+        .single()
+      
+      if (result.data && result.data.data_points) {
+        // Transform chart data to activity details format
+        activityDetails = result.data.data_points.map((point: any) => ({
+          latitude_in_degree: point.latitude,
+          longitude_in_degree: point.longitude,
+          start_time_in_seconds: point.elapsed_seconds,
+          total_distance_in_meters: point.distance_km * 1000
+        }))
+      }
+      detailsError = result.error
+    } else {
+      // For Garmin and other sources
+      const result = await supabase
+        .from('garmin_activity_details')
+        .select('samples, latitude_in_degree, longitude_in_degree, start_time_in_seconds, total_distance_in_meters')
+        .eq('activity_id', activity_id)
+        .eq('user_id', user_id)
+        .order('start_time_in_seconds', { ascending: true })
+      activityDetails = result.data
+      detailsError = result.error
+    }
 
     if (detailsError || !activityDetails?.length) {
       console.error('❌ Activity details not found:', detailsError)
@@ -199,12 +245,33 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`📊 Found ${activityDetails.length} activity detail records`)
+    console.log(`📊 Found ${activityDetails?.length || 0} activity detail records`)
 
     // Extract and process GPS points from each detail record
     const allPoints: ActivityPoint[] = []
     
-    for (const detail of activityDetails) {
+    if (source === 'biopeak_app') {
+      // BioPeak App data is already in the correct format
+      for (const detail of activityDetails || []) {
+        if (detail.latitude_in_degree != null && detail.longitude_in_degree != null && 
+            detail.start_time_in_seconds != null && detail.total_distance_in_meters != null) {
+          const gpsPoint = {
+            lat: Number(detail.latitude_in_degree),
+            lon: Number(detail.longitude_in_degree),
+            time: Number(detail.start_time_in_seconds),
+            distance: Number(detail.total_distance_in_meters)
+          }
+          
+          if (!isNaN(gpsPoint.lat) && !isNaN(gpsPoint.lon) && 
+              !isNaN(gpsPoint.time) && !isNaN(gpsPoint.distance) &&
+              Math.abs(gpsPoint.lat) <= 90 && Math.abs(gpsPoint.lon) <= 180) {
+            allPoints.push(gpsPoint)
+          }
+        }
+      }
+    } else {
+      // Garmin and other sources - existing logic
+      for (const detail of activityDetails || []) {
       let gpsPoint = null
       
       // Try to get data from samples object (most common format)
@@ -240,6 +307,7 @@ Deno.serve(async (req) => {
         allPoints.push(gpsPoint)
       }
     }
+    } // End of non-biopeak_app branch
 
     console.log(`📍 Extracted ${allPoints.length} valid GPS points`)
 

@@ -134,6 +134,12 @@ async function fetchActivityDetails(
       tableName = 'polar_activity_details'
       summaryTable = 'polar_activities'
       break
+    case 'biopeak_app':
+    case 'biopeak app':
+      // BioPeak App uses activity_chart_data instead of detail tables
+      tableName = 'activity_chart_data'
+      summaryTable = 'training_sessions'
+      break
     default:
       throw new Error(`Unknown source activity: ${source_activity}`)
   }
@@ -148,7 +154,24 @@ async function fetchActivityDetails(
     // Build query based on source - avoid reassignment
     let summaryData, summaryError
     
-    if (source_activity.toLowerCase() === 'strava') {
+    if (source_activity.toLowerCase() === 'biopeak_app' || source_activity.toLowerCase() === 'biopeak app') {
+      // BioPeak App uses training_sessions
+      console.log(`🎯 Fetching BioPeak App summary data for session ${activity_id}`)
+      const result = await supabase
+        .from(summaryTable)
+        .select('total_distance_meters, total_duration_seconds')
+        .eq('user_id', user_id)
+        .eq('id', activity_id)
+        .single()
+      summaryData = result.data
+      summaryError = result.error
+      
+      if (summaryData) {
+        summaryDistance = summaryData.total_distance_meters
+        summaryDuration = summaryData.total_duration_seconds
+        console.log(`📏 BioPeak App summary: distance=${summaryDistance}m, duration=${summaryDuration}s`)
+      }
+    } else if (source_activity.toLowerCase() === 'strava') {
       console.log(`🎯 Using Strava fields: distance, elapsed_time for activity ${activity_id}`)
       const result = await supabase
         .from(summaryTable)
@@ -197,6 +220,37 @@ async function fetchActivityDetails(
   }
 
   console.log(`📋 Fetching details from ${tableName} where ${activityIdField} = ${activity_id}`)
+  
+  // Handle BioPeak App data structure (uses activity_chart_data with data_points array)
+  if (source_activity.toLowerCase() === 'biopeak_app' || source_activity.toLowerCase() === 'biopeak app') {
+    console.log(`📊 Fetching BioPeak App chart data`)
+    const { data: chartData, error } = await supabase
+      .from('activity_chart_data')
+      .select('data_points')
+      .eq('activity_id', activity_id)
+      .eq('activity_source', 'biopeak_app')
+      .single()
+
+    if (error) {
+      console.error(`❌ Error fetching activity_chart_data:`, error)
+      throw error
+    }
+
+    // Transform chart data points to detail format
+    const details = (chartData?.data_points || []).map((point: any) => ({
+      heart_rate: point.heart_rate_bpm,
+      speed_meters_per_second: point.speed_ms,
+      time_seconds: point.elapsed_seconds,
+      pace: point.pace_min_km
+    }))
+
+    console.log(`📊 Found ${details.length} chart data points`)
+    return { 
+      details, 
+      summaryDistance, 
+      summaryDuration 
+    }
+  }
   
   // Ensure correct type for activity_id in details query
   const activityIdValue = source_activity.toLowerCase() === 'strava' ? Number(activity_id) : activity_id
