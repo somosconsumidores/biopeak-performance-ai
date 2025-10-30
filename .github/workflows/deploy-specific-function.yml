@@ -10,6 +10,7 @@ on:
         options:
           - ai-coaching-engine
           - build-activity-chart-from-strava-streams
+          - calculate-activity-chart-data
           - calculate-best-1km-segments
           - calculate-statistics-metrics
           - calculate-strava-performance-metrics
