@@ -8,6 +8,7 @@ import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
 import { AchievementSection } from '@/components/AchievementSection';
 import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
 import { RaceCalendar } from '@/components/RaceCalendar';
+import { TodayTrainingAlert } from '@/components/TodayTrainingAlert';
 import { useRaceStrategies } from '@/hooks/useRaceStrategies';
 import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
@@ -242,6 +243,13 @@ export const Dashboard = () => {
               <p className="text-sm sm:text-base text-muted-foreground">
                 Visão geral da sua evolução atlética e insights inteligentes
               </p>
+            </div>
+          </ScrollReveal>
+
+          {/* Today Training Alert */}
+          <ScrollReveal delay={10}>
+            <div className="mb-6 md:mb-8">
+              <TodayTrainingAlert />
             </div>
           </ScrollReveal>
 
