@@ -8,10 +8,30 @@ on:
         required: true
         type: choice
         options:
+          - ai-coaching-engine
           - build-activity-chart-from-strava-streams
           - calculate-statistics-metrics
           - calculate-strava-performance-metrics
           - classify-workouts-from-series
+          - coach-get-context
+          - coach-mark-done
+          - coach-reschedule
+          - create-annual-checkout
+          - create-flash-checkout
+          - create-mercadopago-checkout
+          - create-monthly-checkout
+          - create-single-analysis-payment
+          - customer-portal
+          - debug-healthkit-pace
+          - delete-user-account
+          - direct-token-renewal
+          - export-activity-csv
+          - fix-cron-job
+          - fix-gpx-activity-precision
+          - fix-pending-purchase
+          - force-check-webhook
+          - force-subscription-check
+          - force-token-renewal
           - garmin-activities-webhook
           - garmin-activity-details-webhook
           - garmin-auth
@@ -19,17 +39,24 @@ on:
           - garmin-connect
           - garmin-daily-summaries-webhook
           - garmin-deauth
+          - garmin-deregistration
           - garmin-disconnect
           - garmin-epochs-webhook
           - garmin-heart-rates-webhook
+          - garmin-permissions
+          - garmin-permissions-query
           - garmin-pulse-oxs-webhook
           - garmin-respiration-webhook
           - garmin-sleep-webhook
           - garmin-stress-webhook
+          - garmin-token-health-monitor
+          - garmin-user-metrics
           - garmin-user-metrics-webhook
           - get-activity-details-from-strava-streams
           - get-athlete-pr
           - get-backfill-logs
+          - get-mapbox-token
+          - get-polar-config
           - get-subscriptions-with-details
           - get-workout-file
           - list-available-workouts
