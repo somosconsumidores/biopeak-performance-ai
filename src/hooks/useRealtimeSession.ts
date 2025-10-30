@@ -486,24 +486,17 @@ export const useRealtimeSession = () => {
       // Update the session's lastSnapshot time ONLY after successful snapshot creation
       setSessionData(current => current ? { ...current, lastSnapshot: new Date() } : current);
 
-      // Enhanced AI coaching triggers:
-      // 1. Initial feedback at 50m
-      // 2. Regular feedback every 150m
-      // 3. Time-based feedback every 2 minutes after the initial 30 seconds
-      const distanceTrigger = (
-        (sessionData.currentDistance >= 10 && lastSnapshotDistanceRef.current === 0) || // Initial feedback at 10m (reduced for testing)
-        (sessionData.currentDistance - lastSnapshotDistanceRef.current >= 20) // Every 20m thereafter (reduced for testing)
-      );
+      // AI coaching triggers: Garmin Connect style - feedback every 1km
+      const distanceInKm = Math.floor(sessionData.currentDistance / 1000);
+      const lastKmMark = Math.floor(lastSnapshotDistanceRef.current / 1000);
       
-      const timeTrigger = (
-        sessionData.currentDuration >= 10 && // After 10 seconds (reduced for testing)
-        sessionData.currentDuration % 30 === 0 // Every 30 seconds (reduced for testing)
-      );
+      // Trigger feedback only when a new kilometer is completed
+      const distanceTrigger = distanceInKm > lastKmMark && distanceInKm > 0;
 
-      if (distanceTrigger || timeTrigger) {
+      if (distanceTrigger) {
         console.log('🤖 [AI COACH DEBUG] Triggering AI coaching:', { 
           distanceTrigger, 
-          timeTrigger, 
+          distanceInKm,
           distance: sessionData.currentDistance,
           duration: sessionData.currentDuration,
           lastSnapshotDistance: lastSnapshotDistanceRef.current

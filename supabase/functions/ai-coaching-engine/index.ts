@@ -113,6 +113,18 @@ async function generateCoachingFeedback(
 ) {
   const distanceKm = progress.distance / 1000;
   const durationMinutes = progress.duration / 60;
+  const currentKm = Math.floor(distanceKm);
+  
+  // Format time as MM:SS
+  const minutes = Math.floor(progress.duration / 60);
+  const seconds = Math.floor(progress.duration % 60);
+  const timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  
+  // Garmin Connect style feedback: every 1km completed
+  // Report: Distance, Time, Pace
+  let feedbackMessage = `${currentKm} quilômetro${currentKm > 1 ? 's' : ''}. Tempo: ${timeFormatted}. Pace: ${progress.pace.toFixed(1)} minutos por quilômetro.`;
+  
+  let feedbackType: 'pace_adjustment' | 'motivation' | 'goal_progress' | 'heart_rate' | 'strategy_change' = 'goal_progress';
   
   // Calculate deviations from target
   let analysis = {
@@ -122,131 +134,31 @@ async function generateCoachingFeedback(
     heartRateAnalysis: 'normal'
   };
 
-  let feedbackMessage = '';
-  let feedbackType: 'pace_adjustment' | 'motivation' | 'goal_progress' | 'heart_rate' | 'strategy_change' = 'motivation';
-  let strategyUpdate = null;
-
-  switch (goal.type) {
-    case 'target_pace':
-      if (goal.targetPace) {
-        analysis.paceDeviation = progress.pace - goal.targetPace;
-        
-        if (Math.abs(analysis.paceDeviation) > 0.5) { // More than 30 seconds deviation
-          if (analysis.paceDeviation > 0) {
-            feedbackMessage = `Você está ${Math.abs(analysis.paceDeviation).toFixed(1)} min/km mais lento que o objetivo. Tente aumentar ligeiramente o ritmo.`;
-            feedbackType = 'pace_adjustment';
-          } else {
-            feedbackMessage = `Você está ${Math.abs(analysis.paceDeviation).toFixed(1)} min/km mais rápido que o objetivo. Diminua um pouco o ritmo para manter sustentabilidade.`;
-            feedbackType = 'pace_adjustment';
-          }
-        } else {
-          feedbackMessage = `Perfeito! Você está mantendo o ritmo objetivo de ${goal.targetPace.toFixed(1)} min/km. Continue assim!`;
-          feedbackType = 'motivation';
-        }
-      }
-      break;
-
-    case 'target_distance':
-      if (goal.targetDistance) {
-        analysis.distanceProgress = (progress.distance / goal.targetDistance) * 100;
-        const remainingDistance = (goal.targetDistance - progress.distance) / 1000;
-        
-        if (analysis.distanceProgress >= 75) {
-          feedbackMessage = `Faltam apenas ${remainingDistance.toFixed(1)}km! Você está quase lá. Mantenha o foco!`;
-          feedbackType = 'motivation';
-        } else if (analysis.distanceProgress >= 50) {
-          feedbackMessage = `Metade do caminho concluída! ${remainingDistance.toFixed(1)}km restantes. Você está indo muito bem!`;
-          feedbackType = 'goal_progress';
-        } else if (analysis.distanceProgress >= 25) {
-          feedbackMessage = `Bom progresso! Você já completou ${analysis.distanceProgress.toFixed(0)}% da distância objetivo.`;
-          feedbackType = 'motivation';
-        } else {
-          feedbackMessage = `Começando bem! Mantenha esse ritmo constante pelos próximos ${remainingDistance.toFixed(1)}km.`;
-          feedbackType = 'motivation';
-        }
-      }
-      break;
-
-    case 'target_duration':
-      if (goal.targetDuration) {
-        analysis.timeProgress = (progress.duration / goal.targetDuration) * 100;
-        const remainingMinutes = (goal.targetDuration - progress.duration) / 60;
-        
-        if (analysis.timeProgress >= 80) {
-          feedbackMessage = `Faltam apenas ${remainingMinutes.toFixed(0)} minutos! Finalize forte!`;
-          feedbackType = 'motivation';
-        } else if (analysis.timeProgress >= 50) {
-          feedbackMessage = `Metade do tempo completada! Ainda ${remainingMinutes.toFixed(0)} minutos para o objetivo.`;
-          feedbackType = 'goal_progress';
-        } else {
-          feedbackMessage = `${durationMinutes.toFixed(0)} minutos de treino. Mantenha o ritmo pelos próximos ${remainingMinutes.toFixed(0)} minutos.`;
-          feedbackType = 'motivation';
-        }
-      }
-      break;
-
-    case 'target_calories':
-      if (goal.targetCalories) {
-        const caloriesProgress = (progress.distance / 1000) * 60; // Rough estimation
-        const caloriesPercentage = (caloriesProgress / goal.targetCalories) * 100;
-        
-        if (caloriesPercentage >= 75) {
-          feedbackMessage = `Excelente queima calórica! Você já queimou cerca de ${caloriesProgress.toFixed(0)} kcal.`;
-          feedbackType = 'goal_progress';
-        } else {
-          feedbackMessage = `Continue assim! Estimativa atual: ${caloriesProgress.toFixed(0)} kcal queimadas.`;
-          feedbackType = 'motivation';
-        }
-      }
-      break;
-
-    case 'free_run':
-      // For free runs, focus on motivation and form
-      if (durationMinutes > 5) {
-        const messages = [
-          `${durationMinutes.toFixed(0)} minutos de corrida! Como você está se sentindo?`,
-          `Boa! ${distanceKm.toFixed(1)}km completados. Mantenha a postura e respiração.`,
-          `Ritmo constante de ${progress.pace.toFixed(1)} min/km. Excelente controle!`,
-          `Continue focado na passada e no ritmo respiratório.`
-        ];
-        feedbackMessage = messages[Math.floor(Math.random() * messages.length)];
-        feedbackType = 'motivation';
-      }
-      break;
-  }
-
-  // Heart rate analysis (if available)
-  if (progress.heartRate > 0) {
-    if (progress.heartRate > 180) { // High HR threshold
-      analysis.heartRateAnalysis = 'high';
-      feedbackMessage += ' Frequência cardíaca elevada. Considere diminuir um pouco o ritmo.';
-      feedbackType = 'heart_rate';
-    } else if (progress.heartRate < 120) { // Low HR threshold
-      analysis.heartRateAnalysis = 'low';
-      if (goal.type !== 'free_run') {
-        feedbackMessage += ' Você pode aumentar ligeiramente a intensidade.';
+  // Optional: Add goal-specific context
+  if (goal.type === 'target_pace' && goal.targetPace) {
+    analysis.paceDeviation = progress.pace - goal.targetPace;
+    if (Math.abs(analysis.paceDeviation) > 0.5) {
+      if (analysis.paceDeviation > 0) {
+        feedbackMessage += ` Você está um pouco abaixo do pace objetivo.`;
+      } else {
+        feedbackMessage += ` Você está acima do pace objetivo.`;
       }
     }
   }
 
-  // Default motivational message if no specific feedback
-  if (!feedbackMessage) {
-    const motivationalMessages = [
-      'Continue assim! Você está indo muito bem!',
-      'Mantenha o foco e a determinação!',
-      'Cada passo te leva mais perto do objetivo!',
-      'Excelente performance! Continue!',
-      'Respiração constante e passada firme!'
-    ];
-    feedbackMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
-    feedbackType = 'motivation';
+  if (goal.type === 'target_distance' && goal.targetDistance) {
+    analysis.distanceProgress = (progress.distance / goal.targetDistance) * 100;
+    const remainingKm = (goal.targetDistance - progress.distance) / 1000;
+    if (remainingKm > 0) {
+      feedbackMessage += ` Restam ${remainingKm.toFixed(1)} quilômetros.`;
+    }
   }
 
   return {
     message: feedbackMessage,
     type: feedbackType,
     analysis,
-    strategyUpdate
+    strategyUpdate: null
   };
 }
 
