@@ -14,10 +14,12 @@ on:
           - calculate-best-1km-segments
           - calculate-statistics-metrics
           - calculate-strava-performance-metrics
+          - check-subscription
           - classify-workouts-from-series
           - coach-get-context
           - coach-mark-done
           - coach-reschedule
+          - compute-athlete-level
           - create-annual-checkout
           - create-flash-checkout
           - create-mercadopago-checkout
@@ -54,6 +56,7 @@ on:
           - garmin-token-health-monitor
           - garmin-user-metrics
           - garmin-user-metrics-webhook
+          - generate-training-plan
           - get-activity-details-from-strava-streams
           - get-athlete-pr
           - get-backfill-logs
@@ -67,7 +70,9 @@ on:
           - process-activity-chart-from-garmin-log
           - quick-check-subscription
           - recalculate-gpx-activity
+          - recalibrate-training-plan
           - revenuecat-webhook
+          - scheduled-strava-token-renewal
           - strava-auth
           - strava-activity-streams
           - strava-backfill
@@ -75,6 +80,7 @@ on:
           - strava-deauth
           - strava-disconnect
           - strava-refresh-token
+          - strava-token-refresh
           - strava-sync-background
           - strava-sync-optimized
           - strava-webhook
@@ -92,6 +98,7 @@ on:
           - sync-garmin-user-metrics
           - sync-recent-activities
           - text-to-speech
+          - track-user-access
           - update-subscription-status
 
 jobs:
