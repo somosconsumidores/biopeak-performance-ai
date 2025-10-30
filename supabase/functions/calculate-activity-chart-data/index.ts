@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
         .from('performance_snapshots')
         .select('*')
         .eq('session_id', activity_id)
-        .order('snapshot_time', { ascending: true })
+        .order('snapshot_at_duration_seconds', { ascending: true })
       
       if (error) throw error
       
