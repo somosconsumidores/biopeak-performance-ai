@@ -219,6 +219,36 @@ serve(async (req) => {
         } else {
           logStep('Successfully inserted faturamento record', { userId, sessionId: session.id });
         }
+
+        // Update subscribers table if this is a subscription
+        if (session.mode === 'subscription' && session.customer) {
+          // Get user email from profiles
+          const { data: userProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('email')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (userProfile?.email) {
+            const { error: subscriberError } = await supabaseAdmin
+              .from('subscribers')
+              .upsert({
+                user_id: userId,
+                email: userProfile.email,
+                stripe_customer_id: session.customer as string,
+                subscribed: true,
+                subscription_type: 'stripe',
+                subscription_tier: 'premium',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' });
+
+            if (subscriberError) {
+              console.error('Error upserting subscriber:', subscriberError);
+            } else {
+              logStep('Successfully upserted subscriber', { userId, email: userProfile.email });
+            }
+          }
+        }
       } else {
         logStep('Skipping faturamento insert - no user_id found', { sessionId: session.id });
       }
@@ -234,12 +264,28 @@ serve(async (req) => {
         customerId: subscription.customer
       });
       
-      // Find user by customer_id
-      const { data: profile } = await supabaseAdmin
+      // Find user by customer_id - try profiles first, then subscribers
+      let profile = await supabaseAdmin
         .from('profiles')
         .select('user_id, email')
         .eq('stripe_customer_id', subscription.customer as string)
-        .maybeSingle();
+        .maybeSingle()
+        .then(res => res.data);
+
+      // Fallback: search in subscribers table
+      if (!profile) {
+        logStep('Profile not found, trying subscribers table', { customerId: subscription.customer });
+        const { data: subscriber } = await supabaseAdmin
+          .from('subscribers')
+          .select('user_id, email')
+          .eq('stripe_customer_id', subscription.customer as string)
+          .maybeSingle();
+        
+        if (subscriber) {
+          profile = subscriber;
+          logStep('Found user via subscribers table', { userId: subscriber.user_id });
+        }
+      }
       
       if (profile) {
         const isActive = subscription.status === 'active';
@@ -293,12 +339,28 @@ serve(async (req) => {
         customerId: subscription.customer
       });
       
-      // Find user by customer_id
-      const { data: profile } = await supabaseAdmin
+      // Find user by customer_id - try profiles first, then subscribers
+      let profile = await supabaseAdmin
         .from('profiles')
         .select('user_id, email')
         .eq('stripe_customer_id', subscription.customer as string)
-        .maybeSingle();
+        .maybeSingle()
+        .then(res => res.data);
+
+      // Fallback: search in subscribers table
+      if (!profile) {
+        logStep('Profile not found, trying subscribers table', { customerId: subscription.customer });
+        const { data: subscriber } = await supabaseAdmin
+          .from('subscribers')
+          .select('user_id, email')
+          .eq('stripe_customer_id', subscription.customer as string)
+          .maybeSingle();
+        
+        if (subscriber) {
+          profile = subscriber;
+          logStep('Found user via subscribers table', { userId: subscriber.user_id });
+        }
+      }
       
       if (profile) {
         await supabaseAdmin.from('subscribers').upsert({
@@ -346,12 +408,28 @@ serve(async (req) => {
         subscriptionId: invoice.subscription
       });
       
-      // Find user by customer_id
-      const { data: profile } = await supabaseAdmin
+      // Find user by customer_id - try profiles first, then subscribers
+      let profile = await supabaseAdmin
         .from('profiles')
         .select('user_id, email')
         .eq('stripe_customer_id', invoice.customer as string)
-        .maybeSingle();
+        .maybeSingle()
+        .then(res => res.data);
+
+      // Fallback: search in subscribers table
+      if (!profile) {
+        logStep('Profile not found, trying subscribers table', { customerId: invoice.customer });
+        const { data: subscriber } = await supabaseAdmin
+          .from('subscribers')
+          .select('user_id, email')
+          .eq('stripe_customer_id', invoice.customer as string)
+          .maybeSingle();
+        
+        if (subscriber) {
+          profile = subscriber;
+          logStep('Found user via subscribers table', { userId: subscriber.user_id });
+        }
+      }
       
       if (profile) {
         // Mark as unsubscribed due to payment failure
