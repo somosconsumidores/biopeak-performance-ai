@@ -623,6 +623,7 @@ export const useRealtimeSession = () => {
           user_id: user.id,
           session_type: goal.type,
           goal_data: goal as any,
+          workout_id: workoutId || null,
           status: 'active'
         })
         .select()

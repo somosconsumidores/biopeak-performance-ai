@@ -3992,6 +3992,7 @@ export type Database = {
           total_duration_seconds: number | null
           updated_at: string
           user_id: string
+          workout_id: string | null
         }
         Insert: {
           average_heart_rate?: number | null
@@ -4010,6 +4011,7 @@ export type Database = {
           total_duration_seconds?: number | null
           updated_at?: string
           user_id: string
+          workout_id?: string | null
         }
         Update: {
           average_heart_rate?: number | null
@@ -4028,8 +4030,17 @@ export type Database = {
           total_duration_seconds?: number | null
           updated_at?: string
           user_id?: string
+          workout_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "training_plan_workouts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_access_logs: {
         Row: {
