@@ -385,8 +385,8 @@ const Paywall2 = () => {
 
   const benefits = [
     {
-      title: "Análises de IA Completas",
-      description: "Treinos individualizados, análise do sono e insights personalizados"
+      title: "Planos de Treino por IA",
+      description: "Criação automática de treinos personalizados baseados nos seus dados"
     },
     {
       title: "BioPeak Fitness Score",
