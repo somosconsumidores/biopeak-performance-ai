@@ -232,7 +232,7 @@ serve(async (req) => {
       .from("training_plan_workouts")
       .select("*")
       .eq("plan_id", targetPlanId)
-      .order("week_number", { ascending: true });
+      .order("workout_date", { ascending: true });
 
     if (workoutsError) {
       throw new Error(`Failed to fetch workouts: ${workoutsError.message}`);
@@ -260,7 +260,7 @@ serve(async (req) => {
     let criticalIssuesFound = 0;
 
     for (const workout of currentWorkouts) {
-      const originalPace = parseFloat(workout.target_pace_min_per_km);
+      const originalPace = parseFloat(workout.target_pace_min_km);
       
       if (isNaN(originalPace)) {
         recalibratedWorkouts.push(workout);
@@ -290,7 +290,7 @@ serve(async (req) => {
 
       recalibratedWorkouts.push({
         ...workout,
-        target_pace_min_per_km: safePace.toFixed(2),
+        target_pace_min_km: safePace.toFixed(2),
         duration_minutes: adjustedDuration,
         description: adjustedDescription,
         safety_recalibrated: true,
@@ -304,7 +304,7 @@ serve(async (req) => {
       supabase
         .from("training_plan_workouts")
         .update({
-          target_pace_min_per_km: workout.target_pace_min_per_km,
+          target_pace_min_km: workout.target_pace_min_km,
           duration_minutes: workout.duration_minutes,
           description: workout.description,
           updated_at: new Date().toISOString(),
