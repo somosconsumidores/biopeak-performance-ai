@@ -66,6 +66,7 @@ on:
           - post-activity-status
           - process-activity-chart-from-garmin-log
           - quick-check-subscription
+          - recalculate-gpx-activity
           - revenuecat-webhook
           - strava-auth
           - strava-activity-streams
