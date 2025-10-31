@@ -102,7 +102,8 @@ const config: CapacitorConfig = {
     allowsLinkPreview: false,
     allowsInlineMediaPlayback: true,
     allowsBackForwardNavigationGestures: true,
-    scrollEnabled: true
+    scrollEnabled: true,
+    limitsNavigationsToAppBoundDomains: false
   },
 };
 

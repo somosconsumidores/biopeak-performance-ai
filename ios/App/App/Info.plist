@@ -119,5 +119,7 @@
 		<string>https</string>
 		<string>http</string>
 	</array>
+	<key>WKWebViewInspectable</key>
+	<true/>
 </dict>
 </plist>
