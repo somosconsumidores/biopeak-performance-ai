@@ -7,6 +7,7 @@ import { useHibernationDetection } from './useHibernationDetection';
 import { useBackgroundAudio } from './useBackgroundAudio';
 import { useBackgroundNotifications } from './useBackgroundNotifications';
 import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 
 export interface TrainingGoal {
@@ -52,7 +53,7 @@ export const useRealtimeSession = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [gpsPermissionStatus, setGpsPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   
-  const watchIdRef = useRef<number | null>(null);
+  const watchIdRef = useRef<string | number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<LocationData | null>(null);
   const distanceAccumulatorRef = useRef(0);
@@ -156,13 +157,16 @@ export const useRealtimeSession = () => {
 
   // Check GPS permission status
   const checkGPSPermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt'> => {
-    if (!navigator.permissions) {
-      return 'prompt'; // Assume prompt if permissions API is not available
-    }
-    
     try {
-      const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-      return permission.state;
+      const result = await Geolocation.checkPermissions();
+      
+      if (result.location === 'granted') {
+        return 'granted';
+      } else if (result.location === 'denied') {
+        return 'denied';
+      } else {
+        return 'prompt';
+      }
     } catch (error) {
       console.warn('Error checking GPS permission:', error);
       return 'prompt';
@@ -325,169 +329,155 @@ export const useRealtimeSession = () => {
       return Promise.reject(new Error('GPS não disponível. Verifique as permissões ou ative o modo simulação manualmente.'));
     }
 
-    if (!navigator.geolocation) {
-      const error = 'Geolocalização não é suportada neste dispositivo.';
-      setLocationError(error);
-      return Promise.reject(new Error(error));
-    }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 15000, // Increased timeout for better emulator compatibility
-      maximumAge: 1000
-    };
-
-    return new Promise<boolean>((resolve, reject) => {
-      console.log('🔍 Navegador suporta GPS:', !!navigator.geolocation);
+    try {
+      // Request permissions first
+      const permissionResult = await Geolocation.requestPermissions();
       
-      // First get current position to check permissions
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log('✅ GPS permission granted, starting tracking...');
-          setLocationError(null);
-          setGpsPermissionStatus('granted');
-          setIsSimulationMode(false);
-          
-          // Initialize location reference
-          lastLocationRef.current = {
+      if (permissionResult.location !== 'granted') {
+        throw new Error('Permissão de localização negada');
+      }
+
+      // Get initial position
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+
+      console.log('✅ GPS permission granted, starting tracking...');
+      setLocationError(null);
+      setGpsPermissionStatus('granted');
+      setIsSimulationMode(false);
+      
+      // Initialize location reference
+      lastLocationRef.current = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        altitude: position.coords.altitude || undefined,
+        speed: position.coords.speed || undefined,
+      };
+      
+      // Start watching position
+      const watchId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 1000,
+        },
+        (position, err) => {
+          if (err) {
+            console.error('GPS Error during tracking:', err);
+            // For emulator environments, fall back to simulation on tracking error
+            if (isEmulator) {
+              console.log('🧪 GPS tracking failed in emulator, falling back to simulation');
+              startSimulationMode();
+            }
+            return;
+          }
+
+          if (!position) return;
+
+          const newLocation: LocationData = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             altitude: position.coords.altitude || undefined,
-            speed: position.coords.speed || undefined
+            speed: position.coords.speed || undefined,
           };
-          
-          // Now start watching position
-          watchIdRef.current = navigator.geolocation.watchPosition(
-            (position) => {
-              const newLocation: LocationData = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                altitude: position.coords.altitude || undefined,
-                speed: position.coords.speed || undefined
-              };
 
-              console.log('📍 GPS Update:', newLocation);
+          console.log('📍 GPS Update:', newLocation);
 
-              // Store GPS coordinates for later analysis
-              gpsCoordinatesRef.current.push([newLocation.latitude, newLocation.longitude]);
+          // Store GPS coordinates for later analysis
+          gpsCoordinatesRef.current.push([newLocation.latitude, newLocation.longitude]);
 
-              // Calculate distance from last position
-              if (lastLocationRef.current) {
-                const distance = calculateDistance(
-                  lastLocationRef.current.latitude,
-                  lastLocationRef.current.longitude,
-                  newLocation.latitude,
-                  newLocation.longitude
-                );
-                
-                console.log(`🎯 GPS Movement detected: ${distance.toFixed(1)}m, accuracy: ${newLocation.accuracy.toFixed(1)}m`);
-                
-                // More permissive filter: use smaller threshold and cap at 3m
-                const threshold = Math.min(newLocation.accuracy / 3, 3);
-                
-                if (distance > threshold) {
-                  distanceAccumulatorRef.current += distance;
-                  console.log(`📏 Distance updated: +${distance.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
-                } else if (distance > 1) {
-                  // Accumulate micro-distances to avoid losing small movements
-                  microDistanceAccumulatorRef.current += distance;
-                  console.log(`🔍 Micro-distance accumulated: +${distance.toFixed(1)}m (micro total: ${microDistanceAccumulatorRef.current.toFixed(1)}m)`);
-                  
-                  // Add to main distance when micro-distance reaches 5m
-                  if (microDistanceAccumulatorRef.current >= 5) {
-                    distanceAccumulatorRef.current += microDistanceAccumulatorRef.current;
-                    console.log(`📏 Micro-distance promoted: +${microDistanceAccumulatorRef.current.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
-                    microDistanceAccumulatorRef.current = 0;
-                  }
-                } else {
-                  console.log(`❌ Movement too small: ${distance.toFixed(1)}m (threshold: ${threshold.toFixed(1)}m)`);
-                }
-                
-                // Backup: Use GPS speed if available and no significant distance
-                if (distance <= threshold && newLocation.speed && newLocation.speed > 0.5) {
-                  const timeElapsed = (Date.now() - lastLocationTimestampRef.current) / 1000;
-                  if (timeElapsed > 0) {
-                    const speedDistance = newLocation.speed * timeElapsed;
-                    if (speedDistance > 1) {
-                      distanceAccumulatorRef.current += speedDistance;
-                      console.log(`🚀 Speed-based distance: +${speedDistance.toFixed(1)}m from ${newLocation.speed.toFixed(1)}m/s over ${timeElapsed.toFixed(1)}s`);
-                    }
-                  }
+          // Calculate distance from last position
+          if (lastLocationRef.current) {
+            const distance = calculateDistance(
+              lastLocationRef.current.latitude,
+              lastLocationRef.current.longitude,
+              newLocation.latitude,
+              newLocation.longitude
+            );
+            
+            console.log(`🎯 GPS Movement detected: ${distance.toFixed(1)}m, accuracy: ${newLocation.accuracy.toFixed(1)}m`);
+            
+            // More permissive filter: use smaller threshold and cap at 3m
+            const threshold = Math.min(newLocation.accuracy / 3, 3);
+            
+            if (distance > threshold) {
+              distanceAccumulatorRef.current += distance;
+              console.log(`📏 Distance updated: +${distance.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
+            } else if (distance > 1) {
+              // Accumulate micro-distances to avoid losing small movements
+              microDistanceAccumulatorRef.current += distance;
+              console.log(`🔍 Micro-distance accumulated: +${distance.toFixed(1)}m (micro total: ${microDistanceAccumulatorRef.current.toFixed(1)}m)`);
+              
+              // Add to main distance when micro-distance reaches 5m
+              if (microDistanceAccumulatorRef.current >= 5) {
+                distanceAccumulatorRef.current += microDistanceAccumulatorRef.current;
+                console.log(`📏 Micro-distance promoted: +${microDistanceAccumulatorRef.current.toFixed(1)}m (total: ${distanceAccumulatorRef.current.toFixed(1)}m)`);
+                microDistanceAccumulatorRef.current = 0;
+              }
+            } else {
+              console.log(`❌ Movement too small: ${distance.toFixed(1)}m (threshold: ${threshold.toFixed(1)}m)`);
+            }
+            
+            // Backup: Use GPS speed if available and no significant distance
+            if (distance <= threshold && newLocation.speed && newLocation.speed > 0.5) {
+              const timeElapsed = (Date.now() - lastLocationTimestampRef.current) / 1000;
+              if (timeElapsed > 0) {
+                const speedDistance = newLocation.speed * timeElapsed;
+                if (speedDistance > 1) {
+                  distanceAccumulatorRef.current += speedDistance;
+                  console.log(`🚀 Speed-based distance: +${speedDistance.toFixed(1)}m from ${newLocation.speed.toFixed(1)}m/s over ${timeElapsed.toFixed(1)}s`);
                 }
               }
-
-              lastLocationRef.current = newLocation;
-              lastLocationTimestampRef.current = Date.now();
-            },
-            (error) => {
-              console.error('GPS Error during tracking:', error);
-              // For emulator environments, fall back to simulation on tracking error
-              if (isEmulator) {
-                console.log('🧪 GPS tracking failed in emulator, falling back to simulation');
-                startSimulationMode();
-              }
-            },
-            options
-          );
-
-          setIsWatchingLocation(true);
-          resolve(true);
-        },
-        async (error) => {
-          console.error('🚨 GPS Permission Error:', error);
-          console.error('🚨 Error code:', error.code);
-          console.error('🚨 Error message:', error.message);
-          
-          const diagnosis = await diagnoseProblem();
-          setLocationError(diagnosis);
-          setGpsPermissionStatus('denied');
-          
-          let errorMessage = 'Erro de localização';
-          
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = isEmulator 
-                ? 'GPS não configurado no emulador. Tentando modo simulação...' 
-                : 'Permissão de localização negada. Configure as permissões do navegador.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = isEmulator 
-                ? 'GPS indisponível no emulador. Usando modo simulação...' 
-                : 'Localização indisponível. Verifique se o GPS está ativo.';
-              break;
-            case error.TIMEOUT:
-              errorMessage = isEmulator 
-                ? 'GPS timeout no emulador. Usando modo simulação...' 
-                : 'Tempo limite para obter localização. Tente novamente.';
-              break;
-          }
-          
-          // Auto-fallback to simulation in emulator environments
-          if (isEmulator) {
-            console.log('🧪 Auto-fallback to simulation mode for emulator');
-            try {
-              await startSimulationMode();
-              resolve(true);
-              return;
-            } catch (simError) {
-              console.error('Simulation mode failed:', simError);
             }
           }
-          
-          console.error('GPS Error details:', errorMessage);
-          reject(new Error(errorMessage));
-        },
-        options
+
+          lastLocationRef.current = newLocation;
+          lastLocationTimestampRef.current = Date.now();
+        }
       );
-    });
+
+      watchIdRef.current = watchId;
+      setIsWatchingLocation(true);
+      return true;
+
+    } catch (error: any) {
+      console.error('🚨 GPS Error:', error);
+      
+      const diagnosis = await diagnoseProblem();
+      setLocationError(diagnosis);
+      setGpsPermissionStatus('denied');
+      
+      const errorMessage = error.message || 'Erro ao iniciar GPS';
+      
+      // Auto-fallback to simulation in emulator environments
+      if (isEmulator) {
+        console.log('🧪 Auto-fallback to simulation mode for emulator');
+        try {
+          await startSimulationMode();
+          return true;
+        } catch (simError) {
+          console.error('Simulation mode failed:', simError);
+        }
+      }
+      
+      console.error('GPS Error details:', errorMessage);
+      throw new Error(errorMessage);
+    }
   }, [calculateDistance, isEmulatorOrDev, checkGPSPermission, diagnoseProblem, startSimulationMode]);
 
   // Stop GPS tracking
-  const stopLocationTracking = useCallback(() => {
+  const stopLocationTracking = useCallback(async () => {
     if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      try {
+        await Geolocation.clearWatch({ id: String(watchIdRef.current) });
+      } catch (error) {
+        console.error('Error clearing GPS watch:', error);
+      }
       watchIdRef.current = null;
     }
     setIsWatchingLocation(false);
