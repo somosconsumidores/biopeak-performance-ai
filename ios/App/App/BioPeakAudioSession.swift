@@ -63,8 +63,10 @@ public class BioPeakAudioSession: CAPPlugin {
                 audioCategory = .playback
             }
             
+            let optionsArray = call.getArray("options", String.self)
             var options: AVAudioSession.CategoryOptions = []
-            if let optionsArray = call.getArray("options", String.self) {
+            
+            if let optionsArray = optionsArray {
                 for option in optionsArray {
                     switch option {
                     case "mixWithOthers":
