@@ -15,9 +15,6 @@ export const PWAInstallPrompt = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
-  // Don't show on native platforms
-  if (isNative) return null;
-
   useEffect(() => {
     // Check if device is iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -86,8 +83,8 @@ export const PWAInstallPrompt = () => {
     }
   }, [isIOS]);
 
-  // Don't show if prompt was dismissed
-  if (!showPrompt) return null;
+  // Don't show on native platforms or if prompt was dismissed
+  if (isNative || !showPrompt) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
