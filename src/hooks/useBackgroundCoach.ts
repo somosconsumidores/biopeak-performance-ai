@@ -33,6 +33,7 @@ interface BackgroundCoachOptions {
   goal?: TrainingGoal;
   feedbackInterval?: number;
   enableTTS?: boolean;
+  notificationFallback?: any; // BackgroundNotifications instance
 }
 
 interface BackgroundCoachState {
@@ -62,7 +63,25 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     goalRef.current = options.goal;
   }, [options.goal]);
 
-  const playAudioFeedback = useCallback(async (audioUrl: string) => {
+  const playAudioFeedback = useCallback(async (audioUrl: string, message: string) => {
+    const isBackground = document.visibilityState === 'hidden';
+    
+    // If in background, send notification instead of TTS
+    if (isBackground && options.notificationFallback) {
+      try {
+        await options.notificationFallback.scheduleNotification({
+          title: '🏃 BioPeak Coach',
+          body: message,
+          sound: true,
+        });
+        console.log('📢 Notification sent (background mode):', message);
+        return;
+      } catch (error) {
+        console.error('Erro ao enviar notificação:', error);
+      }
+    }
+    
+    // Otherwise, try TTS
     if (!options.enableTTS || !Capacitor.isNativePlatform()) return;
 
     try {
@@ -76,11 +95,25 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       audioRef.current.volume = 0.8;
       
       await audioRef.current.play();
-      console.log('Audio feedback reproduzido com sucesso');
+      console.log('🔊 Audio feedback reproduzido com sucesso');
     } catch (error) {
       console.error('Erro ao reproduzir áudio:', error);
+      
+      // Fallback to notification if audio fails
+      if (options.notificationFallback) {
+        try {
+          await options.notificationFallback.scheduleNotification({
+            title: '🏃 BioPeak Coach',
+            body: message,
+            sound: true,
+          });
+          console.log('📢 Notification sent (audio fallback):', message);
+        } catch (notifError) {
+          console.error('Erro ao enviar notificação de fallback:', notifError);
+        }
+      }
     }
-  }, [options.enableTTS]);
+  }, [options.enableTTS, options.notificationFallback]);
 
   const calculateLastKmStats = useCallback(async (sessionId: string, currentDistance: number): Promise<LastKmStats | null> => {
     if (!sessionId || currentDistance < 1000) return null;
@@ -273,7 +306,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
 
           // Play audio feedback if available
           if (feedback.audioUrl) {
-            await playAudioFeedback(feedback.audioUrl);
+            await playAudioFeedback(feedback.audioUrl, feedback.message);
           }
 
           // Update tracking
@@ -319,7 +352,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
 
           // Play audio feedback if available
           if (feedback.audioUrl) {
-            await playAudioFeedback(feedback.audioUrl);
+            await playAudioFeedback(feedback.audioUrl, feedback.message);
           }
 
           // Update last feedback distance

@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 import { useBackgroundGPS } from './useBackgroundGPS';
 import { useBackgroundCoach } from './useBackgroundCoach';
+import { useBackgroundNotifications } from './useBackgroundNotifications';
 import { TrainingGoal, LocationData } from './useRealtimeSession';
 
 // Extended SessionData for background functionality
@@ -97,10 +98,16 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
     onError: (error) => setState(prev => ({ ...prev, error })),
   });
 
-  // Background coaching hook
+  // Background notifications hook
+  const { scheduleNotification } = useBackgroundNotifications({
+    enabled: true,
+  });
+
+  // Background coaching hook with notification fallback
   const backgroundCoach = useBackgroundCoach({
     enabled: options.enableCoaching ?? true,
     goal: options.goal,
+    notificationFallback: { scheduleNotification },
   });
 
   // Check if background session is supported
@@ -186,11 +193,30 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
     }
 
     try {
-      // Start foreground service (simplified for now)
-      console.log('Iniciando serviço em background:', {
-        title: options.notificationConfig?.title || 'BioPeak - Treino Ativo',
-        text: options.notificationConfig?.text || 'Iniciando rastreamento...',
-      });
+      // Start Android Foreground Service
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          await ForegroundService.startForegroundService({
+            body: options.notificationConfig?.text || 'Rastreando atividade...',
+            buttons: [
+              {
+                id: 0,
+                title: 'Pausar',
+              },
+              {
+                id: 1,
+                title: 'Parar',
+              },
+            ],
+            id: 1,
+            smallIcon: 'ic_notification',
+            title: options.notificationConfig?.title || '🏃 BioPeak - Treino Ativo',
+          });
+          console.log('✅ Android Foreground Service iniciado');
+        } catch (error) {
+          console.error('❌ Erro ao iniciar Foreground Service:', error);
+        }
+      }
       
       const serviceId = Date.now();
 
@@ -334,9 +360,14 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
         snapshotIntervalRef.current = null;
       }
 
-      // Stop foreground service
-      if (state.foregroundServiceId) {
-        console.log('Parando serviço em background');
+      // Stop Android Foreground Service
+      if (state.foregroundServiceId && Capacitor.getPlatform() === 'android') {
+        try {
+          await ForegroundService.stopForegroundService();
+          console.log('✅ Android Foreground Service parado');
+        } catch (error) {
+          console.error('❌ Erro ao parar Foreground Service:', error);
+        }
       }
 
       // Save final session data
