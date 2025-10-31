@@ -334,16 +334,16 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return;
     }
 
-    // Subsequent feedbacks: every 1000m (1km) traveled since last feedback
-    if (distanceSinceLastFeedback >= 1000) {
-      console.log('✅ Triggering 1KM feedback - Distance since last:', distanceSinceLastFeedback);
+    // Subsequent feedbacks: every 100m (TEMPORARY FOR TESTING - normal: 1000m)
+    if (distanceSinceLastFeedback >= 100) {
+      console.log('✅ Triggering 100M feedback (TEST MODE) - Distance since last:', distanceSinceLastFeedback);
       isProcessingRef.current = true;
       
       try {
         let lastKmStats: LastKmStats | null = null;
         
-        // Get last KM stats if we have sessionId
-        if (sessionData.sessionId && currentDistance >= 1000) {
+        // Get last KM stats if we have sessionId (TEMPORARY: 100m for testing)
+        if (sessionData.sessionId && currentDistance >= 100) {
           lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
         }
 
