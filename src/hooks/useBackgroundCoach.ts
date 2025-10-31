@@ -414,7 +414,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
-  const startCoaching = useCallback((goal: TrainingGoal) => {
+  const startCoaching = useCallback(async (goal: TrainingGoal) => {
     if (state.isActive) {
       console.warn('Coach já está ativo');
       return;
@@ -432,8 +432,48 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       error: null,
     }));
 
-    console.log('Coach de background iniciado');
-  }, [state.isActive]);
+    console.log('🏁 Coach de background iniciado - gerando feedback inicial...');
+
+    // 🔊 Tocar áudio inicial imediatamente
+    try {
+      const initialMessage = 'Bom treino, estou com você!';
+      
+      if (options.enableTTS) {
+        console.log('🎙️ Gerando TTS inicial...');
+        const { data, error } = await supabase.functions.invoke('text-to-speech', {
+          body: { text: initialMessage, voice: 'pt-BR', speed: 1.0 },
+        });
+
+        if (!error && data?.audioUrl) {
+          console.log('✅ TTS inicial gerado, reproduzindo...');
+          await playAudioFeedback(data.audioUrl, initialMessage);
+          hasGivenInitialFeedbackRef.current = true;
+          
+          setState(prev => ({
+            ...prev,
+            lastFeedback: {
+              message: initialMessage,
+              type: 'motivation',
+              timestamp: Date.now(),
+              audioUrl: data.audioUrl,
+            },
+            feedbackCount: 1,
+          }));
+          
+          console.log('🎧 Feedback inicial reproduzido imediatamente');
+        } else {
+          console.error('❌ Erro ao gerar TTS inicial:', error);
+        }
+      } else {
+        console.log('ℹ️ TTS desabilitado, marcando feedback inicial como dado');
+        hasGivenInitialFeedbackRef.current = true;
+      }
+    } catch (err) {
+      console.error('❌ Erro ao gerar ou reproduzir TTS inicial:', err);
+      // Marcar como dado mesmo em caso de erro para não tentar novamente
+      hasGivenInitialFeedbackRef.current = true;
+    }
+  }, [state.isActive, options.enableTTS, playAudioFeedback]);
 
   const pauseCoaching = useCallback(() => {
     setState(prev => ({ ...prev, isActive: false }));
