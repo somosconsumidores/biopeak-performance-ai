@@ -8,17 +8,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
-        // Enable Web Inspector for debugging (iOS 16.4+)
-        #if DEBUG
-        if #available(iOS 16.4, *) {
-            // This forces all WKWebViews to be inspectable
-            for view in application.windows.first?.subviews ?? [] {
-                view.isInspectable = true
-            }
-        }
-        #endif
-        
         return true
     }
 
