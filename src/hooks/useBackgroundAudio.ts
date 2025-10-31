@@ -30,31 +30,42 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
   const startBackgroundAudio = async () => {
     if (!state.isSupported || !enabled) return;
 
+    console.log('🎵 [BG AUDIO] Iniciando background audio...');
+
     try {
       // Start AVAudioSession on iOS (now includes silent audio player)
       if (Capacitor.getPlatform() === 'ios') {
-        await BioPeakAudioSession.startAudioSession();
-        console.log('✅ AVAudioSession started with silent audio');
+        console.log('🎵 [BG AUDIO] Iniciando AVAudioSession no iOS...');
+        const result = await BioPeakAudioSession.startAudioSession();
+        console.log('✅ [BG AUDIO] AVAudioSession iniciada:', result);
       }
 
       // Create shared audio context for TTS
       if (!audioContextRef.current) {
+        console.log('🎵 [BG AUDIO] Criando novo AudioContext...');
         audioContextRef.current = new AudioContext();
       }
 
       const audioContext = audioContextRef.current;
+      console.log('🎵 [BG AUDIO] AudioContext status:', {
+        state: audioContext.state,
+        sampleRate: audioContext.sampleRate,
+        currentTime: audioContext.currentTime
+      });
 
       // Resume audio context if suspended
       if (audioContext.state === 'suspended') {
+        console.log('🎵 [BG AUDIO] AudioContext suspenso, resumindo...');
         await audioContext.resume();
+        console.log('✅ [BG AUDIO] AudioContext resumido:', audioContext.state);
       }
 
       setState(prev => ({ ...prev, isActive: true, error: null }));
-      console.log('Background audio started');
+      console.log('✅ [BG AUDIO] Background audio ativo');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start background audio';
       setState(prev => ({ ...prev, error: errorMessage }));
-      console.error('Background audio error:', error);
+      console.error('❌ [BG AUDIO] Erro:', error);
     }
   };
 

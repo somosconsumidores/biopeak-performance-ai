@@ -69,16 +69,42 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   const playAudioFeedback = useCallback(async (audioUrl: string, message: string) => {
     const isBackground = document.visibilityState === 'hidden';
     
+    console.log('🎵 [AUDIO DEBUG] Tentando reproduzir áudio:', {
+      isBackground,
+      hasAudioUrl: !!audioUrl,
+      audioUrl: audioUrl.substring(0, 50) + '...',
+      timestamp: new Date().toISOString()
+    });
+    
     try {
       // Try to use shared AudioContext from background audio
       const audioContext = options.backgroundAudio?.getAudioContext();
       
+      console.log('🎵 [AUDIO DEBUG] AudioContext status:', {
+        hasAudioContext: !!audioContext,
+        state: audioContext?.state,
+        sampleRate: audioContext?.sampleRate
+      });
+      
       if (audioContext && audioContext.state !== 'closed') {
+        console.log('🎵 [AUDIO DEBUG] Usando AudioContext compartilhado...');
+        
         // Fetch and decode audio using AudioContext
         const response = await fetch(audioUrl);
+        console.log('🎵 [AUDIO DEBUG] Áudio baixado:', {
+          status: response.status,
+          contentType: response.headers.get('content-type')
+        });
+        
         const arrayBuffer = await response.arrayBuffer();
+        console.log('🎵 [AUDIO DEBUG] ArrayBuffer size:', arrayBuffer.byteLength);
         
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        console.log('🎵 [AUDIO DEBUG] Áudio decodificado:', {
+          duration: audioBuffer.duration,
+          channels: audioBuffer.numberOfChannels,
+          sampleRate: audioBuffer.sampleRate
+        });
         
         // Create source and gain node for volume control
         const source = audioContext.createBufferSource();
@@ -92,9 +118,11 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         gainNode.connect(audioContext.destination);
         source.start(0);
         
-        console.log('🔊 TTS reproduzido via AudioContext compartilhado');
+        console.log('✅ [AUDIO DEBUG] TTS reproduzido via AudioContext compartilhado');
         return;
       } else {
+        console.log('🎵 [AUDIO DEBUG] AudioContext indisponível, usando Audio element fallback');
+        
         // Fallback to regular Audio element
         if (audioRef.current) {
           audioRef.current.pause();
@@ -104,20 +132,25 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         audioRef.current = new Audio(audioUrl);
         audioRef.current.volume = 0.8;
         await audioRef.current.play();
-        console.log('🔊 TTS reproduzido via Audio element');
+        console.log('✅ [AUDIO DEBUG] TTS reproduzido via Audio element');
         return;
       }
     } catch (error) {
-      console.error('Erro ao reproduzir áudio:', error);
+      console.error('❌ [AUDIO DEBUG] Erro ao reproduzir áudio:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        isBackground
+      });
       
       // Fallback: enviar notificação se app estiver em background ou em caso de erro
       if ((isBackground || error) && options.notificationFallback) {
+        console.log('📱 [AUDIO DEBUG] Tentando enviar notificação como fallback...');
         await options.notificationFallback.scheduleNotification({
           title: '🏃 BioPeak Coach',
           body: message,
           sound: true,
         });
-        console.log('📱 Notificação enviada como fallback');
+        console.log('✅ [AUDIO DEBUG] Notificação enviada como fallback');
       }
     }
   }, [options.notificationFallback, options.backgroundAudio]);
@@ -334,16 +367,16 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return;
     }
 
-    // Subsequent feedbacks: every 100m (TEMPORARY FOR TESTING - normal: 1000m)
-    if (distanceSinceLastFeedback >= 100) {
-      console.log('✅ Triggering 100M feedback (TEST MODE) - Distance since last:', distanceSinceLastFeedback);
+    // Subsequent feedbacks: every 1000m (1km)
+    if (distanceSinceLastFeedback >= 1000) {
+      console.log('✅ Triggering 1KM feedback - Distance since last:', distanceSinceLastFeedback);
       isProcessingRef.current = true;
       
       try {
         let lastKmStats: LastKmStats | null = null;
         
-        // Get last KM stats if we have sessionId (TEMPORARY: 100m for testing)
-        if (sessionData.sessionId && currentDistance >= 100) {
+        // Get last KM stats if we have sessionId
+        if (sessionData.sessionId && currentDistance >= 1000) {
           lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
         }
 
