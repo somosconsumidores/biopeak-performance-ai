@@ -4,6 +4,7 @@ import AVFoundation
 
 @objc(BioPeakAudioSession)
 public class BioPeakAudioSession: CAPPlugin {
+    var silentPlayer: AVAudioPlayer?
     
     @objc func startAudioSession(_ call: CAPPluginCall) {
         do {
@@ -12,6 +13,9 @@ public class BioPeakAudioSession: CAPPlugin {
             // Configure audio session for playback in background
             try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try audioSession.setActive(true)
+            
+            // Start silent audio to keep session active
+            startSilentAudioInternal()
             
             call.resolve([
                 "success": true,
@@ -27,6 +31,9 @@ public class BioPeakAudioSession: CAPPlugin {
     
     @objc func stopAudioSession(_ call: CAPPluginCall) {
         do {
+            // Stop silent audio first
+            stopSilentAudioInternal()
+            
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
             
@@ -94,6 +101,52 @@ public class BioPeakAudioSession: CAPPlugin {
         } catch {
             call.reject("Failed to set audio category: \(error.localizedDescription)")
             print("❌ AVAudioSession category error: \(error)")
+        }
+    }
+    
+    @objc func startSilentAudio(_ call: CAPPluginCall) {
+        startSilentAudioInternal()
+        call.resolve([
+            "success": true,
+            "message": "Silent audio started successfully"
+        ])
+    }
+    
+    @objc func stopSilentAudio(_ call: CAPPluginCall) {
+        stopSilentAudioInternal()
+        call.resolve([
+            "success": true,
+            "message": "Silent audio stopped successfully"
+        ])
+    }
+    
+    private func startSilentAudioInternal() {
+        guard let url = Bundle.main.url(forResource: "silence", withExtension: "mp3") else {
+            print("⚠️ Silent audio file not found - background audio may not work optimally")
+            return
+        }
+        
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try audioSession.setActive(true)
+            
+            silentPlayer = try AVAudioPlayer(contentsOf: url)
+            silentPlayer?.numberOfLoops = -1  // Loop infinitely
+            silentPlayer?.volume = 0.01       // Almost inaudible
+            silentPlayer?.play()
+            
+            print("🔊 Silent audio started (keeps background active)")
+        } catch {
+            print("❌ Failed to start silent audio: \(error.localizedDescription)")
+        }
+    }
+    
+    private func stopSilentAudioInternal() {
+        if let player = silentPlayer {
+            player.stop()
+            silentPlayer = nil
+            print("🔇 Silent audio stopped")
         }
     }
 }

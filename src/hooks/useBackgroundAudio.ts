@@ -20,7 +20,6 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
   });
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const silenceSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
     // Check if running on native iOS
@@ -32,13 +31,13 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
     if (!state.isSupported || !enabled) return;
 
     try {
-      // Initialize AVAudioSession on iOS first
+      // Start AVAudioSession on iOS (now includes silent audio player)
       if (Capacitor.getPlatform() === 'ios') {
         await BioPeakAudioSession.startAudioSession();
-        console.log('✅ AVAudioSession started');
+        console.log('✅ AVAudioSession started with silent audio');
       }
 
-      // Create audio context if it doesn't exist
+      // Create shared audio context for TTS
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext();
       }
@@ -50,25 +49,6 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
         await audioContext.resume();
       }
 
-      // Create a silent audio buffer to keep audio session active
-      const bufferSize = audioContext.sampleRate * 0.5; // 0.5 second
-      const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-      const channelData = buffer.getChannelData(0);
-      
-      // Fill with low volume sine wave (increased from 0.001 to 0.01 for iOS)
-      for (let i = 0; i < bufferSize; i++) {
-        channelData[i] = Math.sin(2 * Math.PI * 20 * i / audioContext.sampleRate) * 0.01;
-      }
-
-      // Create and start looping silent audio
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(audioContext.destination);
-      source.start(0);
-
-      silenceSourceRef.current = source;
-
       setState(prev => ({ ...prev, isActive: true, error: null }));
       console.log('Background audio started');
     } catch (error) {
@@ -79,18 +59,12 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
   };
 
   const stopBackgroundAudio = async () => {
-    if (silenceSourceRef.current) {
-      silenceSourceRef.current.stop();
-      silenceSourceRef.current.disconnect();
-      silenceSourceRef.current = null;
-    }
-
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      await audioContextRef.current.close();
       audioContextRef.current = null;
     }
 
-    // Stop AVAudioSession on iOS
+    // Stop AVAudioSession on iOS (also stops silent audio)
     if (Capacitor.getPlatform() === 'ios') {
       await BioPeakAudioSession.stopAudioSession();
       console.log('✅ AVAudioSession stopped');
