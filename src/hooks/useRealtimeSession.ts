@@ -132,24 +132,26 @@ export const useRealtimeSession = () => {
 
   // Detect if running in development or emulator
   const isEmulatorOrDev = useCallback((): boolean => {
+    // Se estiver rodando em app nativo (Xcode/Android Studio), NUNCA é emulador
+    if (Capacitor.isNativePlatform()) {
+      console.log('🍎 Dispositivo nativo detectado - GPS real será usado');
+      return false;
+    }
+    
     const userAgent = navigator.userAgent.toLowerCase();
     const hostname = window.location.hostname;
     
-    // Check for common emulator indicators
+    // Indicadores muito específicos de emulador (removidos 'dev', 'test', etc.)
     const emulatorIndicators = [
       'android emulator',
       'genymotion',
       'bluestacks',
-      'localhost',
-      '127.0.0.1',
-      '.local',
-      'dev',
-      'test'
     ];
     
+    // Apenas localhost e 127.0.0.1 são ambientes de dev
     return emulatorIndicators.some(indicator => 
-      userAgent.includes(indicator) || hostname.includes(indicator)
-    ) || hostname === 'localhost' || hostname.startsWith('192.168.');
+      userAgent.includes(indicator)
+    ) || hostname === 'localhost' || hostname === '127.0.0.1';
   }, []);
 
   // Check GPS permission status
@@ -318,13 +320,9 @@ export const useRealtimeSession = () => {
       console.log('🔧 GPS Problem diagnosed:', diagnosis);
       setLocationError(diagnosis);
       
-      // Auto-start simulation mode in emulator or dev environment
-      if (isEmulator) {
-        console.log('🧪 Auto-starting simulation mode for emulator/dev');
-        return startSimulationMode();
-      }
-      
-      return Promise.reject(new Error('Permissão de localização negada. Use o modo simulação ou configure as permissões.'));
+      // ❌ REMOVIDO: Auto-start de simulação
+      // Apenas informar e deixar usuário decidir
+      return Promise.reject(new Error('GPS não disponível. Verifique as permissões ou ative o modo simulação manualmente.'));
     }
 
     if (!navigator.geolocation) {
