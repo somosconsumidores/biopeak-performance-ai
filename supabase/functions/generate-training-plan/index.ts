@@ -111,9 +111,9 @@ class SafetyCalibrator {
     });
   }
 
-  calculateBaselines() {
+  calculateBaselines(goalRaw?: string) {
     const valid = this.getValidRunData();
-    if (!valid.length) return this.getDefaults();
+    if (!valid.length) return this.getDefaults(goalRaw);
 
     const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
     const best = paces[0];
@@ -145,11 +145,13 @@ class SafetyCalibrator {
     };
   }
 
-  getDefaults() {
+  getDefaults(goalRaw?: string) {
     const age = this.profile?.birth_date
       ? Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
       : 35;
-    const base = age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
+    // Ajuste do fallback baseado no objetivo
+    const base = goalRaw === 'melhorar_tempos' ? 5.0 :
+                 age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
     return {
       pace_best: base,
       pace_median: base,
@@ -167,8 +169,8 @@ class SafetyCalibrator {
     };
   }
 
-  getSafeTargetPaces() {
-    return this.calculateBaselines();
+  getSafeTargetPaces(goalRaw?: string) {
+    return this.calculateBaselines(goalRaw);
   }
 
   getMaxWeeklyKm(): number {
@@ -187,6 +189,37 @@ type GoalType =
   | 'condicionamento' | 'perda_de_peso' | 'manutencao' | 'retorno' | 'melhorar_tempos';
 
 type Paces = ReturnType<SafetyCalibrator['getSafeTargetPaces']>;
+
+// Deriva zonas de treino a partir dos paces declarados pelo atleta
+function deriveTrainingZonesFromDeclaredPaces(declaredPaces: {
+  pace_5k?: number;
+  pace_10k?: number;
+  pace_half?: number;
+  pace_marathon?: number;
+}) {
+  // Usa o melhor pace disponível como referência
+  const ref5k = declaredPaces.pace_5k ?? 5.0;
+  const ref10k = declaredPaces.pace_10k ?? ref5k * 1.08;
+  const refHalf = declaredPaces.pace_half ?? ref10k * 1.12;
+  const refMarathon = declaredPaces.pace_marathon ?? refHalf * 1.1;
+
+  return {
+    pace_5k: ref5k,
+    pace_10k: ref10k,
+    pace_half: refHalf,
+    pace_marathon: refMarathon,
+    // Zonas de treino derivadas fisiologicamente
+    pace_easy: refMarathon + 0.5,           // Z2 - 30-60s mais lento que ritmo de maratona
+    pace_long: refMarathon + 0.3,           // Long run - ligeiramente mais lento que MP
+    pace_tempo: ref10k + 0.2,               // Z3/Limiar - próximo ao ritmo de 10k
+    pace_interval_1km: ref5k - 0.1,         // Z4 - próximo ao ritmo de 5k
+    pace_interval_800m: ref5k - 0.2,        // Z4-Z5 - mais rápido que 5k
+    pace_interval_400m: ref5k - 0.3,        // Z5 - significativamente mais rápido que 5k
+    pace_best: ref5k,
+    pace_median: ref10k,
+    pace_p75: refHalf,
+  };
+}
 
 // Normalize goal to internal canonical set
 function normalizeGoal(goalRaw: string): GoalType {
@@ -621,10 +654,13 @@ function generateSession(
           break;
       }
       
-      // Progressão conforme a fase do plano
-      if (phase === 'peak' && mod === 2) {
-        // Na fase peak, aumentar intensidade dos intervalados para Z5
-        zone = 5;
+      // Aplicar progressão de intensidade real para o objetivo "melhorar_tempos"
+      // Intensificar ritmos conforme a fase
+      if (phase === 'build') {
+        pace *= 0.97; // 3% mais rápido na fase de construção
+      } else if (phase === 'peak') {
+        pace *= 0.94; // 6% mais rápido na fase de pico
+        zone = mod === 2 ? 5 : zone; // Intervalados viram Z5 no pico
         intensity = 'high';
       } else if (phase === 'taper') {
         // Na fase taper, reduzir volume mantendo intensidade
@@ -807,7 +843,20 @@ serve(async (req) => {
 
     const runs = (activities || []).filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'));
     const safetyCalibrator = new SafetyCalibrator(runs, profile);
-    const safeTargetPaces = safetyCalibrator.getSafeTargetPaces();
+    
+    // Suporte a paces declarados pelo usuário
+    const inputPaces = body?.declared_paces;
+    let safeTargetPaces: Paces;
+    
+    if (inputPaces && (inputPaces.pace_5k || inputPaces.pace_10k || inputPaces.pace_half || inputPaces.pace_marathon)) {
+      // Usar paces declarados e derivar zonas de treino
+      console.info('[generate-training-plan] Using declared paces from user input', inputPaces);
+      safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(inputPaces);
+    } else {
+      // Usar calibração automática baseada em histórico
+      console.info('[generate-training-plan] Using auto-calibrated paces from activity history');
+      safeTargetPaces = safetyCalibrator.getSafeTargetPaces(plan.goal_type);
+    }
 
     const weeks = Math.max(1, Math.floor(plan.weeks || 4));
     const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, safetyCalibrator);
