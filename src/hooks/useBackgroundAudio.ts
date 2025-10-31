@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { BioPeakAudioSession } from '@/plugins/BioPeakAudioSession';
 
 interface BackgroundAudioOptions {
   enabled: boolean;
@@ -31,6 +32,12 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
     if (!state.isSupported || !enabled) return;
 
     try {
+      // Initialize AVAudioSession on iOS first
+      if (Capacitor.getPlatform() === 'ios') {
+        await BioPeakAudioSession.startAudioSession();
+        console.log('✅ AVAudioSession started');
+      }
+
       // Create audio context if it doesn't exist
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext();
@@ -48,9 +55,9 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
       const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
       const channelData = buffer.getChannelData(0);
       
-      // Fill with very low volume sine wave (inaudible but keeps session active)
+      // Fill with low volume sine wave (increased from 0.001 to 0.01 for iOS)
       for (let i = 0; i < bufferSize; i++) {
-        channelData[i] = Math.sin(2 * Math.PI * 20 * i / audioContext.sampleRate) * 0.001;
+        channelData[i] = Math.sin(2 * Math.PI * 20 * i / audioContext.sampleRate) * 0.01;
       }
 
       // Create and start looping silent audio
@@ -71,7 +78,7 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
     }
   };
 
-  const stopBackgroundAudio = () => {
+  const stopBackgroundAudio = async () => {
     if (silenceSourceRef.current) {
       silenceSourceRef.current.stop();
       silenceSourceRef.current.disconnect();
@@ -81,6 +88,12 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
+    }
+
+    // Stop AVAudioSession on iOS
+    if (Capacitor.getPlatform() === 'ios') {
+      await BioPeakAudioSession.stopAudioSession();
+      console.log('✅ AVAudioSession stopped');
     }
 
     setState(prev => ({ ...prev, isActive: false }));
@@ -111,13 +124,16 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
       stopBackgroundAudio();
     }
 
-    return () => stopBackgroundAudio();
+    return () => {
+      stopBackgroundAudio();
+    };
   }, [enabled, state.isSupported]);
 
   return {
     ...state,
     startBackgroundAudio,
     stopBackgroundAudio,
+    getAudioContext: () => audioContextRef.current,
   };
 };
 

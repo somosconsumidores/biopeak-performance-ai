@@ -4,6 +4,7 @@ import { ForegroundService } from '@capawesome-team/capacitor-android-foreground
 import { useBackgroundGPS } from './useBackgroundGPS';
 import { useBackgroundCoach } from './useBackgroundCoach';
 import { useBackgroundNotifications } from './useBackgroundNotifications';
+import { useBackgroundAudio } from './useBackgroundAudio';
 import { TrainingGoal, LocationData } from './useRealtimeSession';
 
 // Extended SessionData for background functionality
@@ -103,11 +104,17 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
     enabled: true,
   });
 
-  // Background coaching hook with notification fallback
+  // Background audio hook (iOS)
+  const backgroundAudio = useBackgroundAudio({
+    enabled: true,
+  });
+
+  // Background coaching hook with notification fallback and audio context
   const backgroundCoach = useBackgroundCoach({
     enabled: options.enableCoaching ?? true,
     goal: options.goal,
     notificationFallback: { scheduleNotification },
+    backgroundAudio,
   });
 
   // Check if background session is supported
@@ -193,6 +200,12 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
     }
 
     try {
+      // Start background audio on iOS FIRST (must start before GPS)
+      if (Capacitor.getPlatform() === 'ios') {
+        await backgroundAudio.startBackgroundAudio();
+        console.log('✅ Background audio iniciado (iOS)');
+      }
+
       // Start Android Foreground Service
       if (Capacitor.getPlatform() === 'android') {
         try {
@@ -351,6 +364,12 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
       // Stop background GPS
       await backgroundGPS.stopTracking();
 
+      // Stop background audio on iOS
+      if (Capacitor.getPlatform() === 'ios') {
+        await backgroundAudio.stopBackgroundAudio();
+        console.log('✅ Background audio parado (iOS)');
+      }
+
       // Stop coaching
       backgroundCoach.stopCoaching();
 
@@ -468,6 +487,7 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
     ...state,
     backgroundGPS,
     backgroundCoach,
+    backgroundAudio,
     startBackgroundSession,
     pauseBackgroundSession,
     resumeBackgroundSession,

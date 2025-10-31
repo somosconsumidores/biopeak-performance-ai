@@ -33,7 +33,10 @@ interface BackgroundCoachOptions {
   goal?: TrainingGoal;
   feedbackInterval?: number;
   enableTTS?: boolean;
-  notificationFallback?: any; // BackgroundNotifications instance
+  notificationFallback?: any;
+  backgroundAudio?: {
+    getAudioContext: () => AudioContext | null;
+  };
 }
 
 interface BackgroundCoachState {
@@ -66,54 +69,58 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   const playAudioFeedback = useCallback(async (audioUrl: string, message: string) => {
     const isBackground = document.visibilityState === 'hidden';
     
-    // If in background, send notification instead of TTS
-    if (isBackground && options.notificationFallback) {
-      try {
+    try {
+      // Try to use shared AudioContext from background audio
+      const audioContext = options.backgroundAudio?.getAudioContext();
+      
+      if (audioContext && audioContext.state !== 'closed') {
+        // Fetch and decode audio using AudioContext
+        const response = await fetch(audioUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Create source and gain node for volume control
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+        
+        source.buffer = audioBuffer;
+        gainNode.gain.value = 0.8;
+        
+        // Connect and play
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        source.start(0);
+        
+        console.log('🔊 TTS reproduzido via AudioContext compartilhado');
+        return;
+      } else {
+        // Fallback to regular Audio element
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+        }
+
+        audioRef.current = new Audio(audioUrl);
+        audioRef.current.volume = 0.8;
+        await audioRef.current.play();
+        console.log('🔊 TTS reproduzido via Audio element');
+        return;
+      }
+    } catch (error) {
+      console.error('Erro ao reproduzir áudio:', error);
+      
+      // Fallback: enviar notificação se app estiver em background ou em caso de erro
+      if ((isBackground || error) && options.notificationFallback) {
         await options.notificationFallback.scheduleNotification({
           title: '🏃 BioPeak Coach',
           body: message,
           sound: true,
         });
-        console.log('📢 Notification sent (background mode):', message);
-        return;
-      } catch (error) {
-        console.error('Erro ao enviar notificação:', error);
+        console.log('📱 Notificação enviada como fallback');
       }
     }
-    
-    // Otherwise, try TTS
-    if (!options.enableTTS || !Capacitor.isNativePlatform()) return;
-
-    try {
-      // Create and play audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.volume = 0.8;
-      
-      await audioRef.current.play();
-      console.log('🔊 Audio feedback reproduzido com sucesso');
-    } catch (error) {
-      console.error('Erro ao reproduzir áudio:', error);
-      
-      // Fallback to notification if audio fails
-      if (options.notificationFallback) {
-        try {
-          await options.notificationFallback.scheduleNotification({
-            title: '🏃 BioPeak Coach',
-            body: message,
-            sound: true,
-          });
-          console.log('📢 Notification sent (audio fallback):', message);
-        } catch (notifError) {
-          console.error('Erro ao enviar notificação de fallback:', notifError);
-        }
-      }
-    }
-  }, [options.enableTTS, options.notificationFallback]);
+  }, [options.notificationFallback, options.backgroundAudio]);
 
   const calculateLastKmStats = useCallback(async (sessionId: string, currentDistance: number): Promise<LastKmStats | null> => {
     if (!sessionId || currentDistance < 1000) return null;
