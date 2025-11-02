@@ -6,6 +6,7 @@ class ViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(BioPeakHealthKit())
         bridge?.registerPluginInstance(BioPeakAudioSession())
+        bridge?.registerPluginInstance(BioPeakLocationTracker())
         
         super.capacitorDidLoad()
         

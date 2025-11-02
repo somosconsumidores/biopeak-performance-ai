@@ -120,6 +120,42 @@ public class BioPeakAudioSession: CAPPlugin {
         ])
     }
     
+    @objc func playAudioFile(_ call: CAPPluginCall) {
+        guard let urlString = call.getString("url") else {
+            call.reject("URL required")
+            return
+        }
+        
+        guard let url = URL(string: urlString) else {
+            call.reject("Invalid URL")
+            return
+        }
+        
+        print("🎵 [Native Audio] Downloading audio from: \(urlString)")
+        
+        // Download and play audio via AVAudioPlayer (works in background)
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let data = data, error == nil else {
+                print("❌ [Native Audio] Failed to download: \(error?.localizedDescription ?? "unknown")")
+                call.reject("Failed to download audio")
+                return
+            }
+            
+            do {
+                let player = try AVAudioPlayer(data: data)
+                player.volume = 0.8
+                player.prepareToPlay()
+                player.play()
+                
+                print("✅ [Native Audio] Playing audio in background")
+                call.resolve(["success": true, "message": "Audio playing"])
+            } catch {
+                print("❌ [Native Audio] Failed to play: \(error.localizedDescription)")
+                call.reject("Failed to play audio: \(error.localizedDescription)")
+            }
+        }.resume()
+    }
+    
     private func startSilentAudioInternal() {
         guard let url = Bundle.main.url(forResource: "silence", withExtension: "mp3") else {
             print("⚠️ Silent audio file not found - background audio may not work optimally")

@@ -68,15 +68,26 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
 
   const playAudioFeedback = useCallback(async (audioUrl: string, message: string) => {
     const isBackground = document.visibilityState === 'hidden';
+    const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
     
     console.log('🎵 [AUDIO DEBUG] Tentando reproduzir áudio:', {
       isBackground,
+      isIOSNative,
       hasAudioUrl: !!audioUrl,
       audioUrl: audioUrl.substring(0, 50) + '...',
       timestamp: new Date().toISOString()
     });
     
     try {
+      // Use native audio player on iOS when in background
+      if (isIOSNative && isBackground) {
+        console.log('🎵 [AUDIO DEBUG] iOS em background - usando native audio player');
+        const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
+        await BioPeakAudioSession.playAudioFile({ url: audioUrl });
+        console.log('✅ [AUDIO DEBUG] TTS reproduzido via AVAudioPlayer nativo');
+        return;
+      }
+      
       // Try to use shared AudioContext from background audio
       const audioContext = options.backgroundAudio?.getAudioContext();
       

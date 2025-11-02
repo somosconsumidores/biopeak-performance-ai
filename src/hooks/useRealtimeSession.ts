@@ -61,6 +61,9 @@ export const useRealtimeSession = () => {
   const lastSnapshotDistanceRef = useRef(0);
   const lastLocationTimestampRef = useRef<number>(Date.now());
   const gpsCoordinatesRef = useRef<Array<[number, number]>>([]);
+  const isInBackgroundRef = useRef(false);
+  const nativeGPSListenerRef = useRef<any>(null);
+  const baseDistanceBeforeBackgroundRef = useRef(0);
 
   // Wake lock for keeping screen active
   const { isActive: isWakeLockActive } = useWakeLock({ 
@@ -482,6 +485,83 @@ export const useRealtimeSession = () => {
     }
     setIsWatchingLocation(false);
   }, []);
+
+  // Switch to native GPS when app goes to background (iOS only)
+  const switchToNativeGPS = useCallback(async () => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+    
+    console.log('🔄 [GPS HYBRID] Switching to native GPS...');
+    
+    try {
+      // Stop WebView GPS
+      await stopLocationTracking();
+      
+      // Save current distance as baseline
+      baseDistanceBeforeBackgroundRef.current = distanceAccumulatorRef.current;
+      console.log(`💾 [GPS HYBRID] Base distance saved: ${baseDistanceBeforeBackgroundRef.current.toFixed(1)}m`);
+      
+      // Start native GPS tracker
+      const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+      await BioPeakLocationTracker.resetDistance();
+      await BioPeakLocationTracker.startLocationTracking();
+      
+      // Add listener for native GPS updates
+      nativeGPSListenerRef.current = await BioPeakLocationTracker.addListener('locationUpdate', (data) => {
+        // Update total distance with base + native accumulated
+        const totalDistance = baseDistanceBeforeBackgroundRef.current + data.totalDistance;
+        distanceAccumulatorRef.current = totalDistance;
+        
+        console.log(`📍 [GPS HYBRID Native] +${data.distance.toFixed(1)}m → Total: ${totalDistance.toFixed(1)}m`);
+        
+        // Update last location for continuity
+        lastLocationRef.current = {
+          latitude: data.latitude,
+          longitude: data.longitude,
+          accuracy: data.accuracy,
+          altitude: data.altitude,
+          speed: data.speed,
+        };
+      });
+      
+      console.log('✅ [GPS HYBRID] Native GPS started successfully');
+    } catch (error) {
+      console.error('❌ [GPS HYBRID] Failed to switch to native GPS:', error);
+    }
+  }, [stopLocationTracking]);
+
+  // Sync native GPS back to WebView when app returns to foreground
+  const syncNativeGPSToWebView = useCallback(async () => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+    
+    console.log('🔄 [GPS HYBRID] Syncing native GPS → WebView...');
+    
+    try {
+      // Get final accumulated distance from native
+      const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+      const { distance: nativeDistance } = await BioPeakLocationTracker.getAccumulatedDistance();
+      
+      // Calculate total distance
+      const totalDistance = baseDistanceBeforeBackgroundRef.current + nativeDistance;
+      distanceAccumulatorRef.current = totalDistance;
+      
+      console.log(`✅ [GPS HYBRID] Distance synced: ${totalDistance.toFixed(1)}m (base: ${baseDistanceBeforeBackgroundRef.current.toFixed(1)}m + native: ${nativeDistance.toFixed(1)}m)`);
+      
+      // Remove listener and stop native GPS
+      if (nativeGPSListenerRef.current) {
+        await nativeGPSListenerRef.current.remove();
+        nativeGPSListenerRef.current = null;
+      }
+      await BioPeakLocationTracker.stopLocationTracking();
+      
+      // Restart WebView GPS
+      if (isRecording) {
+        await startLocationTracking();
+        console.log('✅ [GPS HYBRID] WebView GPS restarted');
+      }
+    } catch (error) {
+      console.error('❌ [GPS HYBRID] Failed to sync native GPS:', error);
+    }
+  }, [isRecording, startLocationTracking]);
 
   // Create performance snapshot and check for AI coaching triggers
   const createSnapshot = useCallback(async (sessionData: SessionData, location: LocationData) => {
@@ -1067,7 +1147,7 @@ export const useRealtimeSession = () => {
     if (sessionData && isRecording) {
       const saveInterval = setInterval(() => {
         saveSessionState(sessionData, isRecording, distanceAccumulatorRef.current);
-      }, 10000); // Save every 10 seconds
+      }, 3000); // Save every 3 seconds for better recovery
 
       return () => clearInterval(saveInterval);
     }
@@ -1154,6 +1234,28 @@ export const useRealtimeSession = () => {
       }
     };
   }, [stopLocationTracking]);
+
+  // iOS Background GPS Hybrid System - Switch between WebView and Native GPS
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios' || !isRecording) return;
+    
+    const handleVisibilityChange = () => {
+      const wasInBackground = isInBackgroundRef.current;
+      const isNowInBackground = document.visibilityState === 'hidden';
+      isInBackgroundRef.current = isNowInBackground;
+      
+      if (isNowInBackground && !wasInBackground) {
+        console.log('📱 [GPS HYBRID] App went to background - switching to native GPS');
+        switchToNativeGPS();
+      } else if (!isNowInBackground && wasInBackground) {
+        console.log('📱 [GPS HYBRID] App returned to foreground - syncing GPS');
+        syncNativeGPSToWebView();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isRecording, switchToNativeGPS, syncNativeGPSToWebView]);
 
   // Manual simulation toggle for troubleshooting
   const toggleSimulationMode = useCallback(async () => {
