@@ -5,6 +5,7 @@ import AVFoundation
 @objc(BioPeakAudioSession)
 public class BioPeakAudioSession: CAPPlugin {
     var silentPlayer: AVAudioPlayer?
+    var feedbackPlayer: AVAudioPlayer?
     
     @objc func startAudioSession(_ call: CAPPluginCall) {
         do {
@@ -133,8 +134,22 @@ public class BioPeakAudioSession: CAPPlugin {
         
         print("🎵 [Native Audio] Downloading audio from: \(urlString)")
         
-        // Download and play audio via AVAudioPlayer (works in background)
+        // 1. Garantir AVAudioSession ativa ANTES de baixar o áudio
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try audioSession.setActive(true)
+            print("✅ [Native Audio] AVAudioSession activated")
+        } catch {
+            print("❌ [Native Audio] Failed to activate AVAudioSession: \(error)")
+            call.reject("Failed to activate audio session: \(error.localizedDescription)")
+            return
+        }
+        
+        // 2. Download and play audio via AVAudioPlayer (works in background)
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
             guard let data = data, error == nil else {
                 print("❌ [Native Audio] Failed to download: \(error?.localizedDescription ?? "unknown")")
                 call.reject("Failed to download audio")
@@ -142,18 +157,44 @@ public class BioPeakAudioSession: CAPPlugin {
             }
             
             do {
-                let player = try AVAudioPlayer(data: data)
+                // 3. RETER o player como propriedade da classe (não variável local)
+                self.feedbackPlayer = try AVAudioPlayer(data: data)
+                guard let player = self.feedbackPlayer else {
+                    call.reject("Failed to create audio player")
+                    return
+                }
+                
                 player.volume = 0.8
                 player.prepareToPlay()
-                player.play()
                 
-                print("✅ [Native Audio] Playing audio in background")
-                call.resolve(["success": true, "message": "Audio playing"])
+                // 4. Tocar o áudio
+                let playSuccess = player.play()
+                
+                if playSuccess {
+                    print("✅ [Native Audio] Playing audio in background (duration: \(player.duration)s)")
+                    call.resolve([
+                        "success": true, 
+                        "message": "Audio playing",
+                        "duration": player.duration
+                    ])
+                } else {
+                    print("❌ [Native Audio] player.play() returned false")
+                    call.reject("Failed to start playback")
+                }
             } catch {
-                print("❌ [Native Audio] Failed to play: \(error.localizedDescription)")
+                print("❌ [Native Audio] Failed to create player: \(error.localizedDescription)")
                 call.reject("Failed to play audio: \(error.localizedDescription)")
             }
         }.resume()
+    }
+    
+    @objc func stopFeedbackAudio(_ call: CAPPluginCall) {
+        if let player = feedbackPlayer {
+            player.stop()
+            feedbackPlayer = nil
+            print("🔇 Feedback audio stopped")
+        }
+        call.resolve(["success": true])
     }
     
     private func startSilentAudioInternal() {

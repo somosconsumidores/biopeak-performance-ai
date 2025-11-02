@@ -9,7 +9,8 @@ export interface BioPeakAudioSessionPlugin {
   }): Promise<{ success: boolean; category: string; options: string[] }>;
   startSilentAudio(): Promise<{ success: boolean; message: string }>;
   stopSilentAudio(): Promise<{ success: boolean; message: string }>;
-  playAudioFile(options: { url: string }): Promise<{ success: boolean; message: string }>;
+  playAudioFile(options: { url: string }): Promise<{ success: boolean; message: string; duration?: number }>;
+  stopFeedbackAudio(): Promise<{ success: boolean }>;
 }
 
 const BioPeakAudioSession = registerPlugin<BioPeakAudioSessionPlugin>('BioPeakAudioSession', {
@@ -20,6 +21,7 @@ const BioPeakAudioSession = registerPlugin<BioPeakAudioSessionPlugin>('BioPeakAu
     startSilentAudio: async () => ({ success: false, message: 'Not supported on web' }),
     stopSilentAudio: async () => ({ success: false, message: 'Not supported on web' }),
     playAudioFile: async () => ({ success: false, message: 'Not supported on web' }),
+    stopFeedbackAudio: async () => ({ success: false }),
   }),
 });
 

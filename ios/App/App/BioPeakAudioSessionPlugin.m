@@ -8,4 +8,6 @@ CAP_PLUGIN(BioPeakAudioSession, "BioPeakAudioSession",
     CAP_PLUGIN_METHOD(setAudioCategory, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(startSilentAudio, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(stopSilentAudio, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(playAudioFile, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(stopFeedbackAudio, CAPPluginReturnPromise);
 )

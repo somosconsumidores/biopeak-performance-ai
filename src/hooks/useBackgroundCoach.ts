@@ -82,9 +82,12 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       // Use native audio player on iOS when in background
       if (isIOSNative && isBackground) {
         console.log('🎵 [AUDIO DEBUG] iOS em background - usando native audio player');
+        console.log('🎵 [AUDIO DEBUG] URL do áudio:', audioUrl);
+        
         const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
-        await BioPeakAudioSession.playAudioFile({ url: audioUrl });
-        console.log('✅ [AUDIO DEBUG] TTS reproduzido via AVAudioPlayer nativo');
+        const result = await BioPeakAudioSession.playAudioFile({ url: audioUrl });
+        
+        console.log('✅ [AUDIO DEBUG] TTS reproduzido via AVAudioPlayer nativo:', result);
         return;
       }
       
