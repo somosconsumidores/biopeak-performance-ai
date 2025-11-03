@@ -127,37 +127,98 @@ public class BioPeakAudioSession: CAPPlugin {
             return
         }
         
-        guard let url = URL(string: urlString) else {
-            call.reject("Invalid URL")
-            return
-        }
+        print("🎵 [BioPeakAudioSession] playAudioFile chamado com URL tipo:", urlString.hasPrefix("data:") ? "Data URL" : "HTTP URL")
         
-        print("🎵 [Native Audio] Downloading audio from: \(urlString)")
-        
-        // 1. Garantir AVAudioSession ativa ANTES de baixar o áudio
+        // 1. Garantir AVAudioSession ativa ANTES de processar o áudio
         do {
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try audioSession.setActive(true)
-            print("✅ [Native Audio] AVAudioSession activated")
+            print("✅ [BioPeakAudioSession] AVAudioSession activated")
         } catch {
-            print("❌ [Native Audio] Failed to activate AVAudioSession: \(error)")
+            print("❌ [BioPeakAudioSession] Failed to activate AVAudioSession: \(error)")
             call.reject("Failed to activate audio session: \(error.localizedDescription)")
             return
         }
         
-        // 2. Download and play audio via AVAudioPlayer (works in background)
+        // Check if it's a Data URL
+        if urlString.hasPrefix("data:audio/mpeg;base64,") || urlString.hasPrefix("data:audio/mp3;base64,") {
+            // Extract base64 string
+            let base64String = urlString.components(separatedBy: ",").last ?? ""
+            
+            guard let audioData = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters) else {
+                print("❌ [BioPeakAudioSession] Falha ao decodificar base64")
+                call.reject("Failed to decode base64 audio data")
+                return
+            }
+            
+            print("✅ [BioPeakAudioSession] Base64 decodificado, tamanho:", audioData.count, "bytes")
+            
+            do {
+                // Stop any existing feedback audio
+                feedbackPlayer?.stop()
+                feedbackPlayer = nil
+                
+                // Create audio player directly from Data
+                feedbackPlayer = try AVAudioPlayer(data: audioData)
+                guard let player = feedbackPlayer else {
+                    call.reject("Failed to create audio player")
+                    return
+                }
+                
+                player.volume = 0.8
+                player.prepareToPlay()
+                
+                let playSuccess = player.play()
+                
+                if playSuccess {
+                    let duration = player.duration
+                    print("✅ [BioPeakAudioSession] Áudio Data URL reproduzindo, duração:", duration, "segundos")
+                    
+                    call.resolve([
+                        "success": true,
+                        "message": "Audio playing from Data URL",
+                        "duration": duration
+                    ])
+                } else {
+                    print("❌ [BioPeakAudioSession] player.play() returned false")
+                    call.reject("Failed to start playback")
+                }
+            } catch {
+                print("❌ [BioPeakAudioSession] Erro ao criar AVAudioPlayer:", error.localizedDescription)
+                call.reject("Failed to play audio: \(error.localizedDescription)")
+            }
+            
+            return
+        }
+        
+        // Handle HTTP/HTTPS URLs (existing behavior)
+        guard let url = URL(string: urlString) else {
+            print("❌ [BioPeakAudioSession] URL inválida:", urlString)
+            call.reject("Invalid URL")
+            return
+        }
+        
+        print("🌐 [BioPeakAudioSession] Baixando áudio de URL HTTP...")
+        
+        // Download audio file
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let self = self else { return }
             
             guard let data = data, error == nil else {
-                print("❌ [Native Audio] Failed to download: \(error?.localizedDescription ?? "unknown")")
+                print("❌ [BioPeakAudioSession] Erro no download:", error?.localizedDescription ?? "unknown")
                 call.reject("Failed to download audio")
                 return
             }
             
+            print("✅ [BioPeakAudioSession] Áudio baixado, tamanho:", data.count, "bytes")
+            
             do {
-                // 3. RETER o player como propriedade da classe (não variável local)
+                // Stop any existing feedback audio
+                self.feedbackPlayer?.stop()
+                self.feedbackPlayer = nil
+                
+                // Create and play audio
                 self.feedbackPlayer = try AVAudioPlayer(data: data)
                 guard let player = self.feedbackPlayer else {
                     call.reject("Failed to create audio player")
@@ -167,22 +228,23 @@ public class BioPeakAudioSession: CAPPlugin {
                 player.volume = 0.8
                 player.prepareToPlay()
                 
-                // 4. Tocar o áudio
                 let playSuccess = player.play()
                 
                 if playSuccess {
-                    print("✅ [Native Audio] Playing audio in background (duration: \(player.duration)s)")
+                    let duration = player.duration
+                    print("✅ [BioPeakAudioSession] Áudio HTTP reproduzindo, duração:", duration, "segundos")
+                    
                     call.resolve([
-                        "success": true, 
-                        "message": "Audio playing",
-                        "duration": player.duration
+                        "success": true,
+                        "message": "Audio playing from HTTP URL",
+                        "duration": duration
                     ])
                 } else {
-                    print("❌ [Native Audio] player.play() returned false")
+                    print("❌ [BioPeakAudioSession] player.play() returned false")
                     call.reject("Failed to start playback")
                 }
             } catch {
-                print("❌ [Native Audio] Failed to create player: \(error.localizedDescription)")
+                print("❌ [BioPeakAudioSession] Erro ao reproduzir:", error.localizedDescription)
                 call.reject("Failed to play audio: \(error.localizedDescription)")
             }
         }.resume()
