@@ -74,6 +74,8 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       isBackground,
       isIOSNative,
       hasAudioUrl: !!audioUrl,
+      isDataUrl: audioUrl.startsWith('data:'),
+      audioUrlType: audioUrl.startsWith('data:') ? 'base64' : 'url',
       audioUrl: audioUrl.substring(0, 50) + '...',
       timestamp: new Date().toISOString()
     });
@@ -302,12 +304,15 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       if (options.enableTTS && message) {
         try {
           const { data, error } = await supabase.functions.invoke('text-to-speech', {
-            body: { text: message, voice: 'pt-BR', speed: 1.0 }
+            body: { text: message, voice: 'alloy', speed: 1.0 }
           });
 
           if (error) throw error;
-          if (data?.audioUrl) {
-            audioUrl = data.audioUrl;
+          
+          // ✅ Convert audioContent (base64) to Data URL
+          if (data?.audioContent) {
+            audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+            console.log('✅ TTS gerado com sucesso, tamanho:', data.audioContent.length, 'chars');
           }
         } catch (error) {
           console.error('Erro ao gerar TTS:', error);
@@ -455,12 +460,14 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       if (options.enableTTS) {
         console.log('🎙️ Gerando TTS inicial...');
         const { data, error } = await supabase.functions.invoke('text-to-speech', {
-          body: { text: initialMessage, voice: 'pt-BR', speed: 1.0 },
+          body: { text: initialMessage, voice: 'alloy', speed: 1.0 },
         });
 
-        if (!error && data?.audioUrl) {
-          console.log('✅ TTS inicial gerado, reproduzindo...');
-          await playAudioFeedback(data.audioUrl, initialMessage);
+        if (!error && data?.audioContent) {
+          // ✅ Convert audioContent (base64) to Data URL
+          const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+          console.log('✅ TTS inicial gerado, reproduzindo...', 'tamanho:', data.audioContent.length);
+          await playAudioFeedback(audioUrl, initialMessage);
           hasGivenInitialFeedbackRef.current = true;
           
           setState(prev => ({
@@ -469,7 +476,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
               message: initialMessage,
               type: 'motivation',
               timestamp: Date.now(),
-              audioUrl: data.audioUrl,
+              audioUrl,
             },
             feedbackCount: 1,
           }));
