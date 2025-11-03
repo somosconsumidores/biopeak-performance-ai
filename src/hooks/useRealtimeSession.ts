@@ -1073,6 +1073,21 @@ export const useRealtimeSession = () => {
     // Stop background coach
     await backgroundCoach.stopCoaching();
 
+    // Stop background audio
+    backgroundAudio.stopBackgroundAudio();
+    
+    // 🔥 Stop AVAudioSession no iOS quando treino finalizar
+    const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+    if (isIOSNative) {
+      try {
+        const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
+        await BioPeakAudioSession.stopAudioSession();
+        console.log('✅ AVAudioSession stopped after training ended');
+      } catch (error) {
+        console.error('❌ Error stopping audio session:', error);
+      }
+    }
+
     setIsRecording(false);
     stopLocationTracking();
     

@@ -56,12 +56,15 @@ serve(async (req) => {
     let binaryString = ''
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
       const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length))
-      binaryString += String.fromCharCode.apply(null, Array.from(chunk))
+      // Convert each byte to a character preserving binary data
+      for (let j = 0; j < chunk.length; j++) {
+        binaryString += String.fromCharCode(chunk[j])
+      }
     }
     
     const base64Audio = btoa(binaryString)
 
-    console.log('✅ Speech generated successfully, size:', arrayBuffer.byteLength, 'bytes')
+    console.log('✅ Speech generated successfully, size:', arrayBuffer.byteLength, 'bytes (base64:', base64Audio.length, 'chars)')
 
     return new Response(
       JSON.stringify({ 

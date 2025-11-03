@@ -75,14 +75,11 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
       audioContextRef.current = null;
     }
 
-    // Stop AVAudioSession on iOS (also stops silent audio)
-    if (Capacitor.getPlatform() === 'ios') {
-      await BioPeakAudioSession.stopAudioSession();
-      console.log('✅ AVAudioSession stopped');
-    }
+    // ❌ NÃO pare stopAudioSession aqui!
+    // A sessão deve ser parada apenas quando o treino finalizar (useRealtimeSession.completeSession)
 
     setState(prev => ({ ...prev, isActive: false }));
-    console.log('Background audio stopped');
+    console.log('Background audio stopped (session still active)');
   };
 
   // Handle visibility changes
