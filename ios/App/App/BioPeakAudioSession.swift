@@ -129,17 +129,7 @@ public class BioPeakAudioSession: CAPPlugin {
         
         print("🎵 [BioPeakAudioSession] playAudioFile chamado com URL tipo:", urlString.hasPrefix("data:") ? "Data URL" : "HTTP URL")
         
-        // 1. Garantir AVAudioSession ativa ANTES de processar o áudio
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try audioSession.setActive(true)
-            print("✅ [BioPeakAudioSession] AVAudioSession activated")
-        } catch {
-            print("❌ [BioPeakAudioSession] Failed to activate AVAudioSession: \(error)")
-            call.reject("Failed to activate audio session: \(error.localizedDescription)")
-            return
-        }
+        // AVAudioSession já está ativa via startSilentAudio() - apenas reproduzir o áudio
         
         // Check if it's a Data URL
         if urlString.hasPrefix("data:audio/mpeg;base64,") || urlString.hasPrefix("data:audio/mp3;base64,") {

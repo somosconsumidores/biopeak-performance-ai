@@ -454,6 +454,18 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return;
     }
 
+    // 🔥 Iniciar silent audio no iOS para manter sessão ativa durante todo o treino
+    const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+    if (isIOSNative) {
+      try {
+        const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
+        await BioPeakAudioSession.startSilentAudio();
+        console.log('🔊 Silent audio iniciado - AVAudioSession mantida ativa durante todo o treino');
+      } catch (error) {
+        console.error('❌ Erro ao iniciar silent audio:', error);
+      }
+    }
+
     goalRef.current = goal;
     lastFeedbackDistanceRef.current = 0;
     hasGivenInitialFeedbackRef.current = false;
@@ -538,6 +550,18 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+    }
+
+    // 🔥 Parar silent audio no iOS
+    const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+    if (isIOSNative) {
+      import('@/plugins/BioPeakAudioSession').then(({ BioPeakAudioSession }) => {
+        BioPeakAudioSession.stopSilentAudio().then(() => {
+          console.log('🔇 Silent audio parado - AVAudioSession desativada');
+        }).catch((error) => {
+          console.error('❌ Erro ao parar silent audio:', error);
+        });
+      });
     }
 
     console.log('Coach parado');
