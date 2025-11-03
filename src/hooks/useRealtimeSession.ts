@@ -755,6 +755,16 @@ export const useRealtimeSession = () => {
       lastLocationRef.current = null;
       gpsCoordinatesRef.current = [];
       
+      // 🔊 CRITICAL: Start AVAudioSession IMMEDIATELY (while app is foreground)
+      if (Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform()) {
+        console.log('🔊 [CRITICAL] Starting AVAudioSession BEFORE any async operations');
+        await backgroundAudio.startBackgroundAudio();
+        console.log('✅ [CRITICAL] AVAudioSession started while app is foreground');
+        
+        // Small delay to ensure session is fully activated
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       // Create session in database
       const { data: session, error } = await supabase
         .from('training_sessions')
@@ -811,15 +821,7 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
-      // Start background audio explicitly FIRST (keeps AVAudioSession active)
-      await backgroundAudio.startBackgroundAudio();
-      console.log('🔊 Background audio explicitly started');
-
-      // iOS needs a small delay to ensure AVAudioSession is fully activated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      console.log('⏳ Waiting for AVAudioSession activation...');
-
-      // Start background coach with TTS (now AVAudioSession is ready)
+      // Start background coach with TTS (AVAudioSession already active from start)
       if (goal) {
         console.log('🎯 Iniciando coach com objetivo:', goal.type);
         await backgroundCoach.startCoaching(goal);
