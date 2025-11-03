@@ -811,15 +811,19 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
-      // Start background coach with TTS
+      // Start background audio explicitly FIRST (keeps AVAudioSession active)
+      await backgroundAudio.startBackgroundAudio();
+      console.log('🔊 Background audio explicitly started');
+
+      // iOS needs a small delay to ensure AVAudioSession is fully activated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('⏳ Waiting for AVAudioSession activation...');
+
+      // Start background coach with TTS (now AVAudioSession is ready)
       if (goal) {
         console.log('🎯 Iniciando coach com objetivo:', goal.type);
         await backgroundCoach.startCoaching(goal);
       }
-
-      // Start background audio explicitly (keeps AVAudioSession active)
-      await backgroundAudio.startBackgroundAudio();
-      console.log('🔊 Background audio explicitly started');
 
       // Start interval for updating session data
       intervalRef.current = setInterval(() => {
