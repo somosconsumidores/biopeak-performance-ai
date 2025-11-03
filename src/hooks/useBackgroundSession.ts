@@ -258,8 +258,11 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
       await backgroundGPS.startTracking();
 
       // Start coaching if enabled
-      if (options.enableCoaching && goal) {
-        backgroundCoach.startCoaching(goal);
+      if (options.enableCoaching && options.goal) {
+        console.log('🎯 Iniciando coach com objetivo:', options.goal.type);
+        backgroundCoach.startCoaching(options.goal);
+      } else if (options.enableCoaching) {
+        console.warn('⚠️ Coach habilitado mas sem objetivo definido');
       }
 
       // Start periodic snapshots - more frequent for better recovery
