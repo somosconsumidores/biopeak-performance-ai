@@ -817,6 +817,10 @@ export const useRealtimeSession = () => {
         await backgroundCoach.startCoaching(goal);
       }
 
+      // Start background audio explicitly (keeps AVAudioSession active)
+      await backgroundAudio.startBackgroundAudio();
+      console.log('🔊 Background audio explicitly started');
+
       // Start interval for updating session data
       intervalRef.current = setInterval(() => {
         setSessionData(current => {
