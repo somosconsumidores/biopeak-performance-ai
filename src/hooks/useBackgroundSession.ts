@@ -113,6 +113,7 @@ export const useBackgroundSession = (options: BackgroundSessionOptions = {}) => 
   const backgroundCoach = useBackgroundCoach({
     enabled: options.enableCoaching ?? true,
     goal: options.goal,
+    enableTTS: true,
     notificationFallback: { scheduleNotification },
     backgroundAudio,
   });

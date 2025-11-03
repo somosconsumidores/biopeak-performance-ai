@@ -224,7 +224,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       if (!hasGivenInitialFeedbackRef.current) {
         message = 'Bom treino, estou com você!';
         type = 'motivation';
-        hasGivenInitialFeedbackRef.current = true;
+        // ✅ Flag será setada APÓS reproduzir o áudio com sucesso
       } else {
         // Subsequent feedbacks with last KM stats + objective analysis
         let statsMessage = '';
