@@ -78,11 +78,9 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [options.goal]);
 
   const playAudioFeedback = useCallback(async (audioUrl: string, message: string) => {
-    const isBackground = document.visibilityState === 'hidden';
     const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
     
     console.log('🎵 [AUDIO DEBUG] Tentando reproduzir áudio:', {
-      isBackground,
       isIOSNative,
       hasAudioUrl: !!audioUrl,
       isDataUrl: audioUrl.startsWith('data:'),
@@ -92,9 +90,9 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     });
     
     try {
-      // Use native audio player on iOS when in background
-      if (isIOSNative && isBackground) {
-        console.log('🎵 [AUDIO DEBUG] iOS em background - usando native audio player');
+      // SEMPRE use native audio player no iOS (funciona em foreground E background)
+      if (isIOSNative) {
+        console.log('🎵 [AUDIO DEBUG] iOS detectado - usando native audio player (foreground ou background)');
         console.log('🎵 [AUDIO DEBUG] URL do áudio:', audioUrl);
         
         const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
@@ -165,12 +163,11 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     } catch (error) {
       console.error('❌ [AUDIO DEBUG] Erro ao reproduzir áudio:', {
         error,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        isBackground
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       
-      // Fallback: enviar notificação se app estiver em background ou em caso de erro
-      if ((isBackground || error) && options.notificationFallback) {
+      // Fallback: enviar notificação em caso de erro
+      if (error && options.notificationFallback) {
         console.log('📱 [AUDIO DEBUG] Tentando enviar notificação como fallback...');
         await options.notificationFallback.scheduleNotification({
           title: '🏃 BioPeak Coach',
