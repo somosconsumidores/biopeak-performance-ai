@@ -48,6 +48,17 @@ interface BackgroundCoachState {
 }
 
 export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
+  // 🔍 DIAGNÓSTICO: Log das opções recebidas na inicialização
+  console.log('[COACH INIT] Options recebidas:', JSON.stringify({
+    enabled: options.enabled,
+    enableTTS: options.enableTTS,
+    hasGoal: !!options.goal,
+    goalType: options.goal?.type,
+    feedbackInterval: options.feedbackInterval,
+    hasNotificationFallback: !!options.notificationFallback,
+    hasBackgroundAudio: !!options.backgroundAudio
+  }, null, 2));
+
   const [state, setState] = useState<BackgroundCoachState>({
     isActive: false,
     isEnabled: options.enabled ?? true,
@@ -434,6 +445,13 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
   const startCoaching = useCallback(async (goal: TrainingGoal) => {
+    // 🔍 DIAGNÓSTICO: Estado no momento do startCoaching
+    console.log('[START COACHING] Goal:', JSON.stringify(goal, null, 2));
+    console.log('[START COACHING] options.enableTTS:', options.enableTTS);
+    console.log('[START COACHING] options.enabled:', options.enabled);
+    console.log('[START COACHING] state.isActive:', state.isActive);
+    console.log('[START COACHING] state.isEnabled:', state.isEnabled);
+
     if (state.isActive) {
       console.warn('Coach já está ativo');
       return;
@@ -457,6 +475,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     try {
       const initialMessage = 'Bom treino, estou com você!';
       
+      console.log('🔍 DIAGNÓSTICO: Verificando options.enableTTS antes do bloco TTS...');
       if (options.enableTTS) {
         console.log('🎙️ Gerando TTS inicial...');
         const { data, error } = await supabase.functions.invoke('text-to-speech', {
@@ -486,6 +505,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
           console.error('❌ Erro ao gerar TTS inicial:', error);
         }
       } else {
+        console.log('❌ [DIAGNÓSTICO] Bloco TTS NÃO executado! options.enableTTS =', options.enableTTS);
         console.log('ℹ️ TTS desabilitado, marcando feedback inicial como dado');
         hasGivenInitialFeedbackRef.current = true;
       }
