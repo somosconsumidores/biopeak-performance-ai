@@ -96,8 +96,20 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [enabled, state.isActive, state.isSupported]);
 
-  // Note: Background audio is now controlled explicitly by useRealtimeSession
-  // No auto-start/stop to prevent premature session deactivation
+  // Auto-start/stop based on enabled state
+  useEffect(() => {
+    if (!state.isSupported) return;
+
+    if (enabled) {
+      startBackgroundAudio();
+    } else {
+      stopBackgroundAudio();
+    }
+
+    return () => {
+      stopBackgroundAudio();
+    };
+  }, [enabled, state.isSupported]);
 
   return {
     ...state,
