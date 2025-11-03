@@ -6,6 +6,7 @@ import { useSessionPersistence } from './useSessionPersistence';
 import { useHibernationDetection } from './useHibernationDetection';
 import { useBackgroundAudio } from './useBackgroundAudio';
 import { useBackgroundNotifications } from './useBackgroundNotifications';
+import { useBackgroundCoach } from './useBackgroundCoach';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
@@ -78,6 +79,15 @@ export const useRealtimeSession = () => {
   // Background notifications (fallback for when audio fails)
   const backgroundNotifications = useBackgroundNotifications({
     enabled: isRecording
+  });
+
+  // Background coach with TTS for real-time feedback
+  const backgroundCoach = useBackgroundCoach({
+    enabled: true,
+    enableTTS: true,
+    feedbackInterval: 1000, // Feedback a cada 1km
+    backgroundAudio,
+    notificationFallback: backgroundNotifications.scheduleNotification
   });
 
   // Session persistence for recovery
@@ -801,6 +811,12 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
+      // Start background coach with TTS
+      if (goal) {
+        console.log('🎯 Iniciando coach com objetivo:', goal.type);
+        await backgroundCoach.startCoaching(goal);
+      }
+
       // Start interval for updating session data
       intervalRef.current = setInterval(() => {
         setSessionData(current => {
@@ -823,6 +839,16 @@ export const useRealtimeSession = () => {
             calories,
             // DO NOT update lastSnapshot here - only in createSnapshot function
           };
+
+          // Send data to background coach for real-time analysis (map properties)
+          backgroundCoach.analyzePerformance({
+            distance: updated.currentDistance,
+            duration: updated.currentDuration,
+            pace: updated.currentPace,
+            calories: updated.calories,
+            goal: updated.goal,
+            sessionId: updated.sessionId
+          });
 
           // Check if goal was achieved and auto-complete session
           const goalAchieved = checkGoalAchievement(updated);
@@ -887,6 +913,9 @@ export const useRealtimeSession = () => {
   const pauseSession = useCallback(async () => {
     if (!sessionData) return;
 
+    // Pause background coach
+    backgroundCoach.pauseCoaching();
+
     setIsRecording(false);
     
     // Stop Android Foreground Service when pausing
@@ -919,6 +948,9 @@ export const useRealtimeSession = () => {
   // Resume session
   const resumeSession = useCallback(async () => {
     if (!sessionData) return;
+
+    // Resume background coach
+    backgroundCoach.resumeCoaching();
 
     setIsRecording(true);
     
@@ -1037,6 +1069,9 @@ export const useRealtimeSession = () => {
       calories: sessionData.calories,
       status: sessionData.status
     });
+
+    // Stop background coach
+    await backgroundCoach.stopCoaching();
 
     setIsRecording(false);
     stopLocationTracking();
