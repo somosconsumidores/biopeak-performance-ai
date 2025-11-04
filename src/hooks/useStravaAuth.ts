@@ -52,9 +52,9 @@ export const useStravaAuth = () => {
       // 2. Build authorization URL with enhanced security
       const scope = 'read,activity:read_all';
       const responseType = 'code';
-      const state = crypto.randomUUID();
+      // ✅ Use user.id directly as state (format: userId:timestamp)
       const timestamp = Date.now().toString();
-      const stateWithTimestamp = `${state}:${timestamp}`;
+      const stateWithTimestamp = `${user.id}:${timestamp}`;
       
       const authUrl = new URL('https://www.strava.com/oauth/authorize');
       authUrl.searchParams.set('client_id', config.clientId);
