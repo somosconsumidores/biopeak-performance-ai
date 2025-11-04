@@ -85,7 +85,7 @@ export const useRealtimeSession = () => {
   const backgroundCoach = useBackgroundCoach({
     enabled: true,
     enableTTS: true,
-    feedbackInterval: 1000, // Feedback a cada 1km
+    feedbackInterval: 100, // Feedback a cada 100m (para testes)
     backgroundAudio,
     notificationFallback: backgroundNotifications.scheduleNotification
   });
