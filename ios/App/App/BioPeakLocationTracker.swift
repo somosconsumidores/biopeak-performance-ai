@@ -79,7 +79,10 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.shouldGiveFeedback = call.getBool("enabled") ?? true
         self.lastFeedbackSegment = 0
         
-        print("✅ [Native GPS] Feedback configured - Goal: \(trainingGoal ?? "none"), Enabled: \(shouldGiveFeedback)")
+        print("✅ [Native GPS] Feedback configured:")
+        print("   → sessionId: \(sessionId ?? "nil")")
+        print("   → trainingGoal: \(trainingGoal ?? "nil")")
+        print("   → enabled: \(shouldGiveFeedback)")
         call.resolve(["success": true])
     }
     
@@ -105,10 +108,17 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 // Check if completed 100m milestone (for testing)
                 let currentSegment = Int(accumulatedDistance / 100.0)
                 
+                print("🔍 [Native GPS] Milestone check:")
+                print("   → accumulatedDistance: \(String(format: "%.1f", accumulatedDistance))m")
+                print("   → currentSegment: \(currentSegment)")
+                print("   → lastFeedbackSegment: \(lastFeedbackSegment)")
+                print("   → shouldGiveFeedback: \(shouldGiveFeedback)")
+                print("   → Will trigger feedback: \(shouldGiveFeedback && currentSegment > lastFeedbackSegment)")
+                
                 if shouldGiveFeedback && currentSegment > lastFeedbackSegment {
                     lastFeedbackSegment = currentSegment
                     let meters = currentSegment * 100
-                    print("🎯 [Native GPS] \(meters)m completed - generating feedback")
+                    print("🎯 [Native GPS] \(meters)m completed - TRIGGERING FEEDBACK NOW")
                     
                     // Generate and play feedback
                     Task {
@@ -154,25 +164,37 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     // MARK: - Native Feedback Generation
     
     private func generateAndPlayFeedback(meters: Int) async {
+        print("🎯 [Native GPS] generateAndPlayFeedback called for \(meters)m")
+        print("   → sessionId: \(sessionId ?? "nil")")
+        
         guard let sessionId = sessionId else {
-            print("⚠️ [Native GPS] Session ID not configured for feedback")
+            print("❌ [Native GPS] STOPPED: Session ID not configured")
             return
         }
         
         do {
             // 1. Generate coaching message
             let message = generateCoachingMessage(meters: meters)
+            print("💬 [Native GPS] Message generated: \(message)")
             
             // 2. Call Edge Function for TTS
+            print("🌐 [Native GPS] Calling TTS Edge Function...")
             let audioUrl = try await generateTTS(message: message)
+            print("✅ [Native GPS] TTS returned audio URL (length: \(audioUrl.count) chars)")
             
             // 3. Play audio via BioPeakAudioSession
+            print("🔊 [Native GPS] Attempting to play audio...")
             await playFeedbackAudio(audioUrl: audioUrl)
             
-            print("✅ [Native GPS] Feedback \(meters)m played successfully")
+            print("✅ [Native GPS] Feedback \(meters)m completed successfully")
             
         } catch {
-            print("❌ [Native GPS] Error generating feedback: \(error.localizedDescription)")
+            print("❌ [Native GPS] Feedback error: \(error)")
+            if let nsError = error as NSError? {
+                print("   → Domain: \(nsError.domain)")
+                print("   → Code: \(nsError.code)")
+                print("   → UserInfo: \(nsError.userInfo)")
+            }
         }
     }
     
@@ -182,6 +204,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     
     private func generateTTS(message: String) async throws -> String {
         guard let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] else {
+            print("❌ [Native GPS] TTS Error: Supabase URL not configured")
             throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase URL not configured"])
         }
         
@@ -193,31 +216,54 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         let body: [String: Any] = ["text": message, "voice": "alloy", "speed": 1.0]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
+        print("📡 [Native GPS] TTS Request:")
+        print("   → URL: \(url.absoluteString)")
+        print("   → Body: \(body)")
+        
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "TTS API failed"])
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ [Native GPS] TTS Error: Invalid response type")
+            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+        
+        print("📥 [Native GPS] TTS Response:")
+        print("   → Status: \(httpResponse.statusCode)")
+        
+        guard httpResponse.statusCode == 200 else {
+            let responseBody = String(data: data, encoding: .utf8) ?? "Unable to decode"
+            print("❌ [Native GPS] TTS Error Response Body: \(responseBody)")
+            throw NSError(domain: "TTS", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "TTS API failed with status \(httpResponse.statusCode)"])
         }
         
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         
+        print("   → Has audioContent: \(json?["audioContent"] != nil)")
+        
         guard let audioContent = json?["audioContent"] as? String else {
+            print("❌ [Native GPS] TTS Error: audioContent missing in response")
+            print("   → Response keys: \(json?.keys.joined(separator: ", ") ?? "none")")
             throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get audio content"])
         }
         
+        print("✅ [Native GPS] TTS audio content received (length: \(audioContent.count) chars)")
         return "data:audio/mpeg;base64,\(audioContent)"
     }
     
     private func playFeedbackAudio(audioUrl: String) async {
-        print("🔊 [Native GPS] Sending notification to play feedback...")
+        print("🔊 [Native GPS] Preparing to send notification...")
+        print("   → Audio URL length: \(audioUrl.count) chars")
+        print("   → Audio URL prefix: \(String(audioUrl.prefix(50)))")
         
         // Send notification to BioPeakAudioSession to play the audio
         DispatchQueue.main.async {
+            print("📢 [Native GPS] Sending BioPeakPlayFeedback notification to audio session")
             NotificationCenter.default.post(
                 name: NSNotification.Name("BioPeakPlayFeedback"),
                 object: nil,
                 userInfo: ["audioUrl": audioUrl]
             )
+            print("✅ [Native GPS] Notification posted to NotificationCenter")
         }
     }
 }
