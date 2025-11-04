@@ -18,6 +18,14 @@ public class BioPeakAudioSession: CAPPlugin {
             // Start silent audio to keep session active
             startSilentAudioInternal()
             
+            // Register observer for native feedback
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleNativeFeedback),
+                name: NSNotification.Name("BioPeakPlayFeedback"),
+                object: nil
+            )
+            
             call.resolve([
                 "success": true,
                 "message": "Audio session started successfully"
@@ -277,5 +285,59 @@ public class BioPeakAudioSession: CAPPlugin {
             silentPlayer = nil
             print("🔇 Silent audio stopped")
         }
+    }
+    
+    @objc private func handleNativeFeedback(_ notification: Notification) {
+        guard let audioUrl = notification.userInfo?["audioUrl"] as? String else {
+            print("⚠️ [BioPeakAudioSession] URL de áudio não fornecida na notificação")
+            return
+        }
+        
+        print("🔔 [BioPeakAudioSession] Recebeu notificação para tocar feedback nativo")
+        playAudioFromDataURL(audioUrl)
+    }
+    
+    private func playAudioFromDataURL(_ urlString: String) {
+        guard urlString.hasPrefix("data:audio/mpeg;base64,") || urlString.hasPrefix("data:audio/mp3;base64,") else {
+            print("❌ [BioPeakAudioSession] URL inválida: esperado Data URL")
+            return
+        }
+        
+        let base64String = urlString.components(separatedBy: ",").last ?? ""
+        
+        guard let audioData = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters) else {
+            print("❌ [BioPeakAudioSession] Falha ao decodificar base64")
+            return
+        }
+        
+        print("✅ [BioPeakAudioSession] Base64 decodificado, tamanho:", audioData.count, "bytes")
+        
+        do {
+            feedbackPlayer?.stop()
+            feedbackPlayer = nil
+            
+            feedbackPlayer = try AVAudioPlayer(data: audioData)
+            guard let player = feedbackPlayer else {
+                print("❌ [BioPeakAudioSession] Falha ao criar player")
+                return
+            }
+            
+            player.volume = 0.8
+            player.prepareToPlay()
+            
+            let playSuccess = player.play()
+            
+            if playSuccess {
+                print("✅ [BioPeakAudioSession] Feedback nativo tocando, duração:", player.duration, "segundos")
+            } else {
+                print("❌ [BioPeakAudioSession] player.play() retornou false")
+            }
+        } catch {
+            print("❌ [BioPeakAudioSession] Erro ao reproduzir:", error.localizedDescription)
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }

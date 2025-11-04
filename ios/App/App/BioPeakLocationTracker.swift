@@ -210,30 +210,15 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     }
     
     private func playFeedbackAudio(audioUrl: String) async {
-        guard let audioSession = self.bridge?.getPlugin("BioPeakAudioSession") as? BioPeakAudioSession else {
-            print("❌ [Native GPS] BioPeakAudioSession plugin not available")
-            return
-        }
+        print("🔊 [Native GPS] Sending notification to play feedback...")
         
-        // Create a mock CAPPluginCall to pass parameters
+        // Send notification to BioPeakAudioSession to play the audio
         DispatchQueue.main.async {
-            let call = MockPluginCall(url: audioUrl)
-            audioSession.playAudioFile(call)
-            print("🔊 [Native GPS] Playing feedback audio...")
+            NotificationCenter.default.post(
+                name: NSNotification.Name("BioPeakPlayFeedback"),
+                object: nil,
+                userInfo: ["audioUrl": audioUrl]
+            )
         }
-    }
-}
-
-// MARK: - Mock Plugin Call for internal communication
-private class MockPluginCall: CAPPluginCall {
-    let audioUrl: String
-    
-    init(url: String) {
-        self.audioUrl = url
-        super.init(callbackId: "internal", options: ["url": url], pluginId: "BioPeakAudioSession", method: "playAudioFile")
-    }
-    
-    override func getString(_ key: String) -> String? {
-        return key == "url" ? audioUrl : nil
     }
 }
