@@ -9,8 +9,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var accumulatedDistance: Double = 0.0
     private var isTracking: Bool = false
     
-    // Native feedback control
-    private var lastFeedbackKm: Int = 0
+    // Native feedback control (100m intervals for testing)
+    private var lastFeedbackSegment: Int = 0
     private var sessionId: String?
     private var trainingGoal: String?
     private var shouldGiveFeedback: Bool = false
@@ -68,7 +68,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     @objc func resetDistance(_ call: CAPPluginCall) {
         self.accumulatedDistance = 0.0
         self.lastLocation = nil
-        self.lastFeedbackKm = 0
+        self.lastFeedbackSegment = 0
         print("🔄 [Native GPS] Distance reset")
         call.resolve(["success": true])
     }
@@ -77,7 +77,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.sessionId = call.getString("sessionId")
         self.trainingGoal = call.getString("trainingGoal")
         self.shouldGiveFeedback = call.getBool("enabled") ?? true
-        self.lastFeedbackKm = 0
+        self.lastFeedbackSegment = 0
         
         print("✅ [Native GPS] Feedback configured - Goal: \(trainingGoal ?? "none"), Enabled: \(shouldGiveFeedback)")
         call.resolve(["success": true])
@@ -102,16 +102,17 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 
                 print("📍 [Native GPS] +\(String(format: "%.1f", distance))m → Total: \(String(format: "%.1f", accumulatedDistance))m (accuracy: \(String(format: "%.1f", newLocation.horizontalAccuracy))m)")
                 
-                // Check if completed 1km milestone
-                let currentKm = Int(accumulatedDistance / 1000.0)
+                // Check if completed 100m milestone (for testing)
+                let currentSegment = Int(accumulatedDistance / 100.0)
                 
-                if shouldGiveFeedback && currentKm > lastFeedbackKm {
-                    lastFeedbackKm = currentKm
-                    print("🎯 [Native GPS] \(currentKm)km completed - generating feedback")
+                if shouldGiveFeedback && currentSegment > lastFeedbackSegment {
+                    lastFeedbackSegment = currentSegment
+                    let meters = currentSegment * 100
+                    print("🎯 [Native GPS] \(meters)m completed - generating feedback")
                     
                     // Generate and play feedback
                     Task {
-                        await generateAndPlayFeedback(km: currentKm)
+                        await generateAndPlayFeedback(meters: meters)
                     }
                 }
                 
@@ -152,7 +153,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     
     // MARK: - Native Feedback Generation
     
-    private func generateAndPlayFeedback(km: Int) async {
+    private func generateAndPlayFeedback(meters: Int) async {
         guard let sessionId = sessionId else {
             print("⚠️ [Native GPS] Session ID not configured for feedback")
             return
@@ -160,7 +161,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         
         do {
             // 1. Generate coaching message
-            let message = generateCoachingMessage(km: km)
+            let message = generateCoachingMessage(meters: meters)
             
             // 2. Call Edge Function for TTS
             let audioUrl = try await generateTTS(message: message)
@@ -168,17 +169,15 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             // 3. Play audio via BioPeakAudioSession
             await playFeedbackAudio(audioUrl: audioUrl)
             
-            print("✅ [Native GPS] Feedback \(km)km played successfully")
+            print("✅ [Native GPS] Feedback \(meters)m played successfully")
             
         } catch {
             print("❌ [Native GPS] Error generating feedback: \(error.localizedDescription)")
         }
     }
     
-    private func generateCoachingMessage(km: Int) -> String {
-        let pacePerKm = accumulatedDistance > 0 ? (Double(lastFeedbackKm * 1000) / accumulatedDistance) * 5.0 : 5.0
-        
-        return "\(km) quilômetro completado. Pace médio de \(String(format: "%.1f", pacePerKm)) minutos por quilômetro. Continue assim!"
+    private func generateCoachingMessage(meters: Int) -> String {
+        return "\(meters) metros completados. Continue assim!"
     }
     
     private func generateTTS(message: String) async throws -> String {
