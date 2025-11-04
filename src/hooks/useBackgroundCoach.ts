@@ -180,10 +180,10 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [options.notificationFallback, options.backgroundAudio]);
 
   const calculateLastKmStats = useCallback(async (sessionId: string, currentDistance: number): Promise<LastKmStats | null> => {
-    if (!sessionId || currentDistance < 1000) return null;
+    if (!sessionId || currentDistance < 100) return null;
 
     try {
-      const fromDistance = Math.max(0, currentDistance - 1000);
+      const fromDistance = Math.max(0, currentDistance - 100);
       
       const { data: snapshots, error } = await supabase
         .from('performance_snapshots')
@@ -211,7 +211,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return {
         averagePace,
         averageHeartRate,
-        distance: 1000
+        distance: 100
       };
     } catch (error) {
       console.error('Erro ao calcular stats do último KM:', error);
@@ -236,12 +236,10 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         type = 'motivation';
         // ✅ Flag será setada APÓS reproduzir o áudio com sucesso
       } else {
-        // Subsequent feedbacks with last KM stats + objective analysis
+        // Subsequent feedbacks with last 100m stats
         let statsMessage = '';
         if (lastKmStats) {
-          const paceMin = Math.floor(lastKmStats.averagePace);
-          const paceSec = Math.round((lastKmStats.averagePace - paceMin) * 60);
-          statsMessage = `Último quilômetro: pace de ${paceMin}:${paceSec.toString().padStart(2, '0')} min/km. `;
+          statsMessage = `${Math.round(currentDistance)}m completados. Continue assim! `;
         }
 
         // Objective-based analysis
@@ -394,16 +392,16 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return;
     }
 
-    // Subsequent feedbacks: every 1000m (1km)
-    if (distanceSinceLastFeedback >= 1000) {
-      console.log('✅ Triggering 1KM feedback - Distance since last:', distanceSinceLastFeedback);
+    // Subsequent feedbacks: every 100m (for testing)
+    if (distanceSinceLastFeedback >= 100) {
+      console.log('✅ Triggering 100M feedback - Distance since last:', distanceSinceLastFeedback);
       isProcessingRef.current = true;
       
       try {
         let lastKmStats: LastKmStats | null = null;
         
-        // Get last KM stats if we have sessionId
-        if (sessionData.sessionId && currentDistance >= 1000) {
+        // Get last 100m stats if we have sessionId
+        if (sessionData.sessionId && currentDistance >= 100) {
           lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
         }
 
@@ -425,10 +423,10 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
           // Update last feedback distance
           lastFeedbackDistanceRef.current = currentDistance;
 
-          console.log('🎯 1KM Coach Feedback:', feedback.message);
+          console.log('🎯 100M Coach Feedback:', feedback.message);
         }
       } catch (error) {
-        console.error('Erro no feedback de 1km:', error);
+        console.error('Erro no feedback de 100m:', error);
         setState(prev => ({ 
           ...prev, 
           error: error instanceof Error ? error.message : 'Erro na análise' 
@@ -437,7 +435,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         isProcessingRef.current = false;
       }
     } else {
-      console.log('⏳ No feedback needed - Distance since last:', distanceSinceLastFeedback, 'm (need 1000m)');
+      console.log('⏳ No feedback needed - Distance since last:', distanceSinceLastFeedback, 'm (need 100m)');
     }
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
