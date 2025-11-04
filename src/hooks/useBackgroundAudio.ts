@@ -106,9 +106,9 @@ export const useBackgroundAudio = ({ enabled }: BackgroundAudioOptions) => {
       stopBackgroundAudio();
     }
 
-    return () => {
-      stopBackgroundAudio();
-    };
+    // ❌ REMOVIDO: cleanup que parava a sessão automaticamente
+    // A sessão deve permanecer ativa durante todo o treino
+    // e só deve ser parada em completeSession()
   }, [enabled, state.isSupported]);
 
   return {
