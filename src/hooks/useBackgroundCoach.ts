@@ -341,16 +341,37 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   const isProcessingRef = useRef<boolean>(false);
 
   const analyzePerformance = useCallback(async (sessionData: SessionData) => {
-    if (!state.isActive || !state.isEnabled || isProcessingRef.current) return;
+    console.log('🔍 [ANALYZE PERFORMANCE] Called:', {
+      'sessionData.distance': sessionData.distance,
+      'state.isActive': state.isActive,
+      'state.isEnabled': state.isEnabled,
+      'isProcessing': isProcessingRef.current
+    });
+
+    if (!state.isActive) {
+      console.log('⏸️ Skipping: coach not active');
+      return;
+    }
+    
+    if (!state.isEnabled) {
+      console.log('⏸️ Skipping: coach not enabled');
+      return;
+    }
+    
+    if (isProcessingRef.current) {
+      console.log('⏸️ Skipping: already processing');
+      return;
+    }
 
     const currentDistance = sessionData.distance;
     const distanceSinceLastFeedback = currentDistance - lastFeedbackDistanceRef.current;
 
-    console.log('🔍 Coach Analysis:', {
+    console.log('📊 Coach Analysis:', {
       currentDistance,
       lastFeedbackDistance: lastFeedbackDistanceRef.current,
       hasGivenInitial: hasGivenInitialFeedbackRef.current,
-      distanceSinceLastFeedback
+      distanceSinceLastFeedback,
+      '100m threshold met?': distanceSinceLastFeedback >= 100
     });
 
     // Initial feedback: only once at the beginning
