@@ -18,7 +18,17 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get('Authorization')!;
-    const body = await req.json();
+    
+    // Safely parse body - handle empty or invalid JSON
+    let body: any = {};
+    try {
+      const text = await req.text();
+      if (text && text.trim().length > 0) {
+        body = JSON.parse(text);
+      }
+    } catch (parseError) {
+      console.log('[StravaSync] No valid JSON body provided, using empty object');
+    }
     
     let userId: string;
 
