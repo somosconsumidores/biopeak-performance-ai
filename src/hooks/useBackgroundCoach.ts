@@ -466,6 +466,77 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
     }
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
+  /**
+   * Generate snapshot feedback for distance milestones (100m, 200m, etc.)
+   * This method bypasses the iOS native check and always generates feedback
+   */
+  const generateSnapshotFeedback = useCallback(async (sessionData: SessionData) => {
+    if (!state.isActive || isProcessingRef.current) {
+      console.log('⏸️ [SNAPSHOT] Coach not active or processing, skipping');
+      return;
+    }
+
+    try {
+      isProcessingRef.current = true;
+      
+      const distanceM = Math.floor(sessionData.currentDistance);
+      const distanceKm = (sessionData.currentDistance / 1000).toFixed(2);
+      const durationMin = Math.floor(sessionData.currentDuration / 60);
+      const pace = sessionData.currentPace.toFixed(2);
+      
+      console.log('📊 [SNAPSHOT] Generating feedback for:', {
+        distance: `${distanceM}m`,
+        duration: `${durationMin}min`,
+        pace: `${pace} min/km`
+      });
+
+      // Generate feedback message
+      const message = `Você completou ${distanceM} metros em ${durationMin} minutos. Ritmo atual: ${pace} minutos por quilômetro. Continue assim!`;
+      
+      console.log('🗣️ [SNAPSHOT] Message:', message);
+
+      // Generate TTS audio
+      const { data: audioData, error: ttsError } = await supabase.functions.invoke('text-to-speech', {
+        body: { 
+          text: message,
+          voice: 'nova'
+        }
+      });
+
+      if (ttsError || !audioData?.audioContent) {
+        console.error('❌ [SNAPSHOT] TTS error:', ttsError);
+        setState(prev => ({ ...prev, error: 'Failed to generate audio' }));
+        return;
+      }
+
+      console.log('✅ [SNAPSHOT] Audio generated, playing...');
+
+      // Convert to data URL
+      const audioUrl = `data:audio/mpeg;base64,${audioData.audioContent}`;
+
+      // Play audio feedback
+      await playAudioFeedback(audioUrl, message);
+
+      setState(prev => ({
+        ...prev,
+        lastFeedback: {
+          message,
+          timestamp: Date.now(),
+          type: 'achievement',
+          audioUrl
+        },
+        feedbackCount: prev.feedbackCount + 1
+      }));
+
+      console.log('✅ [SNAPSHOT] Feedback completed');
+    } catch (error) {
+      console.error('❌ [SNAPSHOT] Error:', error);
+      setState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Unknown error' }));
+    } finally {
+      isProcessingRef.current = false;
+    }
+  }, [state.isActive, playAudioFeedback, supabase]);
+
   const startCoaching = useCallback(async (goal: TrainingGoal) => {
     // 🔍 DIAGNÓSTICO: Estado no momento do startCoaching
     console.log('[START COACHING] Goal:', JSON.stringify(goal, null, 2));
@@ -588,6 +659,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   return {
     ...state,
     analyzePerformance,
+    generateSnapshotFeedback,
     startCoaching,
     pauseCoaching,
     resumeCoaching,

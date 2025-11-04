@@ -610,24 +610,38 @@ export const useRealtimeSession = () => {
       // Update the session's lastSnapshot time ONLY after successful snapshot creation
       setSessionData(current => current ? { ...current, lastSnapshot: new Date() } : current);
 
-      // AI coaching triggers: Garmin Connect style - feedback every 1km
-      const distanceInKm = Math.floor(sessionData.currentDistance / 1000);
-      const lastKmMark = Math.floor(lastSnapshotDistanceRef.current / 1000);
-      
-      // Trigger feedback only when a new kilometer is completed
-      const distanceTrigger = distanceInKm > lastKmMark && distanceInKm > 0;
+      // AI coaching triggers: feedback every 100m for testing
+      const distanceIn100m = Math.floor(sessionData.currentDistance / 100);
+      const last100mMark = Math.floor(lastSnapshotDistanceRef.current / 100);
+
+      // Trigger feedback when a new 100m segment is completed
+      const distanceTrigger = distanceIn100m > last100mMark && distanceIn100m > 0;
 
       if (distanceTrigger) {
         console.log('🤖 [AI COACH DEBUG] Triggering AI coaching:', { 
           distanceTrigger, 
-          distanceInKm,
+          distanceIn100m, 
           distance: sessionData.currentDistance,
           duration: sessionData.currentDuration,
           lastSnapshotDistance: lastSnapshotDistanceRef.current
         });
         
         lastSnapshotDistanceRef.current = sessionData.currentDistance;
-        await requestAIFeedback(sessionData, snapshotData);
+        
+        // Convert sessionData to the format expected by backgroundCoach
+        const coachData = {
+          distance: sessionData.currentDistance,
+          duration: sessionData.currentDuration,
+          pace: sessionData.currentPace,
+          calories: sessionData.calories,
+          sessionId: sessionData.sessionId,
+          goal: sessionData.goal,
+          currentDistance: sessionData.currentDistance,
+          currentDuration: sessionData.currentDuration,
+          currentPace: sessionData.currentPace
+        };
+        
+        await backgroundCoach.generateSnapshotFeedback(coachData);
       } else {
         console.log('🤖 [AI COACH DEBUG] No trigger conditions met:', {
           distance: sessionData.currentDistance,
@@ -819,7 +833,7 @@ export const useRealtimeSession = () => {
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
             trainingGoal: goal.type,
-            enabled: true
+            enabled: false
           });
           console.log('✅ Native feedback configured for iOS (distance-based coaching in background)');
         } catch (error) {
