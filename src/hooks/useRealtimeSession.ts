@@ -811,6 +811,22 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
+      // Configure native feedback for iOS (handles distance-based coaching in background)
+      const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+      if (isIOSNative && goal) {
+        try {
+          const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+          await BioPeakLocationTracker.configureFeedback({
+            sessionId: session.id,
+            trainingGoal: goal.type,
+            enabled: true
+          });
+          console.log('✅ Native feedback configured for iOS (distance-based coaching in background)');
+        } catch (error) {
+          console.warn('⚠️ Failed to configure native feedback:', error);
+        }
+      }
+
       // Start background coach with TTS
       if (goal) {
         console.log('🎯 Iniciando coach com objetivo:', goal.type);

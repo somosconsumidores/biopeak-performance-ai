@@ -5,4 +5,5 @@ CAP_PLUGIN(BioPeakLocationTracker, "BioPeakLocationTracker",
     CAP_PLUGIN_METHOD(stopLocationTracking, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getAccumulatedDistance, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(resetDistance, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(configureFeedback, CAPPluginReturnPromise);
 )

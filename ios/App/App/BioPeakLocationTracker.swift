@@ -9,6 +9,12 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var accumulatedDistance: Double = 0.0
     private var isTracking: Bool = false
     
+    // Native feedback control
+    private var lastFeedbackKm: Int = 0
+    private var sessionId: String?
+    private var trainingGoal: String?
+    private var shouldGiveFeedback: Bool = false
+    
     @objc func startLocationTracking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -62,7 +68,18 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     @objc func resetDistance(_ call: CAPPluginCall) {
         self.accumulatedDistance = 0.0
         self.lastLocation = nil
+        self.lastFeedbackKm = 0
         print("🔄 [Native GPS] Distance reset")
+        call.resolve(["success": true])
+    }
+    
+    @objc func configureFeedback(_ call: CAPPluginCall) {
+        self.sessionId = call.getString("sessionId")
+        self.trainingGoal = call.getString("trainingGoal")
+        self.shouldGiveFeedback = call.getBool("enabled") ?? true
+        self.lastFeedbackKm = 0
+        
+        print("✅ [Native GPS] Feedback configured - Goal: \(trainingGoal ?? "none"), Enabled: \(shouldGiveFeedback)")
         call.resolve(["success": true])
     }
     
@@ -84,6 +101,19 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 accumulatedDistance += distance
                 
                 print("📍 [Native GPS] +\(String(format: "%.1f", distance))m → Total: \(String(format: "%.1f", accumulatedDistance))m (accuracy: \(String(format: "%.1f", newLocation.horizontalAccuracy))m)")
+                
+                // Check if completed 1km milestone
+                let currentKm = Int(accumulatedDistance / 1000.0)
+                
+                if shouldGiveFeedback && currentKm > lastFeedbackKm {
+                    lastFeedbackKm = currentKm
+                    print("🎯 [Native GPS] \(currentKm)km completed - generating feedback")
+                    
+                    // Generate and play feedback
+                    Task {
+                        await generateAndPlayFeedback(km: currentKm)
+                    }
+                }
                 
                 // Send event to JavaScript
                 notifyListeners("locationUpdate", data: [
@@ -118,5 +148,92 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         print("🔐 [Native GPS] Authorization changed: \(status.rawValue)")
+    }
+    
+    // MARK: - Native Feedback Generation
+    
+    private func generateAndPlayFeedback(km: Int) async {
+        guard let sessionId = sessionId else {
+            print("⚠️ [Native GPS] Session ID not configured for feedback")
+            return
+        }
+        
+        do {
+            // 1. Generate coaching message
+            let message = generateCoachingMessage(km: km)
+            
+            // 2. Call Edge Function for TTS
+            let audioUrl = try await generateTTS(message: message)
+            
+            // 3. Play audio via BioPeakAudioSession
+            await playFeedbackAudio(audioUrl: audioUrl)
+            
+            print("✅ [Native GPS] Feedback \(km)km played successfully")
+            
+        } catch {
+            print("❌ [Native GPS] Error generating feedback: \(error.localizedDescription)")
+        }
+    }
+    
+    private func generateCoachingMessage(km: Int) -> String {
+        let pacePerKm = accumulatedDistance > 0 ? (Double(lastFeedbackKm * 1000) / accumulatedDistance) * 5.0 : 5.0
+        
+        return "\(km) quilômetro completado. Pace médio de \(String(format: "%.1f", pacePerKm)) minutos por quilômetro. Continue assim!"
+    }
+    
+    private func generateTTS(message: String) async throws -> String {
+        guard let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] else {
+            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase URL not configured"])
+        }
+        
+        let url = URL(string: "\(supabaseUrl)/functions/v1/text-to-speech")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = ["text": message, "voice": "alloy", "speed": 1.0]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "TTS API failed"])
+        }
+        
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        
+        guard let audioContent = json?["audioContent"] as? String else {
+            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get audio content"])
+        }
+        
+        return "data:audio/mpeg;base64,\(audioContent)"
+    }
+    
+    private func playFeedbackAudio(audioUrl: String) async {
+        guard let audioSession = self.bridge?.getPlugin("BioPeakAudioSession") as? BioPeakAudioSession else {
+            print("❌ [Native GPS] BioPeakAudioSession plugin not available")
+            return
+        }
+        
+        // Create a mock CAPPluginCall to pass parameters
+        DispatchQueue.main.async {
+            let call = MockPluginCall(url: audioUrl)
+            audioSession.playAudioFile(call)
+            print("🔊 [Native GPS] Playing feedback audio...")
+        }
+    }
+}
+
+// MARK: - Mock Plugin Call for internal communication
+private class MockPluginCall: CAPPluginCall {
+    let audioUrl: String
+    
+    init(url: String) {
+        self.audioUrl = url
+        super.init(callbackId: "internal", options: ["url": url], pluginId: "BioPeakAudioSession", method: "playAudioFile")
+    }
+    
+    override func getString(_ key: String) -> String? {
+        return key == "url" ? audioUrl : nil
     }
 }

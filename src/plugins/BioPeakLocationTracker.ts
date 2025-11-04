@@ -18,6 +18,11 @@ export interface BioPeakLocationTrackerPlugin {
   stopLocationTracking(): Promise<{ success: boolean; message: string; finalDistance: number }>;
   getAccumulatedDistance(): Promise<{ distance: number }>;
   resetDistance(): Promise<{ success: boolean }>;
+  configureFeedback(options: {
+    sessionId: string;
+    trainingGoal?: string;
+    enabled: boolean;
+  }): Promise<{ success: boolean }>;
   addListener(
     eventName: 'locationUpdate',
     listenerFunc: (data: LocationUpdateData) => void
@@ -34,6 +39,7 @@ const BioPeakLocationTracker = registerPlugin<BioPeakLocationTrackerPlugin>('Bio
     stopLocationTracking: async () => ({ success: false, message: 'Not supported on web', finalDistance: 0 }),
     getAccumulatedDistance: async () => ({ distance: 0 }),
     resetDistance: async () => ({ success: false }),
+    configureFeedback: async () => ({ success: false }),
     addListener: async () => ({ remove: async () => {} }),
   }),
 });
