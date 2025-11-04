@@ -374,6 +374,12 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       '100m threshold met?': distanceSinceLastFeedback >= 100
     });
 
+    // Skip if native feedback is active (iOS)
+    if (Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform()) {
+      console.log('⏸️ [COACH] Native feedback active, skipping WebView milestones');
+      return;
+    }
+
     // Initial feedback: only once at the beginning
     if (!hasGivenInitialFeedbackRef.current) {
       console.log('✅ Triggering INITIAL feedback');

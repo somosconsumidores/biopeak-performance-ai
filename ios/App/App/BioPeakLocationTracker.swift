@@ -11,6 +11,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     
     // Native feedback control (100m intervals for testing)
     private var lastFeedbackSegment: Int = 0
+    private var lastFeedbackAt: TimeInterval = 0
     private var sessionId: String?
     private var trainingGoal: String?
     private var shouldGiveFeedback: Bool = false
@@ -99,13 +100,13 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         if let lastLoc = lastLocation {
             let distance = newLocation.distance(from: lastLoc)
             
-            // Filter unrealistic movements (>3m and <100m to avoid GPS jumps)
-            if distance > 3 && distance < 100 {
+            // Relaxed filter: accept 0.3m-80m movements with good accuracy
+            if distance > 0.3 && distance < 80 && newLocation.horizontalAccuracy <= 25 {
                 accumulatedDistance += distance
                 
                 print("📍 [Native GPS] +\(String(format: "%.1f", distance))m → Total: \(String(format: "%.1f", accumulatedDistance))m (accuracy: \(String(format: "%.1f", newLocation.horizontalAccuracy))m)")
                 
-                // Check if completed 100m milestone (for testing)
+                // Check 100m milestone
                 let currentSegment = Int(accumulatedDistance / 100.0)
                 
                 print("🔍 [Native GPS] Milestone check:")
@@ -116,13 +117,20 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 print("   → Will trigger feedback: \(shouldGiveFeedback && currentSegment > lastFeedbackSegment)")
                 
                 if shouldGiveFeedback && currentSegment > lastFeedbackSegment {
-                    lastFeedbackSegment = currentSegment
-                    let meters = currentSegment * 100
-                    print("🎯 [Native GPS] \(meters)m completed - TRIGGERING FEEDBACK NOW")
-                    
-                    // Generate and play feedback
-                    Task {
-                        await generateAndPlayFeedback(meters: meters)
+                    // Throttle: ensure 2s between feedbacks
+                    let now = Date().timeIntervalSince1970
+                    if now - lastFeedbackAt >= 2.0 {
+                        lastFeedbackAt = now
+                        lastFeedbackSegment = currentSegment
+                        let meters = currentSegment * 100
+                        print("🎯 [Native GPS] \(meters)m completed - TRIGGERING FEEDBACK NOW")
+                        
+                        // Generate and play feedback
+                        Task {
+                            await generateAndPlayFeedback(meters: meters)
+                        }
+                    } else {
+                        print("⏸️ [Native GPS] Throttle active, skipping duplicate feedback")
                     }
                 }
                 

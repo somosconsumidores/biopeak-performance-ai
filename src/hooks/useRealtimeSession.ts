@@ -1305,22 +1305,55 @@ export const useRealtimeSession = () => {
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios' || !isRecording) return;
     
+    let graceTimeout: NodeJS.Timeout | null = null;
+    let lastToggleTime = 0;
+    const DEBOUNCE_MS = 10000; // 10s debounce
+    const GRACE_PERIOD_MS = 7000; // 7s grace period
+    
     const handleVisibilityChange = () => {
+      const now = Date.now();
+      if (now - lastToggleTime < DEBOUNCE_MS) {
+        console.log('⏸️ [HYBRID] Debounce active, ignoring toggle');
+        return;
+      }
+      
       const wasInBackground = isInBackgroundRef.current;
       const isNowInBackground = document.visibilityState === 'hidden';
       isInBackgroundRef.current = isNowInBackground;
       
       if (isNowInBackground && !wasInBackground) {
-        console.log('📱 [GPS HYBRID] App went to background - switching to native GPS');
+        console.log('📱 [HYBRID] → Background: enabling native GPS');
+        lastToggleTime = now;
         switchToNativeGPS();
       } else if (!isNowInBackground && wasInBackground) {
-        console.log('📱 [GPS HYBRID] App returned to foreground - syncing GPS');
-        syncNativeGPSToWebView();
+        console.log('📱 [HYBRID] → Foreground: waiting grace window (7s)');
+        lastToggleTime = now;
+        
+        // Grace period: wait for WebView GPS to stabilize
+        graceTimeout = setTimeout(() => {
+          // Check if WebView has valid position
+          const lastLoc = lastLocationRef.current;
+          const isWebViewReady = lastLoc && 
+                                 lastLoc.accuracy && 
+                                 lastLoc.accuracy <= 25;
+          
+          if (isWebViewReady) {
+            console.log('✅ [HYBRID] WebView ready (accuracy ≤25m) → syncing & disabling native');
+            syncNativeGPSToWebView();
+          } else {
+            console.log('⏳ [HYBRID] WebView not ready → keep native active');
+            // Native GPS stays active
+          }
+        }, GRACE_PERIOD_MS);
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (graceTimeout) clearTimeout(graceTimeout);
+    };
   }, [isRecording, switchToNativeGPS, syncNativeGPSToWebView]);
 
   // Manual simulation toggle for troubleshooting

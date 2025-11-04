@@ -15,6 +15,26 @@ public class BioPeakAudioSession: CAPPlugin {
             try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try audioSession.setActive(true)
             
+            // Add observer for audio interruptions
+            NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self = self,
+                      let userInfo = notification.userInfo,
+                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+                else { return }
+                
+                if type == .ended {
+                    print("🔄 [BioPeakAudioSession] Interruption ended, resuming silent audio")
+                    self.startSilentAudioInternal()
+                } else if type == .began {
+                    print("⏸️ [BioPeakAudioSession] Interruption began (call/Siri)")
+                }
+            }
+            
             // Start silent audio to keep session active
             startSilentAudioInternal()
             
@@ -338,6 +358,7 @@ public class BioPeakAudioSession: CAPPlugin {
     }
     
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("BioPeakPlayFeedback"), object: nil)
     }
 }
