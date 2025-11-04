@@ -192,27 +192,11 @@ export default function StravaCallback() {
         queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
         queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
         
-        // Fluxo WEB normal: sincronizar atividades
-        console.log('[StravaCallback] WEB flow - starting optimized activity sync...');
-        setMessage('Tenha paciência, estamos sincronizando suas atividades. Já já finalizamos! 😊');
-        setSyncStartTime(Date.now());
-        
-        // Use optimized sync for faster processing
-        const syncSuccess = await syncActivitiesOptimized();
-        
-        if (syncSuccess) {
-          setMessage('Atividades sincronizadas com sucesso!');
-          // Refresh queries again after sync
-          queryClient.invalidateQueries({ queryKey: ['strava-stats'] });
-          queryClient.invalidateQueries({ queryKey: ['strava-activities'] });
-        } else {
-          setMessage('Strava conectado, mas houve erro na sincronização');
-        }
-        
-        // Fluxo WEB: redirecionar para dashboard
-        console.log('[StravaCallback] Redirecting to dashboard...');
+        // ✅ Redirecionar para /sync (sync acontecerá em background via strava-sync-background)
+        console.log('[StravaCallback] Redirecting to sync page - background sync in progress...');
+        setMessage('Strava conectado! Redirecionando para sincronização...');
         setTimeout(() => {
-          window.location.href = getProductionRedirectUrl('/dashboard');
+          window.location.href = getProductionRedirectUrl('/sync');
         }, 2000);
         
       } catch (error) {
