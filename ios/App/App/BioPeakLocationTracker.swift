@@ -231,10 +231,17 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase URL not configured"])
         }
         
+        guard let supabaseKey = self.supabaseAnonKey else {
+            print("❌ [Native GPS] TTS Error: Supabase API key not configured")
+            throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase API key not configured"])
+        }
+        
         let url = URL(string: "\(supabaseUrl)/functions/v1/text-to-speech")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
         
         let body: [String: Any] = ["text": message, "voice": "alloy", "speed": 1.0]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
