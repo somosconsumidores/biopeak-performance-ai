@@ -53,6 +53,7 @@ export const useRealtimeSession = () => {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [gpsPermissionStatus, setGpsPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  const [isNativeGPSActive, setIsNativeGPSActive] = useState(false);
   
   const watchIdRef = useRef<string | number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -89,7 +90,8 @@ export const useRealtimeSession = () => {
     enableTTS: true,
     feedbackInterval: 100, // Feedback a cada 100m (para testes)
     backgroundAudio,
-    notificationFallback: backgroundNotifications.scheduleNotification
+    notificationFallback: backgroundNotifications.scheduleNotification,
+    isNativeGPSActive // Pass flag to disable WebView coach when Native GPS is active
   });
 
   // Keep backgroundCoachRef in sync with latest backgroundCoach instance
@@ -403,6 +405,12 @@ export const useRealtimeSession = () => {
 
           if (!position) return;
 
+          // 🚫 EXCLUSION: Skip if Native GPS is active
+          if (isNativeGPSActive) {
+            console.log('⏸️ [WebView GPS] Skipping - Native GPS is active');
+            return;
+          }
+
           const newLocation: LocationData = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -411,7 +419,7 @@ export const useRealtimeSession = () => {
             speed: position.coords.speed || undefined,
           };
 
-          console.log('📍 GPS Update:', newLocation);
+          console.log('📍 [WebView GPS] Update:', newLocation);
           console.log('📍 [DISTANCE UPDATE] WebView received:', {
             currentDistance: distanceAccumulatorRef.current,
             timestamp: new Date().toISOString()
@@ -519,6 +527,10 @@ export const useRealtimeSession = () => {
     console.log('🔄 [GPS HYBRID] Switching to native GPS...');
     
     try {
+      // 🚫 Activate Native GPS mode - disables ALL WebView GPS/Coach/Snapshots
+      setIsNativeGPSActive(true);
+      console.log('✅ [EXCLUSION] Native GPS mode ACTIVATED - WebView GPS disabled');
+      
       // Stop WebView GPS
       await stopLocationTracking();
       
@@ -531,7 +543,7 @@ export const useRealtimeSession = () => {
       await BioPeakLocationTracker.resetDistance();
       await BioPeakLocationTracker.startLocationTracking();
       
-      // Add listener for native GPS updates
+      // Add listener for native GPS updates (only for UI updates, no snapshots/feedback)
       nativeGPSListenerRef.current = await BioPeakLocationTracker.addListener('locationUpdate', (data) => {
         // Update total distance with base + native accumulated
         const totalDistance = baseDistanceBeforeBackgroundRef.current + data.totalDistance;
@@ -552,6 +564,7 @@ export const useRealtimeSession = () => {
       console.log('✅ [GPS HYBRID] Native GPS started successfully');
     } catch (error) {
       console.error('❌ [GPS HYBRID] Failed to switch to native GPS:', error);
+      setIsNativeGPSActive(false); // Rollback on error
     }
   }, [stopLocationTracking]);
 
@@ -579,6 +592,10 @@ export const useRealtimeSession = () => {
       }
       await BioPeakLocationTracker.stopLocationTracking();
       
+      // ✅ Deactivate Native GPS mode - re-enables WebView GPS/Coach/Snapshots
+      setIsNativeGPSActive(false);
+      console.log('✅ [EXCLUSION] Native GPS mode DEACTIVATED - WebView GPS re-enabled');
+      
       // Restart WebView GPS
       if (isRecording) {
         await startLocationTracking();
@@ -586,12 +603,19 @@ export const useRealtimeSession = () => {
       }
     } catch (error) {
       console.error('❌ [GPS HYBRID] Failed to sync native GPS:', error);
+      setIsNativeGPSActive(false); // Ensure flag is reset on error
     }
   }, [isRecording, startLocationTracking]);
 
   // Create performance snapshot and check for AI coaching triggers
   const createSnapshot = useCallback(async (sessionData: SessionData, location: LocationData) => {
     if (!sessionData.sessionId) return;
+
+    // 🚫 EXCLUSION: Skip if Native GPS is active
+    if (isNativeGPSActive) {
+      console.log('⏸️ [WebView Snapshot] Skipping - Native GPS is active');
+      return;
+    }
 
     console.log('📊 Creating snapshot at:', {
       distance: sessionData.currentDistance,
@@ -683,7 +707,7 @@ export const useRealtimeSession = () => {
     } catch (error) {
       console.error('Error creating snapshot:', error);
     }
-  }, [supabase]); // Fixed: Added supabase dependency (backgroundCoach now uses ref)
+  }, [isNativeGPSActive, supabase]); // Added isNativeGPSActive dependency
 
   // Request AI feedback with enhanced logging
   const requestAIFeedback = useCallback(async (sessionData: SessionData, performanceData: any) => {

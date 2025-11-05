@@ -37,6 +37,7 @@ interface BackgroundCoachOptions {
   backgroundAudio?: {
     getAudioContext: () => AudioContext | null;
   };
+  isNativeGPSActive?: boolean; // Flag to disable WebView coach when Native GPS is active
 }
 
 interface BackgroundCoachState {
@@ -345,8 +346,15 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       'sessionData.distance': sessionData.distance,
       'state.isActive': state.isActive,
       'state.isEnabled': state.isEnabled,
-      'isProcessing': isProcessingRef.current
+      'isProcessing': isProcessingRef.current,
+      'isNativeGPSActive': options.isNativeGPSActive
     });
+
+    // 🚫 CRITICAL: Skip all WebView feedback if Native GPS is active
+    if (options.isNativeGPSActive) {
+      console.log('⏸️ [COACH EXCLUSION] Native GPS is active - ALL WebView feedback disabled');
+      return;
+    }
 
     if (!state.isActive) {
       console.log('⏸️ Skipping: coach not active');
@@ -374,7 +382,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       '100m threshold met?': distanceSinceLastFeedback >= 100
     });
 
-    // Skip if native feedback is active (iOS)
+    // Skip if native feedback is active (iOS) - LEGACY CHECK, replaced by isNativeGPSActive
     if (Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform()) {
       console.log('⏸️ [COACH] Native feedback active, skipping WebView milestones');
       return;
