@@ -331,7 +331,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 "session_id": sessionId,
                 "snapshot_at_distance_meters": meters,
                 "snapshot_at_duration_seconds": timeFromStart,
-                "current_pace": NSNull(), // Not calculated by native GPS
+                "current_pace_min_km": NSNull(), // Not calculated by native GPS
                 "source": "native_gps"
             ]
             
