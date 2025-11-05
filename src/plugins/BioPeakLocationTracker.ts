@@ -22,6 +22,8 @@ export interface BioPeakLocationTrackerPlugin {
     sessionId: string;
     trainingGoal?: string;
     enabled: boolean;
+    supabaseUrl?: string;
+    supabaseAnonKey?: string;
   }): Promise<{ success: boolean }>;
   addListener(
     eventName: 'locationUpdate',

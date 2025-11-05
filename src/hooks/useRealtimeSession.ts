@@ -863,7 +863,9 @@ export const useRealtimeSession = () => {
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
             trainingGoal: goal.type,
-            enabled: true // Enable native GPS tracking in background
+            enabled: true, // Enable native GPS tracking in background
+            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+            supabaseAnonKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
           });
           console.log('✅ Native feedback configured for iOS (distance-based coaching in background)');
         } catch (error) {

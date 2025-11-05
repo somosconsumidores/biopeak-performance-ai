@@ -17,6 +17,10 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var shouldGiveFeedback: Bool = false
     private var sessionStartTime: TimeInterval?
     
+    // Supabase credentials
+    private var supabaseUrl: String?
+    private var supabaseAnonKey: String?
+    
     @objc func startLocationTracking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -82,12 +86,16 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.sessionId = call.getString("sessionId")
         self.trainingGoal = call.getString("trainingGoal")
         self.shouldGiveFeedback = call.getBool("enabled") ?? true
+        self.supabaseUrl = call.getString("supabaseUrl")
+        self.supabaseAnonKey = call.getString("supabaseAnonKey")
         self.lastFeedbackSegment = 0
         
         print("✅ [Native GPS] Feedback configured:")
         print("   → sessionId: \(sessionId ?? "nil")")
         print("   → trainingGoal: \(trainingGoal ?? "nil")")
         print("   → enabled: \(shouldGiveFeedback)")
+        print("   → supabaseUrl: \(supabaseUrl != nil ? "configured" : "NOT configured")")
+        print("   → supabaseAnonKey: \(supabaseAnonKey != nil ? "configured" : "NOT configured")")
         call.resolve(["success": true])
     }
     
@@ -218,7 +226,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     }
     
     private func generateTTS(message: String) async throws -> String {
-        guard let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] else {
+        guard let supabaseUrl = self.supabaseUrl else {
             print("❌ [Native GPS] TTS Error: Supabase URL not configured")
             throw NSError(domain: "TTS", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase URL not configured"])
         }
@@ -299,8 +307,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             return
         }
         
-        guard let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"],
-              let supabaseKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] else {
+        guard let supabaseUrl = self.supabaseUrl,
+              let supabaseKey = self.supabaseAnonKey else {
             print("❌ [Native GPS] Snapshot save failed: Supabase credentials not configured")
             return
         }
