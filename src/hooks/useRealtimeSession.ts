@@ -60,6 +60,7 @@ export const useRealtimeSession = () => {
   const distanceAccumulatorRef = useRef(0);
   const microDistanceAccumulatorRef = useRef(0);
   const lastSnapshotDistanceRef = useRef(0);
+  const last100mMarkRef = useRef(0); // Separate ref for 100m feedback tracking
   const lastLocationTimestampRef = useRef<number>(Date.now());
   const gpsCoordinatesRef = useRef<Array<[number, number]>>([]);
   const isInBackgroundRef = useRef(false);
@@ -616,20 +617,20 @@ export const useRealtimeSession = () => {
 
       // AI coaching triggers: feedback every 100m for testing
       const distanceIn100m = Math.floor(sessionData.currentDistance / 100);
-      const last100mMark = Math.floor(lastSnapshotDistanceRef.current / 100);
+      const lastMark = last100mMarkRef.current; // Use separate ref for 100m feedback
 
       // Trigger feedback when a new 100m segment is completed
-      const distanceTrigger = distanceIn100m > last100mMark && distanceIn100m > 0;
+      const distanceTrigger = distanceIn100m > lastMark && distanceIn100m > 0;
 
       if (distanceTrigger) {
         console.log('✅ [SNAPSHOT TRIGGER] Firing 100m feedback:', { 
           currentDistance: sessionData.currentDistance,
           distanceIn100m, 
-          last100mMark,
-          lastSnapshotDistance: lastSnapshotDistanceRef.current
+          lastMark
         });
         
-        lastSnapshotDistanceRef.current = sessionData.currentDistance;
+        // Update ONLY the 100m feedback ref (not the snapshot ref)
+        last100mMarkRef.current = distanceIn100m;
         
         // Convert sessionData to the format expected by backgroundCoach
         const coachData = {
@@ -649,9 +650,7 @@ export const useRealtimeSession = () => {
         console.log('⏸️ [SNAPSHOT SKIP] Conditions not met:', {
           currentDistance: sessionData.currentDistance,
           distanceIn100m,
-          last100mMark,
-          distanceTrigger,
-          lastSnapshotDistance: lastSnapshotDistanceRef.current
+          lastMark
         });
       }
     } catch (error) {
@@ -769,6 +768,7 @@ export const useRealtimeSession = () => {
       // Reset distance accumulator for new session
       distanceAccumulatorRef.current = 0;
       lastSnapshotDistanceRef.current = 0;
+      last100mMarkRef.current = 0; // Reset 100m feedback tracking
       lastLocationRef.current = null;
       gpsCoordinatesRef.current = [];
       
@@ -836,7 +836,7 @@ export const useRealtimeSession = () => {
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
             trainingGoal: goal.type,
-            enabled: false
+            enabled: true // Enable native GPS tracking in background
           });
           console.log('✅ Native feedback configured for iOS (distance-based coaching in background)');
         } catch (error) {
