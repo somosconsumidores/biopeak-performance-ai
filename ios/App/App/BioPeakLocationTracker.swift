@@ -15,6 +15,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var sessionId: String?
     private var trainingGoal: String?
     private var shouldGiveFeedback: Bool = false
+    private var sessionStartTime: TimeInterval?
     
     @objc func startLocationTracking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { [weak self] in
@@ -37,6 +38,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             self.accumulatedDistance = 0.0
             self.lastLocation = nil
             self.isTracking = true
+            self.sessionStartTime = Date().timeIntervalSince1970
             
             self.locationManager?.startUpdatingLocation()
             
@@ -52,6 +54,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             self.locationManager?.stopUpdatingLocation()
             self.locationManager = nil
             self.isTracking = false
+            self.sessionStartTime = nil
             
             print("⏹️ [Native GPS] Stopped tracking - Total distance: \(self.accumulatedDistance)m")
             call.resolve([
@@ -70,6 +73,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.accumulatedDistance = 0.0
         self.lastLocation = nil
         self.lastFeedbackSegment = 0
+        self.sessionStartTime = nil
         print("🔄 [Native GPS] Distance reset")
         call.resolve(["success": true])
     }
@@ -194,6 +198,9 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             print("🔊 [Native GPS] Attempting to play audio...")
             await playFeedbackAudio(audioUrl: audioUrl)
             
+            // 4. Save snapshot to Supabase
+            await saveSnapshotToSupabase(meters: meters)
+            
             print("✅ [Native GPS] Feedback \(meters)m completed successfully")
             
         } catch {
@@ -272,6 +279,93 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 userInfo: ["audioUrl": audioUrl]
             )
             print("✅ [Native GPS] Notification posted to NotificationCenter")
+        }
+    }
+    
+    // MARK: - Supabase Snapshot Integration
+    
+    private func saveSnapshotToSupabase(meters: Int) async {
+        print("📊 [Native GPS] Saving snapshot to Supabase...")
+        print("   → sessionId: \(sessionId ?? "nil")")
+        print("   → distance: \(meters)m")
+        
+        guard let sessionId = sessionId else {
+            print("❌ [Native GPS] Snapshot save failed: Session ID not configured")
+            return
+        }
+        
+        guard let sessionStartTime = sessionStartTime else {
+            print("❌ [Native GPS] Snapshot save failed: Session start time not tracked")
+            return
+        }
+        
+        guard let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"],
+              let supabaseKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] else {
+            print("❌ [Native GPS] Snapshot save failed: Supabase credentials not configured")
+            return
+        }
+        
+        // Calculate time from start
+        let timeFromStart = Int(Date().timeIntervalSince1970 - sessionStartTime)
+        
+        print("   → timeFromStart: \(timeFromStart)s")
+        
+        do {
+            // Prepare snapshot data
+            let snapshotData: [String: Any] = [
+                "session_id": sessionId,
+                "snapshot_at_distance_meters": meters,
+                "time_from_start_seconds": timeFromStart,
+                "current_pace": NSNull(), // Not calculated by native GPS
+                "source": "native_gps"
+            ]
+            
+            let jsonData = try JSONSerialization.data(withJSONObject: snapshotData)
+            
+            // Create request to Supabase REST API
+            let url = URL(string: "\(supabaseUrl)/rest/v1/performance_snapshots")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+            request.httpBody = jsonData
+            
+            print("📡 [Native GPS] Snapshot Request:")
+            print("   → URL: \(url.absoluteString)")
+            print("   → Body: \(String(data: jsonData, encoding: .utf8) ?? "unable to decode")")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ [Native GPS] Snapshot save failed: Invalid response type")
+                return
+            }
+            
+            print("📥 [Native GPS] Snapshot Response:")
+            print("   → Status: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                let responseBody = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("✅ [Native GPS] Snapshot saved successfully:")
+                print("   → distance: \(meters)m")
+                print("   → time: \(timeFromStart)s")
+                print("   → sessionId: \(sessionId)")
+                print("   → response: \(responseBody)")
+            } else {
+                let responseBody = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("❌ [Native GPS] Snapshot save failed with status \(httpResponse.statusCode)")
+                print("   → response: \(responseBody)")
+            }
+            
+        } catch {
+            print("❌ [Native GPS] Snapshot save error: \(error)")
+            if let nsError = error as NSError? {
+                print("   → Domain: \(nsError.domain)")
+                print("   → Code: \(nsError.code)")
+                print("   → UserInfo: \(nsError.userInfo)")
+            }
         }
     }
 }
