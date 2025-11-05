@@ -66,6 +66,7 @@ export const useRealtimeSession = () => {
   const isInBackgroundRef = useRef(false);
   const nativeGPSListenerRef = useRef<any>(null);
   const baseDistanceBeforeBackgroundRef = useRef(0);
+  const backgroundCoachRef = useRef<any>(null); // Stable ref to avoid stale closures
 
   // Wake lock for keeping screen active
   const { isActive: isWakeLockActive } = useWakeLock({ 
@@ -90,6 +91,16 @@ export const useRealtimeSession = () => {
     backgroundAudio,
     notificationFallback: backgroundNotifications.scheduleNotification
   });
+
+  // Keep backgroundCoachRef in sync with latest backgroundCoach instance
+  useEffect(() => {
+    backgroundCoachRef.current = backgroundCoach;
+    console.log('🔄 [COACH REF] Updated backgroundCoachRef:', {
+      isActive: backgroundCoach.isActive,
+      isEnabled: backgroundCoach.isEnabled,
+      feedbackCount: backgroundCoach.feedbackCount
+    });
+  }, [backgroundCoach]);
 
   // Session persistence for recovery
   const { 
@@ -645,7 +656,22 @@ export const useRealtimeSession = () => {
           currentPace: sessionData.currentPace
         };
         
-        await backgroundCoach.generateSnapshotFeedback(coachData);
+        // DEBUG: Log coach state before calling feedback
+        console.log('🎤 [COACH CALL] Attempting to generate feedback:', {
+          coachExists: !!backgroundCoachRef.current,
+          coachActive: backgroundCoachRef.current?.isActive,
+          coachEnabled: backgroundCoachRef.current?.isEnabled,
+          feedbackCount: backgroundCoachRef.current?.feedbackCount,
+          distanceIn100m
+        });
+        
+        // Use ref to avoid stale closure
+        if (backgroundCoachRef.current) {
+          await backgroundCoachRef.current.generateSnapshotFeedback(coachData);
+          console.log('✅ [COACH CALL] Feedback generation completed');
+        } else {
+          console.error('❌ [COACH CALL] backgroundCoachRef is null!');
+        }
       } else {
         console.log('⏸️ [SNAPSHOT SKIP] Conditions not met:', {
           currentDistance: sessionData.currentDistance,
@@ -656,7 +682,7 @@ export const useRealtimeSession = () => {
     } catch (error) {
       console.error('Error creating snapshot:', error);
     }
-  }, []);
+  }, [supabase]); // Fixed: Added supabase dependency (backgroundCoach now uses ref)
 
   // Request AI feedback with enhanced logging
   const requestAIFeedback = useCallback(async (sessionData: SessionData, performanceData: any) => {
