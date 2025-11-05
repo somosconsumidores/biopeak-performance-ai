@@ -524,44 +524,17 @@ export const useRealtimeSession = () => {
   const switchToNativeGPS = useCallback(async () => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
     
-    console.log('🔄 [GPS HYBRID] Switching to native GPS...');
+    console.log('🔄 [GPS HYBRID] Switching to native GPS (app backgrounded)...');
     
     try {
+      // Stop WebView GPS
+      stopLocationTracking();
+      
       // 🚫 Activate Native GPS mode - disables ALL WebView GPS/Coach/Snapshots
+      // Native GPS continues running continuously - we just switch which system we're using
       setIsNativeGPSActive(true);
       console.log('✅ [EXCLUSION] Native GPS mode ACTIVATED - WebView GPS disabled');
-      
-      // Stop WebView GPS
-      await stopLocationTracking();
-      
-      // Save current distance as baseline
-      baseDistanceBeforeBackgroundRef.current = distanceAccumulatorRef.current;
-      console.log(`💾 [GPS HYBRID] Base distance saved: ${baseDistanceBeforeBackgroundRef.current.toFixed(1)}m`);
-      
-      // Start native GPS tracker
-      const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
-      await BioPeakLocationTracker.resetDistance();
-      await BioPeakLocationTracker.startLocationTracking();
-      
-      // Add listener for native GPS updates (only for UI updates, no snapshots/feedback)
-      nativeGPSListenerRef.current = await BioPeakLocationTracker.addListener('locationUpdate', (data) => {
-        // Update total distance with base + native accumulated
-        const totalDistance = baseDistanceBeforeBackgroundRef.current + data.totalDistance;
-        distanceAccumulatorRef.current = totalDistance;
-        
-        console.log(`📍 [GPS HYBRID Native] +${data.distance.toFixed(1)}m → Total: ${totalDistance.toFixed(1)}m`);
-        
-        // Update last location for continuity
-        lastLocationRef.current = {
-          latitude: data.latitude,
-          longitude: data.longitude,
-          accuracy: data.accuracy,
-          altitude: data.altitude,
-          speed: data.speed,
-        };
-      });
-      
-      console.log('✅ [GPS HYBRID] Native GPS started successfully');
+      console.log('📍 [Native GPS] Already running continuously - no reset needed');
     } catch (error) {
       console.error('❌ [GPS HYBRID] Failed to switch to native GPS:', error);
       setIsNativeGPSActive(false); // Rollback on error
@@ -575,24 +548,18 @@ export const useRealtimeSession = () => {
     console.log('🔄 [GPS HYBRID] Syncing native GPS → WebView...');
     
     try {
-      // Get final accumulated distance from native
+      // Get accumulated distance from native GPS
       const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
       const { distance: nativeDistance } = await BioPeakLocationTracker.getAccumulatedDistance();
       
-      // Calculate total distance
-      const totalDistance = baseDistanceBeforeBackgroundRef.current + nativeDistance;
-      distanceAccumulatorRef.current = totalDistance;
+      // Update distance accumulator with native GPS data
+      distanceAccumulatorRef.current = nativeDistance;
       
-      console.log(`✅ [GPS HYBRID] Distance synced: ${totalDistance.toFixed(1)}m (base: ${baseDistanceBeforeBackgroundRef.current.toFixed(1)}m + native: ${nativeDistance.toFixed(1)}m)`);
-      
-      // Remove listener and stop native GPS
-      if (nativeGPSListenerRef.current) {
-        await nativeGPSListenerRef.current.remove();
-        nativeGPSListenerRef.current = null;
-      }
-      await BioPeakLocationTracker.stopLocationTracking();
+      console.log(`✅ [GPS HYBRID] Distance synced: ${nativeDistance.toFixed(1)}m`);
+      console.log('📍 [Native GPS] Continues running in background');
       
       // ✅ Deactivate Native GPS mode - re-enables WebView GPS/Coach/Snapshots
+      // Native GPS continues running - we just switch which system we're using
       setIsNativeGPSActive(false);
       console.log('✅ [EXCLUSION] Native GPS mode DEACTIVATED - WebView GPS re-enabled');
       
@@ -879,21 +846,35 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
-      // Configure native feedback for iOS (handles distance-based coaching in background)
+      // 🍎 [iOS] Start Native GPS ONCE at session start (runs continuously)
       const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
       if (isIOSNative && goal) {
         try {
+          console.log('🚀 [Native GPS] Starting continuous tracking for entire session');
+          
           const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+          
+          // Configure feedback for native GPS
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
             trainingGoal: goal.type,
-            enabled: true, // Enable native GPS tracking in background
-            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-            supabaseAnonKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+            enabled: true,
+            supabaseUrl: 'https://grcwlmltlcltmwbhdpky.supabase.co',
+            supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM'
           });
-          console.log('✅ Native feedback configured for iOS (distance-based coaching in background)');
+          
+          // Reset and start tracking - will run continuously until session ends
+          await BioPeakLocationTracker.resetDistance();
+          const result = await BioPeakLocationTracker.startLocationTracking();
+          
+          if (result.success) {
+            console.log('✅ [Native GPS] Continuous tracking started - will run for entire session');
+            console.log('📍 [Native GPS] Will persist across background/foreground transitions');
+          } else {
+            console.warn('⚠️ [Native GPS] Failed to start:', result.message);
+          }
         } catch (error) {
-          console.warn('⚠️ Failed to configure native feedback:', error);
+          console.error('❌ [Native GPS] Error starting continuous tracking:', error);
         }
       }
 
@@ -1162,15 +1143,29 @@ export const useRealtimeSession = () => {
     // Stop background audio
     backgroundAudio.stopBackgroundAudio();
     
-    // 🔥 Stop AVAudioSession no iOS quando treino finalizar
+    // 🍎 [iOS] Stop Native GPS when session completes
     const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
     if (isIOSNative) {
       try {
+        // Stop continuous Native GPS tracking
+        const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+        console.log('🛑 [Native GPS] Stopping continuous tracking');
+        const stopResult = await BioPeakLocationTracker.stopLocationTracking();
+        console.log(`✅ [Native GPS] Stopped - Final distance: ${stopResult.finalDistance.toFixed(1)}m`);
+        
+        // Use native GPS final distance if it's greater (more accurate)
+        if (stopResult.finalDistance > sessionData.currentDistance) {
+          console.log(`📊 [Native GPS] Using native final distance: ${(stopResult.finalDistance / 1000).toFixed(2)}km (was ${(sessionData.currentDistance / 1000).toFixed(2)}km)`);
+          sessionData.currentDistance = stopResult.finalDistance;
+          distanceAccumulatorRef.current = stopResult.finalDistance;
+        }
+        
+        // Stop AVAudioSession
         const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
         await BioPeakAudioSession.stopAudioSession();
         console.log('✅ AVAudioSession stopped after training ended');
       } catch (error) {
-        console.error('❌ Error stopping audio session:', error);
+        console.error('❌ Error stopping native GPS/audio:', error);
       }
     }
 
