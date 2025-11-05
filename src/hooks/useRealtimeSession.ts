@@ -400,6 +400,10 @@ export const useRealtimeSession = () => {
           };
 
           console.log('📍 GPS Update:', newLocation);
+          console.log('📍 [DISTANCE UPDATE] WebView received:', {
+            currentDistance: distanceAccumulatorRef.current,
+            timestamp: new Date().toISOString()
+          });
 
           // Store GPS coordinates for later analysis
           gpsCoordinatesRef.current.push([newLocation.latitude, newLocation.longitude]);
@@ -618,11 +622,10 @@ export const useRealtimeSession = () => {
       const distanceTrigger = distanceIn100m > last100mMark && distanceIn100m > 0;
 
       if (distanceTrigger) {
-        console.log('🤖 [AI COACH DEBUG] Triggering AI coaching:', { 
-          distanceTrigger, 
+        console.log('✅ [SNAPSHOT TRIGGER] Firing 100m feedback:', { 
+          currentDistance: sessionData.currentDistance,
           distanceIn100m, 
-          distance: sessionData.currentDistance,
-          duration: sessionData.currentDuration,
+          last100mMark,
           lastSnapshotDistance: lastSnapshotDistanceRef.current
         });
         
@@ -643,12 +646,12 @@ export const useRealtimeSession = () => {
         
         await backgroundCoach.generateSnapshotFeedback(coachData);
       } else {
-        console.log('🤖 [AI COACH DEBUG] No trigger conditions met:', {
-          distance: sessionData.currentDistance,
-          duration: sessionData.currentDuration,
-          lastSnapshotDistance: lastSnapshotDistanceRef.current,
-          distanceCheck: sessionData.currentDistance - lastSnapshotDistanceRef.current,
-          timeCheck: sessionData.currentDuration % 120
+        console.log('⏸️ [SNAPSHOT SKIP] Conditions not met:', {
+          currentDistance: sessionData.currentDistance,
+          distanceIn100m,
+          last100mMark,
+          distanceTrigger,
+          lastSnapshotDistance: lastSnapshotDistanceRef.current
         });
       }
     } catch (error) {

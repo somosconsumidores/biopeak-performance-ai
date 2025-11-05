@@ -442,10 +442,15 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
             error: null,
           }));
 
-          // Play audio feedback if available
-          if (feedback.audioUrl) {
-            await playAudioFeedback(feedback.audioUrl, feedback.message);
-          }
+      // Play audio feedback if available
+      if (feedback.audioUrl) {
+        console.log('🔊 [SNAPSHOT AUDIO] Playing feedback:', {
+          message: feedback.message.substring(0, 50) + '...',
+          audioSize: feedback.audioUrl.length,
+          timestamp: new Date().toISOString()
+        });
+        await playAudioFeedback(feedback.audioUrl, feedback.message);
+      }
 
           // Update last feedback distance
           lastFeedbackDistanceRef.current = currentDistance;
@@ -471,8 +476,18 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
    * This method bypasses the iOS native check and always generates feedback
    */
   const generateSnapshotFeedback = useCallback(async (sessionData: SessionData) => {
+    console.log('🎯 [SNAPSHOT ENTRY]', {
+      isActive: state.isActive,
+      isProcessing: isProcessingRef.current,
+      distance: sessionData.distance
+    });
+
     if (!state.isActive || isProcessingRef.current) {
-      console.log('⏸️ [SNAPSHOT] Coach not active or processing, skipping');
+      console.log('❌ [SNAPSHOT BLOCKED]', {
+        reason: !state.isActive ? 'Coach not active' : 'Already processing',
+        isActive: state.isActive,
+        isProcessing: isProcessingRef.current
+      });
       return;
     }
 
@@ -538,6 +553,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [state.isActive, playAudioFeedback, supabase]);
 
   const startCoaching = useCallback(async (goal: TrainingGoal) => {
+    console.log('▶️ [COACH START] Starting background coach');
     // 🔍 DIAGNÓSTICO: Estado no momento do startCoaching
     console.log('[START COACHING] Goal:', JSON.stringify(goal, null, 2));
     console.log('[START COACHING] options.enableTTS:', options.enableTTS);
