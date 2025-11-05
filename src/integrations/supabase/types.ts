@@ -2229,6 +2229,7 @@ export type Database = {
           session_id: string
           snapshot_at_distance_meters: number
           snapshot_at_duration_seconds: number
+          source: string
         }
         Insert: {
           calories_burned_so_far?: number | null
@@ -2244,6 +2245,7 @@ export type Database = {
           session_id: string
           snapshot_at_distance_meters: number
           snapshot_at_duration_seconds: number
+          source?: string
         }
         Update: {
           calories_burned_so_far?: number | null
@@ -2259,6 +2261,7 @@ export type Database = {
           session_id?: string
           snapshot_at_distance_meters?: number
           snapshot_at_duration_seconds?: number
+          source?: string
         }
         Relationships: [
           {

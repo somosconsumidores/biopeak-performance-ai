@@ -610,6 +610,7 @@ export const useRealtimeSession = () => {
       latitude: location.latitude,
       longitude: location.longitude,
       calories_burned_so_far: sessionData.calories,
+      source: 'webview',
       deviation_from_target: {
         distanceDeviation: sessionData.goal.targetDistance ? 
           sessionData.currentDistance - (sessionData.goal.targetDistance * (sessionData.currentDuration / (sessionData.goal.targetDuration || 1800))) : 0,
