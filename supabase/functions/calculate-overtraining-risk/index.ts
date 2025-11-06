@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         intensity_score: risk.intensity_score,
         volume_trend_score: risk.volume_trend_score,
         activities_analyzed: activities.length,
-        days_analyzed
+        days_analyzed: days_to_analyze
       })
       .select()
       .single();
