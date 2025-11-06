@@ -2118,6 +2118,60 @@ export type Database = {
         }
         Relationships: []
       }
+      overtraining_scores: {
+        Row: {
+          activities_analyzed: number
+          calculated_at: string
+          created_at: string
+          days_analyzed: number
+          factors: Json
+          frequency_score: number | null
+          id: string
+          intensity_score: number | null
+          level: string
+          recommendation: string | null
+          score: number
+          training_load_score: number | null
+          updated_at: string
+          user_id: string
+          volume_trend_score: number | null
+        }
+        Insert: {
+          activities_analyzed?: number
+          calculated_at?: string
+          created_at?: string
+          days_analyzed?: number
+          factors?: Json
+          frequency_score?: number | null
+          id?: string
+          intensity_score?: number | null
+          level: string
+          recommendation?: string | null
+          score: number
+          training_load_score?: number | null
+          updated_at?: string
+          user_id: string
+          volume_trend_score?: number | null
+        }
+        Update: {
+          activities_analyzed?: number
+          calculated_at?: string
+          created_at?: string
+          days_analyzed?: number
+          factors?: Json
+          frequency_score?: number | null
+          id?: string
+          intensity_score?: number | null
+          level?: string
+          recommendation?: string | null
+          score?: number
+          training_load_score?: number | null
+          updated_at?: string
+          user_id?: string
+          volume_trend_score?: number | null
+        }
+        Relationships: []
+      }
       performance_metrics: {
         Row: {
           activity_id: string
