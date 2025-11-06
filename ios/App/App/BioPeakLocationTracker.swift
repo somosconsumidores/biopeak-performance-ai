@@ -329,15 +329,51 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         
         print("   → timeFromStart: \(timeFromStart)s")
         
+        // Validate location data availability
+        guard let location = lastLocation else {
+            print("⚠️ [Native GPS] Snapshot save skipped: No location data available")
+            return
+        }
+        
+        // Calculate current pace (min/km)
+        let currentPaceMinKm: Double? = {
+            guard meters > 0, timeFromStart > 0 else { return nil }
+            let distanceKm = Double(meters) / 1000.0
+            let timeMinutes = Double(timeFromStart) / 60.0
+            return timeMinutes / distanceKm
+        }()
+        
+        // Extract location data
+        let currentSpeedMs = location.speed >= 0 ? location.speed : nil
+        let latitude = location.coordinate.latitude
+        let longitude = location.coordinate.longitude
+        let elevationMeters = location.altitude
+        
+        print("📍 [Native GPS] Snapshot GPS Data:")
+        print("   → pace: \(currentPaceMinKm.map { String(format: "%.2f", $0) } ?? "nil") min/km")
+        print("   → speed: \(currentSpeedMs.map { String(format: "%.2f", $0) } ?? "nil") m/s")
+        print("   → coords: \(String(format: "%.6f", latitude)), \(String(format: "%.6f", longitude))")
+        print("   → elevation: \(String(format: "%.1f", elevationMeters))m")
+        
         do {
-            // Prepare snapshot data
-            let snapshotData: [String: Any] = [
+            // Prepare enriched snapshot data
+            var snapshotData: [String: Any] = [
                 "session_id": sessionId,
                 "snapshot_at_distance_meters": meters,
                 "snapshot_at_duration_seconds": timeFromStart,
-                "current_pace_min_km": NSNull(), // Not calculated by native GPS
+                "latitude": latitude,
+                "longitude": longitude,
+                "elevation_meters": elevationMeters,
                 "source": "native_gps"
             ]
+            
+            // Add optional fields if available
+            if let pace = currentPaceMinKm {
+                snapshotData["current_pace_min_km"] = pace
+            }
+            if let speed = currentSpeedMs {
+                snapshotData["current_speed_ms"] = speed
+            }
             
             let jsonData = try JSONSerialization.data(withJSONObject: snapshotData)
             
