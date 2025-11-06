@@ -93,9 +93,10 @@ const TrainingPlan = () => {
                   <Button 
                     className="w-full max-w-xs bg-primary hover:bg-primary/90"
                     onClick={() => setWizardOpen(true)}
+                    disabled={!!plan}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Criar Plano
+                    {plan ? 'Cancele o plano atual primeiro' : 'Criar Plano'}
                   </Button>
                 </div>
               ) : (

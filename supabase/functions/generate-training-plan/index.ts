@@ -817,6 +817,26 @@ serve(async (req) => {
     if (planErr) throw planErr;
     if (!plan) throw new Error('Plan not found');
 
+    // Check if user already has another active plan (excluding current one)
+    const { data: existingActivePlans } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .neq('id', planId);
+
+    if (existingActivePlans && existingActivePlans.length > 0) {
+      console.error('[generate-training-plan] User already has active plan:', existingActivePlans[0].id);
+      
+      // Cancel the new plan that was just created
+      await supabase
+        .from('training_plans')
+        .update({ status: 'cancelled' })
+        .eq('id', planId);
+      
+      throw new Error('USER_HAS_ACTIVE_PLAN: Você já possui um plano de treino ativo. Cancele o plano atual antes de criar um novo.');
+    }
+
     const { data: prefs } = await supabase
       .from('training_plan_preferences')
       .select('days_per_week, days_of_week, long_run_weekday, start_date')

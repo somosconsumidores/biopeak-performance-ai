@@ -419,6 +419,37 @@ export function useTrainingPlanWizard() {
       return false;
     }
 
+    // Check if user already has an active training plan
+    const { data: existingActivePlans, error: checkError } = await supabase
+      .from('training_plans')
+      .select('id, plan_name, status')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1);
+
+    if (checkError) {
+      console.error('Error checking existing plans:', checkError);
+      toast({
+        title: "Erro ao verificar planos",
+        description: "Não foi possível verificar seus planos existentes. Tente novamente.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (existingActivePlans && existingActivePlans.length > 0) {
+      console.log('User already has an active plan:', existingActivePlans[0]);
+      toast({
+        title: "Você já possui um plano ativo",
+        description: "Para criar um novo plano, primeiro cancele ou finalize o plano atual na página de treinos.",
+        variant: "destructive",
+        duration: 6000
+      });
+      return false;
+    }
+
+    console.log('✅ No active plans found, proceeding with plan creation');
+
     setLoading(true);
     try {
       // First, update profile with any missing data
