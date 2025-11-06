@@ -20,6 +20,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     // Supabase credentials
     private var supabaseUrl: String?
     private var supabaseAnonKey: String?
+    private var userToken: String?
     
     @objc func startLocationTracking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { [weak self] in
@@ -88,6 +89,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.shouldGiveFeedback = call.getBool("enabled") ?? true
         self.supabaseUrl = call.getString("supabaseUrl")
         self.supabaseAnonKey = call.getString("supabaseAnonKey")
+        self.userToken = call.getString("userToken")
         self.lastFeedbackSegment = 0
         
         print("✅ [Native GPS] Feedback configured:")
@@ -96,6 +98,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         print("   → enabled: \(shouldGiveFeedback)")
         print("   → supabaseUrl: \(supabaseUrl != nil ? "configured" : "NOT configured")")
         print("   → supabaseAnonKey: \(supabaseAnonKey != nil ? "configured" : "NOT configured")")
+        print("   → userToken: \(userToken != nil ? "configured" : "NOT configured")")
         call.resolve(["success": true])
     }
     
@@ -315,8 +318,9 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         }
         
         guard let supabaseUrl = self.supabaseUrl,
-              let supabaseKey = self.supabaseAnonKey else {
-            print("❌ [Native GPS] Snapshot save failed: Supabase credentials not configured")
+              let supabaseKey = self.supabaseAnonKey,
+              let userToken = self.userToken else {
+            print("❌ [Native GPS] Snapshot save failed: Supabase credentials or user token not configured")
             return
         }
         
@@ -340,11 +344,11 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             // Create request to Supabase REST API
             let url = URL(string: "\(supabaseUrl)/rest/v1/performance_snapshots")!
             var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
-            request.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
-            request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
             request.httpBody = jsonData
             
             print("📡 [Native GPS] Snapshot Request:")

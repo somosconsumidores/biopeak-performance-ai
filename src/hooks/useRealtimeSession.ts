@@ -574,7 +574,12 @@ export const useRealtimeSession = () => {
       // ✅ CORREÇÃO CRÍTICA 3: Zerar micro-acumulador
       microDistanceAccumulatorRef.current = 0;
       
-      // ✅ CORREÇÃO CRÍTICA 4: Ativar cooldown de 10s no speed-based fallback
+      // ✅ CORREÇÃO CRÍTICA 4: Sincronizar marca de feedback (previne duplicação)
+      const currentSegment = Math.floor(nativeDistance / 100);
+      last100mMarkRef.current = currentSegment;
+      console.log(`🔄 [GPS SYNC] Synced feedback mark to ${currentSegment} (${currentSegment * 100}m)`);
+      
+      // ✅ CORREÇÃO CRÍTICA 5: Ativar cooldown de 10s no speed-based fallback
       speedFallbackCooldownRef.current = Date.now() + 10000; // 10 segundos
       
       console.log(`✅ [GPS HYBRID] Distance synced: ${nativeDistance.toFixed(1)}m`);
@@ -649,7 +654,7 @@ export const useRealtimeSession = () => {
       // Trigger feedback when a new 100m segment is completed
       const distanceTrigger = distanceIn100m > lastMark && distanceIn100m > 0;
 
-      if (distanceTrigger) {
+      if (distanceTrigger && !isNativeGPSActive) {
         console.log('✅ [SNAPSHOT TRIGGER] Firing 100m feedback:', { 
           currentDistance: sessionData.currentDistance,
           distanceIn100m, 
@@ -688,6 +693,8 @@ export const useRealtimeSession = () => {
         } else {
           console.error('❌ [COACH CALL] backgroundCoachRef is null!');
         }
+      } else if (distanceTrigger && isNativeGPSActive) {
+        console.log('⏸️ [SNAPSHOT TRIGGER SKIP] Native GPS is active - letting native handle feedback');
       } else {
         console.log('⏸️ [SNAPSHOT SKIP] Conditions not met:', {
           currentDistance: sessionData.currentDistance,
@@ -878,13 +885,23 @@ export const useRealtimeSession = () => {
           
           const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
           
-          // Configure feedback for native GPS
+          // Get user JWT token for authenticated native GPS snapshots
+          const { data: { session: authSession } } = await supabase.auth.getSession();
+          const userToken = authSession?.access_token;
+
+          if (!userToken) {
+            console.error('❌ No user token available for Native GPS');
+            throw new Error('User not authenticated');
+          }
+
+          // Configure feedback for native GPS with user token
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
             trainingGoal: goal.type,
             enabled: true,
             supabaseUrl: 'https://grcwlmltlcltmwbhdpky.supabase.co',
-            supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM'
+            supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM',
+            userToken: userToken
           });
           
           // Reset and start tracking - will run continuously until session ends

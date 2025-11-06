@@ -490,6 +490,12 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       distance: sessionData.distance
     });
 
+    // Block on iOS Native - feedback is handled by Swift
+    if (Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform()) {
+      console.log('⏸️ [SNAPSHOT FEEDBACK] iOS Native - feedback handled by Swift');
+      return;
+    }
+
     if (!state.isActive || isProcessingRef.current) {
       console.log('❌ [SNAPSHOT BLOCKED]', {
         reason: !state.isActive ? 'Coach not active' : 'Already processing',
