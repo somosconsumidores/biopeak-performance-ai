@@ -1208,6 +1208,50 @@ export const useRealtimeSession = () => {
     }
   }, []);
 
+  // Fallback function to generate completion audio via web
+  const generateCompletionAudioFallback = async (session: any) => {
+    try {
+      console.log('🔄 [Fallback] Generating completion audio via JS...');
+      
+      const distanceKm = (session.currentDistance / 1000).toFixed(2);
+      const durationMin = Math.floor(session.currentDuration / 60);
+      const durationSec = session.currentDuration % 60;
+      const pace = session.averagePace;
+      const paceMin = Math.floor(pace);
+      const paceSec = Math.floor((pace - paceMin) * 60);
+      
+      const motivationPhrases = [
+        "Excelente desempenho hoje! Continue assim.",
+        "Você está evoluindo rápido — orgulhe-se desse treino!",
+        "Mais um passo na jornada. Mantenha a constância!",
+        "Ótimo trabalho! A cada treino, mais forte.",
+        "Treino concluído com sucesso! Descanse bem para o próximo desafio."
+      ];
+      const motivation = motivationPhrases[Math.floor(Math.random() * motivationPhrases.length)];
+      
+      const timeText = durationSec > 0 
+        ? `${durationMin} minutos e ${durationSec} segundos`
+        : `${durationMin} minutos`;
+      
+      const message = `Parabéns! Você completou seu treino em ${timeText}, percorrendo uma distância de ${distanceKm} quilômetros em um pace de ${paceMin} minutos e ${paceSec} segundos por quilômetro. ${motivation}`;
+      
+      // Call TTS edge function
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text: message, voice: 'alloy', speed: 1.0 }
+      });
+      
+      if (error) throw error;
+      
+      // Play audio via Web Audio API
+      const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+      await audio.play();
+      
+      console.log('✅ [Fallback] Completion audio played successfully');
+    } catch (error) {
+      console.error('❌ [Fallback] Failed to play completion audio:', error);
+    }
+  };
+
   // Complete session
   const completeSession = useCallback(async (subjectiveFeedback?: any) => {
     if (!sessionData) {
@@ -1238,9 +1282,23 @@ export const useRealtimeSession = () => {
         const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
         
         // 🎉 Generate and play completion audio FIRST (while audio session is still active)
-        console.log('🎉 [Native GPS] Generating completion audio...');
-        await BioPeakLocationTracker.generateCompletionAudio();
-        console.log('✅ [Native GPS] Completion audio finished playing');
+        console.log('🎉 [Native GPS] Attempting to generate completion audio...');
+        console.log('📊 [Native GPS] Session data:', {
+          distance: sessionData.currentDistance,
+          duration: sessionData.currentDuration,
+          pace: sessionData.averagePace,
+          calories: sessionData.calories
+        });
+        
+        const completionResult = await BioPeakLocationTracker.generateCompletionAudio();
+        console.log('🎯 [Native GPS] Completion audio result:', completionResult);
+        
+        if (!completionResult.success) {
+          console.warn('⚠️ [Native GPS] Completion audio failed, using fallback:', completionResult.message);
+          await generateCompletionAudioFallback(sessionData);
+        } else {
+          console.log('✅ [Native GPS] Completion audio played successfully');
+        }
         
         // Then stop continuous Native GPS tracking
         console.log('🛑 [Native GPS] Stopping continuous tracking');
@@ -1254,12 +1312,22 @@ export const useRealtimeSession = () => {
           distanceAccumulatorRef.current = stopResult.finalDistance;
         }
         
+        // Clean up native GPS session data
+        console.log('🧹 [Native GPS] Cleaning up session data');
+        await BioPeakLocationTracker.cleanup();
+        
         // Finally stop AVAudioSession
         const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
         await BioPeakAudioSession.stopAudioSession();
         console.log('✅ AVAudioSession stopped after training ended');
       } catch (error) {
         console.error('❌ Error stopping native GPS/audio:', error);
+        // Fallback in case of any error
+        try {
+          await generateCompletionAudioFallback(sessionData);
+        } catch (fallbackError) {
+          console.error('❌ Fallback completion audio also failed:', fallbackError);
+        }
       }
     }
 

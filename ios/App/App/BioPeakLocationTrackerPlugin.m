@@ -7,4 +7,5 @@ CAP_PLUGIN(BioPeakLocationTracker, "BioPeakLocationTracker",
     CAP_PLUGIN_METHOD(resetDistance, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(configureFeedback, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(generateCompletionAudio, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(cleanup, CAPPluginReturnPromise);
 )

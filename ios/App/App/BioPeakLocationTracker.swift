@@ -57,9 +57,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             guard let self = self else { return }
             
             self.locationManager?.stopUpdatingLocation()
-            self.locationManager = nil
             self.isTracking = false
-            self.sessionStartTime = nil
+            // ⚠️ DO NOT reset sessionStartTime here - we need it for generateCompletionAudio()
             
             print("⏹️ [Native GPS] Stopped tracking - Total distance: \(self.accumulatedDistance)m")
             call.resolve([
@@ -67,6 +66,23 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 "message": "Location tracking stopped",
                 "finalDistance": self.accumulatedDistance
             ])
+        }
+    }
+    
+    @objc func cleanup(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.locationManager = nil
+            self.sessionStartTime = nil
+            self.sessionId = nil
+            self.trainingGoal = nil
+            self.accumulatedDistance = 0.0
+            self.lastLocation = nil
+            self.lastFeedbackSegment = 0
+            
+            print("🧹 [Native GPS] Cleaned up all session data")
+            call.resolve(["success": true])
         }
     }
     
@@ -349,12 +365,25 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         
         let timeText = formatDuration(seconds: timeFromStart)
         
+        var message: String
         if let pace = pace, pace > 0 && pace < 100 {
             let paceText = formatPace(minPerKm: pace)
-            return "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText) em um pace de \(paceText). Agora descanse para seu próximo treino! Até lá!"
+            message = "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText) em um pace de \(paceText). "
         } else {
-            return "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText). Agora descanse para seu próximo treino! Até lá!"
+            message = "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText). "
         }
+        
+        // Add random motivational phrase
+        let motivationPhrases = [
+            "Excelente desempenho hoje! Continue assim.",
+            "Você está evoluindo rápido — orgulhe-se desse treino!",
+            "Mais um passo na jornada. Mantenha a constância!",
+            "Ótimo trabalho! A cada treino, mais forte.",
+            "Treino concluído com sucesso! Descanse bem para o próximo desafio."
+        ]
+        message += motivationPhrases.randomElement()!
+        
+        return message
     }
     
     private func generateTTS(message: String) async throws -> String {
