@@ -245,3 +245,6 @@ verify_jwt = false
 
 [functions.calculate-overtraining-risk]
 verify_jwt = false
+
+[functions.calculate-overtraining-batch]
+verify_jwt = false

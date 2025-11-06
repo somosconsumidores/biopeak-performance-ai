@@ -2118,6 +2118,54 @@ export type Database = {
         }
         Relationships: []
       }
+      overtraining_batch_logs: {
+        Row: {
+          batch_size: number | null
+          completed_at: string | null
+          created_at: string
+          days_active_threshold: number | null
+          error_message: string | null
+          execution_time_seconds: number | null
+          failed_calculations: number | null
+          id: string
+          metadata: Json | null
+          started_at: string
+          status: string
+          successful_calculations: number | null
+          total_users_processed: number | null
+        }
+        Insert: {
+          batch_size?: number | null
+          completed_at?: string | null
+          created_at?: string
+          days_active_threshold?: number | null
+          error_message?: string | null
+          execution_time_seconds?: number | null
+          failed_calculations?: number | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          successful_calculations?: number | null
+          total_users_processed?: number | null
+        }
+        Update: {
+          batch_size?: number | null
+          completed_at?: string | null
+          created_at?: string
+          days_active_threshold?: number | null
+          error_message?: string | null
+          execution_time_seconds?: number | null
+          failed_calculations?: number | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          successful_calculations?: number | null
+          total_users_processed?: number | null
+        }
+        Relationships: []
+      }
       overtraining_scores: {
         Row: {
           activities_analyzed: number
