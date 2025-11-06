@@ -156,7 +156,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 
                 // Play completion audio
                 print("🔊 [Native GPS] Playing completion audio...")
-                await playAudio(url: audioUrl)
+                await playFeedbackAudio(audioUrl: audioUrl)
                 
                 print("✅ [Native GPS] Completion audio played successfully")
                 call.resolve(["success": true, "message": "Completion audio played"])
