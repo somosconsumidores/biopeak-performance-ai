@@ -196,9 +196,28 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         }
         
         do {
+            // Calculate time from start
+            guard let sessionStartTime = sessionStartTime else {
+                print("❌ [Native GPS] Session start time not available")
+                return
+            }
+            let timeFromStart = Int(Date().timeIntervalSince1970 - sessionStartTime)
+            
+            // Calculate current pace
+            let currentPace: Double? = {
+                guard meters > 0, timeFromStart > 0 else { return nil }
+                let distanceKm = Double(meters) / 1000.0
+                let timeMinutes = Double(timeFromStart) / 60.0
+                return timeMinutes / distanceKm
+            }()
+            
             // 1. Generate coaching message
-            let message = generateCoachingMessage(meters: meters)
+            let message = generateCoachingMessage(meters: meters, timeFromStart: timeFromStart, pace: currentPace)
             print("💬 [Native GPS] Message generated: \(message)")
+            if let pace = currentPace {
+                print("   → pace: \(String(format: "%.2f", pace)) min/km")
+            }
+            print("   → time: \(timeFromStart)s")
             
             // 2. Call Edge Function for TTS
             print("🌐 [Native GPS] Calling TTS Edge Function...")
@@ -224,8 +243,48 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         }
     }
     
-    private func generateCoachingMessage(meters: Int) -> String {
-        return "\(meters) metros completados. Continue assim!"
+    // MARK: - Message Formatting Helpers
+    
+    private func formatDuration(seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds) segundos"
+        }
+        
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        
+        if remainingSeconds == 0 {
+            return minutes == 1 ? "1 minuto" : "\(minutes) minutos"
+        } else {
+            let minText = minutes == 1 ? "minuto" : "minutos"
+            let secText = remainingSeconds == 1 ? "segundo" : "segundos"
+            return "\(minutes) \(minText) e \(remainingSeconds) \(secText)"
+        }
+    }
+    
+    private func formatPace(minPerKm: Double) -> String {
+        let totalSeconds = Int(minPerKm * 60)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        
+        if seconds == 0 {
+            return "\(minutes) minutos por quilômetro"
+        } else {
+            let minText = minutes == 1 ? "minuto" : "minutos"
+            let secText = seconds == 1 ? "segundo" : "segundos"
+            return "\(minutes) \(minText) e \(seconds) \(secText) por quilômetro"
+        }
+    }
+    
+    private func generateCoachingMessage(meters: Int, timeFromStart: Int, pace: Double?) -> String {
+        let timeText = formatDuration(seconds: timeFromStart)
+        
+        if let pace = pace, pace > 0 && pace < 100 {
+            let paceText = formatPace(minPerKm: pace)
+            return "Você completou \(meters) metros em \(timeText). Seu pace atual é \(paceText)."
+        } else {
+            return "Você completou \(meters) metros em \(timeText). Continue assim!"
+        }
     }
     
     private func generateTTS(message: String) async throws -> String {
