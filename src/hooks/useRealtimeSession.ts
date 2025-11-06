@@ -1231,12 +1231,18 @@ export const useRealtimeSession = () => {
     // Stop background audio
     backgroundAudio.stopBackgroundAudio();
     
-    // 🍎 [iOS] Stop Native GPS when session completes
+    // 🍎 [iOS] Handle Native GPS completion
     const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
     if (isIOSNative) {
       try {
-        // Stop continuous Native GPS tracking
         const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+        
+        // 🎉 Generate and play completion audio FIRST (while audio session is still active)
+        console.log('🎉 [Native GPS] Generating completion audio...');
+        await BioPeakLocationTracker.generateCompletionAudio();
+        console.log('✅ [Native GPS] Completion audio finished playing');
+        
+        // Then stop continuous Native GPS tracking
         console.log('🛑 [Native GPS] Stopping continuous tracking');
         const stopResult = await BioPeakLocationTracker.stopLocationTracking();
         console.log(`✅ [Native GPS] Stopped - Final distance: ${stopResult.finalDistance.toFixed(1)}m`);
@@ -1248,7 +1254,7 @@ export const useRealtimeSession = () => {
           distanceAccumulatorRef.current = stopResult.finalDistance;
         }
         
-        // Stop AVAudioSession
+        // Finally stop AVAudioSession
         const { BioPeakAudioSession } = await import('@/plugins/BioPeakAudioSession');
         await BioPeakAudioSession.stopAudioSession();
         console.log('✅ AVAudioSession stopped after training ended');

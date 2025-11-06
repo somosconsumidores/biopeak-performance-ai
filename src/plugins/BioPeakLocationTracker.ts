@@ -26,6 +26,7 @@ export interface BioPeakLocationTrackerPlugin {
     supabaseAnonKey?: string;
     userToken?: string;
   }): Promise<{ success: boolean }>;
+  generateCompletionAudio(): Promise<{ success: boolean; message: string }>;
   addListener(
     eventName: 'locationUpdate',
     listenerFunc: (data: LocationUpdateData) => void
@@ -43,6 +44,7 @@ const BioPeakLocationTracker = registerPlugin<BioPeakLocationTrackerPlugin>('Bio
     getAccumulatedDistance: async () => ({ distance: 0 }),
     resetDistance: async () => ({ success: false }),
     configureFeedback: async () => ({ success: false }),
+    generateCompletionAudio: async () => ({ success: false, message: 'Not supported on web' }),
     addListener: async () => ({ remove: async () => {} }),
   }),
 });

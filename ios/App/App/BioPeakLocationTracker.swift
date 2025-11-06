@@ -102,6 +102,56 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         call.resolve(["success": true])
     }
     
+    @objc func generateCompletionAudio(_ call: CAPPluginCall) {
+        Task {
+            do {
+                // Calculate final metrics
+                guard let sessionStartTime = sessionStartTime else {
+                    print("❌ [Native GPS] Session start time not available for completion audio")
+                    call.resolve(["success": false, "message": "Session start time not available"])
+                    return
+                }
+                
+                let totalDistance = Int(self.accumulatedDistance)
+                let timeFromStart = Int(Date().timeIntervalSince1970 - sessionStartTime)
+                
+                // Calculate average pace
+                let currentPace: Double? = {
+                    guard totalDistance > 0, timeFromStart > 0 else { return nil }
+                    let distanceKm = Double(totalDistance) / 1000.0
+                    let timeMinutes = Double(timeFromStart) / 60.0
+                    return timeMinutes / distanceKm
+                }()
+                
+                print("🏁 [Native GPS] Generating completion audio:")
+                print("   → distance: \(totalDistance)m")
+                print("   → time: \(timeFromStart)s")
+                if let pace = currentPace {
+                    print("   → pace: \(String(format: "%.2f", pace)) min/km")
+                }
+                
+                // Generate completion message
+                let message = generateCompletionMessage(meters: totalDistance, timeFromStart: timeFromStart, pace: currentPace)
+                print("💬 [Native GPS] Completion message: \(message)")
+                
+                // Call TTS Edge Function
+                print("🌐 [Native GPS] Calling TTS for completion audio...")
+                let audioUrl = try await generateTTS(message: message)
+                
+                // Play completion audio
+                print("🔊 [Native GPS] Playing completion audio...")
+                await playAudio(url: audioUrl)
+                
+                print("✅ [Native GPS] Completion audio played successfully")
+                call.resolve(["success": true, "message": "Completion audio played"])
+                
+            } catch {
+                print("❌ [Native GPS] Error generating completion audio: \(error)")
+                call.resolve(["success": false, "message": error.localizedDescription])
+            }
+        }
+    }
+    
     // CLLocationManagerDelegate
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
@@ -284,6 +334,26 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
             return "Você completou \(meters) metros em \(timeText). Seu pace atual é \(paceText)."
         } else {
             return "Você completou \(meters) metros em \(timeText). Continue assim!"
+        }
+    }
+    
+    private func generateCompletionMessage(meters: Int, timeFromStart: Int, pace: Double?) -> String {
+        let distanceKm = Double(meters) / 1000.0
+        let distanceText: String
+        
+        if distanceKm < 1.0 {
+            distanceText = "\(meters) metros"
+        } else {
+            distanceText = String(format: "%.2f quilômetros", distanceKm)
+        }
+        
+        let timeText = formatDuration(seconds: timeFromStart)
+        
+        if let pace = pace, pace > 0 && pace < 100 {
+            let paceText = formatPace(minPerKm: pace)
+            return "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText) em um pace de \(paceText). Agora descanse para seu próximo treino! Até lá!"
+        } else {
+            return "Parabéns! Você completou seu treino em \(timeText), percorrendo uma distância de \(distanceText). Agora descanse para seu próximo treino! Até lá!"
         }
     }
     
