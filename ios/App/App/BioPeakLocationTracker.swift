@@ -103,8 +103,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
         
-        // Validate accuracy
-        guard newLocation.horizontalAccuracy > 0 && newLocation.horizontalAccuracy < 50 else {
+        // ✅ CORREÇÃO: Filtro mais rigoroso para evitar GPS jumps
+        guard newLocation.horizontalAccuracy > 0 && newLocation.horizontalAccuracy <= 20 else {
             print("⚠️ [Native GPS] Low accuracy: \(newLocation.horizontalAccuracy)m")
             return
         }
@@ -112,8 +112,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         if let lastLoc = lastLocation {
             let distance = newLocation.distance(from: lastLoc)
             
-            // Relaxed filter: accept 0.3m-80m movements with good accuracy
-            if distance > 0.3 && distance < 80 && newLocation.horizontalAccuracy <= 25 {
+            // ✅ CORREÇÃO: Filtro endurecido (3m - 20m) com accuracy <= 15m
+            if distance >= 3.0 && distance < 20 && newLocation.horizontalAccuracy <= 15 {
                 accumulatedDistance += distance
                 
                 print("📍 [Native GPS] +\(String(format: "%.1f", distance))m → Total: \(String(format: "%.1f", accumulatedDistance))m (accuracy: \(String(format: "%.1f", newLocation.horizontalAccuracy))m)")

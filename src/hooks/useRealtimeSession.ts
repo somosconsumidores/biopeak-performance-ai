@@ -68,6 +68,7 @@ export const useRealtimeSession = () => {
   const nativeGPSListenerRef = useRef<any>(null);
   const baseDistanceBeforeBackgroundRef = useRef(0);
   const backgroundCoachRef = useRef<any>(null); // Stable ref to avoid stale closures
+  const speedFallbackCooldownRef = useRef<number>(0); // ✅ NOVO: Cooldown para speed-based fallback
 
   // Wake lock for keeping screen active
   const { isActive: isWakeLockActive } = useWakeLock({ 
@@ -460,16 +461,28 @@ export const useRealtimeSession = () => {
               console.log(`❌ Movement too small: ${distance.toFixed(1)}m (threshold: ${threshold.toFixed(1)}m)`);
             }
             
-            // Backup: Use GPS speed if available and no significant distance
-            if (distance <= threshold && newLocation.speed && newLocation.speed > 0.5) {
+            // ✅ CORREÇÃO: Backup speed-based com proteções anti-backfill
+            const allowSpeedFallback = Date.now() > speedFallbackCooldownRef.current;
+            
+            if (allowSpeedFallback && distance <= threshold && newLocation.speed && newLocation.speed > 0.5) {
               const timeElapsed = (Date.now() - lastLocationTimestampRef.current) / 1000;
-              if (timeElapsed > 0) {
-                const speedDistance = newLocation.speed * timeElapsed;
-                if (speedDistance > 1) {
+              
+              // ✅ PROTEÇÃO: Limitar timeElapsed a max 5s para evitar backfills absurdos
+              const safeTimeElapsed = Math.min(timeElapsed, 5);
+              
+              if (safeTimeElapsed > 0) {
+                const speedDistance = newLocation.speed * safeTimeElapsed;
+                
+                // ✅ NOVO: Cap máximo de 20m por tick para evitar saltos
+                if (speedDistance > 1 && speedDistance < 20) {
                   distanceAccumulatorRef.current += speedDistance;
-                  console.log(`🚀 Speed-based distance: +${speedDistance.toFixed(1)}m from ${newLocation.speed.toFixed(1)}m/s over ${timeElapsed.toFixed(1)}s`);
+                  console.log(`🚀 Speed-based distance: +${speedDistance.toFixed(1)}m from ${newLocation.speed.toFixed(1)}m/s over ${safeTimeElapsed.toFixed(1)}s`);
+                } else {
+                  console.log(`⚠️ Speed-based distance rejected: ${speedDistance.toFixed(1)}m (out of safe range 1-20m)`);
                 }
               }
+            } else if (!allowSpeedFallback) {
+              console.log(`⏸️ Speed-based fallback in cooldown (${((speedFallbackCooldownRef.current - Date.now()) / 1000).toFixed(1)}s remaining)`);
             }
           }
 
@@ -552,10 +565,21 @@ export const useRealtimeSession = () => {
       const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
       const { distance: nativeDistance } = await BioPeakLocationTracker.getAccumulatedDistance();
       
-      // Update distance accumulator with native GPS data
+      // ✅ CORREÇÃO CRÍTICA 1: Atualizar distância
       distanceAccumulatorRef.current = nativeDistance;
       
+      // ✅ CORREÇÃO CRÍTICA 2: Resetar timestamp para NOW (previne backfill fatal)
+      lastLocationTimestampRef.current = Date.now();
+      
+      // ✅ CORREÇÃO CRÍTICA 3: Zerar micro-acumulador
+      microDistanceAccumulatorRef.current = 0;
+      
+      // ✅ CORREÇÃO CRÍTICA 4: Ativar cooldown de 10s no speed-based fallback
+      speedFallbackCooldownRef.current = Date.now() + 10000; // 10 segundos
+      
       console.log(`✅ [GPS HYBRID] Distance synced: ${nativeDistance.toFixed(1)}m`);
+      console.log(`✅ [GPS HYBRID] Timestamp reset to prevent backfill`);
+      console.log(`✅ [GPS HYBRID] Speed-based fallback cooldown activated (10s)`);
       console.log('📍 [Native GPS] Continues running in background');
       
       // ✅ Deactivate Native GPS mode - re-enables WebView GPS/Coach/Snapshots
@@ -1101,6 +1125,53 @@ export const useRealtimeSession = () => {
       console.error('Error resuming session:', error);
     }
   }, [sessionData, calculateCalories]);
+
+  // ✅ NOVO: Listener em tempo real para eventos do Native GPS
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+    
+    let listener: any;
+    
+    const setupListener = async () => {
+      try {
+        const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
+        
+        listener = await BioPeakLocationTracker.addListener('locationUpdate', (data) => {
+          if (isNativeGPSActive) {
+            console.log(`📍 [Native GPS Event] Distance: ${data.totalDistance.toFixed(1)}m, Delta: ${data.distance.toFixed(1)}m`);
+            
+            // ✅ Atualizar refs em tempo real
+            distanceAccumulatorRef.current = data.totalDistance;
+            lastLocationTimestampRef.current = Date.now(); // ✅ Manter timestamp atualizado
+            
+            // ✅ Atualizar lastLocationRef para ter coordenadas atuais
+            lastLocationRef.current = {
+              latitude: data.latitude,
+              longitude: data.longitude,
+              accuracy: data.accuracy,
+              altitude: data.altitude,
+              speed: data.speed,
+            };
+            
+            gpsCoordinatesRef.current.push([data.latitude, data.longitude]);
+          }
+        });
+        
+        console.log('✅ [GPS HYBRID] Native GPS listener configured for real-time sync');
+      } catch (error) {
+        console.error('❌ [GPS HYBRID] Failed to setup native GPS listener:', error);
+      }
+    };
+    
+    setupListener();
+    
+    return () => {
+      if (listener) {
+        listener.remove();
+        console.log('🧹 [GPS HYBRID] Native GPS listener removed');
+      }
+    };
+  }, [isNativeGPSActive]);
 
   // Check if goal was achieved
   const checkGoalAchievement = useCallback((session: SessionData): boolean => {
