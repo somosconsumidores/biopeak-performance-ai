@@ -39,7 +39,8 @@ import {
   AlertCircle,
   Settings,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 
 const TrainingSession: React.FC = () => {
@@ -95,6 +96,7 @@ const TrainingSession: React.FC = () => {
   const [showGPSDialog, setShowGPSDialog] = useState(false);
   const [showFreeTraining, setShowFreeTraining] = useState(false);
   const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null);
+  const [isFinalizingSession, setIsFinalizingSession] = useState(false);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -282,6 +284,11 @@ const TrainingSession: React.FC = () => {
 
   // Handle session completion
   const handleCompleteSession = async () => {
+    // Prevent multiple clicks
+    if (isFinalizingSession) return;
+    
+    setIsFinalizingSession(true);
+    
     console.log('🔴 [COMPLETION] User clicked Finalizar button');
     console.log('🔴 [COMPLETION] Current session data:', {
       sessionId: sessionData?.sessionId,
@@ -322,6 +329,8 @@ const TrainingSession: React.FC = () => {
       console.error('❌ [COMPLETION] Error instanceof Error:', error instanceof Error);
       console.error('❌ [COMPLETION] Error message:', error instanceof Error ? error.message : 'Unknown');
       console.error('❌ [COMPLETION] Error stack:', error instanceof Error ? error.stack : 'No stack');
+      
+      setIsFinalizingSession(false); // Reset on error
       
       toast({
         title: "Erro ao finalizar treino",
@@ -709,7 +718,11 @@ const TrainingSession: React.FC = () => {
                     Finalizar
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent 
+                  onInteractOutside={(e) => {
+                    if (isFinalizingSession) e.preventDefault();
+                  }}
+                >
                   <DialogHeader>
                     <DialogTitle>Como você se sentiu neste treino?</DialogTitle>
                   </DialogHeader>
@@ -721,13 +734,25 @@ const TrainingSession: React.FC = () => {
                           variant={subjectiveFeedback === rating ? "default" : "outline"}
                           onClick={() => setSubjectiveFeedback(rating)}
                           className="text-2xl"
+                          disabled={isFinalizingSession}
                         >
                           {rating === 1 ? '😫' : rating === 2 ? '😐' : rating === 3 ? '🙂' : rating === 4 ? '😊' : '🤩'}
                         </Button>
                       ))}
                     </div>
-                    <Button onClick={handleCompleteSession} className="w-full">
-                      Finalizar Treino
+                    <Button 
+                      onClick={handleCompleteSession} 
+                      className="w-full"
+                      disabled={isFinalizingSession}
+                    >
+                      {isFinalizingSession ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Finalizando treino...
+                        </>
+                      ) : (
+                        'Finalizar Treino'
+                      )}
                     </Button>
                   </div>
                 </DialogContent>
