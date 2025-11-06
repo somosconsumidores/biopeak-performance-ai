@@ -3,9 +3,10 @@ import Capacitor
 import AVFoundation
 
 @objc(BioPeakAudioSession)
-public class BioPeakAudioSession: CAPPlugin {
+public class BioPeakAudioSession: CAPPlugin, AVAudioPlayerDelegate {
     var silentPlayer: AVAudioPlayer?
     var feedbackPlayer: AVAudioPlayer?
+    var currentAudioId: String?
     
     @objc func startAudioSession(_ call: CAPPluginCall) {
         do {
@@ -313,11 +314,13 @@ public class BioPeakAudioSession: CAPPlugin {
             return
         }
         
+        let audioId = notification.userInfo?["audioId"] as? String
+        
         print("🔔 [BioPeakAudioSession] Recebeu notificação para tocar feedback nativo")
-        playAudioFromDataURL(audioUrl)
+        playAudioFromDataURL(audioUrl, audioId: audioId)
     }
     
-    private func playAudioFromDataURL(_ urlString: String) {
+    private func playAudioFromDataURL(_ urlString: String, audioId: String?) {
         guard urlString.hasPrefix("data:audio/mpeg;base64,") || urlString.hasPrefix("data:audio/mp3;base64,") else {
             print("❌ [BioPeakAudioSession] URL inválida: esperado Data URL")
             return
@@ -342,6 +345,11 @@ public class BioPeakAudioSession: CAPPlugin {
                 return
             }
             
+            // Store the audio ID for this playback
+            currentAudioId = audioId
+            
+            // Set delegate to get notified when playback finishes
+            player.delegate = self
             player.volume = 0.8
             player.prepareToPlay()
             
@@ -349,12 +357,48 @@ public class BioPeakAudioSession: CAPPlugin {
             
             if playSuccess {
                 print("✅ [BioPeakAudioSession] Feedback nativo tocando, duração:", player.duration, "segundos")
+                if let id = audioId {
+                    print("   → audioId: \(id)")
+                }
             } else {
                 print("❌ [BioPeakAudioSession] player.play() retornou false")
             }
         } catch {
             print("❌ [BioPeakAudioSession] Erro ao reproduzir:", error.localizedDescription)
         }
+    }
+    
+    // MARK: - AVAudioPlayerDelegate
+    
+    public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        print("🎵 [BioPeakAudioSession] Audio playback finished successfully: \(flag)")
+        
+        // Post notification that audio finished
+        if let audioId = currentAudioId {
+            print("📢 [BioPeakAudioSession] Posting BioPeakFeedbackFinished with ID: \(audioId)")
+            NotificationCenter.default.post(
+                name: NSNotification.Name("BioPeakFeedbackFinished"),
+                object: nil,
+                userInfo: ["audioId": audioId, "success": flag]
+            )
+        }
+        
+        currentAudioId = nil
+    }
+    
+    public func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        print("❌ [BioPeakAudioSession] Audio decode error: \(error?.localizedDescription ?? "unknown")")
+        
+        // Post notification that audio failed
+        if let audioId = currentAudioId {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("BioPeakFeedbackFinished"),
+                object: nil,
+                userInfo: ["audioId": audioId, "success": false, "error": error?.localizedDescription ?? "decode error"]
+            )
+        }
+        
+        currentAudioId = nil
     }
     
     deinit {

@@ -154,11 +154,11 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 print("🌐 [Native GPS] Calling TTS for completion audio...")
                 let audioUrl = try await generateTTS(message: message)
                 
-                // Play completion audio
+                // Play completion audio and wait for it to finish
                 print("🔊 [Native GPS] Playing completion audio...")
-                await playFeedbackAudio(audioUrl: audioUrl)
+                await playFeedbackAudioAndWait(audioUrl: audioUrl)
                 
-                print("✅ [Native GPS] Completion audio played successfully")
+                print("✅ [Native GPS] Completion audio finished playing")
                 call.resolve(["success": true, "message": "Completion audio played"])
                 
             } catch {
@@ -455,6 +455,61 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 userInfo: ["audioUrl": audioUrl]
             )
             print("✅ [Native GPS] Notification posted to NotificationCenter")
+        }
+    }
+    
+    private func playFeedbackAudioAndWait(audioUrl: String) async {
+        await withCheckedContinuation { continuation in
+            let audioId = UUID().uuidString
+            
+            print("🔊 [Native GPS] Playing audio with ID: \(audioId)")
+            print("   → Audio URL length: \(audioUrl.count) chars")
+            
+            // Register observer for completion
+            var observer: NSObjectProtocol?
+            observer = NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("BioPeakFeedbackFinished"),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let receivedId = notification.userInfo?["audioId"] as? String,
+                      receivedId == audioId else {
+                    return
+                }
+                
+                let success = notification.userInfo?["success"] as? Bool ?? false
+                print("✅ [Native GPS] Audio playback finished (ID: \(audioId), success: \(success))")
+                
+                // Remove observer
+                if let obs = observer {
+                    NotificationCenter.default.removeObserver(obs)
+                }
+                
+                // Resume continuation
+                continuation.resume()
+            }
+            
+            // Send notification to play audio
+            DispatchQueue.main.async {
+                print("📢 [Native GPS] Sending BioPeakPlayFeedback notification with ID: \(audioId)")
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("BioPeakPlayFeedback"),
+                    object: nil,
+                    userInfo: [
+                        "audioUrl": audioUrl,
+                        "audioId": audioId
+                    ]
+                )
+            }
+            
+            // Add timeout safety (20 seconds)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
+                if let obs = observer {
+                    print("⏱️ [Native GPS] Audio playback timeout (ID: \(audioId)) - continuing anyway")
+                    NotificationCenter.default.removeObserver(obs)
+                    continuation.resume()
+                }
+            }
         }
     }
     
