@@ -51,21 +51,134 @@ function uniqueSorted(nums: number[]) {
   return Array.from(new Set(nums.filter((n) => n >= 0 && n <= 6))).sort((a, b) => a - b);
 }
 
-// ---------------- SAFETY CALIBRATOR ----------------
-class SafetyCalibrator {
+// ---------------- ATHLETE CAPACITY ANALYZER ----------------
+class AthleteCapacityAnalyzer {
   runs: any[];
+  bestSegments: any[];
   profile: any;
-  avgWeeklyKm: number;
-  longestRunLast8W: number;
   
-  constructor(runs: any[], profile: any) {
+  bestPerformances: {
+    pace_5k: number | null;
+    pace_10k: number | null;
+    pace_21k: number | null;
+    pace_42k: number | null;
+  };
+  
+  bestSegmentPace: number | null;
+  trainingVolume: {
+    avgWeeklyKm: number;
+    longestRunLast8W: number;
+  };
+  
+  vo2maxBest: number | null;
+  
+  constructor(runs: any[], bestSegments: any[], profile: any) {
     this.runs = runs || [];
+    this.bestSegments = bestSegments || [];
     this.profile = profile;
-    this.avgWeeklyKm = 0;
-    this.longestRunLast8W = 0;
-    this.calculateHistoricalMetrics();
+    
+    this.bestPerformances = {
+      pace_5k: null,
+      pace_10k: null,
+      pace_21k: null,
+      pace_42k: null
+    };
+    
+    this.bestSegmentPace = null;
+    this.trainingVolume = {
+      avgWeeklyKm: 0,
+      longestRunLast8W: 0
+    };
+    
+    this.vo2maxBest = null;
+    
+    this.analyze();
   }
-
+  
+  analyze() {
+    this.analyzeBestPerformances();
+    this.analyzeBestSegments();
+    this.analyzeTrainingVolume();
+    this.analyzeVO2Max();
+  }
+  
+  analyzeBestPerformances() {
+    const validRuns = this.getValidRunData();
+    
+    const distanceRanges = [
+      { key: 'pace_5k', min: 4500, max: 5500 },
+      { key: 'pace_10k', min: 9000, max: 11000 },
+      { key: 'pace_21k', min: 20000, max: 22000 },
+      { key: 'pace_42k', min: 41000, max: 43000 }
+    ];
+    
+    for (const range of distanceRanges) {
+      const runsInRange = validRuns.filter((r: any) => {
+        const dist = Number(r.total_distance_meters || 0);
+        return dist >= range.min && dist <= range.max;
+      });
+      
+      if (runsInRange.length > 0) {
+        const bestPace = Math.min(...runsInRange.map((r: any) => Number(r.pace_min_per_km)));
+        this.bestPerformances[range.key as keyof typeof this.bestPerformances] = bestPace;
+      }
+    }
+    
+    console.log('[AthleteCapacityAnalyzer] Best performances:', this.bestPerformances);
+  }
+  
+  analyzeBestSegments() {
+    if (this.bestSegments.length > 0) {
+      const topSegments = this.bestSegments
+        .map((s: any) => Number(s.best_1km_pace_min_km))
+        .filter((p: number) => p > 3 && p < 10)
+        .sort((a: number, b: number) => a - b)
+        .slice(0, 3);
+      
+      if (topSegments.length > 0) {
+        this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
+      }
+    }
+    
+    console.log('[AthleteCapacityAnalyzer] Best segment pace (avg top 3):', this.bestSegmentPace);
+  }
+  
+  analyzeTrainingVolume() {
+    const valid = this.getValidRunData();
+    
+    if (valid.length === 0) {
+      this.trainingVolume = { avgWeeklyKm: 25, longestRunLast8W: 12 };
+      return;
+    }
+    
+    const totalKm = valid.reduce((sum: number, r: any) => 
+      sum + (Number(r.total_distance_meters || 0) / 1000), 0
+    );
+    const weeksInData = 12;
+    this.trainingVolume.avgWeeklyKm = Math.max(20, totalKm / weeksInData);
+    
+    const now = new Date();
+    const eightWeeksAgo = new Date(now.getTime() - 56 * 24 * 3600 * 1000);
+    const recentRuns = valid.filter((r: any) => new Date(r.activity_date) >= eightWeeksAgo);
+    const distances = recentRuns.map((r: any) => Number(r.total_distance_meters || 0) / 1000);
+    this.trainingVolume.longestRunLast8W = distances.length > 0 ? Math.max(...distances, 10) : 10;
+    
+    console.log('[AthleteCapacityAnalyzer] Training volume:', this.trainingVolume);
+  }
+  
+  analyzeVO2Max() {
+    const validRuns = this.getValidRunData();
+    const vo2maxValues = validRuns
+      .map((r: any) => Number(r.vo2_max_daniels))
+      .filter((v: number) => v > 0);
+    
+    if (vo2maxValues.length > 0) {
+      this.vo2maxBest = Math.max(...vo2maxValues);
+    }
+    
+    console.log('[AthleteCapacityAnalyzer] Best VO2max:', this.vo2maxBest);
+  }
+  
   getValidRunData() {
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
@@ -82,103 +195,81 @@ class SafetyCalibrator {
       );
     });
   }
-
-  calculateHistoricalMetrics() {
-    const valid = this.getValidRunData();
-    if (!valid.length) {
-      this.avgWeeklyKm = 25;
-      this.longestRunLast8W = 12;
-      return;
+  
+  getSafeTargetPaces(goalType?: string) {
+    const goal = normalizeGoal(goalType || '');
+    
+    let currentCapacityPace: number;
+    
+    if (goal === '5k' && this.bestPerformances.pace_5k) {
+      currentCapacityPace = this.bestPerformances.pace_5k;
+      console.log('[AthleteCapacityAnalyzer] Using best 5k pace:', currentCapacityPace);
+    } else if (goal === '10k' && this.bestPerformances.pace_10k) {
+      currentCapacityPace = this.bestPerformances.pace_10k;
+      console.log('[AthleteCapacityAnalyzer] Using best 10k pace:', currentCapacityPace);
+    } else if (goal === '21k' && this.bestPerformances.pace_21k) {
+      currentCapacityPace = this.bestPerformances.pace_21k;
+      console.log('[AthleteCapacityAnalyzer] Using best 21k pace:', currentCapacityPace);
+    } else if (goal === '42k' && this.bestPerformances.pace_42k) {
+      currentCapacityPace = this.bestPerformances.pace_42k;
+      console.log('[AthleteCapacityAnalyzer] Using best 42k pace:', currentCapacityPace);
+    } else if (this.bestSegmentPace) {
+      const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
+      const segmentTimeMin = this.bestSegmentPace * 1;
+      
+      if (goal === '5k') {
+        currentCapacityPace = riegel(segmentTimeMin, 1, 5) / 5;
+      } else if (goal === '10k') {
+        currentCapacityPace = riegel(segmentTimeMin, 1, 10) / 10;
+      } else if (goal === '21k') {
+        currentCapacityPace = riegel(segmentTimeMin, 1, 21.097) / 21.097;
+      } else if (goal === '42k') {
+        currentCapacityPace = riegel(segmentTimeMin, 1, 42.195) / 42.195;
+      } else {
+        currentCapacityPace = riegel(segmentTimeMin, 1, 10) / 10;
+      }
+      
+      console.log('[AthleteCapacityAnalyzer] Estimated from best segment:', currentCapacityPace);
+    } else {
+      currentCapacityPace = this.getDefaultPace(goalType);
+      console.log('[AthleteCapacityAnalyzer] Using default pace:', currentCapacityPace);
     }
-
-    // Calculate average weekly km from last 90 days
-    const totalKm = valid.reduce((sum: number, r: any) => 
-      sum + (Number(r.total_distance_meters || 0) / 1000), 0
-    );
-    const weeksInData = Math.max(1, valid.length > 0 ? 12 : 1);
-    this.avgWeeklyKm = Math.max(20, totalKm / weeksInData);
-
-    // Find longest run in last 8 weeks
-    const now = new Date();
-    const eightWeeksAgo = new Date(now.getTime() - 56 * 24 * 3600 * 1000);
-    const recentRuns = valid.filter((r: any) => new Date(r.activity_date) >= eightWeeksAgo);
-    const distances = recentRuns.map((r: any) => Number(r.total_distance_meters || 0) / 1000);
-    this.longestRunLast8W = distances.length > 0 ? Math.max(...distances, 10) : 10;
-
-    console.log('[SafetyCalibrator]', { 
-      avgWeeklyKm: this.avgWeeklyKm.toFixed(1), 
-      longestRunLast8W: this.longestRunLast8W.toFixed(1) 
-    });
-  }
-
-  calculateBaselines(goalRaw?: string) {
-    const valid = this.getValidRunData();
-    if (!valid.length) return this.getDefaults(goalRaw);
-
-    const paces = valid.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
-    const best = paces[0];
-    const median = paces[Math.floor(paces.length / 2)];
-    const p75 = paces[Math.floor(paces.length * 0.75)];
-
-    const base5kMin = median * 5;
-    const riegel = (t1: number, d1: number, d2: number) => t1 * Math.pow(d2 / d1, 1.06);
-
-    const pace_10k = riegel(base5kMin, 5, 10) / 10;
-    const pace_half = riegel(base5kMin, 5, 21.097) / 21.097;
-    const pace_marathon = riegel(base5kMin, 5, 42.195) / 42.195;
-
+    
     return {
-      pace_best: best,
-      pace_median: median,
-      pace_p75: p75,
-      pace_5k: median,
-      pace_10k,
-      pace_half,
-      pace_marathon,
-      // training zones - more physiologically coherent
-      pace_easy: pace_marathon + 0.75,
-      pace_long: pace_marathon + 0.45,
-      pace_tempo: pace_half - 0.12,
-      pace_interval_400m: best - 0.15,
-      pace_interval_800m: best,
-      pace_interval_1km: pace_10k - 0.08,
+      pace_5k: this.bestPerformances.pace_5k || currentCapacityPace * 0.95,
+      pace_10k: this.bestPerformances.pace_10k || currentCapacityPace,
+      pace_half: this.bestPerformances.pace_21k || currentCapacityPace * 1.08,
+      pace_marathon: this.bestPerformances.pace_42k || currentCapacityPace * 1.15,
+      
+      pace_easy: currentCapacityPace + 1.0,
+      pace_long: currentCapacityPace + 0.7,
+      pace_tempo: currentCapacityPace + 0.2,
+      pace_interval_1km: this.bestSegmentPace || (currentCapacityPace - 0.3),
+      pace_interval_800m: (this.bestSegmentPace || currentCapacityPace) - 0.4,
+      pace_interval_400m: (this.bestSegmentPace || currentCapacityPace) - 0.6,
+      
+      pace_best: this.bestSegmentPace || currentCapacityPace - 0.3,
+      pace_median: currentCapacityPace,
+      pace_p75: currentCapacityPace + 0.5,
     };
   }
-
-  getDefaults(goalRaw?: string) {
+  
+  getDefaultPace(goalRaw?: string) {
     const age = this.profile?.birth_date
       ? Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
       : 35;
-    // Ajuste do fallback baseado no objetivo
+    
     const base = goalRaw === 'melhorar_tempos' ? 5.0 :
                  age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
-    return {
-      pace_best: base,
-      pace_median: base,
-      pace_p75: base + 0.5,
-      pace_5k: base,
-      pace_10k: base * 1.08,
-      pace_half: base * 1.15,
-      pace_marathon: base * 1.25,
-      pace_easy: base * 1.25 + 0.75,
-      pace_long: base * 1.25 + 0.45,
-      pace_tempo: base * 1.15 - 0.12,
-      pace_interval_400m: base * 0.9,
-      pace_interval_800m: base * 0.95,
-      pace_interval_1km: base * 1.08 - 0.08,
-    };
+    return base;
   }
-
-  getSafeTargetPaces(goalRaw?: string) {
-    return this.calculateBaselines(goalRaw);
-  }
-
+  
   getMaxWeeklyKm(): number {
-    return Math.min(70, this.avgWeeklyKm * 1.15);
+    return Math.min(70, this.trainingVolume.avgWeeklyKm * 1.15);
   }
-
+  
   getMaxLongRunKm(): number {
-    return Math.min(32, Math.max(20, this.longestRunLast8W * 1.2));
+    return Math.min(32, Math.max(20, this.trainingVolume.longestRunLast8W * 1.2));
   }
 }
 
@@ -188,7 +279,10 @@ type GoalType =
   | '5k' | '10k' | '21k' | '42k'
   | 'condicionamento' | 'perda_de_peso' | 'manutencao' | 'retorno' | 'melhorar_tempos';
 
-type Paces = ReturnType<SafetyCalibrator['getSafeTargetPaces']>;
+type Paces = ReturnType<AthleteCapacityAnalyzer['getSafeTargetPaces']> & { 
+  target_pace?: number; 
+  improvement_percent?: number;
+};
 
 // Deriva zonas de treino a partir dos paces declarados pelo atleta
 function deriveTrainingZonesFromDeclaredPaces(
@@ -311,7 +405,7 @@ function generatePlan(
   weeks: number, 
   targetPaces: Paces, 
   prefs: any, 
-  calibrator: SafetyCalibrator
+  calibrator: AthleteCapacityAnalyzer
 ) {
   const goal = normalizeGoal(goalRaw);
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
@@ -380,7 +474,7 @@ function generateLongRun(
   phase: string, 
   vol: number, 
   p: Paces,
-  calibrator: SafetyCalibrator,
+  calibrator: AthleteCapacityAnalyzer,
   longRunTracker: { count30Plus: number; lastWeek30Plus: number }
 ) {
   const maxLongRun = calibrator.getMaxLongRunKm();
@@ -455,14 +549,14 @@ function generateLongRun(
 function generateSession(
   goal: GoalType, 
   week: number,
-  dow: number, // dia da semana (0-6)
+  dow: number,
   phase: string, 
   vol: number, 
   p: Paces,
   isCutbackWeek: boolean,
   totalSessions: number,
   weeklyQualityCount: number,
-  calibrator: SafetyCalibrator
+  calibrator: AthleteCapacityAnalyzer
 ) {
   // Defaults: easy session
   let type = 'easy';
@@ -897,13 +991,25 @@ serve(async (req) => {
 
     const { data: activities } = await supabase
       .from('all_activities')
-      .select('activity_date,total_distance_meters,total_time_minutes,pace_min_per_km,average_heart_rate,max_heart_rate,activity_type')
+      .select('activity_date,total_distance_meters,total_time_minutes,pace_min_per_km,average_heart_rate,max_heart_rate,activity_type,vo2_max_daniels')
       .eq('user_id', user.id)
       .gte('activity_date', sinceStr)
       .order('activity_date', { ascending: false });
 
+    const { data: bestSegments } = await supabase
+      .from('activity_best_segments')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('best_1km_pace_min_km', { ascending: true })
+      .limit(10);
+
+    console.info('[generate-training-plan] Fetched:', {
+      activities: activities?.length || 0,
+      bestSegments: bestSegments?.length || 0
+    });
+
     const runs = (activities || []).filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'));
-    const safetyCalibrator = new SafetyCalibrator(runs, profile);
+    const athleteAnalyzer = new AthleteCapacityAnalyzer(runs, bestSegments || [], profile);
     
     // Suporte a paces declarados pelo usuário
     const inputPaces = body?.declared_paces;
@@ -911,44 +1017,49 @@ serve(async (req) => {
     
     // PRIORIDADE 1: Meta de tempo definida pelo usuário no Step 13
     if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
-      console.info('[generate-training-plan] Using user-defined goal time:', plan.goal_target_time_minutes);
-      
       const goalMinutes = plan.goal_target_time_minutes;
-      let targetPaceMinPerKm: number;
-      
       const g = normalizeGoal(plan.goal_type);
-      if (g === '5k') {
-        targetPaceMinPerKm = goalMinutes / 5;
-      } else if (g === '10k') {
-        targetPaceMinPerKm = goalMinutes / 10;
-      } else if (g === '21k') {
-        targetPaceMinPerKm = goalMinutes / 21.097;
-      } else if (g === '42k') {
-        targetPaceMinPerKm = goalMinutes / 42.195;
-      } else {
-        targetPaceMinPerKm = safetyCalibrator.getSafeTargetPaces(plan.goal_type).pace_median;
-      }
       
-      const declaredPaces: any = {};
-      if (g === '5k') declaredPaces.pace_5k = targetPaceMinPerKm;
-      else if (g === '10k') declaredPaces.pace_10k = targetPaceMinPerKm;
-      else if (g === '21k') declaredPaces.pace_half = targetPaceMinPerKm;
-      else if (g === '42k') declaredPaces.pace_marathon = targetPaceMinPerKm;
-  
-  safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(declaredPaces, plan.goal_type);
-  
+      // Obter capacidade ATUAL do atleta
+      const currentCapacityPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type);
+      
+      // Calcular pace ALVO da meta
+      let targetPaceMinPerKm: number;
+      if (g === '5k') targetPaceMinPerKm = goalMinutes / 5;
+      else if (g === '10k') targetPaceMinPerKm = goalMinutes / 10;
+      else if (g === '21k') targetPaceMinPerKm = goalMinutes / 21.097;
+      else if (g === '42k') targetPaceMinPerKm = goalMinutes / 42.195;
+      else targetPaceMinPerKm = currentCapacityPaces.pace_median;
+      
+      // Calcular % de melhoria necessária
+      const currentPace = (currentCapacityPaces as any)[`pace_${g}`] || currentCapacityPaces.pace_median;
+      const improvementPercent = ((currentPace - targetPaceMinPerKm) / currentPace) * 100;
+      
+      console.info('[generate-training-plan] Goal analysis:', {
+        currentPace: currentPace.toFixed(2),
+        targetPace: targetPaceMinPerKm.toFixed(2),
+        improvementNeeded: improvementPercent.toFixed(1) + '%',
+        weeks: weeks
+      });
+      
+      // Usar capacidade ATUAL como base para treinos
+      safeTargetPaces = {
+        ...currentCapacityPaces,
+        target_pace: targetPaceMinPerKm,
+        improvement_percent: improvementPercent
+      };
+      
     } else if (inputPaces && (inputPaces.pace_5k || inputPaces.pace_10k || inputPaces.pace_half || inputPaces.pace_marathon)) {
-      // PRIORIDADE 2: Paces declarados explicitamente
       console.info('[generate-training-plan] Using declared paces from user input', inputPaces);
       safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(inputPaces, plan.goal_type);
+      
     } else {
-      // FALLBACK: Calibração automática baseada em histórico
-      console.info('[generate-training-plan] Using auto-calibrated paces from activity history');
-      safeTargetPaces = safetyCalibrator.getSafeTargetPaces(plan.goal_type);
+      console.info('[generate-training-plan] Using athlete current capacity');
+      safeTargetPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type);
     }
 
     const weeks = Math.max(1, Math.floor(plan.weeks || 4));
-    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, safetyCalibrator);
+    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer);
 
     const startDateIso = prefs?.start_date || plan?.start_date;
     if (!startDateIso) throw new Error('Missing start_date to schedule workouts');
