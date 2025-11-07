@@ -6,6 +6,92 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ---------------- TypeScript Types ----------------
+interface Activity {
+  activity_date: string;
+  total_distance_meters: number;
+  total_time_minutes: number;
+  pace_min_per_km: number;
+  average_heart_rate?: number;
+  max_heart_rate?: number;
+  activity_type: string;
+  vo2_max_daniels?: number;
+}
+
+interface Profile {
+  display_name?: string;
+  birth_date?: string;
+  weight_kg?: number;
+  height_cm?: number;
+  gender?: string;
+}
+
+interface BestSegment {
+  best_1km_pace_min_km: number;
+  activity_date?: string;
+  [key: string]: unknown;
+}
+
+interface TrainingVolume {
+  avgWeeklyKm: number;
+  longestRunLast8W: number;
+}
+
+interface BestPerformances {
+  pace_5k: number | null;
+  pace_10k: number | null;
+  pace_21k: number | null;
+  pace_42k: number | null;
+}
+
+interface LongRunTracker {
+  count30Plus: number;
+  lastWeek30Plus: number;
+}
+
+interface WorkoutSession {
+  type: string;
+  title: string;
+  description: string;
+  distance_km: number | null;
+  duration_min: number | null;
+  target_hr_zone: number;
+  target_pace_min_per_km: number;
+  intensity: string;
+  week?: number;
+  weekday?: string;
+  is_cutback_week?: boolean;
+  week_load_factor?: number;
+}
+
+interface PlanPreferences {
+  days_per_week?: number;
+  days_of_week?: (string | number)[];
+  long_run_weekday?: string | number;
+  start_date?: string;
+}
+
+interface DeclaredPaces {
+  pace_5k?: number;
+  pace_10k?: number;
+  pace_half?: number;
+  pace_marathon?: number;
+}
+
+interface WorkoutRow {
+  user_id: string;
+  plan_id: string;
+  workout_date: string;
+  title: string;
+  description: string | null;
+  workout_type: string | null;
+  target_pace_min_km: number;
+  target_hr_zone: string | null;
+  distance_meters: number | null;
+  duration_minutes: number | null;
+  status: 'planned';
+}
+
 // ---------------- Utilities ----------------
 const dayToIndex: Record<string, number> = {
   sunday: 0,
@@ -53,26 +139,17 @@ function uniqueSorted(nums: number[]) {
 
 // ---------------- ATHLETE CAPACITY ANALYZER ----------------
 class AthleteCapacityAnalyzer {
-  runs: any[];
-  bestSegments: any[];
-  profile: any;
+  runs: Activity[];
+  bestSegments: BestSegment[];
+  profile: Profile | null;
   
-  bestPerformances: {
-    pace_5k: number | null;
-    pace_10k: number | null;
-    pace_21k: number | null;
-    pace_42k: number | null;
-  };
-  
+  bestPerformances: BestPerformances;
   bestSegmentPace: number | null;
-  trainingVolume: {
-    avgWeeklyKm: number;
-    longestRunLast8W: number;
-  };
-  
+  trainingVolume: TrainingVolume;
   vo2maxBest: number | null;
+  validRuns?: Activity[];
   
-  constructor(runs: any[], bestSegments: any[], profile: any) {
+  constructor(runs: Activity[], bestSegments: BestSegment[], profile: Profile | null) {
     this.runs = runs || [];
     this.bestSegments = bestSegments || [];
     this.profile = profile;
@@ -106,13 +183,13 @@ class AthleteCapacityAnalyzer {
     const validRuns = this.getValidRunData();
     
     // Calculate median pace for reference
-    const allPaces = validRuns.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
+    const allPaces = validRuns.map((r) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
     const medianPace = allPaces[Math.floor(allPaces.length / 2)] || 6.0;
     
     // Calculate average VO2max if available
     const vo2Values = validRuns
-      .map((r: any) => Number(r.vo2_max_daniels))
-      .filter((v: number) => v > 0);
+      .map((r) => Number(r.vo2_max_daniels || 0))
+      .filter((v) => v > 0);
     const avgVO2 = vo2Values.length > 0 
       ? vo2Values.reduce((sum, v) => sum + v, 0) / vo2Values.length 
       : null;
@@ -125,7 +202,7 @@ class AthleteCapacityAnalyzer {
     ];
     
     for (const range of distanceRanges) {
-      const runsInRange = validRuns.filter((r: any) => {
+      const runsInRange = validRuns.filter((r) => {
         const dist = Number(r.total_distance_meters || 0);
         const pace = Number(r.pace_min_per_km);
         const hr = Number(r.average_heart_rate || 0);
@@ -153,7 +230,7 @@ class AthleteCapacityAnalyzer {
       });
       
       if (runsInRange.length > 0) {
-        const bestPace = Math.min(...runsInRange.map((r: any) => Number(r.pace_min_per_km)));
+        const bestPace = Math.min(...runsInRange.map((r) => Number(r.pace_min_per_km)));
         this.bestPerformances[range.key as keyof typeof this.bestPerformances] = bestPace;
         console.log(`[AthleteCapacityAnalyzer] Best ${range.key} from ${runsInRange.length} competitive efforts:`, bestPace.toFixed(2));
       }
@@ -169,8 +246,8 @@ class AthleteCapacityAnalyzer {
     
     // 🚀 WAVE 2.4: Z-score outlier detection for best segments
     const validSegments = this.bestSegments
-      .map((s: any) => Number(s.best_1km_pace_min_km))
-      .filter((p: number) => p > 3 && p < 10);
+      .map((s) => Number(s.best_1km_pace_min_km))
+      .filter((p) => p > 3 && p < 10);
     
     if (validSegments.length === 0) return;
     
@@ -181,26 +258,26 @@ class AthleteCapacityAnalyzer {
     
     // Filter using both reference pace AND z-score (remove outliers > 2.5 SD from mean)
     const topSegments = validSegments
-      .filter((p: number) => p >= maxAcceptablePace && p >= mean - 2.5 * sd)
-      .sort((a: number, b: number) => a - b)
+      .filter((p) => p >= maxAcceptablePace && p >= mean - 2.5 * sd)
+      .sort((a, b) => a - b)
       .slice(0, 3);
     
     if (topSegments.length > 0) {
-      this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
+      this.bestSegmentPace = topSegments.reduce((sum, p) => sum + p, 0) / topSegments.length;
       console.log(`[AthleteCapacityAnalyzer] Best segment pace (validated top 3 with z-score): ${this.bestSegmentPace.toFixed(2)} min/km`);
     }
     
     // 🚀 WAVE 2.5: Estimate VO2max from HR data if not available
     if (!this.vo2maxBest && this.validRuns && Array.isArray(this.validRuns)) {
-      const runsWithHR = this.validRuns.filter((r: any) => {
+      const runsWithHR = this.validRuns.filter((r) => {
         const avgHR = Number(r.average_heart_rate || 0);
         const maxHR = Number(r.max_heart_rate || 0);
         return avgHR > 0 && maxHR > 0;
       });
       
       if (runsWithHR.length > 0) {
-        const avgHRs = runsWithHR.map((r: any) => Number(r.average_heart_rate));
-        const maxHRs = runsWithHR.map((r: any) => Number(r.max_heart_rate));
+        const avgHRs = runsWithHR.map((r) => Number(r.average_heart_rate || 0));
+        const maxHRs = runsWithHR.map((r) => Number(r.max_heart_rate || 0));
         const meanAvgHR = avgHRs.reduce((a, b) => a + b, 0) / avgHRs.length;
         const meanMaxHR = maxHRs.reduce((a, b) => a + b, 0) / maxHRs.length;
         
@@ -218,12 +295,12 @@ class AthleteCapacityAnalyzer {
       return;
     }
     
-    const totalKm = valid.reduce((sum: number, r: any) => 
+    const totalKm = valid.reduce((sum, r) => 
       sum + (Number(r.total_distance_meters || 0) / 1000), 0
     );
     
     // 🚀 WAVE 3.7: Dynamic weeksInData based on actual activity span
-    const dates = valid.map((r: any) => new Date(r.activity_date).getTime()).sort((a, b) => a - b);
+    const dates = valid.map((r) => new Date(r.activity_date).getTime()).sort((a, b) => a - b);
     const firstActivity = dates[0];
     const lastActivity = dates[dates.length - 1];
     const spanDays = Math.max(7, (lastActivity - firstActivity) / (1000 * 3600 * 24));
@@ -233,8 +310,8 @@ class AthleteCapacityAnalyzer {
     
     const now = new Date();
     const eightWeeksAgo = new Date(now.getTime() - 56 * 24 * 3600 * 1000);
-    const recentRuns = valid.filter((r: any) => new Date(r.activity_date) >= eightWeeksAgo);
-    const distances = recentRuns.map((r: any) => Number(r.total_distance_meters || 0) / 1000);
+    const recentRuns = valid.filter((r) => new Date(r.activity_date) >= eightWeeksAgo);
+    const distances = recentRuns.map((r) => Number(r.total_distance_meters || 0) / 1000);
     this.trainingVolume.longestRunLast8W = distances.length > 0 ? Math.max(...distances, 10) : 10;
     
     console.log('[AthleteCapacityAnalyzer] Training volume:', this.trainingVolume);
@@ -243,8 +320,8 @@ class AthleteCapacityAnalyzer {
   analyzeVO2Max() {
     const validRuns = this.getValidRunData();
     const vo2maxValues = validRuns
-      .map((r: any) => Number(r.vo2_max_daniels))
-      .filter((v: number) => v > 0);
+      .map((r) => Number(r.vo2_max_daniels || 0))
+      .filter((v) => v > 0);
     
     if (vo2maxValues.length > 0) {
       this.vo2maxBest = Math.max(...vo2maxValues);
@@ -253,10 +330,10 @@ class AthleteCapacityAnalyzer {
     console.log('[AthleteCapacityAnalyzer] Best VO2max:', this.vo2maxBest);
   }
   
-  getValidRunData() {
+  getValidRunData(): Activity[] {
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
-    return this.runs.filter((r: any) => {
+    return this.runs.filter((r) => {
       const pace = Number(r.pace_min_per_km);
       const dist = Number(r.total_distance_meters || 0) / 1000;
       const dur = Number(r.total_time_minutes || 0);
@@ -537,12 +614,12 @@ function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' |
   return 'taper';
 }
 
-function defaultDaysFromPrefs(prefs: any, longDayIdx: number): number[] {
+function defaultDaysFromPrefs(prefs: PlanPreferences | null, longDayIdx: number): number[] {
   const daysPerWeek: number = Math.min(7, Math.max(2, prefs?.days_per_week ?? 4));
   const rawDays = Array.isArray(prefs?.days_of_week) ? prefs.days_of_week : null;
   let indices: number[] = [];
   if (rawDays) {
-    indices = rawDays.map((d: any) => toDayIndex(d));
+    indices = rawDays.map((d) => toDayIndex(d));
   } else {
     // sensible defaults: Tue(2), Thu(4), Sat(6), Sun(0)
     indices = [2, 4, 6, 0];
@@ -563,9 +640,9 @@ function generatePlan(
   goalRaw: string, 
   requestedWeeks: number, 
   targetPaces: Paces, 
-  prefs: any, 
+  prefs: PlanPreferences | null, 
   calibrator: AthleteCapacityAnalyzer
-) {
+): WorkoutSession[] {
   const goal = normalizeGoal(goalRaw);
   
   // 🚀 Calculate optimal weeks based on improvement needed
@@ -579,7 +656,7 @@ function generatePlan(
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
   const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
 
-  const workouts: any[] = [];
+  const workouts: WorkoutSession[] = [];
   const loadCyclePattern = [1.0, 1.05, 1.1, 0.75]; // 4:1 cycle
   let longRunCount30Plus = 0;
   let lastLongRun30PlusWeek = 0;
@@ -672,8 +749,8 @@ function generateLongRun(
   vol: number, 
   p: Paces,
   calibrator: AthleteCapacityAnalyzer,
-  longRunTracker: { count30Plus: number; lastWeek30Plus: number }
-) {
+  longRunTracker: LongRunTracker
+): WorkoutSession {
   const maxLongRun = calibrator.getMaxLongRunKm();
   
   // Start at 14-16km and progress gradually
@@ -754,7 +831,7 @@ function generateLongRun(
     target_hr_zone: 2,
     target_pace_min_per_km: Number(finalPace.toFixed(2)),
     intensity: 'moderate',
-  };
+  } as WorkoutSession;
 }
 
 function generateSession(
@@ -769,7 +846,7 @@ function generateSession(
   weeklyQualityCount: number,
   calibrator: AthleteCapacityAnalyzer,
   totalWeeks: number
-) {
+): WorkoutSession {
   // 🚀 Calculate progression using sigmoidal curve
   const progressionFactor = calculateProgressionFactor(week, totalWeeks, phase);
   
@@ -1188,10 +1265,10 @@ function generateSession(
     target_hr_zone: zone,
     target_pace_min_per_km: Number(finalPace.toFixed(2)),
     intensity,
-  };
+  } as WorkoutSession;
 }
 
-function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[], userDefinedTimeMinutes?: number, athleteAnalyzer?: AthleteCapacityAnalyzer) {
+function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: WorkoutSession[], userDefinedTimeMinutes?: number, athleteAnalyzer?: AthleteCapacityAnalyzer) {
   const phases: Array<'base' | 'build' | 'peak' | 'taper'> = [];
   for (let w = 1; w <= weeks; w++) phases.push(getPhase(w, weeks));
 
@@ -1201,27 +1278,27 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
   const avgWeeklyKm = totalKm / weeks;
   
   // Count workout types
-  const workoutTypes = workouts.reduce((acc: any, w: any) => {
+  const workoutTypes = workouts.reduce((acc: Record<string, number>, w) => {
     const type = w.type || 'easy';
     acc[type] = (acc[type] || 0) + 1;
     return acc;
   }, {});
 
   // Phase distribution
-  const phaseDistribution = phases.reduce((acc: any, phase) => {
+  const phaseDistribution = phases.reduce((acc: Record<string, number>, phase) => {
     acc[phase] = (acc[phase] || 0) + 1;
     return acc;
   }, {});
 
   // Estatísticas de intensidade por zona (controle de polarização)
-  const zoneDistribution = workouts.reduce((acc: any, w: any) => {
+  const zoneDistribution = workouts.reduce((acc: Record<string, number>, w) => {
     const zone = `Z${w.target_hr_zone || 2}`;
     acc[zone] = (acc[zone] || 0) + 1;
     return acc;
   }, {});
 
   // Contagem de sessões por intensidade
-  const intensityDistribution = workouts.reduce((acc: any, w: any) => {
+  const intensityDistribution = workouts.reduce((acc: Record<string, number>, w) => {
     const intensity = w.intensity || 'low';
     acc[intensity] = (acc[intensity] || 0) + 1;
     return acc;
@@ -1513,7 +1590,7 @@ serve(async (req) => {
       let promotedCount = 0;
       const targetPromotions = Math.min(2, Math.ceil((15 - qualityPercentage) / 100 * workouts.length));
       
-      for (const workout of workouts) {
+      for (const workout of workouts as WorkoutSession[]) {
         if (promotedCount >= targetPromotions) break;
         
         const phase = getPhase(workout.week, adjustedWeeks);
@@ -1551,7 +1628,7 @@ serve(async (req) => {
     // 🚀 WAVE 1.1: Calculate end_date using adjustedWeeks
     const endDate = addDays(startDate, adjustedWeeks * 7 - 1);
 
-    const rows = (workouts || []).map((w: any) => {
+    const rows: WorkoutRow[] = (workouts || []).map((w) => {
       const weekdayIdx = dayToIndex[(w.weekday || '').toLowerCase()] ?? 6;
       const date = getDateForWeekday(startDate, Number(w.week) || 1, weekdayIdx);
       return {
@@ -1569,30 +1646,62 @@ serve(async (req) => {
       };
     });
 
-    // Replace existing planned workouts for this plan
-    await supabase.from('training_plan_workouts').delete().eq('plan_id', plan.id);
-    let inserted = 0;
-    if (rows.length) {
-      const { error: insErr } = await supabase.from('training_plan_workouts').insert(rows);
-      if (insErr) throw insErr;
-      inserted = rows.length;
-    }
-
-    // 🚀 WAVE 1.1: Build summary with adjustedWeeks and save seed metadata
+    // 🚀 PHASE 1: Atomic transaction using RPC function
     const planSummary = buildPlanSummary(plan.goal_type, adjustedWeeks, safeTargetPaces, workouts, plan.goal_target_time_minutes, athleteAnalyzer);
-
-    // 🚀 WAVE 1.1: Update plan with adjustedWeeks and recalculated end_date
+    
+    // Prepare workout data for RPC
+    const workoutsData = rows.map(row => ({
+      plan_id: row.plan_id,
+      user_id: row.user_id,
+      week_number: Math.floor((new Date(row.workout_date).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1,
+      workout_date: row.workout_date,
+      day_of_week: dayToIndex[row.workout_date.split('-')[2]] || 0,
+      title: row.title,
+      description: row.description,
+      workout_type: row.workout_type,
+      distance_meters: row.distance_meters,
+      duration_minutes: row.duration_minutes,
+      target_pace_min_km: row.target_pace_min_km,
+      intensity_zone: row.target_hr_zone,
+      intensity_level: 'planned',
+      status: 'planned'
+    }));
+    
+    // Prepare plan updates
+    const planUpdates = {
+      total_workouts: rows.length,
+      total_weeks: adjustedWeeks,
+      weekly_volume_km: planSummary.statistics.avg_weekly_km,
+      peak_week_volume_km: planSummary.statistics.longest_run_km
+    };
+    
+    // Call atomic RPC function
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('update_training_plan_workouts', {
+      plan_id_param: plan.id,
+      workouts_data: workoutsData,
+      plan_updates: planUpdates
+    });
+    
+    if (rpcError) {
+      console.error('[generate-training-plan] RPC error:', rpcError);
+      throw new Error(`Failed to update plan workouts atomically: ${rpcError.message}`);
+    }
+    
+    console.log('[generate-training-plan] Atomic update successful:', rpcResult);
+    
+    // Update plan metadata (status, summary, end_date)
     const { error: updErr } = await supabase
       .from('training_plans')
       .update({
         status: 'active',
         generated_at: new Date().toISOString(),
         plan_summary: planSummary,
-        weeks: adjustedWeeks,
         end_date: formatDate(endDate),
       })
       .eq('id', plan.id);
     if (updErr) throw updErr;
+    
+    const inserted = rows.length;
 
     const totalMs = Date.now() - startedAt;
     console.info('[generate-training-plan] deterministic done', { planId: plan.id, inserted, totalMs });
