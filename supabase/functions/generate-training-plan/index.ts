@@ -135,17 +135,19 @@ class AthleteCapacityAnalyzer {
         // Filter 1: Correct distance
         if (dist < range.min || dist > range.max) return false;
         
-        // Filter 2: Intensity by HR (if available)
-        if (hr > 0 && maxHr > 0) {
-          const hrPercent = hr / maxHr;
-          if (hrPercent < 0.85) return false; // Discard easy efforts
-        }
+        // 🚀 WAVE 2.3: Tolerant competitive run filters (HR OR pace, not AND)
+        // Check if it's likely a race effort by HR
+        const isLikelyRaceByHR = (hr > 0 && maxHr > 0) ? (hr / maxHr >= 0.84) : false;
         
-        // Filter 3: Intensity by pace (fallback)
-        if (pace > medianPace * 0.9) return false; // Discard slow paces
+        // Check if it's likely a race effort by pace (with tolerance)
+        const paceThreshold = Math.max(medianPace * 0.92, medianPace - 0.25);
+        const isLikelyRaceByPace = pace <= paceThreshold;
         
-        // Filter 4: VO2max (if available)
-        if (avgVO2 && vo2 > 0 && vo2 < avgVO2 * 0.95) return false;
+        // Check if it's likely a race effort by VO2max
+        const isLikelyRaceByVO2 = avgVO2 && vo2 > 0 ? vo2 >= avgVO2 * 0.95 : false;
+        
+        // Accept if ANY indicator suggests competitive effort
+        if (!(isLikelyRaceByHR || isLikelyRaceByPace || isLikelyRaceByVO2)) return false;
         
         return true;
       });
@@ -165,15 +167,27 @@ class AthleteCapacityAnalyzer {
     const referencePace = this.bestPerformances.pace_5k || this.bestPerformances.pace_10k || 6.0;
     const maxAcceptablePace = referencePace * 0.8; // 20% faster than best 5K
     
-    const topSegments = this.bestSegments
+    // 🚀 WAVE 2.4: Z-score outlier detection for best segments
+    const validSegments = this.bestSegments
       .map((s: any) => Number(s.best_1km_pace_min_km))
-      .filter((p: number) => p > 3 && p < 10 && p >= maxAcceptablePace) // Outlier detection
+      .filter((p: number) => p > 3 && p < 10);
+    
+    if (validSegments.length === 0) return;
+    
+    // Calculate mean and standard deviation
+    const mean = validSegments.reduce((sum, p) => sum + p, 0) / validSegments.length;
+    const variance = validSegments.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / validSegments.length;
+    const sd = Math.sqrt(variance) || 0.001;
+    
+    // Filter using both reference pace AND z-score (remove outliers > 2.5 SD from mean)
+    const topSegments = validSegments
+      .filter((p: number) => p >= maxAcceptablePace && p >= mean - 2.5 * sd)
       .sort((a: number, b: number) => a - b)
       .slice(0, 3);
     
     if (topSegments.length > 0) {
       this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
-      console.log(`[AthleteCapacityAnalyzer] Best segment pace (validated top 3): ${this.bestSegmentPace.toFixed(2)} min/km`);
+      console.log(`[AthleteCapacityAnalyzer] Best segment pace (validated top 3 with z-score): ${this.bestSegmentPace.toFixed(2)} min/km`);
     }
   }
   
@@ -188,7 +202,14 @@ class AthleteCapacityAnalyzer {
     const totalKm = valid.reduce((sum: number, r: any) => 
       sum + (Number(r.total_distance_meters || 0) / 1000), 0
     );
-    const weeksInData = 12;
+    
+    // 🚀 WAVE 3.7: Dynamic weeksInData based on actual activity span
+    const dates = valid.map((r: any) => new Date(r.activity_date).getTime()).sort((a, b) => a - b);
+    const firstActivity = dates[0];
+    const lastActivity = dates[dates.length - 1];
+    const spanDays = Math.max(7, (lastActivity - firstActivity) / (1000 * 3600 * 24));
+    const weeksInData = Math.max(4, Math.round(spanDays / 7));
+    
     this.trainingVolume.avgWeeklyKm = Math.max(20, totalKm / weeksInData);
     
     const now = new Date();
@@ -267,6 +288,14 @@ class AthleteCapacityAnalyzer {
     } else {
       currentCapacityPace = this.getDefaultPace(goalType);
       console.log('[AthleteCapacityAnalyzer] Using default pace:', currentCapacityPace);
+    }
+    
+    // 🚀 WAVE 3.5: Calibrate paces with VO2max if available
+    if (this.vo2maxBest && currentCapacityPace) {
+      const vo2Ref = Math.min(65, Math.max(30, this.vo2maxBest)); // Clamp to realistic range
+      const vo2Adjustment = vo2Ref / 50; // 50 = median recreational runner
+      currentCapacityPace = currentCapacityPace / vo2Adjustment;
+      console.log(`[AthleteCapacityAnalyzer] VO2max adjustment applied: ${this.vo2maxBest} -> pace adjusted by ${vo2Adjustment.toFixed(2)}x`);
     }
     
     return {
@@ -552,6 +581,10 @@ function generatePlan(
 
     // Track weekly quality sessions (max 2 per week)
     let weeklyQualityCount = 0;
+    
+    // 🚀 WAVE 1.2: Track weekly distance to apply cap
+    let weeklyDistanceKm = 0;
+    const maxWeeklyKm = calibrator.getMaxWeeklyKm();
 
     for (const dow of dayIndices) {
       const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
@@ -563,6 +596,23 @@ function generatePlan(
             { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek }
           )
         : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator, weeks);
+
+      // Calculate estimated distance for this session
+      const sessionKm = session.distance_km ?? (session.duration_min ? session.duration_min / (targetPaces.pace_median || 6.0) : 0);
+      
+      // 🚀 WAVE 1.2: Apply weekly volume cap (preserve long runs and quality workouts)
+      if (weeklyDistanceKm + sessionKm > maxWeeklyKm) {
+        const remaining = Math.max(0, maxWeeklyKm - weeklyDistanceKm);
+        
+        // Only reduce easy runs to stay within cap
+        if (session.type === 'easy' && session.distance_km && remaining < sessionKm) {
+          const reducedDistance = Math.max(3, Math.floor(remaining));
+          console.log(`[generatePlan] Week ${w}: Reducing easy run from ${session.distance_km}km to ${reducedDistance}km (weekly cap: ${maxWeeklyKm}km)`);
+          session.distance_km = reducedDistance;
+        }
+      }
+      
+      weeklyDistanceKm += (session.distance_km || sessionKm);
 
       // Track 30+ km long runs
       if (isLong && session.distance_km && session.distance_km >= 30) {
@@ -1020,7 +1070,7 @@ function generateSession(
   };
 }
 
-function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[], userDefinedTimeMinutes?: number) {
+function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[], userDefinedTimeMinutes?: number, athleteAnalyzer?: AthleteCapacityAnalyzer) {
   const phases: Array<'base' | 'build' | 'peak' | 'taper'> = [];
   for (let w = 1; w <= weeks; w++) phases.push(getPhase(w, weeks));
 
@@ -1102,6 +1152,17 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
     }
   }
 
+  // 🚀 WAVE 3.8: Save plan seed metadata for auditability
+  const planSeed = {
+    vo2max_best: athleteAnalyzer?.vo2maxBest || null,
+    best_segment_pace: athleteAnalyzer?.bestSegmentPace || null,
+    avg_weekly_km: athleteAnalyzer?.trainingVolume.avgWeeklyKm || null,
+    longest_run_last_8w: athleteAnalyzer?.trainingVolume.longestRunLast8W || null,
+    improvement_percent: (p as any).improvement_percent || null,
+    adjusted_weeks: weeks,
+    generated_at: new Date().toISOString()
+  };
+
   return {
     periodization: phases,
     notes: 'Plano fisiologicamente otimizado com periodização 4:1, distribuição de intensidade baseada em dias fixos (terça/quinta), controle de carga progressivo e polarização de treino.',
@@ -1119,6 +1180,7 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
       target_pace_min_km: Number((target_pace_min_km ?? p.pace_median).toFixed(2)),
       target_time_minutes: target_time_minutes ? Math.round(target_time_minutes) : null,
     },
+    seed: planSeed,
   };
 }
 
@@ -1267,6 +1329,15 @@ serve(async (req) => {
 
     const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer);
 
+    // 🚀 WAVE 1.1: Calculate actual weeks generated (adjustedWeeks)
+    const adjustedWeeks = workouts.length > 0 
+      ? Math.max(...workouts.map((w: any) => Number(w.week) || 1))
+      : weeks;
+    
+    if (adjustedWeeks !== weeks) {
+      console.log(`[generate-training-plan] Adjusted weeks from requested ${weeks} to generated ${adjustedWeeks}`);
+    }
+
     // 🚀 Validação de qualidade do plano gerado
     const easyWorkouts = workouts.filter((w: any) => w.type === 'easy');
     const qualityWorkouts = workouts.filter((w: any) => ['tempo', 'interval', 'fartlek', 'progressivo'].includes(w.type));
@@ -1281,7 +1352,7 @@ serve(async (req) => {
       : 0;
 
     const firstWeekPaces = workouts.filter((w: any) => w.week === 1).map((w: any) => w.target_pace_min_per_km);
-    const lastWeekPaces = workouts.filter((w: any) => w.week === weeks).map((w: any) => w.target_pace_min_per_km);
+    const lastWeekPaces = workouts.filter((w: any) => w.week === adjustedWeeks).map((w: any) => w.target_pace_min_per_km);
 
     console.info('📊 [generate-training-plan] PLAN QUALITY VALIDATION:', {
       totalWorkouts: workouts.length,
@@ -1309,10 +1380,40 @@ serve(async (req) => {
       }
     });
 
-    // Validar se o plano tem qualidade mínima
+    // 🚀 WAVE 3.6: Auto-correct low quality percentage for 5k/10k goals
     const qualityPercentage = (qualityWorkouts.length / workouts.length) * 100;
-    if (qualityPercentage < 10 && (plan.goal_type === '5k' || plan.goal_type === '10k')) {
+    const goal = normalizeGoal(plan.goal_type);
+    
+    if (qualityPercentage < 15 && (goal === '5k' || goal === '10k')) {
       console.warn('⚠️ [generate-training-plan] Low quality workout percentage for speed goal:', qualityPercentage.toFixed(1) + '%');
+      console.log('[generate-training-plan] Attempting to promote 1-2 easy runs to tempo runs...');
+      
+      // Promote 1-2 easy runs in build phase to tempo runs
+      let promotedCount = 0;
+      const targetPromotions = Math.min(2, Math.ceil((15 - qualityPercentage) / 100 * workouts.length));
+      
+      for (const workout of workouts) {
+        if (promotedCount >= targetPromotions) break;
+        
+        const phase = getPhase(workout.week, adjustedWeeks);
+        if (workout.type === 'easy' && phase === 'build' && !workout.is_cutback_week) {
+          workout.type = 'tempo';
+          workout.title = 'Tempo 20min';
+          workout.description = 'Aquecimento + 20min em ritmo limiar (promovido para qualidade)';
+          workout.duration_min = 20;
+          workout.distance_km = null;
+          workout.target_pace_min_per_km = Number(safeTargetPaces.pace_tempo.toFixed(2));
+          workout.target_hr_zone = 3;
+          workout.intensity = 'moderate';
+          promotedCount++;
+          console.log(`[generate-training-plan] Promoted easy run to tempo in week ${workout.week}`);
+        }
+      }
+      
+      if (promotedCount > 0) {
+        const newQualityPercentage = ((qualityWorkouts.length + promotedCount) / workouts.length) * 100;
+        console.log(`[generate-training-plan] Quality percentage increased from ${qualityPercentage.toFixed(1)}% to ${newQualityPercentage.toFixed(1)}%`);
+      }
     }
 
     if (easyWorkouts.length > 0 && avgEasyPace < safeTargetPaces.pace_median) {
@@ -1325,6 +1426,9 @@ serve(async (req) => {
     const startDateIso = prefs?.start_date || plan?.start_date;
     if (!startDateIso) throw new Error('Missing start_date to schedule workouts');
     const startDate = new Date(`${startDateIso}T00:00:00Z`);
+    
+    // 🚀 WAVE 1.1: Calculate end_date using adjustedWeeks
+    const endDate = addDays(startDate, adjustedWeeks * 7 - 1);
 
     const rows = (workouts || []).map((w: any) => {
       const weekdayIdx = dayToIndex[(w.weekday || '').toLowerCase()] ?? 6;
@@ -1353,15 +1457,18 @@ serve(async (req) => {
       inserted = rows.length;
     }
 
-    // Build and save plan summary and status
-    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces, workouts, plan.goal_target_time_minutes);
+    // 🚀 WAVE 1.1: Build summary with adjustedWeeks and save seed metadata
+    const planSummary = buildPlanSummary(plan.goal_type, adjustedWeeks, safeTargetPaces, workouts, plan.goal_target_time_minutes, athleteAnalyzer);
 
+    // 🚀 WAVE 1.1: Update plan with adjustedWeeks and recalculated end_date
     const { error: updErr } = await supabase
       .from('training_plans')
       .update({
         status: 'active',
         generated_at: new Date().toISOString(),
         plan_summary: planSummary,
+        weeks: adjustedWeeks,
+        end_date: formatDate(endDate),
       })
       .eq('id', plan.id);
     if (updErr) throw updErr;
