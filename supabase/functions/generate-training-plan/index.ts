@@ -191,7 +191,7 @@ class AthleteCapacityAnalyzer {
     }
     
     // 🚀 WAVE 2.5: Estimate VO2max from HR data if not available
-    if (!this.vo2maxBest) {
+    if (!this.vo2maxBest && this.validRuns && Array.isArray(this.validRuns)) {
       const runsWithHR = this.validRuns.filter((r: any) => {
         const avgHR = Number(r.average_heart_rate || 0);
         const maxHR = Number(r.max_heart_rate || 0);
