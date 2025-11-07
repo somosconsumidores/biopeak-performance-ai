@@ -68,8 +68,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
     };
     
     updateWizardData({ 
-      estimatedTimes: formattedTimes,
-      adjustedTimes: true 
+      estimatedTimes: formattedTimes
     });
     setEditingTimes(false);
   };
@@ -82,11 +81,11 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           <Timer className="h-8 w-8 text-primary" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Tempos Estimados</h3>
+          <h3 className="text-lg font-semibold text-foreground">Capacidade Atual</h3>
           <p className="text-sm text-muted-foreground">
             {hasEstimatedTimes 
-              ? 'Confirme ou ajuste seus tempos estimados baseados no histórico'
-              : 'Baseado no seu histórico, estimamos seus tempos atuais'
+              ? 'Validamos sua capacidade atual - ajuste se necessário'
+              : 'Informe seus tempos conhecidos (opcional)'
             }
           </p>
         </div>
@@ -122,7 +121,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
                 className="flex items-center gap-2 text-xs sm:text-sm px-3 py-2 h-auto whitespace-normal text-center"
               >
                 <Edit3 className="h-4 w-4 flex-shrink-0" />
-                <span>Ou defina seu tempo alvo para este plano</span>
+                <span>Ajustar tempos estimados</span>
               </Button>
             </div>
           </div>
@@ -131,7 +130,7 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           {editingTimes && (
             <Card className="border-primary/20">
               <CardHeader>
-                <CardTitle className="text-base">Definir Tempos Alvo</CardTitle>
+                <CardTitle className="text-base">Ajustar Capacidade Atual</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {Object.entries(distanceConfigs).map(([key, config]) => (

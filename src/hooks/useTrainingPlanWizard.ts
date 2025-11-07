@@ -159,7 +159,7 @@ export function useTrainingPlanWizard() {
   };
 
   const shouldShowRaceGoal = () => {
-    return false; // Never show race goal step - we calculate it automatically
+    return isRaceGoal(); // Show race goal step for race goals
   };
 
   // Helper function to parse time strings to minutes
@@ -180,45 +180,22 @@ export function useTrainingPlanWizard() {
   const calculateTargetTime = () => {
     if (!isRaceGoal()) return undefined;
     
-    // 🆕 PRIORIDADE 1: Meta específica definida pelo usuário no Step 12 (RaceGoalStep)
+    // ✅ PRIORIDADE ÚNICA: Meta específica definida pelo usuário no Step 13 (RaceGoalStep)
     // Esta é a meta REAL que o usuário quer atingir
     if (wizardData.goalTargetTimeMinutes !== undefined) {
-      console.log('✅ Using user-defined goal from Step 12:', {
+      console.log('✅ Using user-defined race goal from Step 13:', {
         goalTargetTimeMinutes: wizardData.goalTargetTimeMinutes,
         goal: wizardData.goal
       });
       return wizardData.goalTargetTimeMinutes;
     }
     
-    let targetMinutes: number | undefined;
-    
-    // PRIORIDADE 2: Tempos ajustados manualmente no Step 5
-    if (wizardData.adjustedTimes && wizardData.estimatedTimes) {
-      // Use user-adjusted times
-      switch (wizardData.goal) {
-        case '5k':
-          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k5);
-          break;
-        case '10k':
-          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k10);
-          break;
-        case 'half_marathon':
-        case '21k':
-          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k21);
-          break;
-        case 'marathon':
-        case '42k':
-          targetMinutes = parseTimeToMinutes(wizardData.estimatedTimes.k42);
-          break;
-      }
-      
-      console.log('📊 Using adjusted times from Step 5:', { targetMinutes, goal: wizardData.goal });
-      return targetMinutes;
-    }
-    
-    // PRIORIDADE 3: Estimativas históricas com fator de melhoria
+    // 🤖 FALLBACK: Se usuário não definiu meta no Step 13, calcular automaticamente
+    // baseado em estimativas históricas com fator de melhoria
     if (athleteAnalysis.raceEstimates) {
       const estimates = athleteAnalysis.raceEstimates;
+      let targetMinutes: number | undefined;
+      
       switch (wizardData.goal) {
         case '5k':
           targetMinutes = estimates.k5?.seconds ? estimates.k5.seconds / 60 : undefined;
@@ -240,7 +217,7 @@ export function useTrainingPlanWizard() {
       if (targetMinutes) {
         const improvementFactor = getImprovementFactor();
         const improvedTime = Math.round(targetMinutes * (1 - improvementFactor));
-        console.log('📈 Using historical estimates with improvement:', { 
+        console.log('📈 Using historical estimates with improvement factor:', { 
           originalMinutes: targetMinutes,
           improvementFactor,
           improvedTime,
@@ -273,7 +250,9 @@ export function useTrainingPlanWizard() {
       baseSteps.push(12); // Race date step
     }
     
-    // Never add step 13 (race goal) as we calculate it automatically
+    if (shouldShowRaceGoal()) {
+      baseSteps.push(13); // Race goal step - meta específica de tempo
+    }
     
     baseSteps.push(14); // Summary step
     baseSteps.push(15); // Health declaration step (must be last before generation)
