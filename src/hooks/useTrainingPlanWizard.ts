@@ -500,6 +500,42 @@ export function useTrainingPlanWizard() {
         return false;
       }
 
+      // Validate critical fields before attempting INSERT
+      if (!wizardData.planDurationWeeks || wizardData.planDurationWeeks < 4 || wizardData.planDurationWeeks > 52) {
+        console.error('❌ VALIDATION ERROR: Invalid planDurationWeeks:', wizardData.planDurationWeeks);
+        toast({
+          title: "Erro de validação",
+          description: `Duração do plano inválida: ${wizardData.planDurationWeeks} semanas. Deve estar entre 4 e 52.`,
+          variant: "destructive",
+          duration: 8000
+        });
+        return false;
+      }
+
+      if (!wizardData.goal) {
+        console.error('❌ VALIDATION ERROR: Missing goal:', wizardData.goal);
+        toast({
+          title: "Erro de validação",
+          description: "Objetivo do plano não foi selecionado.",
+          variant: "destructive",
+          duration: 8000
+        });
+        return false;
+      }
+
+      if (!wizardData.startDate) {
+        console.error('❌ VALIDATION ERROR: Missing startDate:', wizardData.startDate);
+        toast({
+          title: "Erro de validação",
+          description: "Data de início não foi definida.",
+          variant: "destructive",
+          duration: 8000
+        });
+        return false;
+      }
+
+      console.log('✅ All validations passed, proceeding with plan creation');
+
       // Create the training plan (required for preferences foreign key)
       const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
       const planId = uuidv4();
@@ -515,6 +551,19 @@ export function useTrainingPlanWizard() {
         source: wizardData.goalTargetTimeMinutes ? 'user-defined (Step 12)' : 
                 wizardData.adjustedTimes ? 'adjusted-times (Step 5)' : 
                 'historical-estimates'
+      });
+
+      console.log('🔍 DEBUG - Training plan data before INSERT:', {
+        planId,
+        user_id: user.id,
+        plan_name: `Plano ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
+        goal_type: wizardData.goal,
+        start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd'),
+        weeks: wizardData.planDurationWeeks,
+        status: 'pending',
+        target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+        goal_target_time_minutes: calculatedTargetTime
       });
       
       const { error: planError } = await supabase
@@ -533,7 +582,24 @@ export function useTrainingPlanWizard() {
         });
 
       if (planError) {
-        console.error('Error creating plan:', planError);
+        console.error('❌ ERROR creating plan - Full details:', {
+          error: planError,
+          message: planError.message,
+          details: planError.details,
+          hint: planError.hint,
+          code: planError.code,
+          wizardData: {
+            planDurationWeeks: wizardData.planDurationWeeks,
+            goal: wizardData.goal,
+            startDate: wizardData.startDate
+          }
+        });
+        toast({
+          title: "Erro ao criar plano",
+          description: `Detalhes: ${planError.message}. Verifique o console para mais informações.`,
+          variant: "destructive",
+          duration: 8000
+        });
         return false;
       }
 
