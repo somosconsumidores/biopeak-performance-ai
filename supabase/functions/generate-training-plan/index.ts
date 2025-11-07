@@ -587,6 +587,7 @@ function generatePlan(
 
   for (let w = 1; w <= weeks; w++) {
     const phase = getPhase(w, weeks);
+    console.log(`[v4.2 DEBUG] Week ${w}: phase=${phase}, totalWeeks=${weeks}`);
     const cycleIndex = (w - 1) % 4;
     const isCutbackWeek = cycleIndex === 3 && phase !== 'taper';
     
@@ -939,8 +940,21 @@ function generateSession(
         intensity = 'high';
       }
     } else if (goal === '10k') {
-      // 🚀 v4.1 PRIORITY 1: Force tempo runs from week 6 onwards (Tuesdays)
-      if (phase !== 'base' && week >= 6 && week < totalWeeks - 1 && dow === 2 && week % 4 !== 0) {
+      // 🚀 v4.2 PRIORITY 1: Race pace simulation FIRST (week 10, totalWeeks - 2)
+      if (week === totalWeeks - 2 && dow === 2) {
+        type = 'race_pace';
+        title = 'Simulado 6K @RP';
+        const targetPace = (paces as any).target_pace || paces.pace_10k;
+        description = `Aquecimento + 6km no pace de prova (${targetPace.toFixed(2)} min/km) + desaquecimento`;
+        duration_min = null as any;
+        distance_km = 6;
+        pace = targetPace;
+        zone = 4;
+        intensity = 'high';
+        console.log(`[v4.2] Race pace simulation at week ${week}`);
+      }
+      // 🚀 v4.2 PRIORITY 2: Force tempo runs from week 6 onwards (Tuesdays, not taper)
+      else if (week >= 6 && week < totalWeeks - 2 && phase !== 'taper' && dow === 2 && week % 4 !== 0) {
         type = 'tempo';
         title = 'Tempo 30min';
         description = 'Aquecimento + 30min em ritmo de limiar/10k';
@@ -949,23 +963,10 @@ function generateSession(
         pace = paces.pace_tempo;
         zone = 3;
         intensity = 'moderate';
-        console.log(`[v4.1] Forced tempo run at week ${week}, dow ${dow}`);
+        console.log(`[v4.2] Forced tempo run at week ${week}, dow ${dow}`);
       }
-      // 🚀 v4.1 PRIORITY 2: Race pace simulation moved to week 10 (totalWeeks - 2)
-      else if (week === totalWeeks - 2 && dow === 2) {
-        type = 'race_pace';
-        title = 'Simulado 6K @RP';
-        const targetPace = (paces as any).target_pace || paces.pace_10k;
-        description = `6km no ritmo-alvo de prova (~${targetPace.toFixed(2)}/km)`;
-        distance_km = 6;
-        duration_min = null as any;
-        pace = targetPace;
-        zone = 4;
-        intensity = 'high';
-        console.log(`[v4.1] Race pace simulation at week ${week}`);
-      }
-      // 🚀 v4.1 PRIORITY 3: Fartlek in base phase (week 3, first quality day)
-      else if (phase === 'base' && week === 3 && dow === 2) {
+      // 🚀 v4.2 PRIORITY 3: Fartlek in base phase (weeks 3-4, Tuesdays)
+      else if (phase === 'base' && week >= 3 && week <= 4 && dow === 2) {
         type = 'fartlek';
         title = 'Fartlek 30min leve';
         description = 'Aquecimento 10min + 8x(1min moderado/1min leve) + desaquecimento 10min';
@@ -974,19 +975,19 @@ function generateSession(
         pace = paces.pace_easy - 0.3;
         zone = 2;
         intensity = 'moderate';
-        console.log(`[v4.1] Fartlek inserted at week ${week}, dow ${dow}`);
+        console.log(`[v4.2] Fartlek inserted at week ${week}, dow ${dow}`);
       }
-      // 🚀 v4.1 PRIORITY 5: Steady runs in build phase (weeks 7-9, Tuesdays)
-      else if (phase === 'build' && [7, 8, 9].includes(week) && dow === 2) {
+      // 🚀 v4.2 PRIORITY 4: Steady runs in build phase (weeks 7-9, THURSDAYS)
+      else if (phase === 'build' && [7, 8, 9].includes(week) && dow === 4) {
         type = 'steady';
         title = 'Corrida moderada 6K';
         description = 'Ritmo controlado Z2.5-Z3, ponte entre easy e tempo';
-        distance_km = 6;
         duration_min = null as any;
+        distance_km = 6;
         pace = (paces.pace_easy + paces.pace_tempo) / 2;
         zone = 2.5;
         intensity = 'moderate';
-        console.log(`[v4.1] Steady run at week ${week}`);
+        console.log(`[v4.2] Steady run at week ${week}, dow ${dow} (Thursday)`);
       }
       else {
         // Regular quality rotation for 10k (Thursdays or other quality slots)
