@@ -633,7 +633,6 @@ export function useTrainingPlanWizard() {
           long_run_weekday: longRunIdx,
           start_asap: false,
           start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
-          goal_target_time_minutes: calculatedTargetTime,
         });
 
       if (preferencesError) {
