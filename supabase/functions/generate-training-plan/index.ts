@@ -695,7 +695,7 @@ function generateSession(
   };
 }
 
-function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]) {
+function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[], userDefinedTimeMinutes?: number) {
   const phases: Array<'base' | 'build' | 'peak' | 'taper'> = [];
   for (let w = 1; w <= weeks; w++) phases.push(getPhase(w, weeks));
 
@@ -742,25 +742,39 @@ function buildPlanSummary(goal: string, weeks: number, p: Paces, workouts: any[]
       }
     : null;
 
-  // Targets: estimate race time when applicable
+  // Targets: use user-defined time if available, otherwise calculate from paces
   let target_pace_min_km: number | null = null;
   let target_time_minutes: number | null = null;
   const g = normalizeGoal(goal || '');
-  if (g === '5k') {
-    target_pace_min_km = p.pace_5k;
-    target_time_minutes = 5 * p.pace_5k;
-  } else if (g === '10k') {
-    target_pace_min_km = p.pace_10k;
-    target_time_minutes = 10 * p.pace_10k;
-  } else if (g === '21k') {
-    target_pace_min_km = p.pace_half;
-    target_time_minutes = 21.097 * p.pace_half;
-  } else if (g === '42k') {
-    target_pace_min_km = p.pace_marathon;
-    target_time_minutes = 42.195 * p.pace_marathon;
+  
+  if (userDefinedTimeMinutes && typeof userDefinedTimeMinutes === 'number') {
+    // Priorizar meta definida pelo usuário
+    target_time_minutes = userDefinedTimeMinutes;
+    
+    if (g === '5k') target_pace_min_km = userDefinedTimeMinutes / 5;
+    else if (g === '10k') target_pace_min_km = userDefinedTimeMinutes / 10;
+    else if (g === '21k') target_pace_min_km = userDefinedTimeMinutes / 21.097;
+    else if (g === '42k') target_pace_min_km = userDefinedTimeMinutes / 42.195;
+    else target_pace_min_km = p.pace_median;
+    
   } else {
-    target_pace_min_km = p.pace_median;
-    target_time_minutes = null;
+    // Fallback: calcular do histórico
+    if (g === '5k') {
+      target_pace_min_km = p.pace_5k;
+      target_time_minutes = 5 * p.pace_5k;
+    } else if (g === '10k') {
+      target_pace_min_km = p.pace_10k;
+      target_time_minutes = 10 * p.pace_10k;
+    } else if (g === '21k') {
+      target_pace_min_km = p.pace_half;
+      target_time_minutes = 21.097 * p.pace_half;
+    } else if (g === '42k') {
+      target_pace_min_km = p.pace_marathon;
+      target_time_minutes = 42.195 * p.pace_marathon;
+    } else {
+      target_pace_min_km = p.pace_median;
+      target_time_minutes = null;
+    }
   }
 
   return {
@@ -811,7 +825,7 @@ serve(async (req) => {
 
     const { data: plan, error: planErr } = await supabase
       .from('training_plans')
-      .select('id, user_id, plan_name, goal_type, start_date, end_date, weeks, target_event_date, status')
+      .select('id, user_id, plan_name, goal_type, start_date, end_date, weeks, target_event_date, status, goal_target_time_minutes')
       .eq('id', planId)
       .maybeSingle();
     if (planErr) throw planErr;
@@ -868,12 +882,40 @@ serve(async (req) => {
     const inputPaces = body?.declared_paces;
     let safeTargetPaces: Paces;
     
-    if (inputPaces && (inputPaces.pace_5k || inputPaces.pace_10k || inputPaces.pace_half || inputPaces.pace_marathon)) {
-      // Usar paces declarados e derivar zonas de treino
+    // PRIORIDADE 1: Meta de tempo definida pelo usuário no Step 13
+    if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
+      console.info('[generate-training-plan] Using user-defined goal time:', plan.goal_target_time_minutes);
+      
+      const goalMinutes = plan.goal_target_time_minutes;
+      let targetPaceMinPerKm: number;
+      
+      const g = normalizeGoal(plan.goal_type);
+      if (g === '5k') {
+        targetPaceMinPerKm = goalMinutes / 5;
+      } else if (g === '10k') {
+        targetPaceMinPerKm = goalMinutes / 10;
+      } else if (g === '21k') {
+        targetPaceMinPerKm = goalMinutes / 21.097;
+      } else if (g === '42k') {
+        targetPaceMinPerKm = goalMinutes / 42.195;
+      } else {
+        targetPaceMinPerKm = safetyCalibrator.getSafeTargetPaces(plan.goal_type).pace_median;
+      }
+      
+      const declaredPaces: any = {};
+      if (g === '5k') declaredPaces.pace_5k = targetPaceMinPerKm;
+      else if (g === '10k') declaredPaces.pace_10k = targetPaceMinPerKm;
+      else if (g === '21k') declaredPaces.pace_half = targetPaceMinPerKm;
+      else if (g === '42k') declaredPaces.pace_marathon = targetPaceMinPerKm;
+      
+      safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(declaredPaces);
+      
+    } else if (inputPaces && (inputPaces.pace_5k || inputPaces.pace_10k || inputPaces.pace_half || inputPaces.pace_marathon)) {
+      // PRIORIDADE 2: Paces declarados explicitamente
       console.info('[generate-training-plan] Using declared paces from user input', inputPaces);
       safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(inputPaces);
     } else {
-      // Usar calibração automática baseada em histórico
+      // FALLBACK: Calibração automática baseada em histórico
       console.info('[generate-training-plan] Using auto-calibrated paces from activity history');
       safeTargetPaces = safetyCalibrator.getSafeTargetPaces(plan.goal_type);
     }
@@ -913,8 +955,7 @@ serve(async (req) => {
     }
 
     // Build and save plan summary and status
-    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces, workouts);
-    const goalMinutes = planSummary?.targets?.target_time_minutes ?? null;
+    const planSummary = buildPlanSummary(plan.goal_type, weeks, safeTargetPaces, workouts, plan.goal_target_time_minutes);
 
     const { error: updErr } = await supabase
       .from('training_plans')
@@ -922,7 +963,6 @@ serve(async (req) => {
         status: 'active',
         generated_at: new Date().toISOString(),
         plan_summary: planSummary,
-        goal_target_time_minutes: typeof goalMinutes === 'number' ? goalMinutes : null,
       })
       .eq('id', plan.id);
     if (updErr) throw updErr;
