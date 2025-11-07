@@ -1011,6 +1011,9 @@ serve(async (req) => {
     const runs = (activities || []).filter((a: any) => (a.activity_type || '').toLowerCase().includes('run'));
     const athleteAnalyzer = new AthleteCapacityAnalyzer(runs, bestSegments || [], profile);
     
+    // Calcular número de semanas do plano
+    const weeks = Math.max(1, Math.floor(plan.weeks || 4));
+    
     // Suporte a paces declarados pelo usuário
     const inputPaces = body?.declared_paces;
     let safeTargetPaces: Paces;
@@ -1058,7 +1061,6 @@ serve(async (req) => {
       safeTargetPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type);
     }
 
-    const weeks = Math.max(1, Math.floor(plan.weeks || 4));
     const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer);
 
     const startDateIso = prefs?.start_date || plan?.start_date;
