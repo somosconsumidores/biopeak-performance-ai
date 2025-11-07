@@ -442,7 +442,7 @@ function generatePlan(
             goal, w, phase, volumeMultiplier, targetPaces, calibrator,
             { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek }
           )
-        : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator);
+        : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator, weeks);
 
       // Track 30+ km long runs
       if (isLong && session.distance_km && session.distance_km >= 30) {
@@ -556,8 +556,44 @@ function generateSession(
   isCutbackWeek: boolean,
   totalSessions: number,
   weeklyQualityCount: number,
-  calibrator: AthleteCapacityAnalyzer
+  calibrator: AthleteCapacityAnalyzer,
+  totalWeeks: number
 ) {
+  // 🚀 Calcular progressão baseada na semana
+  const progressionFactor = Math.min(1.0, week / totalWeeks);
+  
+  // 🚀 Aplicar progressão aos paces
+  let paces = { ...p };
+  
+  if ((p as any).target_pace && (p as any).improvement_percent) {
+    // Existe uma meta definida - progredir do pace atual até o pace alvo
+    const currentPace = p.pace_median;
+    const targetPace = (p as any).target_pace;
+    const paceImprovement = currentPace - targetPace;
+    
+    // Progressão linear: semana 1 = 0%, semana final = 100%
+    const progressedBasePace = currentPace - (paceImprovement * progressionFactor);
+    
+    paces = {
+      ...p,
+      pace_easy: progressedBasePace + 1.0,
+      pace_long: progressedBasePace + 0.7,
+      pace_tempo: progressedBasePace + 0.2,
+      pace_interval_1km: (p as any).pace_best || (progressedBasePace - 0.3),
+      pace_interval_800m: (p as any).pace_best ? ((p as any).pace_best - 0.1) : (progressedBasePace - 0.4),
+      pace_interval_400m: (p as any).pace_best ? ((p as any).pace_best - 0.2) : (progressedBasePace - 0.6),
+    };
+    
+    console.log(`[generateSession] Week ${week}/${totalWeeks} - Progression ${(progressionFactor*100).toFixed(0)}%`, {
+      currentBasePace: currentPace.toFixed(2),
+      progressedBasePace: progressedBasePace.toFixed(2),
+      targetPace: targetPace.toFixed(2),
+      easy: paces.pace_easy.toFixed(2),
+      tempo: paces.pace_tempo.toFixed(2),
+      interval: paces.pace_interval_1km.toFixed(2)
+    });
+  }
+  
   // Defaults: easy session
   let type = 'easy';
   let title = 'Corrida leve';
@@ -658,24 +694,72 @@ function generateSession(
           break;
       }
     } else if (goal === '5k') {
-      if (week % 2 === 0) {
+      // Rotação de treinos de qualidade para 5k (mais frequente)
+      const mod = week % 3;
+      
+      if (mod === 0) {
+        // Intervals 400m - Velocidade pura
         type = 'interval';
         title = '8x400m';
         description = 'Aquecimento + 8x400m ritmo 5k, 90s rec';
-        duration_min = 25;
+        duration_min = 30;
         distance_km = null as any;
-        pace = p.pace_interval_400m;
+        pace = paces.pace_interval_400m;
+        zone = 5;
+        intensity = 'high';
+      } else if (mod === 1) {
+        // Tempo - Limiar
+        type = 'tempo';
+        title = 'Tempo 20min';
+        description = 'Aquecimento + 20min em ritmo de limiar';
+        duration_min = 20;
+        distance_km = null as any;
+        pace = paces.pace_tempo;
+        zone = 4;
+        intensity = 'high';
+      } else {
+        // Intervals 1km - Resistência anaeróbica
+        type = 'interval';
+        title = '5x1km';
+        description = 'Aquecimento + 5x1km ritmo 5k, 2min rec';
+        duration_min = 35;
+        distance_km = null as any;
+        pace = paces.pace_interval_1km;
         zone = 4;
         intensity = 'high';
       }
     } else if (goal === '10k') {
-      if (week % 2 === 0) {
+      // Rotação de treinos de qualidade para 10k
+      const mod = week % 3;
+      
+      if (mod === 0) {
+        // Tempo Run - Ritmo de prova
         type = 'tempo';
-        title = 'Tempo 25min';
-        description = 'Aquecimento + 25min em ritmo de limiar';
-        duration_min = 25;
+        title = 'Tempo 30min';
+        description = 'Aquecimento + 30min em ritmo de limiar/10k';
+        duration_min = 30;
         distance_km = null as any;
-        pace = p.pace_tempo;
+        pace = paces.pace_tempo;
+        zone = 3;
+        intensity = 'moderate';
+      } else if (mod === 1) {
+        // Intervals 1km - Velocidade
+        type = 'interval';
+        title = '6x1km';
+        description = 'Aquecimento + 6x1km ritmo 5-10k, 2min rec';
+        duration_min = 40;
+        distance_km = null as any;
+        pace = paces.pace_interval_1km;
+        zone = 4;
+        intensity = 'high';
+      } else {
+        // Fartlek - Variação de ritmo
+        type = 'fartlek';
+        title = 'Fartlek 35min';
+        description = 'Aquecimento + 10x(2min forte/1min leve)';
+        duration_min = 35;
+        distance_km = null as any;
+        pace = (paces.pace_easy + paces.pace_tempo) / 2;
         zone = 3;
         intensity = 'moderate';
       }
@@ -1062,6 +1146,61 @@ serve(async (req) => {
     }
 
     const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer);
+
+    // 🚀 Validação de qualidade do plano gerado
+    const easyWorkouts = workouts.filter((w: any) => w.type === 'easy');
+    const qualityWorkouts = workouts.filter((w: any) => ['tempo', 'interval', 'fartlek', 'progressivo'].includes(w.type));
+    const longWorkouts = workouts.filter((w: any) => w.type === 'long_run');
+
+    const avgEasyPace = easyWorkouts.length > 0 
+      ? easyWorkouts.reduce((sum: number, w: any) => sum + (w.target_pace_min_per_km || 0), 0) / easyWorkouts.length
+      : 0;
+      
+    const avgQualityPace = qualityWorkouts.length > 0
+      ? qualityWorkouts.reduce((sum: number, w: any) => sum + (w.target_pace_min_per_km || 0), 0) / qualityWorkouts.length
+      : 0;
+
+    const firstWeekPaces = workouts.filter((w: any) => w.week === 1).map((w: any) => w.target_pace_min_per_km);
+    const lastWeekPaces = workouts.filter((w: any) => w.week === weeks).map((w: any) => w.target_pace_min_per_km);
+
+    console.info('📊 [generate-training-plan] PLAN QUALITY VALIDATION:', {
+      totalWorkouts: workouts.length,
+      distribution: {
+        easy: easyWorkouts.length,
+        long: longWorkouts.length,
+        quality: qualityWorkouts.length,
+        percentage_quality: ((qualityWorkouts.length / workouts.length) * 100).toFixed(1) + '%'
+      },
+      paces: {
+        avgEasy: avgEasyPace.toFixed(2) + ' min/km',
+        avgQuality: avgQualityPace.toFixed(2) + ' min/km',
+        firstWeek: firstWeekPaces.map(p => p?.toFixed(2) || '0').join(', '),
+        lastWeek: lastWeekPaces.map(p => p?.toFixed(2) || '0').join(', ')
+      },
+      progression: {
+        week1AvgPace: firstWeekPaces.length > 0 ? (firstWeekPaces.reduce((a, b) => a + b, 0) / firstWeekPaces.length).toFixed(2) : 'N/A',
+        weekNAvgPace: lastWeekPaces.length > 0 ? (lastWeekPaces.reduce((a, b) => a + b, 0) / lastWeekPaces.length).toFixed(2) : 'N/A',
+        improvement: (safeTargetPaces as any).improvement_percent ? (safeTargetPaces as any).improvement_percent.toFixed(1) + '%' : 'N/A'
+      },
+      athlete: {
+        currentCapacity: safeTargetPaces.pace_median.toFixed(2) + ' min/km',
+        targetPace: (safeTargetPaces as any).target_pace ? (safeTargetPaces as any).target_pace.toFixed(2) + ' min/km' : 'N/A',
+        bestSegment: (safeTargetPaces as any).pace_best ? (safeTargetPaces as any).pace_best.toFixed(2) + ' min/km' : 'N/A'
+      }
+    });
+
+    // Validar se o plano tem qualidade mínima
+    const qualityPercentage = (qualityWorkouts.length / workouts.length) * 100;
+    if (qualityPercentage < 10 && (plan.goal_type === '5k' || plan.goal_type === '10k')) {
+      console.warn('⚠️ [generate-training-plan] Low quality workout percentage for speed goal:', qualityPercentage.toFixed(1) + '%');
+    }
+
+    if (easyWorkouts.length > 0 && avgEasyPace < safeTargetPaces.pace_median) {
+      console.warn('⚠️ [generate-training-plan] Easy pace faster than athlete current capacity!', {
+        avgEasyPace: avgEasyPace.toFixed(2),
+        currentCapacity: safeTargetPaces.pace_median.toFixed(2)
+      });
+    }
 
     const startDateIso = prefs?.start_date || plan?.start_date;
     if (!startDateIso) throw new Error('Missing start_date to schedule workouts');
