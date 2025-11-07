@@ -578,7 +578,7 @@ export function useTrainingPlanWizard() {
           weeks: wizardData.planDurationWeeks,
           status: 'pending',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
-          goal_target_time_minutes: calculatedTargetTime, // 🆕 Salvar tempo alvo calculado
+          goal_target_time_minutes: calculatedTargetTime ? Math.round(calculatedTargetTime) : undefined,
         });
 
       if (planError) {
