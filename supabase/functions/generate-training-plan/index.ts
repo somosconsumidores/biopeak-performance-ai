@@ -191,30 +191,57 @@ type GoalType =
 type Paces = ReturnType<SafetyCalibrator['getSafeTargetPaces']>;
 
 // Deriva zonas de treino a partir dos paces declarados pelo atleta
-function deriveTrainingZonesFromDeclaredPaces(declaredPaces: {
-  pace_5k?: number;
-  pace_10k?: number;
-  pace_half?: number;
-  pace_marathon?: number;
-}) {
+function deriveTrainingZonesFromDeclaredPaces(
+  declaredPaces: {
+    pace_5k?: number;
+    pace_10k?: number;
+    pace_half?: number;
+    pace_marathon?: number;
+  },
+  goalType?: string
+) {
   // Usa o melhor pace disponível como referência
   const ref5k = declaredPaces.pace_5k ?? 5.0;
   const ref10k = declaredPaces.pace_10k ?? ref5k * 1.08;
   const refHalf = declaredPaces.pace_half ?? ref10k * 1.12;
   const refMarathon = declaredPaces.pace_marathon ?? refHalf * 1.1;
 
+  // Determinar pace de referência baseado na meta
+  const goal = normalizeGoal(goalType || '');
+  let baseReferencePace: number;
+  
+  switch (goal) {
+    case '5k':
+      baseReferencePace = ref5k;
+      break;
+    case '10k':
+      baseReferencePace = ref10k;
+      break;
+    case '21k':
+      baseReferencePace = refHalf;
+      break;
+    case '42k':
+      baseReferencePace = refMarathon;
+      break;
+    default:
+      // Para metas fitness, usar pace de 10k como referência moderada
+      baseReferencePace = ref10k;
+  }
+
   return {
     pace_5k: ref5k,
     pace_10k: ref10k,
     pace_half: refHalf,
     pace_marathon: refMarathon,
-    // Zonas de treino derivadas fisiologicamente
-    pace_easy: refMarathon + 0.5,           // Z2 - 30-60s mais lento que ritmo de maratona
-    pace_long: refMarathon + 0.3,           // Long run - ligeiramente mais lento que MP
-    pace_tempo: ref10k + 0.2,               // Z3/Limiar - próximo ao ritmo de 10k
-    pace_interval_1km: ref5k - 0.1,         // Z4 - próximo ao ritmo de 5k
-    pace_interval_800m: ref5k - 0.2,        // Z4-Z5 - mais rápido que 5k
-    pace_interval_400m: ref5k - 0.3,        // Z5 - significativamente mais rápido que 5k
+    
+    // Zonas de treino derivadas da meta específica
+    pace_easy: baseReferencePace + 1.0,         // Z2 - confortável, ~1 min/km mais lento
+    pace_long: baseReferencePace + 0.8,         // Long run - aeróbico sustentado
+    pace_tempo: baseReferencePace + 0.3,        // Z3/Limiar - esforço controlado
+    pace_interval_1km: baseReferencePace - 0.2, // Z4 - próximo ao ritmo-alvo
+    pace_interval_800m: baseReferencePace - 0.3,// Z4-Z5 - mais rápido
+    pace_interval_400m: baseReferencePace - 0.5,// Z5 - significativamente mais rápido
+    
     pace_best: ref5k,
     pace_median: ref10k,
     pace_p75: refHalf,
@@ -907,13 +934,13 @@ serve(async (req) => {
       else if (g === '10k') declaredPaces.pace_10k = targetPaceMinPerKm;
       else if (g === '21k') declaredPaces.pace_half = targetPaceMinPerKm;
       else if (g === '42k') declaredPaces.pace_marathon = targetPaceMinPerKm;
-      
-      safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(declaredPaces);
-      
+  
+  safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(declaredPaces, plan.goal_type);
+  
     } else if (inputPaces && (inputPaces.pace_5k || inputPaces.pace_10k || inputPaces.pace_half || inputPaces.pace_marathon)) {
       // PRIORIDADE 2: Paces declarados explicitamente
       console.info('[generate-training-plan] Using declared paces from user input', inputPaces);
-      safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(inputPaces);
+      safeTargetPaces = deriveTrainingZonesFromDeclaredPaces(inputPaces, plan.goal_type);
     } else {
       // FALLBACK: Calibração automática baseada em histórico
       console.info('[generate-training-plan] Using auto-calibrated paces from activity history');
