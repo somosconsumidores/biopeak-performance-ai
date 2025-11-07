@@ -587,7 +587,7 @@ function generatePlan(
 
   for (let w = 1; w <= weeks; w++) {
     const phase = getPhase(w, weeks);
-    console.log(`[v4.2 DEBUG] Week ${w}: phase=${phase}, totalWeeks=${weeks}`);
+    console.log(`[v4.3 DEBUG] Week ${w}: phase=${phase}, totalWeeks=${weeks}`);
     const cycleIndex = (w - 1) % 4;
     const isCutbackWeek = cycleIndex === 3 && phase !== 'taper';
     
@@ -940,7 +940,10 @@ function generateSession(
         intensity = 'high';
       }
     } else if (goal === '10k') {
-      // 🚀 v4.2 PRIORITY 1: Race pace simulation FIRST (week 10, totalWeeks - 2)
+      // 🚀 v4.3: Track if workout was explicitly forced (prevents overwriting)
+      let forcedWorkout = false;
+      
+      // 🚀 v4.3 PRIORITY 1: Race pace simulation FIRST (week 10, totalWeeks - 2)
       if (week === totalWeeks - 2 && dow === 2) {
         type = 'race_pace';
         title = 'Simulado 6K @RP';
@@ -951,9 +954,10 @@ function generateSession(
         pace = targetPace;
         zone = 4;
         intensity = 'high';
-        console.log(`[v4.2] Race pace simulation at week ${week}`);
+        forcedWorkout = true;
+        console.log(`[v4.3] Race pace simulation at week ${week}`);
       }
-      // 🚀 v4.2 PRIORITY 2: Force tempo runs from week 6 onwards (Tuesdays, not taper)
+      // 🚀 v4.3 PRIORITY 2: Force tempo runs from week 6 onwards (Tuesdays, not taper)
       else if (week >= 6 && week < totalWeeks - 2 && phase !== 'taper' && dow === 2 && week % 4 !== 0) {
         type = 'tempo';
         title = 'Tempo 30min';
@@ -963,9 +967,10 @@ function generateSession(
         pace = paces.pace_tempo;
         zone = 3;
         intensity = 'moderate';
-        console.log(`[v4.2] Forced tempo run at week ${week}, dow ${dow}`);
+        forcedWorkout = true;
+        console.log(`[v4.3] Forced tempo run at week ${week}, dow ${dow}`);
       }
-      // 🚀 v4.2 PRIORITY 3: Fartlek in base phase (weeks 3-4, Tuesdays)
+      // 🚀 v4.3 PRIORITY 3: Fartlek in base phase (weeks 3-4, Tuesdays)
       else if (phase === 'base' && week >= 3 && week <= 4 && dow === 2) {
         type = 'fartlek';
         title = 'Fartlek 30min leve';
@@ -975,10 +980,11 @@ function generateSession(
         pace = paces.pace_easy - 0.3;
         zone = 2;
         intensity = 'moderate';
-        console.log(`[v4.2] Fartlek inserted at week ${week}, dow ${dow}`);
+        forcedWorkout = true;
+        console.log(`[v4.3] Fartlek inserted at week ${week}, dow ${dow}`);
       }
-      // 🚀 v4.2 PRIORITY 4: Steady runs in build phase (weeks 7-9, THURSDAYS)
-      else if (phase === 'build' && [7, 8, 9].includes(week) && dow === 4) {
+      // 🚀 v4.3 PRIORITY 4: Steady runs (weeks 7-9, THURSDAYS) - HIGH PRIORITY, BEFORE QUALITY ROTATION
+      else if ([7, 8, 9].includes(week) && dow === 4 && week % 4 !== 0) {
         type = 'steady';
         title = 'Corrida moderada 6K';
         description = 'Ritmo controlado Z2.5-Z3, ponte entre easy e tempo';
@@ -987,9 +993,17 @@ function generateSession(
         pace = (paces.pace_easy + paces.pace_tempo) / 2;
         zone = 2.5;
         intensity = 'moderate';
-        console.log(`[v4.2] Steady run at week ${week}, dow ${dow} (Thursday)`);
+        forcedWorkout = true;
+        console.log(`[v4.3] ✅ Forced steady run at week ${week}, dow ${dow} (Thursday)`);
       }
-      else {
+      
+      // Validation logs for steady runs
+      if ([7, 8, 9].includes(week) && dow === 4) {
+        console.log(`[v4.3 STEADY CHECK] Week ${week}, dow ${dow}: cutback=${week % 4 === 0}, phase=${phase}, forcedWorkout=${forcedWorkout}`);
+      }
+      
+      // Regular quality rotation ONLY if not forced
+      if (!forcedWorkout) {
         // Regular quality rotation for 10k (Thursdays or other quality slots)
         const mod = week % 3;
         
