@@ -189,6 +189,25 @@ class AthleteCapacityAnalyzer {
       this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
       console.log(`[AthleteCapacityAnalyzer] Best segment pace (validated top 3 with z-score): ${this.bestSegmentPace.toFixed(2)} min/km`);
     }
+    
+    // 🚀 WAVE 2.5: Estimate VO2max from HR data if not available
+    if (!this.vo2maxBest) {
+      const runsWithHR = this.validRuns.filter((r: any) => {
+        const avgHR = Number(r.average_heart_rate || 0);
+        const maxHR = Number(r.max_heart_rate || 0);
+        return avgHR > 0 && maxHR > 0;
+      });
+      
+      if (runsWithHR.length > 0) {
+        const avgHRs = runsWithHR.map((r: any) => Number(r.average_heart_rate));
+        const maxHRs = runsWithHR.map((r: any) => Number(r.max_heart_rate));
+        const meanAvgHR = avgHRs.reduce((a, b) => a + b, 0) / avgHRs.length;
+        const meanMaxHR = maxHRs.reduce((a, b) => a + b, 0) / maxHRs.length;
+        
+        this.vo2maxBest = 15.3 * (meanMaxHR / meanAvgHR);
+        console.log(`[AthleteCapacityAnalyzer] Estimated VO2max from HR data: ${this.vo2maxBest.toFixed(1)} ml/kg/min (from ${runsWithHR.length} runs)`);
+      }
+    }
   }
   
   analyzeTrainingVolume() {
@@ -564,11 +583,18 @@ function generatePlan(
   const loadCyclePattern = [1.0, 1.05, 1.1, 0.75]; // 4:1 cycle
   let longRunCount30Plus = 0;
   let lastLongRun30PlusWeek = 0;
+  let previousPhase: string | null = null;
 
   for (let w = 1; w <= weeks; w++) {
     const phase = getPhase(w, weeks);
     const cycleIndex = (w - 1) % 4;
     const isCutbackWeek = cycleIndex === 3 && phase !== 'taper';
+    
+    // 🚀 WAVE 3.6: Log phase transitions
+    if (w > 1 && phase !== previousPhase) {
+      console.info(`📍 [generate-training-plan] Phase transition: ${previousPhase} → ${phase} at week ${w}`);
+    }
+    previousPhase = phase;
     
     // Apply load cycle multiplier
     let volumeMultiplier = loadCyclePattern[cycleIndex];
@@ -703,6 +729,13 @@ function generateLongRun(
     : `${dist}km contínuos em Z2`;
 
   const pace = (goal === '42k' || goal === '21k') ? p.pace_long : p.pace_long + 0.2;
+  
+  // 🚀 WAVE 1.1: Add deterministic variability to long runs
+  const deterministicSeed = (week * 7 + 6) % 100 / 100; // dow=6 for long run day
+  const variation = (deterministicSeed - 0.5) * 0.4; // ±0.2 min/km
+  const finalPace = Math.max(3.2, Math.min(12.0, pace + variation));
+  
+  console.log(`[generateLongRun] Week ${week}: Applied variation ${variation.toFixed(2)} → ${finalPace.toFixed(2)} min/km`);
 
   return {
     type: 'long_run',
@@ -711,7 +744,7 @@ function generateLongRun(
     distance_km: dist,
     duration_min: null,
     target_hr_zone: 2,
-    target_pace_min_per_km: Number(pace.toFixed(2)),
+    target_pace_min_per_km: Number(finalPace.toFixed(2)),
     intensity: 'moderate',
   };
 }
@@ -899,39 +932,75 @@ function generateSession(
         intensity = 'high';
       }
     } else if (goal === '10k') {
-      // Rotação de treinos de qualidade para 10k
-      const mod = week % 3;
-      
-      if (mod === 0) {
-        // Tempo Run - Ritmo de prova
-        type = 'tempo';
-        title = 'Tempo 30min';
-        description = 'Aquecimento + 30min em ritmo de limiar/10k';
-        duration_min = 30;
-        distance_km = null as any;
-        pace = paces.pace_tempo;
-        zone = 3;
-        intensity = 'moderate';
-      } else if (mod === 1) {
-        // Intervals 1km - Velocidade
-        type = 'interval';
-        title = '6x1km';
-        description = 'Aquecimento + 6x1km ritmo 5-10k, 2min rec';
-        duration_min = 40;
-        distance_km = null as any;
-        pace = paces.pace_interval_1km;
+      // 🚀 WAVE 1.3: Race pace simulation in second-to-last week
+      if (week === totalWeeks - 1 && dow === 2) {
+        type = 'race_pace';
+        title = 'Simulado 6K @RP';
+        const targetPace = (paces as any).target_pace || paces.pace_10k;
+        description = `6km no ritmo-alvo de prova (~${targetPace.toFixed(2)}/km)`;
+        distance_km = 6;
+        duration_min = null as any;
+        pace = targetPace;
         zone = 4;
         intensity = 'high';
-      } else {
-        // Fartlek - Variação de ritmo
+      }
+      // 🚀 WAVE 2.4: Light fartlek in base phase (weeks 3-4)
+      else if (phase === 'base' && week >= 3 && week <= 4 && dow === 2) {
         type = 'fartlek';
-        title = 'Fartlek 35min';
-        description = 'Aquecimento + 10x(2min forte/1min leve)';
-        duration_min = 35;
+        title = 'Fartlek 30min leve';
+        description = 'Aquecimento 10min + 8x(1min moderado/1min leve) + desaquecimento 10min';
+        duration_min = 30;
         distance_km = null as any;
-        pace = (paces.pace_easy + paces.pace_tempo) / 2;
-        zone = 3;
+        pace = paces.pace_easy - 0.3;
+        zone = 2;
         intensity = 'moderate';
+      }
+      // 🚀 WAVE 1.2: Steady runs in build phase (weeks 7-9)
+      else if (phase === 'build' && week >= 7 && week <= 9 && dow === 2) {
+        type = 'steady';
+        title = 'Corrida moderada 6K';
+        description = 'Ritmo controlado Z2.5-Z3, ponte entre easy e tempo';
+        distance_km = 6;
+        duration_min = null as any;
+        pace = (paces.pace_easy + paces.pace_tempo) / 2;
+        zone = 2.5;
+        intensity = 'moderate';
+      }
+      else {
+        // Regular quality rotation for 10k
+        const mod = week % 3;
+        
+        if (mod === 0) {
+          // Tempo Run - Ritmo de prova
+          type = 'tempo';
+          title = 'Tempo 30min';
+          description = 'Aquecimento + 30min em ritmo de limiar/10k';
+          duration_min = 30;
+          distance_km = null as any;
+          pace = paces.pace_tempo;
+          zone = 3;
+          intensity = 'moderate';
+        } else if (mod === 1) {
+          // Intervals 1km - Velocidade
+          type = 'interval';
+          title = '6x1km';
+          description = 'Aquecimento + 6x1km ritmo 5-10k, 2min rec';
+          duration_min = 40;
+          distance_km = null as any;
+          pace = paces.pace_interval_1km;
+          zone = 4;
+          intensity = 'high';
+        } else {
+          // Fartlek - Variação de ritmo
+          type = 'fartlek';
+          title = 'Fartlek 35min';
+          description = 'Aquecimento + 10x(2min forte/1min leve)';
+          duration_min = 35;
+          distance_km = null as any;
+          pace = (paces.pace_easy + paces.pace_tempo) / 2;
+          zone = 3;
+          intensity = 'moderate';
+        }
       }
     } else if (goal === 'condicionamento') {
       if (week % 3 === 0) {
@@ -1058,6 +1127,21 @@ function generateSession(
     intensity = 'moderate';
   }
 
+  // 🚀 WAVE 3.7: Apply pace safety clamp
+  pace = Math.max(3.2, Math.min(12.0, pace));
+  
+  // 🚀 WAVE 1.1: Add deterministic variability to easy/long runs
+  let finalPace = pace;
+  if (type === 'easy' || type === 'long_run') {
+    // Deterministic seed based on week and day of week
+    const deterministicSeed = (week * 7 + dow) % 100 / 100;
+    const variation = (deterministicSeed - 0.5) * 0.4; // ±0.2 min/km
+    finalPace = pace + variation;
+    finalPace = Math.max(3.2, Math.min(12.0, finalPace)); // Re-apply clamp after variation
+    
+    console.log(`[generateSession] Week ${week}, ${type}: Applied variation ${variation.toFixed(2)} → ${finalPace.toFixed(2)} min/km`);
+  }
+
   return {
     type,
     title,
@@ -1065,7 +1149,7 @@ function generateSession(
     distance_km: type === 'easy' ? distance_km : (distance_km ?? null),
     duration_min: duration_min ?? null,
     target_hr_zone: zone,
-    target_pace_min_per_km: Number(pace.toFixed(2)),
+    target_pace_min_per_km: Number(finalPace.toFixed(2)),
     intensity,
   };
 }
