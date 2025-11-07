@@ -105,6 +105,18 @@ class AthleteCapacityAnalyzer {
   analyzeBestPerformances() {
     const validRuns = this.getValidRunData();
     
+    // Calculate median pace for reference
+    const allPaces = validRuns.map((r: any) => Number(r.pace_min_per_km)).sort((a, b) => a - b);
+    const medianPace = allPaces[Math.floor(allPaces.length / 2)] || 6.0;
+    
+    // Calculate average VO2max if available
+    const vo2Values = validRuns
+      .map((r: any) => Number(r.vo2_max_daniels))
+      .filter((v: number) => v > 0);
+    const avgVO2 = vo2Values.length > 0 
+      ? vo2Values.reduce((sum, v) => sum + v, 0) / vo2Values.length 
+      : null;
+    
     const distanceRanges = [
       { key: 'pace_5k', min: 4500, max: 5500 },
       { key: 'pace_10k', min: 9000, max: 11000 },
@@ -115,32 +127,54 @@ class AthleteCapacityAnalyzer {
     for (const range of distanceRanges) {
       const runsInRange = validRuns.filter((r: any) => {
         const dist = Number(r.total_distance_meters || 0);
-        return dist >= range.min && dist <= range.max;
+        const pace = Number(r.pace_min_per_km);
+        const hr = Number(r.average_heart_rate || 0);
+        const maxHr = Number(r.max_heart_rate || 0);
+        const vo2 = Number(r.vo2_max_daniels || 0);
+        
+        // Filter 1: Correct distance
+        if (dist < range.min || dist > range.max) return false;
+        
+        // Filter 2: Intensity by HR (if available)
+        if (hr > 0 && maxHr > 0) {
+          const hrPercent = hr / maxHr;
+          if (hrPercent < 0.85) return false; // Discard easy efforts
+        }
+        
+        // Filter 3: Intensity by pace (fallback)
+        if (pace > medianPace * 0.9) return false; // Discard slow paces
+        
+        // Filter 4: VO2max (if available)
+        if (avgVO2 && vo2 > 0 && vo2 < avgVO2 * 0.95) return false;
+        
+        return true;
       });
       
       if (runsInRange.length > 0) {
         const bestPace = Math.min(...runsInRange.map((r: any) => Number(r.pace_min_per_km)));
         this.bestPerformances[range.key as keyof typeof this.bestPerformances] = bestPace;
+        console.log(`[AthleteCapacityAnalyzer] Best ${range.key} from ${runsInRange.length} competitive efforts:`, bestPace.toFixed(2));
       }
     }
-    
-    console.log('[AthleteCapacityAnalyzer] Best performances:', this.bestPerformances);
   }
   
   analyzeBestSegments() {
-    if (this.bestSegments.length > 0) {
-      const topSegments = this.bestSegments
-        .map((s: any) => Number(s.best_1km_pace_min_km))
-        .filter((p: number) => p > 3 && p < 10)
-        .sort((a: number, b: number) => a - b)
-        .slice(0, 3);
-      
-      if (topSegments.length > 0) {
-        this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
-      }
-    }
+    if (this.bestSegments.length === 0) return;
     
-    console.log('[AthleteCapacityAnalyzer] Best segment pace (avg top 3):', this.bestSegmentPace);
+    // Get reference from best 5K or 10K for validation
+    const referencePace = this.bestPerformances.pace_5k || this.bestPerformances.pace_10k || 6.0;
+    const maxAcceptablePace = referencePace * 0.8; // 20% faster than best 5K
+    
+    const topSegments = this.bestSegments
+      .map((s: any) => Number(s.best_1km_pace_min_km))
+      .filter((p: number) => p > 3 && p < 10 && p >= maxAcceptablePace) // Outlier detection
+      .sort((a: number, b: number) => a - b)
+      .slice(0, 3);
+    
+    if (topSegments.length > 0) {
+      this.bestSegmentPace = topSegments.reduce((sum: number, p: number) => sum + p, 0) / topSegments.length;
+      console.log(`[AthleteCapacityAnalyzer] Best segment pace (validated top 3): ${this.bestSegmentPace.toFixed(2)} min/km`);
+    }
   }
   
   analyzeTrainingVolume() {
@@ -370,6 +404,83 @@ function normalizeGoal(goalRaw: string): GoalType {
   return (map[g] ?? (g as GoalType)) as GoalType;
 }
 
+/**
+ * Calculate optimal plan duration based on improvement needed
+ * Rule: 2% improvement per week is realistic
+ */
+function calculateOptimalWeeks(
+  goal: GoalType,
+  improvementPercent: number,
+  requestedWeeks?: number
+): number {
+  if (requestedWeeks && requestedWeeks > 0) {
+    return requestedWeeks; // User preference takes priority
+  }
+  
+  // Base weeks by goal
+  const minWeeks = {
+    '5k': 8,
+    '10k': 8,
+    '21k': 12,
+    '42k': 16,
+    'condicionamento': 8,
+    'perda_de_peso': 8,
+    'manutencao': 8,
+    'retorno': 8,
+    'melhorar_tempos': 8
+  };
+  
+  const maxWeeks = {
+    '5k': 12,
+    '10k': 12,
+    '21k': 16,
+    '42k': 20,
+    'condicionamento': 12,
+    'perda_de_peso': 12,
+    'manutencao': 12,
+    'retorno': 12,
+    'melhorar_tempos': 12
+  };
+  
+  // Calculate weeks needed for improvement (2% per week rule)
+  const weeksNeeded = Math.ceil(improvementPercent / 2);
+  
+  // Constrain to min/max
+  const min = minWeeks[goal] || 8;
+  const max = maxWeeks[goal] || 12;
+  
+  const optimalWeeks = Math.max(min, Math.min(max, weeksNeeded));
+  
+  console.log(`[calculateOptimalWeeks] Goal: ${goal}, Improvement: ${improvementPercent.toFixed(1)}%, Optimal: ${optimalWeeks} weeks`);
+  
+  return optimalWeeks;
+}
+
+/**
+ * Calculate progression factor using sigmoidal curve
+ * This reflects realistic physiological adaptation
+ */
+function calculateProgressionFactor(week: number, totalWeeks: number, phase: string): number {
+  // Sigmoidal curve: slow start, rapid middle, stabilize at end
+  const midpoint = totalWeeks / 2;
+  const steepness = 0.4;
+  
+  // Base sigmoidal factor
+  const sigmoidFactor = 1 / (1 + Math.exp(-steepness * (week - midpoint)));
+  
+  // Phase adjustments
+  const phaseMultipliers = {
+    'base': 0.3,      // Very conservative in base phase
+    'build': 1.0,     // Full progression in build phase
+    'peak': 1.2,      // Aggressive in peak phase
+    'taper': 0.95     // Maintain in taper
+  };
+  
+  const multiplier = phaseMultipliers[phase as keyof typeof phaseMultipliers] || 1.0;
+  
+  return Math.min(1.0, sigmoidFactor * multiplier);
+}
+
 function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' | 'taper' {
   // Base: 50%, Build: 30%, Peak: 15%, Taper: 5%
   if (week <= Math.max(1, Math.floor(totalWeeks * 0.5))) return 'base';
@@ -402,12 +513,21 @@ function defaultDaysFromPrefs(prefs: any, longDayIdx: number): number[] {
 
 function generatePlan(
   goalRaw: string, 
-  weeks: number, 
+  requestedWeeks: number, 
   targetPaces: Paces, 
   prefs: any, 
   calibrator: AthleteCapacityAnalyzer
 ) {
   const goal = normalizeGoal(goalRaw);
+  
+  // 🚀 Calculate optimal weeks based on improvement needed
+  const improvementPercent = (targetPaces as any).improvement_percent || 0;
+  const weeks = calculateOptimalWeeks(goal, improvementPercent, requestedWeeks);
+  
+  if (weeks !== requestedWeeks) {
+    console.log(`[generatePlan] Adjusted duration from ${requestedWeeks} to ${weeks} weeks for ${improvementPercent.toFixed(1)}% improvement`);
+  }
+  
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
   const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
 
@@ -559,8 +679,8 @@ function generateSession(
   calibrator: AthleteCapacityAnalyzer,
   totalWeeks: number
 ) {
-  // 🚀 Calcular progressão baseada na semana
-  const progressionFactor = Math.min(1.0, week / totalWeeks);
+  // 🚀 Calculate progression using sigmoidal curve
+  const progressionFactor = calculateProgressionFactor(week, totalWeeks, phase);
   
   // 🚀 Aplicar progressão aos paces
   let paces = { ...p };
