@@ -1649,37 +1649,26 @@ serve(async (req) => {
     // 🚀 PHASE 1: Atomic transaction using RPC function
     const planSummary = buildPlanSummary(plan.goal_type, adjustedWeeks, safeTargetPaces, workouts, plan.goal_target_time_minutes, athleteAnalyzer);
     
-    // Prepare workout data for RPC
+    // Prepare workout data for RPC (matching training_plan_workouts table structure)
     const workoutsData = rows.map(row => ({
-      plan_id: row.plan_id,
-      user_id: row.user_id,
-      week_number: Math.floor((new Date(row.workout_date).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1,
-      workout_date: row.workout_date,
-      day_of_week: dayToIndex[row.workout_date.split('-')[2]] || 0,
+      scheduled_date: row.workout_date,
       title: row.title,
       description: row.description,
-      workout_type: row.workout_type,
-      distance_meters: row.distance_meters,
+      type: row.workout_type,
+      distance_km: row.distance_meters ? row.distance_meters / 1000 : null,
       duration_minutes: row.duration_minutes,
       target_pace_min_km: row.target_pace_min_km,
-      intensity_zone: row.target_hr_zone,
-      intensity_level: 'planned',
-      status: 'planned'
+      target_hr_zone: row.target_hr_zone,
+      status: row.status || 'pending'
     }));
-    
-    // Prepare plan updates
-    const planUpdates = {
-      total_workouts: rows.length,
-      total_weeks: adjustedWeeks,
-      weekly_volume_km: planSummary.statistics.avg_weekly_km,
-      peak_week_volume_km: planSummary.statistics.longest_run_km
-    };
     
     // Call atomic RPC function
     const { data: rpcResult, error: rpcError } = await supabase.rpc('update_training_plan_workouts', {
-      plan_id_param: plan.id,
-      workouts_data: workoutsData,
-      plan_updates: planUpdates
+      p_plan_id: plan.id,
+      p_user_id: plan.user_id,
+      p_workouts: workoutsData,
+      p_total_workouts: rows.length,
+      p_total_weeks: adjustedWeeks
     });
     
     if (rpcError) {
