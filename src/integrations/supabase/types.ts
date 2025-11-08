@@ -5247,10 +5247,25 @@ export type Database = {
         Args: { status_param: string; sync_id_param: string }
         Returns: undefined
       }
-      update_training_plan_workouts: {
-        Args: { plan_id_param: string; plan_updates: Json; workouts_data: Json }
-        Returns: Json
-      }
+      update_training_plan_workouts:
+        | {
+            Args: {
+              plan_id_param: string
+              plan_updates: Json
+              workouts_data: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_plan_id: string
+              p_total_weeks: number
+              p_total_workouts: number
+              p_user_id: string
+              p_workouts: Json
+            }
+            Returns: undefined
+          }
       urlencode:
         | { Args: { data: Json }; Returns: string }
         | {
