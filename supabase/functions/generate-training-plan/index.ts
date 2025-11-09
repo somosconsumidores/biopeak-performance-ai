@@ -511,7 +511,8 @@ function buildBeginnerSafePaces(
 ): Paces {
   const goal = normalizeGoal(goalType);
   
-  let basePace: number;
+  let targetPace: number;
+  let easyPaceStart: number;
   
   if (targetTimeMinutes && ['5k', '10k', '21k', '42k'].includes(goal)) {
     // Calculate target pace from goal
@@ -521,39 +522,50 @@ function buildBeginnerSafePaces(
     else if (goal === '21k') targetDistance = 21.097;
     else targetDistance = 42.195; // 42k
     
-    const targetPace = targetTimeMinutes / targetDistance;
+    targetPace = targetTimeMinutes / targetDistance;
     
-    // For absolute beginners, start 35% SLOWER than target
-    // This ensures safe progression
-    basePace = targetPace * 1.35;
+    // Para iniciantes: começar 30% mais lento que a meta
+    // Este JÁ É o pace easy inicial - não adicionar mais margem!
+    easyPaceStart = targetPace * 1.30;
     
-    console.log(`[buildBeginnerSafePaces] Target pace: ${targetPace.toFixed(2)}, Starting base: ${basePace.toFixed(2)}`);
+    console.log('🎯 [buildBeginnerSafePaces] Summary:', {
+      goal,
+      targetTimeMinutes,
+      targetPace: targetPace.toFixed(2),
+      easyPaceStart: easyPaceStart.toFixed(2),
+      longRunStart: (easyPaceStart * 0.94).toFixed(2),
+      tempoPace: (targetPace * 1.08).toFixed(2),
+      intervalPace: (targetPace * 1.02).toFixed(2)
+    });
   } else {
-    // Fallback: use age-based conservative defaults
+    // Fallback para objetivos não-race
     const age = profile?.birth_date
       ? Math.floor((Date.now() - new Date(profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
       : 35;
     
-    basePace = age < 30 ? 7.0 : age < 40 ? 7.5 : 8.0;
+    targetPace = age < 30 ? 6.5 : age < 40 ? 7.0 : 7.5;
+    easyPaceStart = targetPace * 1.20;
   }
   
-  // Ultra-conservative training zones for beginners
+  // Paces baseados diretamente no objetivo, com progressão clara
   return {
-    pace_5k: basePace * 0.90,
-    pace_10k: basePace,
-    pace_half: basePace * 1.10,
-    pace_marathon: basePace * 1.20,
+    // Paces de referência para estimativas
+    pace_5k: targetPace * 0.92,
+    pace_10k: targetPace * 0.96,
+    pace_half: targetPace * 1.00,
+    pace_marathon: targetPace * 1.05,
     
-    pace_easy: basePace + 1.5,      // VERY easy
-    pace_long: basePace + 1.0,      // Comfortable long run
-    pace_tempo: basePace + 0.5,     // Gentle threshold
-    pace_interval_1km: basePace,    // Moderate intervals
-    pace_interval_800m: basePace - 0.2,
-    pace_interval_400m: basePace - 0.4,
+    // Paces de TREINO com progressão embutida
+    pace_easy: easyPaceStart,           // Começar 30% mais lento (confortável)
+    pace_long: easyPaceStart * 0.94,    // Long run 6% mais rápido que easy
+    pace_tempo: targetPace * 1.08,      // Tempo 8% mais lento que meta
+    pace_interval_1km: targetPace * 1.02,  // Intervalos 2% mais lento
+    pace_interval_800m: targetPace * 0.98, // Intervalos médios 2% mais rápido
+    pace_interval_400m: targetPace * 0.94, // Intervalos curtos no limite
     
-    pace_best: basePace * 0.90,
-    pace_median: basePace,
-    pace_p75: basePace + 1.0,
+    pace_best: targetPace * 0.92,
+    pace_median: easyPaceStart,
+    pace_p75: easyPaceStart * 1.08,
   };
 }
 
@@ -945,6 +957,32 @@ function generateSession(
       easy: paces.pace_easy.toFixed(2),
       tempo: paces.pace_tempo.toFixed(2),
       interval: paces.pace_interval_1km.toFixed(2)
+    });
+  } else if (calibrator.runs.length === 0 && (p as any).pace_marathon) {
+    // Iniciante absoluto: aplicar progressão gradual nos paces easy/long
+    // Easy pace progride de 30% mais lento até 15% mais lento que o pace de corrida
+    const targetPaceRace = (p as any).pace_marathon / 1.05; // Reverse engineer target pace
+    const startEasy = p.pace_easy;
+    const targetEasy = targetPaceRace * 1.15;
+    const progressedEasy = startEasy - (startEasy - targetEasy) * progressionFactor;
+    
+    // Long run progride de 28% mais lento até 10% mais lento
+    const startLong = p.pace_long;
+    const targetLong = targetPaceRace * 1.10;
+    const progressedLong = startLong - (startLong - targetLong) * progressionFactor;
+    
+    paces = {
+      ...p,
+      pace_easy: progressedEasy,
+      pace_long: progressedLong,
+    };
+    
+    console.log(`[generateSession] BEGINNER Week ${week}/${totalWeeks} - Progression ${(progressionFactor*100).toFixed(0)}%`, {
+      phase,
+      targetPaceRace: targetPaceRace.toFixed(2),
+      easy: progressedEasy.toFixed(2),
+      long: progressedLong.toFixed(2),
+      tempo: paces.pace_tempo.toFixed(2)
     });
   }
   
