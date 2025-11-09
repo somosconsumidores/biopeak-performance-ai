@@ -1569,7 +1569,6 @@ serve(async (req) => {
       
     } else if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
       // PRIORIDADE 2: Meta de tempo definida pelo usuário no Step 13
-    if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
       const goalMinutes = plan.goal_target_time_minutes;
       const g = normalizeGoal(plan.goal_type);
       
