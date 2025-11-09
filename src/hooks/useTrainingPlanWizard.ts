@@ -34,6 +34,7 @@ export interface TrainingPlanWizardData {
     k42?: string;
   };
   adjustedTimes?: boolean;
+  unknownPaces?: boolean; // Flag for beginners who don't know their paces
   
   // Step 7: Weekly frequency
   weeklyFrequency: number;
@@ -301,7 +302,8 @@ export function useTrainingPlanWizard() {
       case 5:
         return !!wizardData.gender;
       case 6:
-        return true; // Times are optional/can be estimated
+        // Times are optional - allow if has estimated times OR marked as beginner
+        return wizardData.unknownPaces === true || Object.values(wizardData.estimatedTimes).some(time => time);
       case 7:
         return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
       case 8:
@@ -619,10 +621,49 @@ export function useTrainingPlanWizard() {
         // Do not block plan generation if preferences fail; function uses sensible defaults
       }
 
+      // Prepare declared_paces and beginner flag
+      let declaredPaces = null;
+      let absoluteBeginner = false;
+      
+      if (wizardData.unknownPaces === true) {
+        // User marked as beginner/unknown paces
+        absoluteBeginner = true;
+        console.log('🚨 User marked as absolute beginner - no declared paces');
+      } else if (Object.values(wizardData.estimatedTimes).some(t => t)) {
+        // User has declared times - convert to paces
+        const parseTimeToMinutes = (timeStr: string): number | undefined => {
+          if (!timeStr) return undefined;
+          const parts = timeStr.split(':').map(p => parseInt(p, 10));
+          if (parts.length === 2) return parts[0] + parts[1] / 60; // MM:SS
+          if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60; // HH:MM:SS
+          return undefined;
+        };
+        
+        declaredPaces = {
+          pace_5k: parseTimeToMinutes(wizardData.estimatedTimes.k5 || '') ? parseTimeToMinutes(wizardData.estimatedTimes.k5!)! / 5 : undefined,
+          pace_10k: parseTimeToMinutes(wizardData.estimatedTimes.k10 || '') ? parseTimeToMinutes(wizardData.estimatedTimes.k10!)! / 10 : undefined,
+          pace_half: parseTimeToMinutes(wizardData.estimatedTimes.k21 || '') ? parseTimeToMinutes(wizardData.estimatedTimes.k21!)! / 21.097 : undefined,
+          pace_marathon: parseTimeToMinutes(wizardData.estimatedTimes.k42 || '') ? parseTimeToMinutes(wizardData.estimatedTimes.k42!)! / 42.195 : undefined,
+        };
+        
+        // Remove undefined values
+        declaredPaces = Object.fromEntries(
+          Object.entries(declaredPaces).filter(([_, v]) => v !== undefined)
+        );
+        
+        if (Object.keys(declaredPaces).length === 0) {
+          declaredPaces = null;
+        }
+      }
+
       // Trigger Edge Function to generate the detailed plan
       console.log('Calling generate-training-plan with plan_id:', planId);
       const { data: fnResult, error: fnError } = await supabase.functions.invoke('generate-training-plan', {
-        body: { plan_id: planId },
+        body: { 
+          plan_id: planId,
+          declared_paces: declaredPaces,
+          absolute_beginner: absoluteBeginner,
+        },
       });
       
       if (fnError) {

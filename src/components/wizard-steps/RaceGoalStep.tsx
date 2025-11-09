@@ -288,6 +288,31 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
         </CardContent>
       </Card>
 
+      {/* Beginner Warning for Ambitious Goals */}
+      {wizardData.unknownPaces && timeValidation && (timeValidation.level === 'very_ambitious' || timeValidation.level === 'ambitious') && (
+        <Card className="glass-card border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                  Meta ambiciosa para iniciante
+                </p>
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Como você não tem histórico de corridas, vamos criar um plano 
+                  progressivo e seguro. Você começará com ritmos confortáveis 
+                  e distâncias menores, aumentando gradualmente ao longo das 
+                  {wizardData.planDurationWeeks} semanas.
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium mt-2">
+                  ⚠️ Considere consultar um médico antes de iniciar treinos intensos.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Info card */}
       <Card className="glass-card bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
         <CardContent className="pt-6">

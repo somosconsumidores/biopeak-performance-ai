@@ -291,7 +291,8 @@ class AthleteCapacityAnalyzer {
     const valid = this.getValidRunData();
     
     if (valid.length === 0) {
-      this.trainingVolume = { avgWeeklyKm: 25, longestRunLast8W: 12 };
+      // More conservative defaults for beginners
+      this.trainingVolume = { avgWeeklyKm: 15, longestRunLast8W: 8 };
       return;
     }
     
@@ -418,8 +419,9 @@ class AthleteCapacityAnalyzer {
       ? Math.floor((Date.now() - new Date(this.profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
       : 35;
     
-    const base = goalRaw === 'melhorar_tempos' ? 5.0 :
-                 age < 25 ? 5.5 : age < 35 ? 6.0 : age < 45 ? 6.5 : 7.0;
+    // Conservative defaults based on age
+    const base = goalRaw === 'melhorar_tempos' ? 5.5 :
+                 age < 25 ? 6.0 : age < 35 ? 6.5 : age < 45 ? 7.0 : 7.5;
     return base;
   }
   
@@ -498,6 +500,60 @@ function deriveTrainingZonesFromDeclaredPaces(
     pace_best: ref5k,
     pace_median: ref10k,
     pace_p75: refHalf,
+  };
+}
+
+// ---------------- BEGINNER SAFE PACES ----------------
+function buildBeginnerSafePaces(
+  goalType: string,
+  targetTimeMinutes: number | null,
+  profile: Profile | null
+): Paces {
+  const goal = normalizeGoal(goalType);
+  
+  let basePace: number;
+  
+  if (targetTimeMinutes && ['5k', '10k', '21k', '42k'].includes(goal)) {
+    // Calculate target pace from goal
+    let targetDistance: number;
+    if (goal === '5k') targetDistance = 5;
+    else if (goal === '10k') targetDistance = 10;
+    else if (goal === '21k') targetDistance = 21.097;
+    else targetDistance = 42.195; // 42k
+    
+    const targetPace = targetTimeMinutes / targetDistance;
+    
+    // For absolute beginners, start 35% SLOWER than target
+    // This ensures safe progression
+    basePace = targetPace * 1.35;
+    
+    console.log(`[buildBeginnerSafePaces] Target pace: ${targetPace.toFixed(2)}, Starting base: ${basePace.toFixed(2)}`);
+  } else {
+    // Fallback: use age-based conservative defaults
+    const age = profile?.birth_date
+      ? Math.floor((Date.now() - new Date(profile.birth_date).getTime()) / (365.25 * 24 * 3600 * 1000))
+      : 35;
+    
+    basePace = age < 30 ? 7.0 : age < 40 ? 7.5 : 8.0;
+  }
+  
+  // Ultra-conservative training zones for beginners
+  return {
+    pace_5k: basePace * 0.90,
+    pace_10k: basePace,
+    pace_half: basePace * 1.10,
+    pace_marathon: basePace * 1.20,
+    
+    pace_easy: basePace + 1.5,      // VERY easy
+    pace_long: basePace + 1.0,      // Comfortable long run
+    pace_tempo: basePace + 0.5,     // Gentle threshold
+    pace_interval_1km: basePace,    // Moderate intervals
+    pace_interval_800m: basePace - 0.2,
+    pace_interval_400m: basePace - 0.4,
+    
+    pace_best: basePace * 0.90,
+    pace_median: basePace,
+    pace_p75: basePace + 1.0,
   };
 }
 
@@ -773,12 +829,22 @@ function generateLongRun(
       dist = Math.min(Math.min(22, maxLongRun), 14 + week * 0.8); 
       break;
     case '42k': 
-      // Progress from 14-16km to max 32km
-      dist = Math.min(maxLongRun, 14 + week * 1.2); 
-      // Limit to 3 runs ≥30km, with 2-week spacing
-      if (dist >= 30) {
-        if (longRunTracker.count30Plus >= 3 || (week - longRunTracker.lastWeek30Plus < 2)) {
-          dist = Math.min(28, dist);
+      // Check if this is a beginner plan (no history)
+      if (calibrator.trainingVolume.avgWeeklyKm <= 15) {
+        // BEGINNER: Very gradual progression
+        // Start at 10km and increase 1km per week
+        dist = Math.min(maxLongRun, 10 + (week - 1) * 1.0);
+        // Cap at 28km for absolute beginners (no 30+ runs)
+        dist = Math.min(28, dist);
+        console.log(`[generateLongRun] BEGINNER 42k plan - Week ${week}: ${dist}km (capped at 28km)`);
+      } else {
+        // EXPERIENCED: Normal progression
+        dist = Math.min(maxLongRun, 14 + week * 1.2); 
+        // Limit to 3 runs ≥30km, with 2-week spacing
+        if (dist >= 30) {
+          if (longRunTracker.count30Plus >= 3 || (week - longRunTracker.lastWeek30Plus < 2)) {
+            dist = Math.min(28, dist);
+          }
         }
       }
       break;
@@ -1478,11 +1544,31 @@ serve(async (req) => {
     // Calcular número de semanas do plano
     const weeks = Math.max(1, Math.floor(plan.weeks || 4));
     
-    // Suporte a paces declarados pelo usuário
+    // Suporte a paces declarados pelo usuário e modo iniciante
     const inputPaces = body?.declared_paces;
+    const absoluteBeginner = body?.absolute_beginner === true;
     let safeTargetPaces: Paces;
     
-    // PRIORIDADE 1: Meta de tempo definida pelo usuário no Step 13
+    // PRIORIDADE 1: MODO INICIANTE ABSOLUTO (sem histórico e sem paces conhecidos)
+    if (absoluteBeginner && !inputPaces && runs.length === 0) {
+      console.warn('🚨 [ABSOLUTE BEGINNER MODE] User has no history and unknown paces');
+      
+      // Create ultra-conservative plan for absolute beginner
+      safeTargetPaces = buildBeginnerSafePaces(
+        plan.goal_type,
+        plan.goal_target_time_minutes,
+        profile
+      );
+      
+      console.info('[generate-training-plan] Beginner paces:', {
+        easy: safeTargetPaces.pace_easy.toFixed(2),
+        long: safeTargetPaces.pace_long.toFixed(2),
+        tempo: safeTargetPaces.pace_tempo.toFixed(2),
+        interval: safeTargetPaces.pace_interval_1km.toFixed(2)
+      });
+      
+    } else if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
+      // PRIORIDADE 2: Meta de tempo definida pelo usuário no Step 13
     if (plan.goal_target_time_minutes && typeof plan.goal_target_time_minutes === 'number') {
       const goalMinutes = plan.goal_target_time_minutes;
       const g = normalizeGoal(plan.goal_type);
@@ -1647,7 +1733,12 @@ serve(async (req) => {
     });
 
     // 🚀 PHASE 1: Atomic transaction using RPC function
-    const planSummary = buildPlanSummary(plan.goal_type, adjustedWeeks, safeTargetPaces, workouts, plan.goal_target_time_minutes, athleteAnalyzer);
+    const planSummary = {
+      ...buildPlanSummary(plan.goal_type, adjustedWeeks, safeTargetPaces, workouts, plan.goal_target_time_minutes, athleteAnalyzer),
+      beginner_notes: absoluteBeginner 
+        ? 'Plano desenvolvido para iniciante sem histórico. Progressão conservadora com foco em construção de base aeróbica segura.' 
+        : null
+    };
     
     // Prepare workout data for RPC (matching training_plan_workouts table structure)
     const workoutsData = rows.map(row => ({

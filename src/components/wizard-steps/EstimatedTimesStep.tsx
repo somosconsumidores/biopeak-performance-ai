@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
-import { Timer, Sparkles, Edit3, CheckCircle2 } from 'lucide-react';
+import { Timer, Sparkles, Edit3, CheckCircle2, HelpCircle, Ban } from 'lucide-react';
 import { PaceStepper } from '@/components/ui/pace-stepper';
 
 interface EstimatedTimesStepProps {
@@ -13,6 +13,7 @@ interface EstimatedTimesStepProps {
 
 export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTimesStepProps) {
   const [editingTimes, setEditingTimes] = useState(false);
+  const [showBeginnerConfirmation, setShowBeginnerConfirmation] = useState(false);
   const [tempTimesMinutes, setTempTimesMinutes] = useState({
     k5: parseTimeToMinutes(wizardData.estimatedTimes.k5) || 30,
     k10: parseTimeToMinutes(wizardData.estimatedTimes.k10) || 50,
@@ -73,6 +74,15 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
     setEditingTimes(false);
   };
 
+  const handleBeginnerMode = () => {
+    // Mark as beginner/unknown paces
+    updateWizardData({ 
+      unknownPaces: true,
+      estimatedTimes: { k5: '', k10: '', k21: '', k42: '' }
+    });
+    setShowBeginnerConfirmation(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Info section */}
@@ -85,11 +95,32 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           <p className="text-sm text-muted-foreground">
             {hasEstimatedTimes 
               ? 'Validamos sua capacidade atual - ajuste se necessário'
-              : 'Informe seus tempos conhecidos (opcional)'
+              : 'Informe seus tempos conhecidos ou marque como iniciante'
             }
           </p>
         </div>
       </div>
+
+      {/* Beginner Confirmation */}
+      {showBeginnerConfirmation && (
+        <Card className="glass-card border-green-500 bg-green-50 dark:bg-green-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2 flex-1">
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  Perfeito! Vamos criar um plano para iniciantes
+                </p>
+                <p className="text-xs text-green-800 dark:text-green-200">
+                  Sem problema! Vamos criar um plano progressivo e seguro baseado em sua meta. 
+                  Começaremos com ritmos e distâncias confortáveis, aumentando gradualmente 
+                  ao longo das semanas para prepará-lo com segurança.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {hasEstimatedTimes ? (
         <div className="space-y-4">
@@ -177,52 +208,88 @@ export function EstimatedTimesStep({ wizardData, updateWizardData }: EstimatedTi
           )}
         </div>
       ) : (
-        /* Manual time entry com TimeSpinners para usuários sem histórico */
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              Não encontramos histórico suficiente para estimar seus tempos. 
-              Se você já correu essas distâncias, pode informar seus tempos abaixo (opcional).
-            </p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Tempos Conhecidos (Opcional)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {Object.entries(distanceConfigs).map(([key, config]) => (
-                <div key={key} className="space-y-2">
-                  <PaceStepper
-                    value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
-                    onChange={(minutes) => {
-                      const newTimesMinutes = {
-                        ...tempTimesMinutes,
-                        [key]: minutes
-                      };
-                      setTempTimesMinutes(newTimesMinutes);
-                      
-                      // Auto-save: converter e atualizar wizardData
-                      const formattedTimes = {
-                        k5: formatMinutesToTime(newTimesMinutes.k5, 'MM:SS'),
-                        k10: formatMinutesToTime(newTimesMinutes.k10, 'MM:SS'),
-                        k21: formatMinutesToTime(newTimesMinutes.k21, 'H:MM'),
-                        k42: formatMinutesToTime(newTimesMinutes.k42, 'H:MM'),
-                      };
-                      updateWizardData({ estimatedTimes: formattedTimes });
-                    }}
-                    min={config.min}
-                    max={config.max}
-                    step={config.step}
-                    distance={config.distanceKm}
-                    format={config.format}
-                    label={config.distance}
-                  />
+        <>
+          {/* Beginner Mode Button */}
+          {!wizardData.unknownPaces && (
+            <Card className="glass-card border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <HelpCircle className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">
+                      Não sabe seus tempos atuais?
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Se você é iniciante ou não conhece suas capacidades atuais, podemos criar um plano progressivo e seguro para você!
+                    </p>
+                    <Button
+                      onClick={handleBeginnerMode}
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Sou iniciante / Não sei meus tempos
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Manual Input (only show if not beginner mode) */}
+          {!wizardData.unknownPaces && (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-primary" />
+                  Ou informe seus tempos atuais (opcional)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Não encontramos histórico suficiente para estimar seus tempos. 
+                    Se você já correu essas distâncias, pode informar seus tempos abaixo (opcional).
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {Object.entries(distanceConfigs).map(([key, config]) => (
+                    <div key={key} className="space-y-2">
+                      <PaceStepper
+                        value={tempTimesMinutes[key as keyof typeof tempTimesMinutes]}
+                        onChange={(minutes) => {
+                          const newTimesMinutes = {
+                            ...tempTimesMinutes,
+                            [key]: minutes
+                          };
+                          setTempTimesMinutes(newTimesMinutes);
+                          
+                          // Auto-save: converter e atualizar wizardData
+                          const formattedTimes = {
+                            k5: formatMinutesToTime(newTimesMinutes.k5, 'MM:SS'),
+                            k10: formatMinutesToTime(newTimesMinutes.k10, 'MM:SS'),
+                            k21: formatMinutesToTime(newTimesMinutes.k21, 'H:MM'),
+                            k42: formatMinutesToTime(newTimesMinutes.k42, 'H:MM'),
+                          };
+                          updateWizardData({ estimatedTimes: formattedTimes });
+                        }}
+                        min={config.min}
+                        max={config.max}
+                        step={config.step}
+                        distance={config.distanceKm}
+                        format={config.format}
+                        label={config.distance}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Additional info */}

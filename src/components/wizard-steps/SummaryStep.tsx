@@ -86,6 +86,27 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
       </div>
 
       {/* Summary cards */}
+      {/* Beginner Notice */}
+      {wizardData.unknownPaces && (['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && (
+        <Card className="glass-card border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Plano para Iniciante
+                </p>
+                <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+                  Como você não tem histórico de corridas, criaremos um plano conservador e 
+                  progressivo. Os ritmos e distâncias iniciais serão confortáveis, 
+                  aumentando gradualmente para prepará-lo com segurança para sua meta.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-4">
         {/* Goal */}
         <Card className="glass-card">
