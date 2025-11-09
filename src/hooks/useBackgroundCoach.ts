@@ -181,10 +181,10 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
   }, [options.notificationFallback, options.backgroundAudio]);
 
   const calculateLastKmStats = useCallback(async (sessionId: string, currentDistance: number): Promise<LastKmStats | null> => {
-    if (!sessionId || currentDistance < 100) return null;
+    if (!sessionId || currentDistance < 500) return null;
 
     try {
-      const fromDistance = Math.max(0, currentDistance - 100);
+      const fromDistance = Math.max(0, currentDistance - 500);
       
       const { data: snapshots, error } = await supabase
         .from('performance_snapshots')
@@ -212,7 +212,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return {
         averagePace,
         averageHeartRate,
-        distance: 100
+        distance: 500
       };
     } catch (error) {
       console.error('Erro ao calcular stats do último KM:', error);
@@ -237,7 +237,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         type = 'motivation';
         // ✅ Flag será setada APÓS reproduzir o áudio com sucesso
       } else {
-        // Subsequent feedbacks with last 100m stats
+        // Subsequent feedbacks with last 500m stats
         let statsMessage = '';
         if (lastKmStats) {
           statsMessage = `${Math.round(currentDistance)}m completados. Continue assim! `;
@@ -379,7 +379,7 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       lastFeedbackDistance: lastFeedbackDistanceRef.current,
       hasGivenInitial: hasGivenInitialFeedbackRef.current,
       distanceSinceLastFeedback,
-      '100m threshold met?': distanceSinceLastFeedback >= 100
+      '500m threshold met?': distanceSinceLastFeedback >= 500
     });
 
     // Skip if native feedback is active (iOS) - LEGACY CHECK, replaced by isNativeGPSActive
@@ -427,16 +427,16 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
       return;
     }
 
-    // Subsequent feedbacks: every 100m (for testing)
-    if (distanceSinceLastFeedback >= 100) {
-      console.log('✅ Triggering 100M feedback - Distance since last:', distanceSinceLastFeedback);
+    // Subsequent feedbacks: every 500m
+    if (distanceSinceLastFeedback >= 500) {
+      console.log('✅ Triggering 500M feedback - Distance since last:', distanceSinceLastFeedback);
       isProcessingRef.current = true;
       
       try {
         let lastKmStats: LastKmStats | null = null;
         
-        // Get last 100m stats if we have sessionId
-        if (sessionData.sessionId && currentDistance >= 100) {
+        // Get last 500m stats if we have sessionId
+        if (sessionData.sessionId && currentDistance >= 500) {
           lastKmStats = await calculateLastKmStats(sessionData.sessionId, currentDistance);
         }
 
@@ -463,10 +463,10 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
           // Update last feedback distance
           lastFeedbackDistanceRef.current = currentDistance;
 
-          console.log('🎯 100M Coach Feedback:', feedback.message);
+          console.log('🎯 500M Coach Feedback:', feedback.message);
         }
       } catch (error) {
-        console.error('Erro no feedback de 100m:', error);
+        console.error('Erro no feedback de 500m:', error);
         setState(prev => ({ 
           ...prev, 
           error: error instanceof Error ? error.message : 'Erro na análise' 
@@ -475,12 +475,12 @@ export const useBackgroundCoach = (options: BackgroundCoachOptions = {}) => {
         isProcessingRef.current = false;
       }
     } else {
-      console.log('⏳ No feedback needed - Distance since last:', distanceSinceLastFeedback, 'm (need 100m)');
+      console.log('⏳ No feedback needed - Distance since last:', distanceSinceLastFeedback, 'm (need 500m)');
     }
   }, [state.isActive, state.isEnabled, generateCoachingFeedback, playAudioFeedback, calculateLastKmStats]);
 
   /**
-   * Generate snapshot feedback for distance milestones (100m, 200m, etc.)
+   * Generate snapshot feedback for distance milestones (500m, 1000m, etc.)
    * This method bypasses the iOS native check and always generates feedback
    */
   const generateSnapshotFeedback = useCallback(async (sessionData: SessionData) => {

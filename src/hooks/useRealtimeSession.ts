@@ -61,7 +61,7 @@ export const useRealtimeSession = () => {
   const distanceAccumulatorRef = useRef(0);
   const microDistanceAccumulatorRef = useRef(0);
   const lastSnapshotDistanceRef = useRef(0);
-  const last100mMarkRef = useRef(0); // Separate ref for 100m feedback tracking
+  const last500mMarkRef = useRef(0); // Separate ref for 500m feedback tracking
   const lastLocationTimestampRef = useRef<number>(Date.now());
   const gpsCoordinatesRef = useRef<Array<[number, number]>>([]);
   const isInBackgroundRef = useRef(false);
@@ -89,7 +89,7 @@ export const useRealtimeSession = () => {
   const backgroundCoach = useBackgroundCoach({
     enabled: true,
     enableTTS: true,
-    feedbackInterval: 100, // Feedback a cada 100m (para testes)
+    feedbackInterval: 500, // Feedback a cada 500m
     backgroundAudio,
     notificationFallback: backgroundNotifications.scheduleNotification,
     isNativeGPSActive // Pass flag to disable WebView coach when Native GPS is active
@@ -575,9 +575,9 @@ export const useRealtimeSession = () => {
       microDistanceAccumulatorRef.current = 0;
       
       // ✅ CORREÇÃO CRÍTICA 4: Sincronizar marca de feedback (previne duplicação)
-      const currentSegment = Math.floor(nativeDistance / 100);
-      last100mMarkRef.current = currentSegment;
-      console.log(`🔄 [GPS SYNC] Synced feedback mark to ${currentSegment} (${currentSegment * 100}m)`);
+      const currentSegment = Math.floor(nativeDistance / 500);
+      last500mMarkRef.current = currentSegment;
+      console.log(`🔄 [GPS SYNC] Synced feedback mark to ${currentSegment} (${currentSegment * 500}m)`);
       
       // ✅ CORREÇÃO CRÍTICA 5: Ativar cooldown de 10s no speed-based fallback
       speedFallbackCooldownRef.current = Date.now() + 10000; // 10 segundos
@@ -647,22 +647,22 @@ export const useRealtimeSession = () => {
       // Update the session's lastSnapshot time ONLY after successful snapshot creation
       setSessionData(current => current ? { ...current, lastSnapshot: new Date() } : current);
 
-      // AI coaching triggers: feedback every 100m for testing
-      const distanceIn100m = Math.floor(sessionData.currentDistance / 100);
-      const lastMark = last100mMarkRef.current; // Use separate ref for 100m feedback
+      // AI coaching triggers: feedback every 500m
+      const distanceIn500m = Math.floor(sessionData.currentDistance / 500);
+      const lastMark = last500mMarkRef.current; // Use separate ref for 500m feedback
 
-      // Trigger feedback when a new 100m segment is completed
-      const distanceTrigger = distanceIn100m > lastMark && distanceIn100m > 0;
+      // Trigger feedback when a new 500m segment is completed
+      const distanceTrigger = distanceIn500m > lastMark && distanceIn500m > 0;
 
       if (distanceTrigger && !isNativeGPSActive) {
-        console.log('✅ [SNAPSHOT TRIGGER] Firing 100m feedback:', { 
+        console.log('✅ [SNAPSHOT TRIGGER] Firing 500m feedback:', { 
           currentDistance: sessionData.currentDistance,
-          distanceIn100m, 
+          distanceIn500m, 
           lastMark
         });
         
-        // Update ONLY the 100m feedback ref (not the snapshot ref)
-        last100mMarkRef.current = distanceIn100m;
+        // Update ONLY the 500m feedback ref (not the snapshot ref)
+        last500mMarkRef.current = distanceIn500m;
         
         // Convert sessionData to the format expected by backgroundCoach
         const coachData = {
@@ -683,7 +683,7 @@ export const useRealtimeSession = () => {
           coachActive: backgroundCoachRef.current?.isActive,
           coachEnabled: backgroundCoachRef.current?.isEnabled,
           feedbackCount: backgroundCoachRef.current?.feedbackCount,
-          distanceIn100m
+          distanceIn500m
         });
         
         // Use ref to avoid stale closure
@@ -698,7 +698,7 @@ export const useRealtimeSession = () => {
       } else {
         console.log('⏸️ [SNAPSHOT SKIP] Conditions not met:', {
           currentDistance: sessionData.currentDistance,
-          distanceIn100m,
+          distanceIn500m,
           lastMark
         });
       }
@@ -817,7 +817,7 @@ export const useRealtimeSession = () => {
       // Reset distance accumulator for new session
       distanceAccumulatorRef.current = 0;
       lastSnapshotDistanceRef.current = 0;
-      last100mMarkRef.current = 0; // Reset 100m feedback tracking
+      last500mMarkRef.current = 0; // Reset 500m feedback tracking
       lastLocationRef.current = null;
       gpsCoordinatesRef.current = [];
       

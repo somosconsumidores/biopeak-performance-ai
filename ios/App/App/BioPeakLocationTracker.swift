@@ -9,7 +9,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var accumulatedDistance: Double = 0.0
     private var isTracking: Bool = false
     
-    // Native feedback control (100m intervals for testing)
+    // Native feedback control (500m intervals)
     private var lastFeedbackSegment: Int = 0
     private var lastFeedbackAt: TimeInterval = 0
     private var sessionId: String?
@@ -187,8 +187,8 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                 
                 print("📍 [Native GPS] +\(String(format: "%.1f", distance))m → Total: \(String(format: "%.1f", accumulatedDistance))m (accuracy: \(String(format: "%.1f", newLocation.horizontalAccuracy))m)")
                 
-                // Check 100m milestone
-                let currentSegment = Int(accumulatedDistance / 100.0)
+                // Check 500m milestone
+                let currentSegment = Int(accumulatedDistance / 500.0)
                 
                 print("🔍 [Native GPS] Milestone check:")
                 print("   → accumulatedDistance: \(String(format: "%.1f", accumulatedDistance))m")
@@ -203,7 +203,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
                     if now - lastFeedbackAt >= 2.0 {
                         lastFeedbackAt = now
                         lastFeedbackSegment = currentSegment
-                        let meters = currentSegment * 100
+                        let meters = currentSegment * 500
                         print("🎯 [Native GPS] \(meters)m completed - TRIGGERING FEEDBACK NOW")
                         
                         // Generate and play feedback
