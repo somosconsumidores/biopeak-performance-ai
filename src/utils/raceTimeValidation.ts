@@ -33,17 +33,28 @@ const AMATEUR_MINIMUM_TIMES: WorldRecordLimits = {
   '42195': 135,  // 2h15min for marathon (3:12/km pace)
 };
 
+// Tempos MÍNIMOS recomendados para iniciantes absolutos (sem histórico)
+// Baseados em pace de 7:00-8:30/km dependendo da distância
+const BEGINNER_RECOMMENDED_TIMES: WorldRecordLimits = {
+  '5000': 32,    // 32 minutos (6:24/km) - conservador mas alcançável
+  '10000': 65,   // 1h05min (6:30/km)
+  '21097': 155,  // 2h35min (7:20/km)
+  '42195': 330,  // 5h30min (7:48/km)
+};
+
 /**
  * Validates a target time against historical performance and world records
  * @param targetMinutes - Target time in minutes
  * @param distanceMeters - Race distance in meters
  * @param historicalMinutes - Historical/best time for this distance (optional)
+ * @param isAbsoluteBeginner - Whether user is absolute beginner without pace knowledge (optional)
  * @returns Validation result with level, message, and whether user can proceed
  */
 export function validateRaceTime(
   targetMinutes: number,
   distanceMeters: number,
-  historicalMinutes?: number
+  historicalMinutes?: number,
+  isAbsoluteBeginner?: boolean
 ): TimeValidation {
   console.log('🔍 VALIDATION START:', {
     targetMinutes,
@@ -92,8 +103,52 @@ export function validateRaceTime(
     return result;
   }
 
-  // If no historical data, we can't validate further
+  // LAYER 3: Se não há histórico, validar contra tempos recomendados para iniciantes
   if (!historicalMinutes || historicalMinutes <= 0) {
+    // Se o usuário é iniciante absoluto, aplicar validação especial
+    if (isAbsoluteBeginner) {
+      const beginnerMinimum = BEGINNER_RECOMMENDED_TIMES[distanceMeters.toString()];
+      
+      if (beginnerMinimum) {
+        const percentBelowRecommended = ((beginnerMinimum - targetMinutes) / beginnerMinimum) * 100;
+        
+        console.log('🔍 LAYER 3 - Beginner validation:', {
+          targetMinutes,
+          beginnerMinimum,
+          percentBelowRecommended
+        });
+        
+        // Se o tempo é MUITO mais rápido que o recomendado (>20% mais rápido)
+        if (percentBelowRecommended > 20) {
+          return {
+            level: 'very_ambitious',
+            message: `⚠️ Meta muito ambiciosa para iniciante! Você está tentando completar em ${formatMinutes(targetMinutes)}, mas para quem está começando, recomendamos pelo menos ${formatMinutes(beginnerMinimum)}. Isso dá um ritmo médio de ${(targetMinutes / (distanceMeters / 1000)).toFixed(2)} min/km, que pode ser muito desafiador sem base de treino.`,
+            improvement: percentBelowRecommended,
+            canProceed: true,
+          };
+        }
+        
+        // Se o tempo é um pouco mais rápido (10-20% mais rápido)
+        if (percentBelowRecommended > 10) {
+          return {
+            level: 'ambitious',
+            message: `💪 Meta ambiciosa mas possível! Para iniciante, recomendamos ${formatMinutes(beginnerMinimum)}, mas sua meta de ${formatMinutes(targetMinutes)} é alcançável com dedicação total. Ritmo médio: ${(targetMinutes / (distanceMeters / 1000)).toFixed(2)} min/km.`,
+            improvement: percentBelowRecommended,
+            canProceed: true,
+          };
+        }
+        
+        // Se está dentro ou mais lento que o recomendado
+        return {
+          level: 'realistic',
+          message: `✅ Meta realista para iniciante! Tempo de ${formatMinutes(targetMinutes)} é um objetivo adequado para construir base com segurança.`,
+          improvement: 0,
+          canProceed: true,
+        };
+      }
+    }
+    
+    // Se não é iniciante ou não temos benchmark
     return {
       level: 'realistic',
       message: '✅ Meta definida. Não temos dados históricos para validação adicional.',

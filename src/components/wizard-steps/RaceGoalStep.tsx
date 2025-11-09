@@ -30,48 +30,50 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
   
   // Configurações de limites por distância (estilo Zepp Coach)
   const getTimeConfig = () => {
+    const isAbsoluteBeginner = wizardData.unknownPaces === true;
+    
     switch (wizardData.goal) {
       case '5k':
         return { 
           distance: '5 km',
           distanceKm: 5,
-          min: 15,      // 15:00 min
-          max: 45,      // 45:00 min
-          step: 0.5,    // 30 segundos
+          min: 15,
+          max: 60,
+          step: 0.5,
           format: 'MM:SS' as const,
-          default: 30,  // 30:00 min
+          default: isAbsoluteBeginner ? 35 : 30,  // Iniciante: 35min (7:00/km), Normal: 30min
         };
       case '10k':
         return { 
           distance: '10 km',
           distanceKm: 10,
-          min: 30,      // 30:00 min
-          max: 90,      // 1:30 h
-          step: 1,      // 1 minuto
+          min: 30,
+          max: 90,
+          step: 1,
           format: 'MM:SS' as const,
-          default: 50,  // 50:00 min
+          default: isAbsoluteBeginner ? 70 : 50,  // Iniciante: 70min (7:00/km), Normal: 50min
         };
       case 'half_marathon':
       case '21k':
         return { 
           distance: '21 km',
           distanceKm: 21.097,
-          min: 75,      // 1:15 h
-          max: 240,     // 4:00 h
-          step: 5,      // 5 minutos
+          min: 75,
+          max: 240,
+          step: 5,
           format: 'H:MM' as const,
-          default: 120, // 2:00 h
+          default: isAbsoluteBeginner ? 165 : 120,  // Iniciante: 2h45min (7:50/km), Normal: 2h00min
         };
       case 'marathon':
       case '42k':
         return { 
           distance: '42 km',
           distanceKm: 42.195,
-          min: 150,     // 2:30 h
-          max: 480,     // 8:00 h
-          step: 5,      // 5 minutos
+          min: 150,
+          max: 480,
+          step: 5,
           format: 'H:MM' as const,
-          default: 240, // 4:00 h
+          default: isAbsoluteBeginner ? 360 : 240,  // Iniciante: 6h00min (8:30/km), Normal: 4h00min
         };
       default:
         return { 
@@ -155,9 +157,10 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
     return validateRaceTime(
       wizardData.goalTargetTimeMinutes,
       distanceMeters,
-      historicalTimeMinutes
+      historicalTimeMinutes,
+      wizardData.unknownPaces === true
     );
-  }, [wizardData.goalTargetTimeMinutes, wizardData.goal, raceEstimates]);
+  }, [wizardData.goalTargetTimeMinutes, wizardData.goal, wizardData.unknownPaces, raceEstimates]);
 
   // Debug logging
   useEffect(() => {
@@ -296,16 +299,18 @@ export function RaceGoalStep({ wizardData, onUpdate }: RaceGoalStepProps) {
               <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="space-y-2">
                 <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                  Meta ambiciosa para iniciante
+                  {timeValidation.level === 'very_ambitious' 
+                    ? '⚠️ Meta muito ambiciosa para iniciante'
+                    : '💪 Meta desafiadora mas possível'
+                  }
                 </p>
                 <p className="text-xs text-amber-800 dark:text-amber-200">
-                  Como você não tem histórico de corridas, vamos criar um plano 
-                  progressivo e seguro. Você começará com ritmos confortáveis 
-                  e distâncias menores, aumentando gradualmente ao longo das 
-                  {wizardData.planDurationWeeks} semanas.
+                  {timeValidation.message}
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300 font-medium mt-2">
-                  ⚠️ Considere consultar um médico antes de iniciar treinos intensos.
+                  💡 Dica: Você pode ajustar a meta usando os botões + e - acima, 
+                  ou começar com um objetivo mais conservador e ajustar após 
+                  algumas semanas de treino.
                 </p>
               </div>
             </div>
