@@ -9,12 +9,24 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateRaceTime } from '@/utils/raceTimeValidation';
 
 export interface TrainingPlanWizardData {
+  // Step 0.5: Sport selection (new first step)
+  sportType: 'running' | 'cycling';
+  
   // Step 1: Phone number
   phone?: string;
   
   // Step 2: Goal selection
   goal: string;
   goalDescription?: string;
+  
+  // Cycling-specific fields
+  cyclingLevel?: 'beginner' | 'intermediate' | 'advanced';
+  ftpWatts?: number;
+  hasFtpTest?: boolean;
+  maxHeartRate?: number;
+  availableHoursPerWeek?: number;
+  equipmentType?: 'road' | 'mtb' | 'trainer' | 'mixed';
+  targetEventDescription?: string;
   
   // Step 3: Athlete level confirmation/adjustment
   athleteLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
@@ -87,6 +99,16 @@ const GOALS = [
   { id: 'maintenance', label: 'Manutenção da Forma' },
 ];
 
+export const CYCLING_GOALS = [
+  { id: 'cycling_general_fitness', label: 'Condicionamento Geral', icon: 'Activity' },
+  { id: 'cycling_weight_loss', label: 'Perda de Peso', icon: 'Scale' },
+  { id: 'cycling_gran_fondo', label: 'Gran Fondo / 100km', icon: 'Mountain' },
+  { id: 'cycling_improve_power', label: 'Melhorar Potência e Tempo Médio', icon: 'TrendingUp' },
+  { id: 'cycling_return', label: 'Retorno ao Pedal', icon: 'RotateCcw' },
+  { id: 'cycling_triathlon', label: 'Triathlon / Duathlon', icon: 'Trophy' },
+  { id: 'cycling_maintenance', label: 'Manutenção e Saúde', icon: 'Heart' },
+];
+
 const DAYS_OF_WEEK = [
   { id: 'monday', label: 'Segunda-feira' },
   { id: 'tuesday', label: 'Terça-feira' },
@@ -106,6 +128,7 @@ export function useTrainingPlanWizard() {
   const [currentStep, setCurrentStep] = useState(0); // Start at step 0 (disclaimer)
   const [loading, setLoading] = useState(false);
   const [wizardData, setWizardData] = useState<TrainingPlanWizardData>({
+    sportType: 'running', // Default to running
     goal: '',
     athleteLevel: 'Beginner',
     estimatedTimes: {},
@@ -245,18 +268,39 @@ export function useTrainingPlanWizard() {
 
   // Dynamic step calculation
   const getStepSequence = () => {
-    const baseSteps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // Step 0 = Disclaimer, Step 1 = Phone, then core steps 2-11
+    const baseSteps = [0, 1]; // Step 0 = Disclaimer, Step 1 = Sport Selection
     
-    if (shouldShowRaceDate()) {
-      baseSteps.push(12); // Race date step
+    if (wizardData.sportType === 'cycling') {
+      // Cycling sequence
+      baseSteps.push(
+        2,  // Phone
+        3,  // Cycling Goal
+        4,  // Cycling Level
+        5,  // FTP
+        6,  // Available Hours
+        7,  // Available Days  
+        8,  // Equipment
+        9,  // Start Date
+        10, // Plan Duration
+        11, // Summary
+        12  // Health Declaration
+      );
+    } else {
+      // Running sequence (existing)
+      baseSteps.push(2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+      
+      if (shouldShowRaceDate()) {
+        baseSteps.push(12); // Race date step
+      }
+      
+      if (shouldShowRaceGoal()) {
+        baseSteps.push(13); // Race goal step
+      }
+      
+      baseSteps.push(14); // Summary step
+      baseSteps.push(15); // Health declaration step
     }
     
-    if (shouldShowRaceGoal()) {
-      baseSteps.push(13); // Race goal step - meta específica de tempo
-    }
-    
-    baseSteps.push(14); // Summary step
-    baseSteps.push(15); // Health declaration step (must be last before generation)
     return baseSteps;
   };
 
@@ -284,41 +328,97 @@ export function useTrainingPlanWizard() {
   };
 
   const canProceed = () => {
+    const { sportType } = wizardData;
+    
     switch (currentStep) {
       case 0:
         return false; // Disclaimer step handles its own navigation
-      case 1: {
-        // Phone validation - require Brazilian format (11 digits)
+      case 1:
+        return !!sportType; // Sport selection
+      case 2: {
+        // Phone validation
         if (!wizardData.phone) return false;
         const digitsOnly = wizardData.phone.replace(/\D/g, '');
         return digitsOnly.length === 11;
       }
-      case 2:
-        return !!wizardData.goal;
       case 3:
-        return !!wizardData.athleteLevel;
+        return !!wizardData.goal; // Goal for both sports
       case 4:
-        return !!wizardData.birthDate;
+        // Level validation (different for each sport)
+        return sportType === 'cycling' ? !!wizardData.cyclingLevel : !!wizardData.athleteLevel;
       case 5:
+        // FTP for cycling, Gender for running
+        if (sportType === 'cycling') {
+          return wizardData.hasFtpTest !== undefined && 
+                 (wizardData.hasFtpTest === false || (wizardData.ftpWatts && wizardData.ftpWatts > 50));
+        }
         return !!wizardData.gender;
       case 6:
-        // Times are optional - allow if has estimated times OR marked as beginner
+        // Available hours for cycling, Times for running
+        if (sportType === 'cycling') {
+          return !!wizardData.availableHoursPerWeek && wizardData.availableHoursPerWeek >= 2;
+        }
         return wizardData.unknownPaces === true || Object.values(wizardData.estimatedTimes).some(time => time);
       case 7:
+        // Days for cycling, Weekly frequency for running
+        if (sportType === 'cycling') {
+          return wizardData.availableDays.length >= 2;
+        }
         return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
       case 8:
+        // Equipment for cycling, Available days for running
+        if (sportType === 'cycling') {
+          return !!wizardData.equipmentType;
+        }
         return wizardData.availableDays.length >= wizardData.weeklyFrequency;
       case 9:
+        // Start date for cycling, Long run day for running
+        if (sportType === 'cycling') {
+          return !!wizardData.startDate;
+        }
         return !!wizardData.longRunDay && wizardData.availableDays.includes(wizardData.longRunDay);
       case 10:
+        // Plan duration for cycling, Start date for running
+        if (sportType === 'cycling') {
+          return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
+        }
         return !!wizardData.startDate;
       case 11:
+        // Summary/Health for cycling, Plan duration for running
+        if (sportType === 'cycling') {
+          return true; // Summary step
+        }
         return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
       case 12:
+        // Health declaration for cycling, Race date for running
+        if (sportType === 'cycling') {
+          if (!wizardData.healthDeclaration) return false;
+          const allQuestionsAnswered = [
+            'question_1_heart_problem',
+            'question_2_chest_pain_during_activity',
+            'question_3_chest_pain_last_3months',
+            'question_4_balance_consciousness_loss',
+            'question_5_bone_joint_problem',
+            'question_6_taking_medication',
+            'question_7_other_impediment',
+          ].every(q => wizardData.healthDeclaration![q as keyof typeof wizardData.healthDeclaration] !== undefined);
+          
+          const hasPositiveAnswer = [
+            wizardData.healthDeclaration.question_1_heart_problem,
+            wizardData.healthDeclaration.question_2_chest_pain_during_activity,
+            wizardData.healthDeclaration.question_3_chest_pain_last_3months,
+            wizardData.healthDeclaration.question_4_balance_consciousness_loss,
+            wizardData.healthDeclaration.question_5_bone_joint_problem,
+            wizardData.healthDeclaration.question_6_taking_medication,
+            wizardData.healthDeclaration.question_7_other_impediment,
+          ].some(answer => answer === true);
+          
+          return allQuestionsAnswered && !hasPositiveAnswer && wizardData.healthDeclaration.declaration_accepted === true;
+        }
         return !wizardData.hasRaceDate || !!wizardData.raceDate;
       case 13: {
-        // RaceGoalStep validation - block impossible target times
-        if (!wizardData.goalTargetTimeMinutes) return true; // Optional field
+        // RaceGoalStep validation for running only
+        if (!wizardData.goalTargetTimeMinutes) return true;
         
         const distanceMap: Record<string, number> = {
           '5k': 5000,
@@ -331,22 +431,13 @@ export function useTrainingPlanWizard() {
         
         const distanceMeters = distanceMap[wizardData.goal] || 10000;
         const validation = validateRaceTime(wizardData.goalTargetTimeMinutes, distanceMeters, undefined);
-        
-        console.log('🔍 canProceed Step 12 validation:', {
-          goalTargetTimeMinutes: wizardData.goalTargetTimeMinutes,
-          goal: wizardData.goal,
-          distanceMeters,
-          validation
-        });
-        
         return validation.canProceed;
       }
       case 14:
-        return true; // Summary step
-      case 15: // Health declaration step
+        return true; // Summary step for running
+      case 15: // Health declaration step for running
         if (!wizardData.healthDeclaration) return false;
         
-        // Check all 7 questions are answered
         const allQuestionsAnswered = [
           'question_1_heart_problem',
           'question_2_chest_pain_during_activity',
@@ -357,7 +448,6 @@ export function useTrainingPlanWizard() {
           'question_7_other_impediment',
         ].every(q => wizardData.healthDeclaration![q as keyof typeof wizardData.healthDeclaration] !== undefined);
         
-        // Check if eligible (all answers must be false/NO)
         const hasPositiveAnswer = [
           wizardData.healthDeclaration.question_1_heart_problem,
           wizardData.healthDeclaration.question_2_chest_pain_during_activity,
@@ -368,7 +458,6 @@ export function useTrainingPlanWizard() {
           wizardData.healthDeclaration.question_7_other_impediment,
         ].some(answer => answer === true);
         
-        // Can only proceed if all questions answered, no positive answers, and declaration accepted
         return allQuestionsAnswered && !hasPositiveAnswer && wizardData.healthDeclaration.declaration_accepted === true;
       default:
         return false;

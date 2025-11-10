@@ -13,10 +13,15 @@ import {
   CheckCircle 
 } from 'lucide-react';
 
-// Step Components
 import { DisclaimerStep } from './wizard-steps/DisclaimerStep';
+import { SportSelectionStep } from './wizard-steps/SportSelectionStep';
 import { PhoneNumberStep } from './wizard-steps/PhoneNumberStep';
 import { GoalSelectionStep } from './wizard-steps/GoalSelectionStep';
+import { CyclingGoalSelectionStep } from './wizard-steps/CyclingGoalSelectionStep';
+import { CyclingLevelStep } from './wizard-steps/CyclingLevelStep';
+import { FTPStep } from './wizard-steps/FTPStep';
+import { CyclingTimeAvailableStep } from './wizard-steps/CyclingTimeAvailableStep';
+import { EquipmentTypeStep } from './wizard-steps/EquipmentTypeStep';
 import { AthleteLevelStep } from './wizard-steps/AthleteLevelStep';
 import { BirthDateStep } from './wizard-steps/BirthDateStep';
 import { GenderStep } from './wizard-steps/GenderStep';
@@ -40,18 +45,18 @@ interface TrainingPlanWizardProps {
 
 const STEP_TITLES: Record<number, string> = {
   0: 'Termos e Condições',
-  1: 'Número de celular',
-  2: 'Qual é seu objetivo?',
-  3: 'Confirme seu nível',
-  4: 'Data de nascimento',
-  5: 'Gênero',
-  6: 'Capacidade atual',
-  7: 'Frequência semanal',
-  8: 'Dias disponíveis',
-  9: 'Dia da corrida longa',
-  10: 'Data de início',
-  11: 'Duração do plano',
-  12: 'Data da prova',
+  1: 'Escolha seu esporte',
+  2: 'Número de celular',
+  3: 'Qual é seu objetivo?',
+  4: 'Confirme seu nível',
+  5: 'FTP / Capacidade',
+  6: 'Tempo disponível',
+  7: 'Dias disponíveis',
+  8: 'Equipamento',
+  9: 'Data de início',
+  10: 'Duração do plano',
+  11: 'Resumo e geração',
+  12: 'Declaração de saúde',
   13: 'Meta da prova',
   14: 'Resumo e geração',
   15: 'Declaração de saúde'
@@ -148,33 +153,55 @@ export function TrainingPlanWizard({
   };
 
   const renderCurrentStep = () => {
+    const { sportType } = wizardData;
+    
     switch (currentStep) {
       case 0:
         return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
       case 1:
-        return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 2:
-        return <GoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 3:
-        return <AthleteLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling' 
+          ? <CyclingGoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <GoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 4:
-        return <BirthDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <CyclingLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <AthleteLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 5:
-        return <GenderStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <FTPStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <GenderStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 6:
-        return <EstimatedTimesStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <CyclingTimeAvailableStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <EstimatedTimesStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 7:
-        return <WeeklyFrequencyStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <WeeklyFrequencyStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 8:
-        return <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <EquipmentTypeStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 9:
-        return <LongRunDayStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <LongRunDayStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 10:
-        return <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 11:
-        return <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />
+          : <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 12:
-        return <RaceDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        return sportType === 'cycling'
+          ? <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />
+          : <RaceDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 13:
         return <RaceGoalStep wizardData={wizardData} onUpdate={updateWizardData} />;
       case 14:

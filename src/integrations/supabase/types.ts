@@ -855,6 +855,77 @@ export type Database = {
           },
         ]
       }
+      cycling_power_zones: {
+        Row: {
+          created_at: string
+          ftp_watts: number
+          id: string
+          plan_id: string | null
+          updated_at: string
+          user_id: string
+          z1_max: number | null
+          z1_min: number | null
+          z2_max: number | null
+          z2_min: number | null
+          z3_max: number | null
+          z3_min: number | null
+          z4_max: number | null
+          z4_min: number | null
+          z5_max: number | null
+          z5_min: number | null
+          z6_max: number | null
+          z6_min: number | null
+        }
+        Insert: {
+          created_at?: string
+          ftp_watts: number
+          id?: string
+          plan_id?: string | null
+          updated_at?: string
+          user_id: string
+          z1_max?: number | null
+          z1_min?: number | null
+          z2_max?: number | null
+          z2_min?: number | null
+          z3_max?: number | null
+          z3_min?: number | null
+          z4_max?: number | null
+          z4_min?: number | null
+          z5_max?: number | null
+          z5_min?: number | null
+          z6_max?: number | null
+          z6_min?: number | null
+        }
+        Update: {
+          created_at?: string
+          ftp_watts?: number
+          id?: string
+          plan_id?: string | null
+          updated_at?: string
+          user_id?: string
+          z1_max?: number | null
+          z1_min?: number | null
+          z2_max?: number | null
+          z2_min?: number | null
+          z3_max?: number | null
+          z3_min?: number | null
+          z4_max?: number | null
+          z4_min?: number | null
+          z5_max?: number | null
+          z5_min?: number | null
+          z6_max?: number | null
+          z6_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cycling_power_zones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       faturamento: {
         Row: {
           created_at: string
@@ -4024,12 +4095,15 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           end_date: string | null
+          equipment_type: string | null
+          ftp_watts: number | null
           generated_at: string | null
           goal_target_time_minutes: number | null
           goal_type: string
           id: string
           plan_name: string | null
           plan_summary: Json | null
+          sport_type: string
           start_date: string
           status: string
           target_event_date: string | null
@@ -4043,12 +4117,15 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           end_date?: string | null
+          equipment_type?: string | null
+          ftp_watts?: number | null
           generated_at?: string | null
           goal_target_time_minutes?: number | null
           goal_type: string
           id?: string
           plan_name?: string | null
           plan_summary?: Json | null
+          sport_type?: string
           start_date: string
           status?: string
           target_event_date?: string | null
@@ -4062,12 +4139,15 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           end_date?: string | null
+          equipment_type?: string | null
+          ftp_watts?: number | null
           generated_at?: string | null
           goal_target_time_minutes?: number | null
           goal_type?: string
           id?: string
           plan_name?: string | null
           plan_summary?: Json | null
+          sport_type?: string
           start_date?: string
           status?: string
           target_event_date?: string | null
