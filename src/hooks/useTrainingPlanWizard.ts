@@ -796,7 +796,7 @@ export function useTrainingPlanWizard() {
         return false;
       }
       
-      if (fnResult && !fnResult.ok) {
+      if (fnResult && fnResult.success === false) {
         console.error('Function returned error:', fnResult.error);
         return false;
       }
