@@ -641,8 +641,13 @@ export function useTrainingPlanWizard() {
         .insert({
           id: planId,
           user_id: user.id,
-          plan_name: `Plano ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
+          plan_name: `Plano ${wizardData.sportType === 'cycling' 
+            ? CYCLING_GOALS.find(g => g.id === wizardData.goal)?.label 
+            : GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
           goal_type: wizardData.goal,
+          sport_type: wizardData.sportType,
+          ftp_watts: wizardData.sportType === 'cycling' ? wizardData.ftpWatts : null,
+          equipment_type: wizardData.sportType === 'cycling' ? wizardData.equipmentType : null,
           start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
           end_date: format(endDate, 'yyyy-MM-dd'),
           weeks: wizardData.planDurationWeeks,
@@ -745,14 +750,40 @@ export function useTrainingPlanWizard() {
         }
       }
 
-      // Trigger Edge Function to generate the detailed plan
-      console.log('Calling generate-training-plan with plan_id:', planId);
-      const { data: fnResult, error: fnError } = await supabase.functions.invoke('generate-training-plan', {
-        body: { 
+      // Determine which edge function to call based on sport type
+      const edgeFunctionName = wizardData.sportType === 'cycling' 
+        ? 'generate-cycling-plan' 
+        : 'generate-training-plan';
+      
+      let functionPayload: any;
+      
+      if (wizardData.sportType === 'cycling') {
+        functionPayload = {
+          planId,
+          userId: user.id,
+          goal: wizardData.goal,
+          level: wizardData.cyclingLevel,
+          ftpWatts: wizardData.ftpWatts,
+          maxHeartRate: wizardData.maxHeartRate,
+          availableHoursPerWeek: wizardData.availableHoursPerWeek,
+          availableDays: wizardData.availableDays,
+          equipmentType: wizardData.equipmentType,
+          startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
+          planDurationWeeks: wizardData.planDurationWeeks,
+          targetEventDate: wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+          targetEventDescription: wizardData.targetEventDescription
+        };
+      } else {
+        functionPayload = {
           plan_id: planId,
           declared_paces: declaredPaces,
-          absolute_beginner: absoluteBeginner,
-        },
+          absolute_beginner: absoluteBeginner
+        };
+      }
+
+      console.log(`Calling ${edgeFunctionName} with payload:`, functionPayload);
+      const { data: fnResult, error: fnError } = await supabase.functions.invoke(edgeFunctionName, {
+        body: functionPayload,
       });
       
       if (fnError) {

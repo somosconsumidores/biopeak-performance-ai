@@ -1,5 +1,8 @@
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.generate-cycling-plan]
+verify_jwt = true
+
 [functions.delete-user-account]
 verify_jwt = true
 
