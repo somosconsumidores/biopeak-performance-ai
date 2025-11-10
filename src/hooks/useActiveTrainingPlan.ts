@@ -6,6 +6,7 @@ export interface TrainingPlan {
   id: string;
   plan_name: string;
   goal_type: string;
+  sport_type: string;
   start_date: string;
   end_date: string;
   weeks: number;

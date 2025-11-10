@@ -13,9 +13,10 @@ interface WorkoutDetailDialogProps {
   workout: TrainingWorkout | null;
   open: boolean;
   onClose: () => void;
+  sportType?: string;
 }
 
-export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDialogProps) {
+export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'running' }: WorkoutDetailDialogProps) {
   const { markWorkoutCompleted, markWorkoutPlanned } = useActiveTrainingPlan();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -23,24 +24,52 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
 
   const getWorkoutTypeColor = (type: string) => {
     const colors: Record<string, string> = {
+      // Running
       'easy': 'bg-green-100 text-green-800 border-green-200',
       'long_run': 'bg-purple-100 text-purple-800 border-purple-200',
       'tempo': 'bg-orange-100 text-orange-800 border-orange-200',
       'interval': 'bg-red-100 text-red-800 border-red-200',
       'recovery': 'bg-gray-100 text-gray-800 border-gray-200',
       'rest': 'bg-gray-100 text-gray-800 border-gray-200',
+      // Cycling
+      'endurance': 'bg-blue-100 text-blue-800 border-blue-200',
+      'sweet_spot': 'bg-orange-100 text-orange-800 border-orange-200',
+      'threshold': 'bg-red-100 text-red-800 border-red-200',
+      'vo2max': 'bg-purple-100 text-purple-800 border-purple-200',
+      'over_under': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'neuromuscular': 'bg-pink-100 text-pink-800 border-pink-200',
+      'high_cadence': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      'low_cadence': 'bg-amber-100 text-amber-800 border-amber-200',
+      'long_endurance': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      'long_brick': 'bg-violet-100 text-violet-800 border-violet-200',
+      'event_simulation': 'bg-rose-100 text-rose-800 border-rose-200',
+      'strength_endurance': 'bg-stone-100 text-stone-800 border-stone-200',
     };
     return colors[type] || 'bg-blue-100 text-blue-800 border-blue-200';
   };
 
   const getWorkoutTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
+      // Running
       'easy': 'Corrida Leve',
       'long_run': 'Corrida Longa',
       'tempo': 'Corrida Tempo',
       'interval': 'Intervalado',
       'recovery': 'Recuperação',
       'rest': 'Descanso',
+      // Cycling
+      'endurance': 'Endurance',
+      'sweet_spot': 'Sweet Spot',
+      'threshold': 'Limiar (FTP)',
+      'vo2max': 'VO2 Max',
+      'over_under': 'Over/Under',
+      'neuromuscular': 'Sprint/Neuro',
+      'high_cadence': 'Cadência Alta',
+      'low_cadence': 'Força/Baixa Cadência',
+      'long_endurance': 'Pedal Longo',
+      'long_brick': 'Longo + Intensidade',
+      'event_simulation': 'Simulação de Prova',
+      'strength_endurance': 'Resistência Muscular',
     };
     return labels[type] || type;
   };
@@ -329,28 +358,72 @@ export function WorkoutDetailDialog({ workout, open, onClose }: WorkoutDetailDia
                 <div>
                   <h4 className="font-medium text-sm mb-2">Orientações do Treino</h4>
                   <div className="space-y-2 text-sm text-muted-foreground">
-                    {workout.workout_type === 'easy' && (
-                      <p>• Mantenha um ritmo confortável onde você consegue manter uma conversa</p>
+                    {sportType === 'cycling' ? (
+                      <>
+                        {workout.workout_type === 'endurance' && (
+                          <p>• Mantenha uma potência constante em Z2, ritmo confortável e sustentável</p>
+                        )}
+                        {workout.workout_type === 'sweet_spot' && (
+                          <p>• Mantenha 88-93% do FTP, esforço moderado mas controlado</p>
+                        )}
+                        {workout.workout_type === 'threshold' && (
+                          <p>• Esforço no limiar (95-105% FTP), desconfortável mas sustentável</p>
+                        )}
+                        {workout.workout_type === 'vo2max' && (
+                          <p>• Intervalos intensos (106-120% FTP), recupere completamente entre séries</p>
+                        )}
+                        {workout.workout_type === 'over_under' && (
+                          <p>• Alterne entre acima e abaixo do FTP, controle a respiração</p>
+                        )}
+                        {workout.workout_type === 'neuromuscular' && (
+                          <p>• Sprints máximos e explosivos, recuperação completa entre séries</p>
+                        )}
+                        {workout.workout_type === 'high_cadence' && (
+                          <p>• Mantenha cadência de 100-110 RPM, foque na técnica de pedalada</p>
+                        )}
+                        {workout.workout_type === 'low_cadence' && (
+                          <p>• Cadência baixa (50-60 RPM), simule subidas, desenvolva força</p>
+                        )}
+                        {(workout.workout_type === 'long_endurance' || workout.workout_type === 'long_brick') && (
+                          <p>• Foque na resistência aeróbica, mantenha ritmo constante e se alimente durante o treino</p>
+                        )}
+                        {workout.workout_type === 'event_simulation' && (
+                          <p>• Simule o ritmo de prova, pratique alimentação e hidratação</p>
+                        )}
+                        {workout.workout_type === 'recovery' && (
+                          <p>• Pedale muito leve em Z1, foque na recuperação ativa</p>
+                        )}
+                        
+                        <p>• Faça aquecimento progressivo de 10-15 minutos antes de intervalos</p>
+                        <p>• Mantenha cadência adequada (85-95 RPM para endurance)</p>
+                        <p>• Hidrate-se regularmente, especialmente em treinos longos</p>
+                      </>
+                    ) : (
+                      <>
+                        {workout.workout_type === 'easy' && (
+                          <p>• Mantenha um ritmo confortável onde você consegue manter uma conversa</p>
+                        )}
+                        {workout.workout_type === 'long_run' && (
+                          <p>• Foque na resistência, mantenha um pace constante e confortável</p>
+                        )}
+                        {workout.workout_type === 'tempo' && (
+                          <p>• Mantenha um esforço controlado, ligeiramente desconfortável mas sustentável</p>
+                        )}
+                        {workout.workout_type === 'interval' && (
+                          <p>• Alterne entre esforços intensos e recuperação ativa</p>
+                        )}
+                        {workout.workout_type === 'recovery' && (
+                          <p>• Corrida muito leve para recuperação ativa, foque no bem-estar</p>
+                        )}
+                        
+                        {workout.target_hr_zone && (
+                          <p>• Monitore sua frequência cardíaca e mantenha na zona {workout.target_hr_zone}</p>
+                        )}
+                        
+                        <p>• Faça aquecimento adequado antes e alongamento após o treino</p>
+                        <p>• Hidrate-se adequadamente durante e após o exercício</p>
+                      </>
                     )}
-                    {workout.workout_type === 'long_run' && (
-                      <p>• Foque na resistência, mantenha um pace constante e confortável</p>
-                    )}
-                    {workout.workout_type === 'tempo' && (
-                      <p>• Mantenha um esforço controlado, ligeiramente desconfortável mas sustentável</p>
-                    )}
-                    {workout.workout_type === 'interval' && (
-                      <p>• Alterne entre esforços intensos e recuperação ativa</p>
-                    )}
-                    {workout.workout_type === 'recovery' && (
-                      <p>• Corrida muito leve para recuperação ativa, foque no bem-estar</p>
-                    )}
-                    
-                    {workout.target_hr_zone && (
-                      <p>• Monitore sua frequência cardíaca e mantenha na zona {workout.target_hr_zone}</p>
-                    )}
-                    
-                    <p>• Faça aquecimento adequado antes e alongamento após o treino</p>
-                    <p>• Hidrate-se adequadamente durante e após o exercício</p>
                   </div>
                 </div>
               </div>

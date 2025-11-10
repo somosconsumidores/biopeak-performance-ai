@@ -13,6 +13,7 @@ interface WorkoutCalendarProps {
 }
 
 const WORKOUT_TYPE_COLORS: Record<string, string> = {
+  // Running types
   'long_run': 'bg-blue-500 hover:bg-blue-600',
   'tempo': 'bg-orange-500 hover:bg-orange-600',
   'interval': 'bg-red-500 hover:bg-red-600',
@@ -22,10 +23,24 @@ const WORKOUT_TYPE_COLORS: Record<string, string> = {
   'fartlek': 'bg-yellow-500 hover:bg-yellow-600',
   'hill': 'bg-amber-600 hover:bg-amber-700',
   'cross_training': 'bg-cyan-500 hover:bg-cyan-600',
-  'rest': 'bg-gray-400 hover:bg-gray-500'
+  'rest': 'bg-gray-400 hover:bg-gray-500',
+  // Cycling types
+  'endurance': 'bg-blue-500 hover:bg-blue-600',
+  'sweet_spot': 'bg-orange-500 hover:bg-orange-600',
+  'threshold': 'bg-red-500 hover:bg-red-600',
+  'vo2max': 'bg-purple-500 hover:bg-purple-600',
+  'over_under': 'bg-yellow-500 hover:bg-yellow-600',
+  'neuromuscular': 'bg-pink-500 hover:bg-pink-600',
+  'high_cadence': 'bg-cyan-500 hover:bg-cyan-600',
+  'low_cadence': 'bg-amber-600 hover:bg-amber-700',
+  'long_endurance': 'bg-indigo-500 hover:bg-indigo-600',
+  'long_brick': 'bg-violet-500 hover:bg-violet-600',
+  'event_simulation': 'bg-rose-500 hover:bg-rose-600',
+  'strength_endurance': 'bg-stone-600 hover:bg-stone-700',
 };
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
+  // Running types
   'long_run': 'Corrida Longa',
   'tempo': 'Tempo',
   'interval': 'Intervalado',
@@ -35,7 +50,20 @@ const WORKOUT_TYPE_LABELS: Record<string, string> = {
   'fartlek': 'Fartlek',
   'hill': 'Subida',
   'cross_training': 'Cross',
-  'rest': 'Descanso'
+  'rest': 'Descanso',
+  // Cycling types
+  'endurance': 'Endurance',
+  'sweet_spot': 'Sweet Spot',
+  'threshold': 'Limiar (FTP)',
+  'vo2max': 'VO2 Max',
+  'over_under': 'Over/Under',
+  'neuromuscular': 'Sprint/Neuro',
+  'high_cadence': 'Cadência Alta',
+  'low_cadence': 'Força/Baixa Cadência',
+  'long_endurance': 'Pedal Longo',
+  'long_brick': 'Longo + Intensidade',
+  'event_simulation': 'Simulação de Prova',
+  'strength_endurance': 'Resistência Muscular',
 };
 
 export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarProps) {

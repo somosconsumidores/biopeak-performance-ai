@@ -169,10 +169,11 @@ const TrainingPlan = () => {
         onComplete={handleWizardComplete}
       />
 
-      <WorkoutDetailDialog
+      <WorkoutDetailDialog 
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
+        sportType={plan?.sport_type}
       />
 
       <TrainingPlanAnalysisDialog

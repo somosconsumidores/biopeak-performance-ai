@@ -174,6 +174,7 @@ export function TrainingAgendaWidget() {
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
+        sportType={plan?.sport_type}
       />
     </>
   );

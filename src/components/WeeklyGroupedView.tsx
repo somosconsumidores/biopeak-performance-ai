@@ -10,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 
 interface WeeklyGroupedViewProps {
   workouts: TrainingWorkout[];
+  sportType?: string;
 }
 
 interface GroupedWorkout extends TrainingWorkout {
@@ -17,7 +18,7 @@ interface GroupedWorkout extends TrainingWorkout {
   shortDate: string;
 }
 
-export function WeeklyGroupedView({ workouts }: WeeklyGroupedViewProps) {
+export function WeeklyGroupedView({ workouts, sportType = 'running' }: WeeklyGroupedViewProps) {
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
 
   const groupWorkoutsByWeek = () => {
@@ -204,6 +205,7 @@ export function WeeklyGroupedView({ workouts }: WeeklyGroupedViewProps) {
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
+        sportType={sportType}
       />
     </div>
   );
