@@ -253,11 +253,6 @@ Deno.serve(async (req) => {
           workout_type: template.type,
           duration_minutes: totalDuration,
           target_hr_zone: template.structure[1]?.zone || 'Z2', // Store main zone
-          notes: JSON.stringify({ 
-            structure: template.structure,
-            tss: workoutTSS,
-            ftp: ftp,
-          }),
         });
       }
 
