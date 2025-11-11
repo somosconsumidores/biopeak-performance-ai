@@ -3,7 +3,11 @@ package com.biopeakai.performance;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Looper;
+import android.util.Base64;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
@@ -22,6 +26,8 @@ import com.google.android.gms.location.Priority;
 
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -62,6 +68,10 @@ public class BioPeakLocationTracker extends Plugin {
     
     private ExecutorService executorService;
     private OkHttpClient httpClient;
+    
+    // Audio playback
+    private MediaPlayer feedbackMediaPlayer;
+    private CountDownLatch audioCompletionLatch;
     
     @Override
     public void load() {
@@ -151,9 +161,20 @@ public class BioPeakLocationTracker extends Plugin {
     
     @PluginMethod
     public void cleanup(PluginCall call) {
-        if (locationCallback != null) {
+        Log.d(TAG, "🧹 [Native GPS] Cleaning up all resources...");
+        
+        // Stop location tracking
+        if (fusedLocationClient != null && locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
         }
+        
+        // Release media player
+        if (feedbackMediaPlayer != null) {
+            feedbackMediaPlayer.release();
+            feedbackMediaPlayer = null;
+        }
+        
+        // Reset all state
         locationCallback = null;
         sessionStartTime = null;
         sessionId = null;
@@ -161,8 +182,12 @@ public class BioPeakLocationTracker extends Plugin {
         accumulatedDistance = 0.0;
         lastLocation = null;
         lastFeedbackSegment = 0;
+        shouldGiveFeedback = false;
+        supabaseUrl = null;
+        supabaseAnonKey = null;
+        userToken = null;
         
-        Log.d(TAG, "🧹 [Native GPS] Cleaned up all session data");
+        Log.d(TAG, "✅ [Native GPS] Cleanup completed");
         JSObject result = new JSObject();
         result.put("success", true);
         call.resolve(result);
@@ -535,92 +560,150 @@ public class BioPeakLocationTracker extends Plugin {
     }
     
     private void playFeedbackAudio(String audioUrl) {
-        Log.d(TAG, "🔊 [Native GPS] Calling BioPeakAudioSession to play audio");
-        Log.d(TAG, "   → Audio URL length: " + audioUrl.length() + " chars");
-        
-        // Call BioPeakAudioSession plugin to play the audio
         getBridge().execute(() -> {
             try {
-                JSObject options = new JSObject();
-                options.put("url", audioUrl);
+                Log.d(TAG, "🔊 [Native GPS] Playing feedback audio...");
                 
-                PluginCall call = getBridge().getSavedCall("playAudioFile");
-                if (call != null) {
-                    getBridge().releaseCall(call);
+                // Stop any existing playback
+                if (feedbackMediaPlayer != null) {
+                    feedbackMediaPlayer.release();
+                    feedbackMediaPlayer = null;
                 }
                 
-                // Get BioPeakAudioSession plugin and call playAudioFile
-                Plugin audioPlugin = getBridge().getPlugin("BioPeakAudioSession").getInstance();
-                if (audioPlugin != null && audioPlugin instanceof BioPeakAudioSession) {
-                    PluginCall audioCall = new PluginCall(
-                        getBridge().getMessageHandler(),
-                        "playAudioFile-feedback",
-                        "BioPeakAudioSession",
-                        "playAudioFile",
-                        options
-                    );
-                    ((BioPeakAudioSession) audioPlugin).playAudioFile(audioCall);
-                    Log.d(TAG, "✅ [Native GPS] Audio playback initiated");
+                feedbackMediaPlayer = new MediaPlayer();
+                
+                // Handle Data URL (base64 audio)
+                if (audioUrl.startsWith("data:audio")) {
+                    playDataUrl(audioUrl, feedbackMediaPlayer, false);
                 } else {
-                    Log.e(TAG, "❌ [Native GPS] BioPeakAudioSession plugin not found");
+                    feedbackMediaPlayer.setDataSource(audioUrl);
                 }
+                
+                feedbackMediaPlayer.setAudioAttributes(
+                    new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                );
+                
+                feedbackMediaPlayer.setOnCompletionListener(mp -> {
+                    Log.d(TAG, "✅ [Native GPS] Feedback audio completed");
+                    if (mp != null) {
+                        mp.release();
+                    }
+                    feedbackMediaPlayer = null;
+                });
+                
+                feedbackMediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                    Log.e(TAG, "❌ [Native GPS] Audio error: " + what + ", " + extra);
+                    if (mp != null) {
+                        mp.release();
+                    }
+                    feedbackMediaPlayer = null;
+                    return false;
+                });
+                
+                feedbackMediaPlayer.prepareAsync();
+                feedbackMediaPlayer.setOnPreparedListener(mp -> {
+                    mp.start();
+                    Log.d(TAG, "▶️ [Native GPS] Feedback audio started");
+                });
+                
             } catch (Exception e) {
-                Log.e(TAG, "❌ [Native GPS] Error playing audio: " + e.getMessage(), e);
+                Log.e(TAG, "❌ [Native GPS] Error playing feedback audio: " + e.getMessage(), e);
             }
         });
     }
     
     private void playCompletionAudioAndWait(String audioUrl) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
+        audioCompletionLatch = new CountDownLatch(1);
         
         Log.d(TAG, "🔊 [Native GPS] Playing completion audio and waiting...");
         Log.d(TAG, "   → Audio URL length: " + audioUrl.length() + " chars");
         
-        // Call BioPeakAudioSession plugin to play the audio
         getBridge().execute(() -> {
             try {
-                JSObject options = new JSObject();
-                options.put("url", audioUrl);
-                
-                // Get BioPeakAudioSession plugin and call playAudioFile
-                Plugin audioPlugin = getBridge().getPlugin("BioPeakAudioSession").getInstance();
-                if (audioPlugin != null && audioPlugin instanceof BioPeakAudioSession) {
-                    PluginCall audioCall = new PluginCall(
-                        getBridge().getMessageHandler(),
-                        "playAudioFile-completion",
-                        "BioPeakAudioSession",
-                        "playAudioFile",
-                        options
-                    ) {
-                        @Override
-                        public void resolve(JSObject data) {
-                            super.resolve(data);
-                            Log.d(TAG, "✅ [Native GPS] Audio playback completed");
-                            latch.countDown();
-                        }
-                        
-                        @Override
-                        public void reject(String msg) {
-                            super.reject(msg);
-                            Log.e(TAG, "❌ [Native GPS] Audio playback failed: " + msg);
-                            latch.countDown();
-                        }
-                    };
-                    ((BioPeakAudioSession) audioPlugin).playAudioFile(audioCall);
-                } else {
-                    Log.e(TAG, "❌ [Native GPS] BioPeakAudioSession plugin not found");
-                    latch.countDown();
+                // Stop any existing playback
+                if (feedbackMediaPlayer != null) {
+                    feedbackMediaPlayer.release();
+                    feedbackMediaPlayer = null;
                 }
+                
+                feedbackMediaPlayer = new MediaPlayer();
+                
+                // Handle Data URL (base64 audio)
+                if (audioUrl.startsWith("data:audio")) {
+                    playDataUrl(audioUrl, feedbackMediaPlayer, true);
+                } else {
+                    feedbackMediaPlayer.setDataSource(audioUrl);
+                }
+                
+                feedbackMediaPlayer.setAudioAttributes(
+                    new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                );
+                
+                feedbackMediaPlayer.setOnCompletionListener(mp -> {
+                    Log.d(TAG, "✅ [Native GPS] Completion audio finished");
+                    if (mp != null) {
+                        mp.release();
+                    }
+                    feedbackMediaPlayer = null;
+                    audioCompletionLatch.countDown();
+                });
+                
+                feedbackMediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                    Log.e(TAG, "❌ [Native GPS] Completion audio error: " + what + ", " + extra);
+                    if (mp != null) {
+                        mp.release();
+                    }
+                    feedbackMediaPlayer = null;
+                    audioCompletionLatch.countDown();
+                    return false;
+                });
+                
+                feedbackMediaPlayer.prepareAsync();
+                feedbackMediaPlayer.setOnPreparedListener(mp -> {
+                    mp.start();
+                    Log.d(TAG, "▶️ [Native GPS] Completion audio started");
+                });
+                
             } catch (Exception e) {
-                Log.e(TAG, "❌ [Native GPS] Error playing audio: " + e.getMessage(), e);
-                latch.countDown();
+                Log.e(TAG, "❌ [Native GPS] Error playing completion audio: " + e.getMessage(), e);
+                audioCompletionLatch.countDown();
             }
         });
         
-        // Wait for audio to finish or timeout after 20 seconds
-        boolean finished = latch.await(20, TimeUnit.SECONDS);
-        if (!finished) {
-            Log.w(TAG, "⏱️ [Native GPS] Audio playback timeout - continuing anyway");
+        // Wait for audio to complete (max 30 seconds timeout)
+        boolean completed = audioCompletionLatch.await(30, TimeUnit.SECONDS);
+        if (!completed) {
+            Log.w(TAG, "⚠️ [Native GPS] Audio playback timeout after 30s");
+        } else {
+            Log.d(TAG, "✅ [Native GPS] Audio playback completed successfully");
+        }
+    }
+    
+    private void playDataUrl(String dataUrl, MediaPlayer player, boolean isCompletion) {
+        try {
+            // Extract base64 data
+            String base64Data = dataUrl.split(",")[1];
+            byte[] audioBytes = Base64.decode(base64Data, Base64.DEFAULT);
+            
+            // Save to temporary file
+            File tempFile = File.createTempFile("biopeak_" + (isCompletion ? "completion" : "feedback"), ".mp3", getContext().getCacheDir());
+            FileOutputStream fos = new FileOutputStream(tempFile);
+            fos.write(audioBytes);
+            fos.close();
+            
+            // Set data source
+            player.setDataSource(getContext(), Uri.fromFile(tempFile));
+            
+            Log.d(TAG, "✅ [Native GPS] Data URL decoded and saved to: " + tempFile.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, "❌ [Native GPS] Error decoding data URL: " + e.getMessage(), e);
+            throw new RuntimeException(e);
         }
     }
     
