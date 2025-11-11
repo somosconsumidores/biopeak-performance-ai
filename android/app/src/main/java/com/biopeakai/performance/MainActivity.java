@@ -12,9 +12,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        Log.e(TAG, "🔧 onCreate: registering plugins...");
+        Log.e(TAG, "🔧 onCreate: registering plugins BEFORE super.onCreate()...");
 
         try {
             registerPlugin(BioPeakAudioSession.class);
@@ -35,6 +33,8 @@ public class MainActivity extends BridgeActivity {
             e.printStackTrace();
         }
 
+        Log.e(TAG, "🔄 Now calling super.onCreate() to initialize Capacitor bridge...");
+        super.onCreate(savedInstanceState);
         Log.e(TAG, "✅ MainActivity.onCreate() completed");
     }
 }
