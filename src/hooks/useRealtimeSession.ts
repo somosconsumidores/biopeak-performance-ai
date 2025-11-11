@@ -877,9 +877,10 @@ export const useRealtimeSession = () => {
       await startLocationTracking();
       console.log('✅ GPS tracking started successfully');
 
-      // 🍎 [iOS] Start Native GPS ONCE at session start (runs continuously)
-      const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
-      if (isIOSNative && goal) {
+      // 🍎🤖 [iOS/Android] Start Native GPS ONCE at session start (runs continuously)
+      const isNativePlatform = Capacitor.isNativePlatform() && 
+        (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'android');
+      if (isNativePlatform && goal) {
         try {
           console.log('🚀 [Native GPS] Starting continuous tracking for entire session');
           
@@ -1275,9 +1276,10 @@ export const useRealtimeSession = () => {
     // Stop background audio
     backgroundAudio.stopBackgroundAudio();
     
-    // 🍎 [iOS] Handle Native GPS completion
-    const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
-    if (isIOSNative) {
+    // 🍎🤖 [iOS/Android] Handle Native GPS completion
+    const isNativePlatform = Capacitor.isNativePlatform() && 
+      (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'android');
+    if (isNativePlatform) {
       try {
         const { BioPeakLocationTracker } = await import('@/plugins/BioPeakLocationTracker');
         
