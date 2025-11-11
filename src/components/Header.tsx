@@ -70,8 +70,8 @@ export const Header = () => {
     { name: 'Calendário de Provas', href: '/training-plan' },
     { name: 'Feedbacks de Sono', href: '/sleep-feedbacks' },
     { name: t('profile'), href: '/profile' },
-    // Show AI Coach only on iOS native
-    ...(isIOS && isNative ? [{ name: 'BioPeak AI Coach', href: '/training' }] : []),
+    // Show AI Coach on all native platforms (iOS and Android)
+    ...(isNative ? [{ name: 'BioPeak AI Coach', href: '/training' }] : []),
   ];
 
   return (
