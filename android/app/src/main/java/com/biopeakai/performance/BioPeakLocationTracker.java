@@ -45,7 +45,7 @@ import okhttp3.Response;
 
 @CapacitorPlugin(name = "BioPeakLocationTracker")
 public class BioPeakLocationTracker extends Plugin {
-    private static final String TAG = "BioPeakLocationTracker";
+    private static final String TAG = "BP/LocationPlugin";
     
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
@@ -76,6 +76,8 @@ public class BioPeakLocationTracker extends Plugin {
     @Override
     public void load() {
         super.load();
+        Log.e(TAG, "🚨🚨🚨 LOAD() CALLED - PLUGIN IS LOADING! 🚨🚨🚨");
+        
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(getContext());
         executorService = Executors.newCachedThreadPool();
         httpClient = new OkHttpClient.Builder()
@@ -83,7 +85,8 @@ public class BioPeakLocationTracker extends Plugin {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
-        Log.d(TAG, "BioPeakLocationTracker plugin loaded");
+            
+        Log.e(TAG, "🚨🚨🚨 PLUGIN FULLY LOADED 🚨🚨🚨");
     }
     
     @PluginMethod
