@@ -91,7 +91,7 @@ public class BioPeakLocationTracker extends Plugin {
         // Register broadcast receiver to listen to service updates
         registerLocationReceiver();
         
-        // Start the Foreground Service
+        // Start the Foreground Service with current accumulated distance
         Intent serviceIntent = new Intent(getContext(), BioPeakLocationService.class);
         serviceIntent.setAction(BioPeakLocationService.ACTION_START);
         serviceIntent.putExtra("sessionId", sessionId);
@@ -100,6 +100,7 @@ public class BioPeakLocationTracker extends Plugin {
         serviceIntent.putExtra("supabaseUrl", supabaseUrl);
         serviceIntent.putExtra("supabaseAnonKey", supabaseAnonKey);
         serviceIntent.putExtra("userToken", userToken);
+        serviceIntent.putExtra("initialDistance", accumulatedDistance); // ✅ Pass current distance to Service
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getContext().startForegroundService(serviceIntent);
@@ -110,7 +111,7 @@ public class BioPeakLocationTracker extends Plugin {
         isTracking = true;
         sessionStartTime = System.currentTimeMillis();
         
-        Log.d(TAG, "✅ Foreground Service started for GPS tracking");
+        Log.d(TAG, "✅ Foreground Service started for GPS tracking (initialDistance: " + accumulatedDistance + "m)");
         JSObject result = new JSObject();
         result.put("success", true);
         result.put("message", "Location tracking started via Foreground Service");

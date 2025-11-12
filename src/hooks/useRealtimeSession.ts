@@ -907,8 +907,7 @@ export const useRealtimeSession = () => {
             userToken: userToken
           });
           
-          // Reset and start tracking - will run continuously until session ends
-          await BioPeakLocationTracker.resetDistance();
+          // Start tracking - Service will initialize with distance=0 at session start
           const result = await BioPeakLocationTracker.startLocationTracking();
           
           if (result.success) {

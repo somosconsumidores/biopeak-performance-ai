@@ -107,18 +107,20 @@ public class BioPeakLocationService extends Service {
             supabaseUrl = intent.getStringExtra("supabaseUrl");
             supabaseAnonKey = intent.getStringExtra("supabaseAnonKey");
             userToken = intent.getStringExtra("userToken");
+            double initialDistance = intent.getDoubleExtra("initialDistance", 0.0); // ✅ Receive initial distance
             
             Log.d(TAG, "📋 Configuration:");
             Log.d(TAG, "   → sessionId: " + sessionId);
             Log.d(TAG, "   → trainingGoal: " + trainingGoal);
             Log.d(TAG, "   → feedback enabled: " + shouldGiveFeedback);
+            Log.d(TAG, "   → initialDistance: " + initialDistance + "m");
             
             // Start foreground service
             createNotificationChannel();
             startForeground(NOTIFICATION_ID, createNotification());
             
-            // Start GPS tracking
-            startLocationTracking();
+            // Start GPS tracking with initial distance
+            startLocationTracking(initialDistance);
             
         } else if (ACTION_STOP.equals(action)) {
             stopLocationTracking();
@@ -129,8 +131,8 @@ public class BioPeakLocationService extends Service {
         return START_STICKY; // Service will be recreated if killed by system
     }
     
-    private void startLocationTracking() {
-        Log.d(TAG, "🎯 Starting location tracking...");
+    private void startLocationTracking(double initialDistance) {
+        Log.d(TAG, "🎯 Starting location tracking with initialDistance: " + initialDistance + "m");
         
         // Check permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
@@ -139,11 +141,13 @@ public class BioPeakLocationService extends Service {
             return;
         }
         
-        // Reset state
-        accumulatedDistance = 0.0;
+        // Initialize state with provided initial distance (preserves accumulated distance)
+        accumulatedDistance = initialDistance;
         lastLocation = null;
         sessionStartTime = System.currentTimeMillis();
-        lastFeedbackSegment = 0;
+        
+        // Calculate which feedback segment we should be at based on initial distance
+        lastFeedbackSegment = (int) (initialDistance / 500.0);
         
         // Configure location request
         LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
