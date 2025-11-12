@@ -134,18 +134,23 @@ public class BioPeakLocationTracker extends Plugin {
         serviceIntent.setAction(BioPeakLocationService.ACTION_STOP);
         getContext().stopService(serviceIntent);
         
-        // Unregister broadcast receiver
-        unregisterLocationReceiver();
-        
-        isTracking = false;
-        // ⚠️ DO NOT reset sessionStartTime here - we need it for generateCompletionAudio()
-        
-        Log.d(TAG, "⏹️ Foreground Service stopped - Total distance: " + accumulatedDistance + "m");
-        JSObject result = new JSObject();
-        result.put("success", true);
-        result.put("message", "Location tracking stopped");
-        result.put("finalDistance", accumulatedDistance);
-        call.resolve(result);
+        // Give time for final broadcast to arrive before unregistering (100ms)
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // Unregister broadcast receiver after short delay
+            unregisterLocationReceiver();
+            
+            isTracking = false;
+            // ⚠️ DO NOT reset sessionStartTime here - we need it for generateCompletionAudio()
+            
+            Log.d(TAG, "⏹️ [STOP] Foreground Service stopped");
+            Log.d(TAG, "⏹️ [STOP] Accumulated distance at stop: " + accumulatedDistance + "m");
+            Log.d(TAG, "⏹️ [STOP] Returning finalDistance: " + accumulatedDistance + "m");
+            JSObject result = new JSObject();
+            result.put("success", true);
+            result.put("message", "Location tracking stopped");
+            result.put("finalDistance", accumulatedDistance);
+            call.resolve(result);
+        }, 100); // Wait 100ms for final broadcasts
     }
     
     @PluginMethod
@@ -286,10 +291,16 @@ public class BioPeakLocationTracker extends Plugin {
             @Override
             public void onReceive(Context context, Intent intent) {
                 LocationData data = intent.getParcelableExtra("locationData");
-                if (data == null) return;
+                if (data == null) {
+                    Log.w(TAG, "⚠️ [BROADCAST] Received null locationData");
+                    return;
+                }
                 
-                // Update local state
+                // Update local state with distance from service
+                double previousDistance = accumulatedDistance;
                 accumulatedDistance = data.totalDistance;
+                
+                Log.d(TAG, "📡 [BROADCAST] Distance sync: " + previousDistance + "m → " + accumulatedDistance + "m");
                 
                 // Forward to JavaScript
                 JSObject jsData = new JSObject();
