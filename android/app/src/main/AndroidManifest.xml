@@ -31,6 +31,14 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- BioPeak Location Foreground Service -->
+        <service 
+            android:name=".BioPeakLocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location">
+        </service>
     </application>
 
     <!-- Hardware Features -->

@@ -1,42 +1,37 @@
 package com.biopeakai.performance;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.net.Uri;
-import android.os.Looper;
+import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
 
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -47,15 +42,10 @@ import okhttp3.Response;
 public class BioPeakLocationTracker extends Plugin {
     private static final String TAG = "BP/LocationPlugin";
     
-    private FusedLocationProviderClient fusedLocationClient;
-    private LocationCallback locationCallback;
-    private Location lastLocation;
     private double accumulatedDistance = 0.0;
     private boolean isTracking = false;
     
-    // Native feedback control (500m intervals)
-    private int lastFeedbackSegment = 0;
-    private long lastFeedbackAt = 0;
+    // Configuration for Foreground Service
     private String sessionId;
     private String trainingGoal;
     private boolean shouldGiveFeedback = false;
@@ -69,24 +59,24 @@ public class BioPeakLocationTracker extends Plugin {
     private ExecutorService executorService;
     private OkHttpClient httpClient;
     
-    // Audio playback
+    // Audio playback for completion audio
     private MediaPlayer feedbackMediaPlayer;
     private CountDownLatch audioCompletionLatch;
+    
+    // Broadcast receiver for location updates from service
+    private BroadcastReceiver locationReceiver;
     
     @Override
     public void load() {
         super.load();
-        Log.e(TAG, "🚨🚨🚨 LOAD() CALLED - PLUGIN IS LOADING! 🚨🚨🚨");
+        Log.d(TAG, "🚀 Plugin loaded - will use Foreground Service for GPS");
         
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(getContext());
         executorService = Executors.newCachedThreadPool();
         httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
-            
-        Log.e(TAG, "🚨🚨🚨 PLUGIN FULLY LOADED 🚨🚨🚨");
     }
     
     @PluginMethod
@@ -99,49 +89,38 @@ public class BioPeakLocationTracker extends Plugin {
             return;
         }
         
-        // Check permissions
-        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) 
-                != PackageManager.PERMISSION_GRANTED) {
-            call.reject("Location permission not granted");
-            return;
+        // Register broadcast receiver to listen to service updates
+        registerLocationReceiver();
+        
+        // Start the Foreground Service
+        Intent serviceIntent = new Intent(getContext(), BioPeakLocationService.class);
+        serviceIntent.setAction(BioPeakLocationService.ACTION_START);
+        serviceIntent.putExtra("sessionId", sessionId);
+        serviceIntent.putExtra("trainingGoal", trainingGoal);
+        serviceIntent.putExtra("shouldGiveFeedback", shouldGiveFeedback);
+        serviceIntent.putExtra("supabaseUrl", supabaseUrl);
+        serviceIntent.putExtra("supabaseAnonKey", supabaseAnonKey);
+        serviceIntent.putExtra("userToken", userToken);
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getContext().startForegroundService(serviceIntent);
+        } else {
+            getContext().startService(serviceIntent);
         }
         
-        // Reset accumulated distance
-        accumulatedDistance = 0.0;
-        lastLocation = null;
         isTracking = true;
         sessionStartTime = System.currentTimeMillis();
         
-        // Configure location request
-        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
-            .setMinUpdateDistanceMeters(5.0f)
-            .setMinUpdateIntervalMillis(3000)
-            .setMaxUpdateDelayMillis(5000)
-            .build();
-        
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) return;
-                
-                for (Location location : locationResult.getLocations()) {
-                    handleLocationUpdate(location);
-                }
-            }
-        };
-        
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
-        
-        Log.d(TAG, "✅ [Native GPS] Started tracking");
+        Log.d(TAG, "✅ Foreground Service started for GPS tracking");
         JSObject result = new JSObject();
         result.put("success", true);
-        result.put("message", "Location tracking started");
+        result.put("message", "Location tracking started via Foreground Service");
         call.resolve(result);
     }
     
     @PluginMethod
     public void stopLocationTracking(PluginCall call) {
-        if (!isTracking || locationCallback == null) {
+        if (!isTracking) {
             JSObject result = new JSObject();
             result.put("success", true);
             result.put("message", "Not tracking");
@@ -150,11 +129,18 @@ public class BioPeakLocationTracker extends Plugin {
             return;
         }
         
-        fusedLocationClient.removeLocationUpdates(locationCallback);
+        // Stop the Foreground Service
+        Intent serviceIntent = new Intent(getContext(), BioPeakLocationService.class);
+        serviceIntent.setAction(BioPeakLocationService.ACTION_STOP);
+        getContext().stopService(serviceIntent);
+        
+        // Unregister broadcast receiver
+        unregisterLocationReceiver();
+        
         isTracking = false;
         // ⚠️ DO NOT reset sessionStartTime here - we need it for generateCompletionAudio()
         
-        Log.d(TAG, "⏹️ [Native GPS] Stopped tracking - Total distance: " + accumulatedDistance + "m");
+        Log.d(TAG, "⏹️ Foreground Service stopped - Total distance: " + accumulatedDistance + "m");
         JSObject result = new JSObject();
         result.put("success", true);
         result.put("message", "Location tracking stopped");
@@ -164,11 +150,14 @@ public class BioPeakLocationTracker extends Plugin {
     
     @PluginMethod
     public void cleanup(PluginCall call) {
-        Log.d(TAG, "🧹 [Native GPS] Cleaning up all resources...");
+        Log.d(TAG, "🧹 Cleaning up all resources...");
         
-        // Stop location tracking
-        if (fusedLocationClient != null && locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
+        // Stop service if running
+        if (isTracking) {
+            Intent serviceIntent = new Intent(getContext(), BioPeakLocationService.class);
+            serviceIntent.setAction(BioPeakLocationService.ACTION_STOP);
+            getContext().stopService(serviceIntent);
+            unregisterLocationReceiver();
         }
         
         // Release media player
@@ -178,19 +167,17 @@ public class BioPeakLocationTracker extends Plugin {
         }
         
         // Reset all state
-        locationCallback = null;
         sessionStartTime = null;
         sessionId = null;
         trainingGoal = null;
         accumulatedDistance = 0.0;
-        lastLocation = null;
-        lastFeedbackSegment = 0;
         shouldGiveFeedback = false;
         supabaseUrl = null;
         supabaseAnonKey = null;
         userToken = null;
+        isTracking = false;
         
-        Log.d(TAG, "✅ [Native GPS] Cleanup completed");
+        Log.d(TAG, "✅ Cleanup completed");
         JSObject result = new JSObject();
         result.put("success", true);
         call.resolve(result);
@@ -206,10 +193,8 @@ public class BioPeakLocationTracker extends Plugin {
     @PluginMethod
     public void resetDistance(PluginCall call) {
         accumulatedDistance = 0.0;
-        lastLocation = null;
-        lastFeedbackSegment = 0;
         sessionStartTime = null;
-        Log.d(TAG, "🔄 [Native GPS] Distance reset");
+        Log.d(TAG, "🔄 Distance reset");
         JSObject result = new JSObject();
         result.put("success", true);
         call.resolve(result);
@@ -223,15 +208,11 @@ public class BioPeakLocationTracker extends Plugin {
         supabaseUrl = call.getString("supabaseUrl");
         supabaseAnonKey = call.getString("supabaseAnonKey");
         userToken = call.getString("userToken");
-        lastFeedbackSegment = 0;
         
-        Log.d(TAG, "✅ [Native GPS] Feedback configured:");
+        Log.d(TAG, "✅ Feedback configured:");
         Log.d(TAG, "   → sessionId: " + sessionId);
         Log.d(TAG, "   → trainingGoal: " + trainingGoal);
         Log.d(TAG, "   → enabled: " + shouldGiveFeedback);
-        Log.d(TAG, "   → supabaseUrl: " + (supabaseUrl != null ? "configured" : "NOT configured"));
-        Log.d(TAG, "   → supabaseAnonKey: " + (supabaseAnonKey != null ? "configured" : "NOT configured"));
-        Log.d(TAG, "   → userToken: " + (userToken != null ? "configured" : "NOT configured"));
         
         JSObject result = new JSObject();
         result.put("success", true);
@@ -298,128 +279,51 @@ public class BioPeakLocationTracker extends Plugin {
         });
     }
     
-    private void handleLocationUpdate(Location newLocation) {
-        // Filter by accuracy
-        if (newLocation.getAccuracy() <= 0 || newLocation.getAccuracy() > 20) {
-            Log.w(TAG, "⚠️ [Native GPS] Low accuracy: " + newLocation.getAccuracy() + "m");
-            return;
-        }
-        
-        if (lastLocation != null) {
-            float distance = lastLocation.distanceTo(newLocation);
-            
-            // Filter GPS jumps and very small movements
-            if (distance >= 3.0f && distance < 20.0f && newLocation.getAccuracy() <= 15) {
-                accumulatedDistance += distance;
+    // MARK: - Broadcast Receiver for Service Updates
+    
+    private void registerLocationReceiver() {
+        locationReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                LocationData data = intent.getParcelableExtra("locationData");
+                if (data == null) return;
                 
-                Log.d(TAG, "📍 [Native GPS] +" + String.format("%.1f", distance) + "m → Total: " + 
-                      String.format("%.1f", accumulatedDistance) + "m (accuracy: " + 
-                      String.format("%.1f", newLocation.getAccuracy()) + "m)");
+                // Update local state
+                accumulatedDistance = data.totalDistance;
                 
-                // Check 500m milestone
-                int currentSegment = (int) (accumulatedDistance / 500.0);
+                // Forward to JavaScript
+                JSObject jsData = new JSObject();
+                jsData.put("latitude", data.latitude);
+                jsData.put("longitude", data.longitude);
+                jsData.put("accuracy", data.accuracy);
+                jsData.put("altitude", data.altitude);
+                jsData.put("speed", data.speed);
+                jsData.put("heading", data.heading);
+                jsData.put("distance", data.distanceIncrement);
+                jsData.put("totalDistance", data.totalDistance);
+                jsData.put("timestamp", data.timestamp);
                 
-                Log.d(TAG, "🔍 [Native GPS] Milestone check:");
-                Log.d(TAG, "   → accumulatedDistance: " + String.format("%.1f", accumulatedDistance) + "m");
-                Log.d(TAG, "   → currentSegment: " + currentSegment);
-                Log.d(TAG, "   → lastFeedbackSegment: " + lastFeedbackSegment);
-                Log.d(TAG, "   → shouldGiveFeedback: " + shouldGiveFeedback);
-                Log.d(TAG, "   → Will trigger feedback: " + (shouldGiveFeedback && currentSegment > lastFeedbackSegment));
-                
-                if (shouldGiveFeedback && currentSegment > lastFeedbackSegment) {
-                    // Throttle: ensure 2s between feedbacks
-                    long now = System.currentTimeMillis();
-                    if (now - lastFeedbackAt >= 2000) {
-                        lastFeedbackAt = now;
-                        lastFeedbackSegment = currentSegment;
-                        int meters = currentSegment * 500;
-                        Log.d(TAG, "🎯 [Native GPS] " + meters + "m completed - TRIGGERING FEEDBACK NOW");
-                        
-                        // Generate and play feedback
-                        generateAndPlayFeedback(meters);
-                    } else {
-                        Log.d(TAG, "⏸️ [Native GPS] Throttle active, skipping duplicate feedback");
-                    }
-                }
-                
-                // Send event to JavaScript
-                JSObject data = new JSObject();
-                data.put("latitude", newLocation.getLatitude());
-                data.put("longitude", newLocation.getLongitude());
-                data.put("accuracy", newLocation.getAccuracy());
-                data.put("altitude", newLocation.getAltitude());
-                data.put("speed", newLocation.getSpeed());
-                data.put("heading", newLocation.getBearing());
-                data.put("distance", distance);
-                data.put("totalDistance", accumulatedDistance);
-                data.put("timestamp", newLocation.getTime());
-                notifyListeners("locationUpdate", data);
-                
-            } else if (distance >= 100) {
-                Log.w(TAG, "⚠️ [Native GPS] GPS jump detected: " + String.format("%.1f", distance) + "m - ignored");
+                notifyListeners("locationUpdate", jsData);
             }
-        } else {
-            Log.d(TAG, "📍 [Native GPS] First location acquired");
-        }
+        };
         
-        lastLocation = newLocation;
+        LocalBroadcastManager.getInstance(getContext()).registerReceiver(
+            locationReceiver,
+            new IntentFilter(BioPeakLocationService.BROADCAST_LOCATION_UPDATE)
+        );
+        
+        Log.d(TAG, "📡 Broadcast receiver registered");
     }
     
-    // MARK: - Native Feedback Generation
-    
-    private void generateAndPlayFeedback(int meters) {
-        executorService.execute(() -> {
-            Log.d(TAG, "🎯 [Native GPS] generateAndPlayFeedback called for " + meters + "m");
-            Log.d(TAG, "   → sessionId: " + sessionId);
-            
-            if (sessionId == null) {
-                Log.e(TAG, "❌ [Native GPS] STOPPED: Session ID not configured");
-                return;
-            }
-            
-            try {
-                // Calculate time from start
-                if (sessionStartTime == null) {
-                    Log.e(TAG, "❌ [Native GPS] Session start time not available");
-                    return;
-                }
-                int timeFromStart = (int) ((System.currentTimeMillis() - sessionStartTime) / 1000);
-                
-                // Calculate current pace
-                Double currentPace = null;
-                if (meters > 0 && timeFromStart > 0) {
-                    double distanceKm = meters / 1000.0;
-                    double timeMinutes = timeFromStart / 60.0;
-                    currentPace = timeMinutes / distanceKm;
-                }
-                
-                // 1. Generate coaching message
-                String message = generateCoachingMessage(meters, timeFromStart, currentPace);
-                Log.d(TAG, "💬 [Native GPS] Message generated: " + message);
-                if (currentPace != null) {
-                    Log.d(TAG, "   → pace: " + String.format("%.2f", currentPace) + " min/km");
-                }
-                Log.d(TAG, "   → time: " + timeFromStart + "s");
-                
-                // 2. Call Edge Function for TTS
-                Log.d(TAG, "🌐 [Native GPS] Calling TTS Edge Function...");
-                String audioUrl = callTTSEdgeFunction(message);
-                Log.d(TAG, "✅ [Native GPS] TTS returned audio URL (length: " + audioUrl.length() + " chars)");
-                
-                // 3. Play audio via BioPeakAudioSession
-                Log.d(TAG, "🔊 [Native GPS] Attempting to play audio...");
-                playFeedbackAudio(audioUrl);
-                
-                // 4. Save snapshot to Supabase
-                saveSnapshotToSupabase(meters);
-                
-                Log.d(TAG, "✅ [Native GPS] Feedback " + meters + "m completed successfully");
-                
-            } catch (Exception e) {
-                Log.e(TAG, "❌ [Native GPS] Feedback error: " + e.getMessage(), e);
-            }
-        });
+    private void unregisterLocationReceiver() {
+        if (locationReceiver != null) {
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(locationReceiver);
+            locationReceiver = null;
+            Log.d(TAG, "📡 Broadcast receiver unregistered");
+        }
     }
+    
+    // MARK: - Completion Audio (handled directly by plugin, not service)
     
     // MARK: - Message Formatting Helpers
     
@@ -562,61 +466,6 @@ public class BioPeakLocationTracker extends Plugin {
         return "data:audio/mpeg;base64," + audioContent;
     }
     
-    private void playFeedbackAudio(String audioUrl) {
-        getBridge().execute(() -> {
-            try {
-                Log.d(TAG, "🔊 [Native GPS] Playing feedback audio...");
-                
-                // Stop any existing playback
-                if (feedbackMediaPlayer != null) {
-                    feedbackMediaPlayer.release();
-                    feedbackMediaPlayer = null;
-                }
-                
-                feedbackMediaPlayer = new MediaPlayer();
-                
-                // Handle Data URL (base64 audio)
-                if (audioUrl.startsWith("data:audio")) {
-                    playDataUrl(audioUrl, feedbackMediaPlayer, false);
-                } else {
-                    feedbackMediaPlayer.setDataSource(audioUrl);
-                }
-                
-                feedbackMediaPlayer.setAudioAttributes(
-                    new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                );
-                
-                feedbackMediaPlayer.setOnCompletionListener(mp -> {
-                    Log.d(TAG, "✅ [Native GPS] Feedback audio completed");
-                    if (mp != null) {
-                        mp.release();
-                    }
-                    feedbackMediaPlayer = null;
-                });
-                
-                feedbackMediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                    Log.e(TAG, "❌ [Native GPS] Audio error: " + what + ", " + extra);
-                    if (mp != null) {
-                        mp.release();
-                    }
-                    feedbackMediaPlayer = null;
-                    return false;
-                });
-                
-                feedbackMediaPlayer.prepareAsync();
-                feedbackMediaPlayer.setOnPreparedListener(mp -> {
-                    mp.start();
-                    Log.d(TAG, "▶️ [Native GPS] Feedback audio started");
-                });
-                
-            } catch (Exception e) {
-                Log.e(TAG, "❌ [Native GPS] Error playing feedback audio: " + e.getMessage(), e);
-            }
-        });
-    }
     
     private void playCompletionAudioAndWait(String audioUrl) throws InterruptedException {
         audioCompletionLatch = new CountDownLatch(1);
@@ -710,128 +559,12 @@ public class BioPeakLocationTracker extends Plugin {
         }
     }
     
-    // MARK: - Supabase Snapshot Integration
-    
-    private void saveSnapshotToSupabase(int meters) {
-        Log.d(TAG, "📊 [Native GPS] Saving snapshot to Supabase...");
-        Log.d(TAG, "   → sessionId: " + sessionId);
-        Log.d(TAG, "   → distance: " + meters + "m");
-        
-        if (sessionId == null) {
-            Log.e(TAG, "❌ [Native GPS] Snapshot save failed: Session ID not configured");
-            return;
-        }
-        
-        if (sessionStartTime == null) {
-            Log.e(TAG, "❌ [Native GPS] Snapshot save failed: Session start time not tracked");
-            return;
-        }
-        
-        if (supabaseUrl == null || supabaseAnonKey == null || userToken == null) {
-            Log.e(TAG, "❌ [Native GPS] Snapshot save failed: Supabase credentials or user token not configured");
-            return;
-        }
-        
-        executorService.execute(() -> {
-            try {
-                // Calculate time from start
-                int timeFromStart = (int) ((System.currentTimeMillis() - sessionStartTime) / 1000);
-                
-                Log.d(TAG, "   → timeFromStart: " + timeFromStart + "s");
-                
-                // Validate location data availability
-                if (lastLocation == null) {
-                    Log.w(TAG, "⚠️ [Native GPS] Snapshot save skipped: No location data available");
-                    return;
-                }
-                
-                // Calculate current pace (min/km)
-                Double currentPaceMinKm = null;
-                if (meters > 0 && timeFromStart > 0) {
-                    double distanceKm = meters / 1000.0;
-                    double timeMinutes = timeFromStart / 60.0;
-                    currentPaceMinKm = timeMinutes / distanceKm;
-                }
-                
-                // Extract location data
-                Double currentSpeedMs = lastLocation.hasSpeed() && lastLocation.getSpeed() >= 0 ? 
-                    (double) lastLocation.getSpeed() : null;
-                double latitude = lastLocation.getLatitude();
-                double longitude = lastLocation.getLongitude();
-                double elevationMeters = lastLocation.getAltitude();
-                
-                Log.d(TAG, "📍 [Native GPS] Snapshot GPS Data:");
-                Log.d(TAG, "   → pace: " + (currentPaceMinKm != null ? String.format("%.2f", currentPaceMinKm) : "null") + " min/km");
-                Log.d(TAG, "   → speed: " + (currentSpeedMs != null ? String.format("%.2f", currentSpeedMs) : "null") + " m/s");
-                Log.d(TAG, "   → coords: " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
-                Log.d(TAG, "   → elevation: " + String.format("%.1f", elevationMeters) + "m");
-                
-                // Prepare enriched snapshot data
-                JSONObject snapshotData = new JSONObject();
-                snapshotData.put("session_id", sessionId);
-                snapshotData.put("snapshot_at_distance_meters", meters);
-                snapshotData.put("snapshot_at_duration_seconds", timeFromStart);
-                snapshotData.put("latitude", latitude);
-                snapshotData.put("longitude", longitude);
-                snapshotData.put("elevation_meters", elevationMeters);
-                snapshotData.put("source", "native_gps");
-                
-                // Add optional fields if available
-                if (currentPaceMinKm != null) {
-                    snapshotData.put("current_pace_min_km", currentPaceMinKm);
-                }
-                if (currentSpeedMs != null) {
-                    snapshotData.put("current_speed_ms", currentSpeedMs);
-                }
-                
-                String url = supabaseUrl + "/rest/v1/performance_snapshots";
-                
-                RequestBody requestBody = RequestBody.create(
-                    snapshotData.toString(),
-                    MediaType.parse("application/json")
-                );
-                
-                Request request = new Request.Builder()
-                    .url(url)
-                    .post(requestBody)
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("apikey", supabaseAnonKey)
-                    .addHeader("Authorization", "Bearer " + userToken)
-                    .addHeader("Prefer", "return=representation")
-                    .build();
-                
-                Log.d(TAG, "📡 [Native GPS] Snapshot Request:");
-                Log.d(TAG, "   → URL: " + url);
-                Log.d(TAG, "   → Body: " + snapshotData.toString());
-                
-                Response response = httpClient.newCall(request).execute();
-                
-                Log.d(TAG, "📥 [Native GPS] Snapshot Response:");
-                Log.d(TAG, "   → Status: " + response.code());
-                
-                if (response.isSuccessful()) {
-                    String responseBody = response.body() != null ? response.body().string() : "Unable to decode";
-                    Log.d(TAG, "✅ [Native GPS] Snapshot saved successfully:");
-                    Log.d(TAG, "   → distance: " + meters + "m");
-                    Log.d(TAG, "   → time: " + timeFromStart + "s");
-                    Log.d(TAG, "   → sessionId: " + sessionId);
-                    Log.d(TAG, "   → response: " + responseBody);
-                } else {
-                    String responseBody = response.body() != null ? response.body().string() : "Unable to decode";
-                    Log.e(TAG, "❌ [Native GPS] Snapshot save failed with status " + response.code());
-                    Log.e(TAG, "   → response: " + responseBody);
-                }
-                
-            } catch (Exception e) {
-                Log.e(TAG, "❌ [Native GPS] Snapshot save error: " + e.getMessage(), e);
-            }
-        });
-    }
     
     @Override
     protected void handleOnDestroy() {
         super.handleOnDestroy();
-        if (locationCallback != null) {
+        unregisterLocationReceiver();
+        if (feedbackMediaPlayer != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
         }
         if (executorService != null) {
