@@ -77,9 +77,9 @@ const config: CapacitorConfig = {
     }
   },
   android: {
-    allowMixedContent: true,
-    usesCleartextTraffic: true,
-    webContentsDebuggingEnabled: true,
+    allowMixedContent: false,
+    usesCleartextTraffic: false,
+    webContentsDebuggingEnabled: false,
     permissions: [
       "android.permission.ACCESS_COARSE_LOCATION",
       "android.permission.ACCESS_FINE_LOCATION",
