@@ -19,7 +19,6 @@ import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -245,7 +244,7 @@ public class BioPeakLocationService extends Service {
         data.timestamp = location.getTime();
         
         intent.putExtra("locationData", data);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+        sendBroadcast(intent);
     }
     
     // MARK: - Notification Management
