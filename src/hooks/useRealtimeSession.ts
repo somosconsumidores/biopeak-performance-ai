@@ -533,11 +533,12 @@ export const useRealtimeSession = () => {
     setIsWatchingLocation(false);
   }, []);
 
-  // Switch to native GPS when app goes to background (iOS only)
+  // Switch to native GPS when app goes to background (iOS + Android)
   const switchToNativeGPS = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+    const platform = Capacitor.getPlatform();
+    if (!Capacitor.isNativePlatform() || (platform !== 'ios' && platform !== 'android')) return;
     
-    console.log('🔄 [GPS HYBRID] Switching to native GPS (app backgrounded)...');
+    console.log(`🔄 [GPS HYBRID ${platform}] Switching to native GPS (app backgrounded)...`);
     
     try {
       // Stop WebView GPS
@@ -546,19 +547,20 @@ export const useRealtimeSession = () => {
       // 🚫 Activate Native GPS mode - disables ALL WebView GPS/Coach/Snapshots
       // Native GPS continues running continuously - we just switch which system we're using
       setIsNativeGPSActive(true);
-      console.log('✅ [EXCLUSION] Native GPS mode ACTIVATED - WebView GPS disabled');
-      console.log('📍 [Native GPS] Already running continuously - no reset needed');
+      console.log(`✅ [EXCLUSION ${platform}] Native GPS mode ACTIVATED - WebView GPS disabled`);
+      console.log(`📍 [Native GPS ${platform}] Already running continuously - no reset needed`);
     } catch (error) {
-      console.error('❌ [GPS HYBRID] Failed to switch to native GPS:', error);
+      console.error(`❌ [GPS HYBRID ${platform}] Failed to switch to native GPS:`, error);
       setIsNativeGPSActive(false); // Rollback on error
     }
   }, [stopLocationTracking]);
 
   // Sync native GPS back to WebView when app returns to foreground
   const syncNativeGPSToWebView = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+    const platform = Capacitor.getPlatform();
+    if (!Capacitor.isNativePlatform() || (platform !== 'ios' && platform !== 'android')) return;
     
-    console.log('🔄 [GPS HYBRID] Syncing native GPS → WebView...');
+    console.log(`🔄 [GPS HYBRID ${platform}] Syncing native GPS → WebView...`);
     
     try {
       // Get accumulated distance from native GPS
@@ -577,28 +579,28 @@ export const useRealtimeSession = () => {
       // ✅ CORREÇÃO CRÍTICA 4: Sincronizar marca de feedback (previne duplicação)
       const currentSegment = Math.floor(nativeDistance / 500);
       last500mMarkRef.current = currentSegment;
-      console.log(`🔄 [GPS SYNC] Synced feedback mark to ${currentSegment} (${currentSegment * 500}m)`);
+      console.log(`🔄 [GPS SYNC ${platform}] Synced feedback mark to ${currentSegment} (${currentSegment * 500}m)`);
       
       // ✅ CORREÇÃO CRÍTICA 5: Ativar cooldown de 10s no speed-based fallback
       speedFallbackCooldownRef.current = Date.now() + 10000; // 10 segundos
       
-      console.log(`✅ [GPS HYBRID] Distance synced: ${nativeDistance.toFixed(1)}m`);
-      console.log(`✅ [GPS HYBRID] Timestamp reset to prevent backfill`);
-      console.log(`✅ [GPS HYBRID] Speed-based fallback cooldown activated (10s)`);
-      console.log('📍 [Native GPS] Continues running in background');
+      console.log(`✅ [GPS HYBRID ${platform}] Distance synced: ${nativeDistance.toFixed(1)}m`);
+      console.log(`✅ [GPS HYBRID ${platform}] Timestamp reset to prevent backfill`);
+      console.log(`✅ [GPS HYBRID ${platform}] Speed-based fallback cooldown activated (10s)`);
+      console.log(`📍 [Native GPS ${platform}] Continues running in background`);
       
       // ✅ Deactivate Native GPS mode - re-enables WebView GPS/Coach/Snapshots
       // Native GPS continues running - we just switch which system we're using
       setIsNativeGPSActive(false);
-      console.log('✅ [EXCLUSION] Native GPS mode DEACTIVATED - WebView GPS re-enabled');
+      console.log(`✅ [EXCLUSION ${platform}] Native GPS mode DEACTIVATED - WebView GPS re-enabled`);
       
       // Restart WebView GPS
       if (isRecording) {
         await startLocationTracking();
-        console.log('✅ [GPS HYBRID] WebView GPS restarted');
+        console.log(`✅ [GPS HYBRID ${platform}] WebView GPS restarted`);
       }
     } catch (error) {
-      console.error('❌ [GPS HYBRID] Failed to sync native GPS:', error);
+      console.error(`❌ [GPS HYBRID ${platform}] Failed to sync native GPS:`, error);
       setIsNativeGPSActive(false); // Ensure flag is reset on error
     }
   }, [isRecording, startLocationTracking]);
@@ -910,10 +912,10 @@ export const useRealtimeSession = () => {
           const result = await BioPeakLocationTracker.startLocationTracking();
           
           if (result.success) {
-            console.log('✅ [Native GPS] Continuous tracking started - will run for entire session');
-            console.log('📍 [Native GPS] Will persist across background/foreground transitions');
+            console.log(`✅ [Native GPS ${Capacitor.getPlatform()}] Continuous tracking started - will run for entire session`);
+            console.log(`📍 [Native GPS ${Capacitor.getPlatform()}] Will persist across background/foreground transitions`);
           } else {
-            console.warn('⚠️ [Native GPS] Failed to start:', result.message);
+            console.warn(`⚠️ [Native GPS ${Capacitor.getPlatform()}] Failed to start:`, result.message);
           }
         } catch (error) {
           console.error('❌ [Native GPS] Error starting continuous tracking:', error);
@@ -1031,9 +1033,9 @@ export const useRealtimeSession = () => {
     if (Capacitor.getPlatform() === 'android') {
       try {
         await ForegroundService.stopForegroundService();
-        console.log('✅ Android Foreground Service stopped (paused)');
+        console.log(`🛑 [Foreground Service ${Capacitor.getPlatform()}] Stopped (session paused)`);
       } catch (error) {
-        console.warn('⚠️ Failed to stop Android Foreground Service:', error);
+        console.warn(`⚠️ [Foreground Service ${Capacitor.getPlatform()}] Failed to stop:`, error);
       }
     }
     
@@ -1078,6 +1080,7 @@ export const useRealtimeSession = () => {
           smallIcon: 'ic_notification',
           title: '🏃 BioPeak - Treino Ativo'
         });
+        console.log(`▶️ [Foreground Service ${Capacitor.getPlatform()}] Restarted (session resumed)`);
         console.log('✅ Android Foreground Service restarted (resumed)');
       } catch (error) {
         console.warn('⚠️ Failed to restart Android Foreground Service:', error);
@@ -1530,9 +1533,12 @@ export const useRealtimeSession = () => {
     };
   }, [stopLocationTracking]);
 
-  // iOS Background GPS Hybrid System - Switch between WebView and Native GPS
+  // Native Background GPS Hybrid System - Switch between WebView and Native GPS (iOS + Android)
   useEffect(() => {
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios' || !isRecording) return;
+    const platform = Capacitor.getPlatform();
+    if (!Capacitor.isNativePlatform() || (platform !== 'ios' && platform !== 'android') || !isRecording) return;
+    
+    console.log(`📱 [HYBRID ${platform}] Background GPS hybrid system activated`);
     
     let graceTimeout: NodeJS.Timeout | null = null;
     let lastToggleTime = 0;
@@ -1542,7 +1548,7 @@ export const useRealtimeSession = () => {
     const handleVisibilityChange = () => {
       const now = Date.now();
       if (now - lastToggleTime < DEBOUNCE_MS) {
-        console.log('⏸️ [HYBRID] Debounce active, ignoring toggle');
+        console.log(`⏸️ [HYBRID ${platform}] Debounce active, ignoring toggle`);
         return;
       }
       
@@ -1551,11 +1557,11 @@ export const useRealtimeSession = () => {
       isInBackgroundRef.current = isNowInBackground;
       
       if (isNowInBackground && !wasInBackground) {
-        console.log('📱 [HYBRID] → Background: enabling native GPS');
+        console.log(`📱 [HYBRID ${platform}] → Background: enabling native GPS`);
         lastToggleTime = now;
         switchToNativeGPS();
       } else if (!isNowInBackground && wasInBackground) {
-        console.log('📱 [HYBRID] → Foreground: waiting grace window (7s)');
+        console.log(`📱 [HYBRID ${platform}] → Foreground: waiting grace window (7s)`);
         lastToggleTime = now;
         
         // Grace period: wait for WebView GPS to stabilize
@@ -1567,10 +1573,10 @@ export const useRealtimeSession = () => {
                                  lastLoc.accuracy <= 25;
           
           if (isWebViewReady) {
-            console.log('✅ [HYBRID] WebView ready (accuracy ≤25m) → syncing & disabling native');
+            console.log(`✅ [HYBRID ${platform}] WebView ready (accuracy ≤25m) → syncing & disabling native`);
             syncNativeGPSToWebView();
           } else {
-            console.log('⏳ [HYBRID] WebView not ready → keep native active');
+            console.log(`⏳ [HYBRID ${platform}] WebView not ready → keep native active`);
             // Native GPS stays active
           }
         }, GRACE_PERIOD_MS);
