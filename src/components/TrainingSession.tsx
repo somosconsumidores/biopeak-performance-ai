@@ -395,13 +395,25 @@ const TrainingSession: React.FC = () => {
                   <div className={`h-3 w-3 rounded-full ${enhancedGPS.isTracking ? 'bg-green-500' : 'bg-yellow-500'}`} />
                   <span className="font-medium">GPS {enhancedGPS.isTracking ? 'Ativo' : 'Aguardando'}</span>
                 </div>
-                <Button
-                  onClick={() => setShowGPSDialog(true)}
-                  variant="ghost"
-                  size="sm"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                {enhancedGPS.status === 'prompt' || enhancedGPS.status === 'denied' ? (
+                  <Button
+                    onClick={() => setShowGPSDialog(true)}
+                    variant="default"
+                    size="default"
+                    className="bg-primary hover:bg-primary/90 font-semibold"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Autorize o GPS
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowGPSDialog(true)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
