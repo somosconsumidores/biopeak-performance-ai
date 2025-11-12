@@ -235,6 +235,7 @@ public class BioPeakLocationService extends Service {
     
     private void sendLocationBroadcast(Location location, float distanceIncrement) {
         Intent intent = new Intent(BROADCAST_LOCATION_UPDATE);
+        intent.setPackage(getPackageName()); // ✅ Make broadcast explicit for Android 14+
         
         LocationData data = new LocationData();
         data.latitude = location.getLatitude();
@@ -249,6 +250,8 @@ public class BioPeakLocationService extends Service {
         
         intent.putExtra("locationData", data);
         sendBroadcast(intent);
+        
+        Log.d(TAG, "📤 Broadcast sent: +" + String.format("%.1f", distanceIncrement) + "m → Total: " + String.format("%.1f", accumulatedDistance) + "m");
     }
     
     // MARK: - Notification Management
