@@ -196,6 +196,47 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     fetchActivePlan();
   }, [user]);
 
+  // Listen to realtime updates for training_plan_workouts
+  useEffect(() => {
+    if (!plan) return;
+
+    console.log('🔄 Setting up realtime listener for workouts');
+    
+    const channel = supabase
+      .channel('training_plan_workouts_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'training_plan_workouts',
+          filter: `plan_id=eq.${plan.id}`
+        },
+        (payload) => {
+          console.log('🔄 Realtime workout update:', payload);
+          
+          if (payload.eventType === 'UPDATE') {
+            const updatedWorkout = payload.new as TrainingWorkout;
+            setWorkouts(prev => prev.map(w => 
+              w.id === updatedWorkout.id ? updatedWorkout : w
+            ));
+          } else if (payload.eventType === 'INSERT') {
+            const newWorkout = payload.new as TrainingWorkout;
+            setWorkouts(prev => [...prev, newWorkout]);
+          } else if (payload.eventType === 'DELETE') {
+            const deletedWorkout = payload.old as TrainingWorkout;
+            setWorkouts(prev => prev.filter(w => w.id !== deletedWorkout.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔄 Cleaning up realtime listener');
+      supabase.removeChannel(channel);
+    };
+  }, [plan?.id]);
+
   return {
     plan,
     workouts,
