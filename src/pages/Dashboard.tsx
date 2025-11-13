@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useGarminVo2Max } from '@/hooks/useGarminVo2Max';
+import { useDanielsVo2Max } from '@/hooks/useDanielsVo2Max';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { useAchievementSystem } from '@/hooks/useAchievementSystem';
@@ -80,13 +81,26 @@ export const Dashboard = () => {
   } = useDashboardMetrics();
   
   const {
-    currentVo2Max,
+    currentVo2Max: garminVo2Max,
     change: vo2Change,
     trend: vo2Trend,
     lastRecordDate,
     loading: vo2Loading,
     error: vo2Error
   } = useGarminVo2Max();
+
+  const {
+    currentVo2Max: danielsVo2Max,
+    trend: danielsTrend,
+    change: danielsChange,
+    loading: danielsLoading
+  } = useDanielsVo2Max();
+
+  // Use Garmin VO2 Max if available, otherwise fall back to Daniels
+  const currentVo2Max = garminVo2Max || danielsVo2Max;
+  const vo2Source = garminVo2Max ? 'Garmin' : (danielsVo2Max ? 'Daniels' : null);
+  const finalVo2Trend = garminVo2Max ? vo2Trend : danielsTrend;
+  const finalVo2Change = garminVo2Max ? vo2Change : danielsChange;
 
   const { checkAchievements } = useAchievementSystem();
   const { user } = useAuth();
@@ -196,15 +210,16 @@ export const Dashboard = () => {
 
   const formattedMetrics = metrics ? [
     {
-      title: 'VO₂ Max - Calculado e informado pela Garmin',
-      value: !vo2Loading && currentVo2Max ? currentVo2Max.toString() : 'Não informado',
+      title: vo2Source ? `VO₂ Max - ${vo2Source}` : 'VO₂ Max',
+      value: !vo2Loading && !danielsLoading && currentVo2Max ? currentVo2Max.toFixed(1) : 'Não informado',
       unit: 'ml/kg/min',
-      change: !vo2Loading && currentVo2Max && vo2Change !== 0 ? 
-        `${vo2Change > 0 ? '+' : ''}${vo2Change.toFixed(1)}%` : 
+      change: !vo2Loading && !danielsLoading && currentVo2Max && finalVo2Change !== 0 ? 
+        `${finalVo2Change > 0 ? '+' : ''}${Math.abs(finalVo2Change).toFixed(1)}${garminVo2Max ? '%' : ' ml/kg/min'}` : 
         '',
-      trend: vo2Trend || 'stable',
-      color: vo2Trend === 'up' ? 'text-green-400' : vo2Trend === 'down' ? 'text-red-400' : 'text-blue-400',
-      source: lastRecordDate ? `Último registro: ${lastRecordDate}` : undefined,
+      trend: finalVo2Trend || 'stable',
+      color: finalVo2Trend === 'up' ? 'text-green-400' : finalVo2Trend === 'down' ? 'text-red-400' : 'text-blue-400',
+      source: vo2Source === 'Garmin' && lastRecordDate ? `Último registro: ${lastRecordDate}` : 
+              vo2Source === 'Daniels' ? 'Calculado pela fórmula de Jack Daniels' : undefined,
       icon: Zap
     },
     {
