@@ -52,11 +52,11 @@ serve(async (req) => {
 
     // Fetch completed workouts
     const { data: workouts, error: workoutsError } = await supabase
-      .from('training_workouts')
+      .from('training_plan_workouts')
       .select('*')
       .eq('plan_id', planId)
       .eq('status', 'completed')
-      .order('scheduled_date', { ascending: true });
+      .order('workout_date', { ascending: true });
 
     if (workoutsError) {
       throw new Error('Failed to fetch workouts');
@@ -77,11 +77,11 @@ serve(async (req) => {
 
     // Prepare context for AI
     const workoutsSummary = workouts.map(w => ({
-      type: w.type,
+      type: w.workout_type,
       title: w.title,
-      date: w.scheduled_date,
-      completed_date: w.completed_at,
-      distance: w.distance_km,
+      date: w.workout_date,
+      completed_date: w.updated_at,
+      distance: w.distance_meters ? (w.distance_meters / 1000).toFixed(2) : null,
       duration: w.duration_minutes,
       description: w.description
     }));
@@ -89,10 +89,11 @@ serve(async (req) => {
     const prompt = `Analise o progresso deste atleta no plano de treino:
 
 **Plano de Treino:**
-- Objetivo: ${plan.goal_race_distance}
-- Data da Prova: ${plan.target_race_date}
-- Duração do Plano: ${plan.duration_weeks} semanas
-- Nível do Atleta: ${plan.experience_level}
+- Objetivo: ${plan.goal_type}
+- Esporte: ${plan.sport_type}
+- Data do Evento: ${plan.target_event_date || 'Não definida'}
+- Duração do Plano: ${plan.weeks} semanas
+- Período: ${plan.start_date} até ${plan.end_date}
 
 **Treinos Concluídos (${workouts.length}):**
 ${JSON.stringify(workoutsSummary, null, 2)}
@@ -105,11 +106,11 @@ Por favor, forneça uma análise detalhada e motivadora sobre:
 
 3. **Áreas de Atenção**: Existem padrões preocupantes ou aspectos que precisam de atenção?
 
-4. **Impacto no Objetivo**: Como esse progresso se relaciona com o objetivo final (${plan.goal_race_distance} na data ${plan.target_race_date})?
+4. **Impacto no Objetivo**: Como esse progresso se relaciona com o objetivo final (${plan.goal_type}${plan.target_event_date ? ` na data ${plan.target_event_date}` : ''})?
 
 5. **Recomendações**: O que o atleta deve focar nos próximos treinos?
 
-Mantenha o tom positivo, motivador e específico para corrida. Use dados concretos dos treinos quando possível.`;
+Mantenha o tom positivo, motivador e específico para ${plan.sport_type === 'running' ? 'corrida' : 'ciclismo'}. Use dados concretos dos treinos quando possível.`;
 
     // Call Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
