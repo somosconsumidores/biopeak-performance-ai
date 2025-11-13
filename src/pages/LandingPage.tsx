@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Activity, 
   Brain, 
@@ -36,6 +36,13 @@ import aiCoachPlan from '@/assets/ai-coach-plan.png';
 import aiCoachDetails from '@/assets/ai-coach-details.png';
 import aiCoachCalendar from '@/assets/ai-coach-calendar.png';
 
+// Why BioPeak screenshots
+import whyBiopeak1 from '@/assets/why-biopeak-1.png';
+import whyBiopeak2 from '@/assets/why-biopeak-2.png';
+import whyBiopeak3 from '@/assets/why-biopeak-3.png';
+import whyBiopeak4 from '@/assets/why-biopeak-4.png';
+import whyBiopeak5 from '@/assets/why-biopeak-5.png';
+
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png';
@@ -43,9 +50,26 @@ const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.
 
 export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [currentScreenshot, setCurrentScreenshot] = useState(0);
   const { theme } = useTheme();
   const { stats: appStats, loading: statsLoading } = useAppStats();
   const { t } = useTranslation();
+
+  const whyBiopeakScreenshots = [
+    whyBiopeak1,
+    whyBiopeak2,
+    whyBiopeak3,
+    whyBiopeak4,
+    whyBiopeak5
+  ];
+
+  // Auto-rotate screenshots
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentScreenshot((prev) => (prev + 1) % whyBiopeakScreenshots.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Get current effective theme
   const getEffectiveTheme = () => {
@@ -400,13 +424,51 @@ export const LandingPage = () => {
             </ScrollReveal>
             
             <ScrollReveal delay={300}>
-              <img
-                src="https://static.wixstatic.com/media/a025ad_8a38f7c5df5349a1b82fe1b45c0602a9~mv2.gif"
-                alt="Demonstração BioPeak: métricas de treino em ação (GIF)"
-                className="w-full h-auto rounded-xl object-contain"
-                loading="lazy"
-                decoding="async"
-              />
+              <div className="relative">
+                {/* Main display area with phone mockup effect */}
+                <div className="relative mx-auto max-w-sm">
+                  {/* Phone frame effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-accent/20 rounded-[3rem] blur-2xl animate-pulse" />
+                  
+                  {/* Screenshot carousel */}
+                  <div className="relative bg-background/10 backdrop-blur-sm rounded-[2.5rem] p-3 border-2 border-primary/30 shadow-2xl">
+                    <div className="relative overflow-hidden rounded-[2rem] aspect-[9/19.5] bg-background">
+                      {whyBiopeakScreenshots.map((screenshot, index) => (
+                        <img
+                          key={index}
+                          src={screenshot}
+                          alt={`BioPeak app demonstration ${index + 1}`}
+                          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
+                            index === currentScreenshot 
+                              ? 'opacity-100 scale-100' 
+                              : 'opacity-0 scale-95'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dot indicators */}
+                  <div className="flex justify-center gap-2 mt-6">
+                    {whyBiopeakScreenshots.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentScreenshot(index)}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                          index === currentScreenshot 
+                            ? 'bg-primary w-8' 
+                            : 'bg-primary/30 hover:bg-primary/50'
+                        }`}
+                        aria-label={`View screenshot ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Floating elements for visual interest */}
+                <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl animate-pulse" />
+                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-accent/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+              </div>
             </ScrollReveal>
           </div>
         </div>
