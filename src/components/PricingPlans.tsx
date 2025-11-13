@@ -45,23 +45,33 @@ export const PricingPlans = () => {
   const proPlanFeatures = [
     {
       icon: Brain,
-      title: "Análises exclusivas com IA",
-      description: "Treinos de forma individual, análise do sono, BioPeak Fitness Score"
+      title: "Planos de Treino por IA",
+      description: "Criação automática de treinos personalizados baseados nos seus dados"
+    },
+    {
+      icon: Activity,
+      title: "BioPeak Fitness Score",
+      description: "Acompanhe sua evolução com métricas avançadas e risco de overtraining"
+    },
+    {
+      icon: Calendar,
+      title: "Calendário de Provas",
+      description: "Análise de IA específica sobre sua preparação para objetivos"
+    },
+    {
+      icon: BarChart3,
+      title: "Painel Estatístico Avançado",
+      description: "Acesso completo a todas as suas estatísticas individuais"
     },
     {
       icon: TrendingUp,
-      title: "Risco de Overtraining",
-      description: "Monitoramento inteligente para prevenir lesões"
+      title: "Monitoramento de Overtraining",
+      description: "Alertas inteligentes para prevenir lesões e otimizar recuperação"
     },
     {
       icon: Zap,
-      title: "Insights avançados",
-      description: "Insights sobre seu histórico de atividades e painel estatístico do atleta"
-    },
-    {
-      icon: HeartHandshake,
-      title: "Análise de preparação",
-      description: "Análise de sua preparação para as provas agendadas"
+      title: "Insights de Performance",
+      description: "Recomendações personalizadas baseadas nos seus dados"
     }
   ];
 
