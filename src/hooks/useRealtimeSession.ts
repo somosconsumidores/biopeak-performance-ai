@@ -897,6 +897,9 @@ export const useRealtimeSession = () => {
             throw new Error('User not authenticated');
           }
 
+          // 🧪 TEST MODE: Uncomment the line below to test feedback every 50m instead of 500m
+          // const TEST_INTERVAL = 50;
+          
           // Configure feedback for native GPS with user token
           await BioPeakLocationTracker.configureFeedback({
             sessionId: session.id,
@@ -904,7 +907,8 @@ export const useRealtimeSession = () => {
             enabled: true,
             supabaseUrl: 'https://grcwlmltlcltmwbhdpky.supabase.co',
             supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM',
-            userToken: userToken
+            userToken: userToken,
+            // testInterval: TEST_INTERVAL, // 🧪 Uncomment to activate test mode
           });
           
           // Start tracking - Service will initialize with distance=0 at session start
