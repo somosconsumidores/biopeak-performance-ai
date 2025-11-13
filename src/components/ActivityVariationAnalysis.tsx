@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrendingUp, Heart, Target, BarChart3, AlertCircle, RefreshCw, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import ReactMarkdown from 'react-markdown';
 
 interface VariationAnalysisResult {
   paceCV: number;
@@ -121,25 +122,31 @@ export const ActivityVariationAnalysis = ({ activityId }: ActivityVariationAnaly
         paceCV = paceStdDev / avgPace;
       }
 
-      // Categorizar CVs
+      // Categorizar CVs com thresholds mais granulares
       const heartRateCVCategory: 'Baixo' | 'Alto' = heartRateCV <= 0.15 ? 'Baixo' : 'Alto';
-      const paceCVCategory: 'Baixo' | 'Alto' = paceCV <= 0.15 ? 'Baixo' : 'Alto';
+      const paceCVCategory: 'Baixo' | 'Alto' = paceCV <= 0.30 ? 'Baixo' : 'Alto';
 
-      // Determinar diagnóstico
+      // Determinar diagnóstico com análise inteligente e contextual
       let diagnosis = '';
+      
       if (heartRates.length < 10) {
         diagnosis = 'Análise baseada apenas no pace (dados de FC insuficientes)';
       } else if (paces.length < 10) {
         diagnosis = 'Análise baseada apenas na FC (dados de pace insuficientes)';
       } else {
-        if (heartRateCVCategory === 'Baixo' && paceCVCategory === 'Baixo') {
-          diagnosis = 'Ritmo e esforço constantes → treino contínuo e controlado';
-        } else if (heartRateCVCategory === 'Baixo' && paceCVCategory === 'Alto') {
-          diagnosis = 'Ritmo variando mas esforço cardiovascular constante → você ajustou o pace para manter FC estável (estratégia eficiente em provas longas)';
-        } else if (heartRateCVCategory === 'Alto' && paceCVCategory === 'Baixo') {
-          diagnosis = 'Ritmo constante mas FC variando → possível fadiga, desidratação, temperatura alta ou pouca adaptação ao esforço';
+        // Análise considerando a combinação dos CVs e magnitude
+        if (paceCV > 0.50 && heartRateCV < 0.20) {
+          diagnosis = '🎯 **Ótimo condicionamento cardiovascular!** Grande variação de ritmo com FC estável indica controle eficiente e boa adaptação aeróbica. Típico de treinos intervalados/fartlek bem executados.';
+        } else if (paceCV > 0.30 && heartRateCV < 0.25) {
+          diagnosis = '💪 **Treino estruturado com variações.** Ritmo variável com resposta cardiovascular controlada sugere treino intervalado ou fartlek bem planejado. Sistema cardiovascular respondendo adequadamente aos estímulos.';
+        } else if (paceCV < 0.15 && heartRateCV < 0.15) {
+          diagnosis = '📊 **Treino contínuo e estável.** Ritmo e esforço consistentes caracterizam corrida em estado estacionário (steady state). Ideal para base aeróbica e corridas longas.';
+        } else if (paceCV < 0.20 && heartRateCV > 0.25) {
+          diagnosis = '⚠️ **FC instável com ritmo constante.** Pode indicar fadiga acumulada, desidratação, condições climáticas adversas ou necessidade de melhor condicionamento aeróbico. Monitore recuperação.';
+        } else if (paceCV > 0.30 && heartRateCV > 0.25) {
+          diagnosis = '🔄 **Alta variabilidade em ritmo e FC.** Se intencional (intervalado/fartlek), indica treino de qualidade com estímulos variados. Se não intencional, considere melhorar controle de ritmo e pacing.';
         } else {
-          diagnosis = 'Ritmo e esforço muito variáveis → treino intervalado, fartlek, ou atividade desorganizada';
+          diagnosis = '✅ **Variação moderada.** Combinação equilibrada de variações de ritmo e resposta cardiovascular. Treino com mix de intensidades ou transições controladas entre zonas.';
         }
       }
 
@@ -264,22 +271,32 @@ export const ActivityVariationAnalysis = ({ activityId }: ActivityVariationAnaly
                 <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                   <div className="flex items-start space-x-3">
                     <Target className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-medium text-primary mb-1">Diagnóstico da Atividade</h4>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {analysis.diagnosis}
-                      </p>
+                      <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                          components={{
+                            p: ({node, ...props}) => <p className="mb-0 text-muted-foreground" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold text-foreground" {...props} />,
+                          }}
+                        >
+                          {analysis.diagnosis}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Legenda */}
-                <div className="text-xs text-muted-foreground border-t border-border/50 pt-4">
-                  <p className="mb-1">
-                    <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa, calculado pelo desvio padrão sobre a média
+                <div className="text-xs text-muted-foreground border-t border-border/50 pt-4 space-y-1">
+                  <p className="mb-2">
+                    <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa (desvio padrão / média)
                   </p>
                   <p>
-                    <strong>Baixo ≤ 15%</strong> | <strong>Alto {'>'} 15%</strong>
+                    <strong>FC:</strong> Baixo ≤ 15% | Alto {'>'} 15%
+                  </p>
+                  <p>
+                    <strong>Pace:</strong> Baixo ≤ 30% | Alto {'>'} 30%
                   </p>
                 </div>
               </>
