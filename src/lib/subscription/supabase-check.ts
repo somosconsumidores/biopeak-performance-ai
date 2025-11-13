@@ -13,11 +13,18 @@ interface SubscriptionData {
  */
 export async function checkSupabaseSubscription(userId: string): Promise<SubscriptionData> {
   try {
-    const { data } = await supabase
+    // Add aggressive timeout
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Direct Supabase check timeout after 5s')), 5000)
+    );
+    
+    const queryPromise = supabase
       .from('subscribers')
       .select('subscribed, subscription_tier, subscription_end, subscription_type')
       .eq('user_id', userId)
-      .maybeSingle(); // ⭐ Removido filtro .eq('subscribed', true)
+      .maybeSingle();
+    
+    const { data } = await Promise.race([queryPromise, timeoutPromise]);
 
     if (!data || !data.subscribed) {
       return { subscribed: false };
