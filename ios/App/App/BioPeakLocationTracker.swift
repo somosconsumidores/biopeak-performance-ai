@@ -109,10 +109,19 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
         self.userToken = call.getString("userToken")
         self.lastFeedbackSegment = 0
         
+        // Set feedback interval (use testInterval if provided, otherwise 500m)
+        if let testInterval = call.getDouble("testInterval"), testInterval > 0 {
+            self.feedbackInterval = testInterval
+            print("🧪 [Native GPS] Using TEST interval: \(Int(testInterval))m")
+        } else {
+            self.feedbackInterval = 500.0
+        }
+        
         print("✅ [Native GPS] Feedback configured:")
         print("   → sessionId: \(sessionId ?? "nil")")
         print("   → trainingGoal: \(trainingGoal ?? "nil")")
         print("   → enabled: \(shouldGiveFeedback)")
+        print("   → feedbackInterval: \(Int(feedbackInterval))m")
         print("   → supabaseUrl: \(supabaseUrl != nil ? "configured" : "NOT configured")")
         print("   → supabaseAnonKey: \(supabaseAnonKey != nil ? "configured" : "NOT configured")")
         print("   → userToken: \(userToken != nil ? "configured" : "NOT configured")")
