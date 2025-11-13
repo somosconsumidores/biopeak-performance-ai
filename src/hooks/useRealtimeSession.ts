@@ -1422,6 +1422,105 @@ export const useRealtimeSession = () => {
         }
       }
       
+      // ========== Save GPS coordinates to activity_coordinates ==========
+      console.log('📍 Checking GPS coordinates for saving...');
+      const collectedCoordinates = gpsCoordinatesRef.current;
+      console.log(`📊 Total GPS coordinates collected: ${collectedCoordinates.length}`);
+
+      if (collectedCoordinates.length > 0) {
+        console.log('💾 Saving GPS coordinates to activity_coordinates table...');
+        
+        try {
+          // Calculate bounding box
+          const lats = collectedCoordinates.map(coord => coord[0]);
+          const lons = collectedCoordinates.map(coord => coord[1]);
+          const boundingBox = [
+            [Math.min(...lats), Math.min(...lons)],
+            [Math.max(...lats), Math.max(...lons)]
+          ];
+          
+          const startingCoord = collectedCoordinates[0];
+          
+          // Check if activity_coordinates already exists (from Native GPS)
+          const { data: existingCoords, error: checkError } = await supabase
+            .from('activity_coordinates')
+            .select('id, coordinates, total_points')
+            .eq('activity_id', sessionData.sessionId)
+            .eq('user_id', user!.id)
+            .maybeSingle();
+          
+          if (checkError) {
+            console.error('⚠️ Error checking existing coordinates:', checkError);
+          }
+          
+          if (existingCoords) {
+            // MERGE: Native GPS já salvou coordenadas, adicionar as do WebView
+            console.log(`🔄 Merging ${collectedCoordinates.length} WebView coordinates with ${existingCoords.total_points} Native GPS coordinates`);
+            
+            const nativeCoords = existingCoords.coordinates as Array<[number, number]>;
+            const mergedCoordinates = [...nativeCoords, ...collectedCoordinates];
+            
+            // Recalculate bounding box with merged data
+            const allLats = mergedCoordinates.map(coord => coord[0]);
+            const allLons = mergedCoordinates.map(coord => coord[1]);
+            const mergedBoundingBox = [
+              [Math.min(...allLats), Math.min(...allLons)],
+              [Math.max(...allLats), Math.max(...allLons)]
+            ];
+            
+            const { error: updateError } = await supabase
+              .from('activity_coordinates')
+              .update({
+                coordinates: mergedCoordinates,
+                total_points: mergedCoordinates.length,
+                sampled_points: mergedCoordinates.length,
+                bounding_box: mergedBoundingBox,
+              })
+              .eq('id', existingCoords.id);
+            
+            if (updateError) {
+              console.error('❌ Error updating GPS coordinates:', updateError);
+            } else {
+              console.log(`✅ GPS coordinates merged successfully! Total: ${mergedCoordinates.length} points`);
+            }
+          } else {
+            // INSERT: Não existem coordenadas Native GPS, salvar apenas as do WebView
+            console.log(`📝 Inserting ${collectedCoordinates.length} WebView GPS coordinates`);
+            
+            const { error: insertError } = await supabase
+              .from('activity_coordinates')
+              .insert({
+                user_id: user!.id,
+                activity_id: sessionData.sessionId,
+                activity_source: 'biopeak_app',
+                coordinates: collectedCoordinates,
+                total_points: collectedCoordinates.length,
+                sampled_points: collectedCoordinates.length,
+                starting_latitude: startingCoord[0],
+                starting_longitude: startingCoord[1],
+                bounding_box: boundingBox,
+              });
+            
+            if (insertError) {
+              console.error('❌ Error inserting GPS coordinates:', insertError);
+            } else {
+              console.log('✅ GPS coordinates saved successfully!');
+            }
+          }
+          
+          // Clear coordinates ref after saving
+          gpsCoordinatesRef.current = [];
+          console.log('🧹 GPS coordinates reference cleared');
+          
+        } catch (error) {
+          console.error('❌ Fatal error saving GPS coordinates:', error);
+          // Don't throw - coordinates are secondary, session is already completed
+        }
+      } else {
+        console.log('⚠️ No GPS coordinates collected during this session');
+      }
+      // ========== End GPS coordinates save ==========
+      
       setSessionData(current => current ? { ...current, status: 'completed' } : null);
       
     } catch (error) {
