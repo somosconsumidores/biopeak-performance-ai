@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { debugLog, debugError, debugWarn } from '@/lib/debug';
-import { cacheSubscription, getCachedSubscription, clearSubscriptionCache } from '@/lib/subscription/cache-ios';
+import { cacheSubscription, getCachedSubscription, clearSubscriptionCache, getCacheTimestamp } from '@/lib/subscription/cache-ios';
 import { getValidToken } from '@/lib/subscription/token';
 import { checkRevenueCatLight } from '@/lib/subscription/revenuecat-ios';
 import { detectSubscriptionSource, type SubscriptionSource } from '@/lib/subscription/detect-subscription-source';
@@ -126,44 +126,57 @@ export const useSubscription = () => {
         }
         checkingRef.current = false;
         
-        // Fire-and-forget background refresh based on source
-        (async () => {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          if (!checkingRef.current && isMountedRef.current) {
-            checkingRef.current = true;
-            try {
-              if (source === 'stripe') {
-                // For Stripe subscribers, do a quick Supabase refresh
-                debugLog('🔄 Background refresh: checking Supabase for Stripe subscriber...');
-                const supabaseData = await checkSupabaseSubscription(user.id);
-                if (isMountedRef.current && supabaseData.subscribed) {
-                  setSubscriptionData(supabaseData);
-                  cacheSubscription(supabaseData, 'stripe');
+        // ⭐ OTIMIZAÇÃO: Só fazer background refresh se realmente necessário
+        const cacheAge = Date.now() - (getCacheTimestamp() || 0);
+        const shouldRefresh = (
+          !cached.subscribed || // Não-assinante: sempre verificar
+          cacheAge > (6 * 24 * 60 * 60 * 1000) // Cache > 6 dias: refresh preventivo
+        );
+
+        if (shouldRefresh) {
+          debugLog('🔄 Cache válido mas fazendo refresh preventivo (não-assinante ou cache antigo)');
+          
+          // Fire-and-forget background refresh based on source
+          (async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (!checkingRef.current && isMountedRef.current) {
+              checkingRef.current = true;
+              try {
+                if (source === 'stripe') {
+                  // For Stripe subscribers, do a quick Supabase refresh
+                  debugLog('🔄 Background refresh: checking Supabase for Stripe subscriber...');
+                  const supabaseData = await checkSupabaseSubscription(user.id);
+                  if (isMountedRef.current && supabaseData.subscribed) {
+                    setSubscriptionData(supabaseData);
+                    cacheSubscription(supabaseData, 'stripe');
+                  }
+                } else if (source === 'revenuecat' && isIOSNative) {
+                  // For RevenueCat subscribers, check RevenueCat
+                  debugLog('🔄 Background refresh: checking RevenueCat...');
+                  const rcData = await Promise.race([
+                    checkRevenueCatLight(user.id),
+                    new Promise<SubscriptionData>((_, reject) => 
+                      setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
+                    )
+                  ]);
+                  if (isMountedRef.current) {
+                    setSubscriptionData(rcData);
+                    cacheSubscription(rcData, 'revenuecat');
+                    syncToSupabase(rcData).catch(err => 
+                      debugError('Background sync failed:', err)
+                    );
+                  }
                 }
-              } else if (source === 'revenuecat' && isIOSNative) {
-                // For RevenueCat subscribers, check RevenueCat
-                debugLog('🔄 Background refresh: checking RevenueCat...');
-                const rcData = await Promise.race([
-                  checkRevenueCatLight(user.id),
-                  new Promise<SubscriptionData>((_, reject) => 
-                    setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
-                  )
-                ]);
-                if (isMountedRef.current) {
-                  setSubscriptionData(rcData);
-                  cacheSubscription(rcData, 'revenuecat');
-                  syncToSupabase(rcData).catch(err => 
-                    debugError('Background sync failed:', err)
-                  );
-                }
+              } catch (error) {
+                debugWarn('⚠️ Background refresh failed:', error);
+              } finally {
+                checkingRef.current = false;
               }
-            } catch (error) {
-              debugWarn('⚠️ Background refresh failed:', error);
-            } finally {
-              checkingRef.current = false;
             }
-          }
-        })();
+          })();
+        } else {
+          debugLog('⏭️ Skipping background refresh: cache is fresh and user is subscribed');
+        }
         return;
       }
 
