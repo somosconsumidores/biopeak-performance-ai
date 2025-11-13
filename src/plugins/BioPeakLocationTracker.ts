@@ -25,6 +25,7 @@ export interface BioPeakLocationTrackerPlugin {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
     userToken?: string;
+    testInterval?: number; // Optional: for testing (e.g., 50 instead of 500)
   }): Promise<{ success: boolean }>;
   generateCompletionAudio(): Promise<{ success: boolean; message: string }>;
   cleanup(): Promise<{ success: boolean }>;
