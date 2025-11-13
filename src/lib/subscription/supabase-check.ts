@@ -17,10 +17,9 @@ export async function checkSupabaseSubscription(userId: string): Promise<Subscri
       .from('subscribers')
       .select('subscribed, subscription_tier, subscription_end, subscription_type')
       .eq('user_id', userId)
-      .eq('subscribed', true)
-      .maybeSingle();
+      .maybeSingle(); // ⭐ Removido filtro .eq('subscribed', true)
 
-    if (!data) {
+    if (!data || !data.subscribed) {
       return { subscribed: false };
     }
 

@@ -13,7 +13,7 @@ interface CachedData {
 const CACHE_VERSION = 'ios_v1';
 const LOCAL_CACHE_KEY = `subscription_cache_${CACHE_VERSION}`;
 const SESSION_CACHE_KEY = `subscription_session_${CACHE_VERSION}`;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function cacheSubscription(data: SubscriptionData, source: 'revenuecat' | 'stripe' = 'stripe'): void {
   try {
@@ -78,4 +78,17 @@ export function clearSubscriptionCache(): void {
   } catch (error) {
     console.error('Failed to clear subscription cache:', error);
   }
+}
+
+export function getCacheTimestamp(): number | null {
+  try {
+    const localRaw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if (localRaw) {
+      const { timestamp } = JSON.parse(localRaw) as CachedData;
+      return timestamp;
+    }
+  } catch (error) {
+    console.error('Failed to get cache timestamp:', error);
+  }
+  return null;
 }
