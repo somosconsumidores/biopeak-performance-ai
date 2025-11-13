@@ -55,7 +55,7 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
     }
   };
 
-  const showAlert = data.paceCV > 0.2 || data.hrCV > 0.2;
+  const showAlert = data.paceCV > 0.30 && data.hrCV < 0.20;
 
   // Transform data to percentages for chart display
   const chartData = data.weeklyData.map(week => ({
@@ -82,10 +82,10 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
           </div>
           
           {showAlert && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
-              <span className="text-sm text-amber-600 dark:text-amber-400">
-                CV elevado indica treino inconsistente
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <TrendingUp className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              <span className="text-sm text-emerald-600 dark:text-emerald-400">
+                CV pace alto + CV FC baixo = Ótimo condicionamento cardiovascular! Sistema cardiovascular eficiente.
               </span>
             </div>
           )}
@@ -156,7 +156,9 @@ export const VariationAnalysisChart = ({ data }: VariationAnalysisChartProps) =>
         </div>
         
         <div className="mt-3 text-xs text-muted-foreground">
-          Quanto menor o CV, mais consistente o treino
+          <p className="mb-1"><strong>CV (Coeficiente de Variação):</strong> Medida de variabilidade dos treinos</p>
+          <p>• CV Pace alto + CV FC baixo = Ótimo condicionamento (treinos variados com resposta cardiovascular controlada)</p>
+          <p>• CV baixo em ambos = Treinos contínuos e estáveis (base aeróbica)</p>
         </div>
       </CardContent>
     </Card>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { TrendingUp, Heart, Target, BarChart3, AlertCircle, RefreshCw } from 'lucide-react';
 import { useVariationAnalysis } from '@/hooks/useVariationAnalysis';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
+import ReactMarkdown from 'react-markdown';
 
 interface VariationAnalysisCardProps {
   activity: UnifiedActivity;
@@ -177,22 +178,32 @@ export const VariationAnalysisCard = ({ activity, activitySource }: VariationAna
         <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
           <div className="flex items-start space-x-3">
             <Target className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-            <div>
+            <div className="flex-1">
               <h4 className="font-medium text-primary mb-1">Diagnóstico da Atividade</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {analysis.diagnosis}
-              </p>
+              <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  components={{
+                    p: ({node, ...props}) => <p className="mb-0 text-muted-foreground" {...props} />,
+                    strong: ({node, ...props}) => <strong className="font-semibold text-foreground" {...props} />,
+                  }}
+                >
+                  {analysis.diagnosis}
+                </ReactMarkdown>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Legenda */}
-        <div className="text-xs text-muted-foreground border-t border-border/50 pt-4">
-          <p className="mb-1">
-            <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa, calculado pelo desvio padrão sobre a média
+        <div className="text-xs text-muted-foreground border-t border-border/50 pt-4 space-y-1">
+          <p className="mb-2">
+            <strong>Coeficiente de Variação (CV):</strong> Medida de variabilidade relativa (desvio padrão / média)
           </p>
           <p>
-            <strong>Baixo ≤ 15%</strong> | <strong>Alto {'>'} 15%</strong>
+            <strong>FC:</strong> Baixo ≤ 15% | Alto {'>'} 15%
+          </p>
+          <p>
+            <strong>Pace:</strong> Baixo ≤ 30% | Alto {'>'} 30%
           </p>
         </div>
       </CardContent>

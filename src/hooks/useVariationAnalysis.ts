@@ -415,20 +415,32 @@ export function useVariationAnalysis(activity: UnifiedActivity | null) {
         const heartRateCV = hrStdDev / avgHeartRate;
         const paceCV = paceStdDev / avgPace;
 
-        // Categorizar CVs
+        // Categorizar CVs com thresholds mais granulares
         const heartRateCVCategory: 'Baixo' | 'Alto' = heartRateCV <= 0.15 ? 'Baixo' : 'Alto';
-        const paceCVCategory: 'Baixo' | 'Alto' = paceCV <= 0.15 ? 'Baixo' : 'Alto';
+        const paceCVCategory: 'Baixo' | 'Alto' = paceCV <= 0.30 ? 'Baixo' : 'Alto';
 
-        // Determinar diagnóstico
+        // Determinar diagnóstico com análise inteligente e contextual
         let diagnosis = '';
-        if (heartRateCVCategory === 'Baixo' && paceCVCategory === 'Baixo') {
-          diagnosis = 'Ritmo e esforço constantes → treino contínuo e controlado';
-        } else if (heartRateCVCategory === 'Baixo' && paceCVCategory === 'Alto') {
-          diagnosis = 'Ritmo variando mas esforço cardiovascular constante → você ajustou o pace para manter FC estável (estratégia eficiente em provas longas)';
-        } else if (heartRateCVCategory === 'Alto' && paceCVCategory === 'Baixo') {
-          diagnosis = 'Ritmo constante mas FC variando → possível fadiga, desidratação, temperatura alta ou pouca adaptação ao esforço';
+        
+        // Análise considerando a combinação dos CVs e magnitude
+        if (paceCV > 0.50 && heartRateCV < 0.20) {
+          // Alto CV pace + Baixo CV FC = Excelente condicionamento
+          diagnosis = '🎯 **Ótimo condicionamento cardiovascular!** Grande variação de ritmo com FC estável indica controle eficiente e boa adaptação aeróbica. Típico de treinos intervalados/fartlek bem executados.';
+        } else if (paceCV > 0.30 && heartRateCV < 0.25) {
+          // Médio-alto CV pace + Baixo-médio CV FC = Treino estruturado
+          diagnosis = '💪 **Treino estruturado com variações.** Ritmo variável com resposta cardiovascular controlada sugere treino intervalado ou fartlek bem planejado. Sistema cardiovascular respondendo adequadamente aos estímulos.';
+        } else if (paceCV < 0.15 && heartRateCV < 0.15) {
+          // Ambos baixos = Treino contínuo
+          diagnosis = '📊 **Treino contínuo e estável.** Ritmo e esforço consistentes caracterizam corrida em estado estacionário (steady state). Ideal para base aeróbica e corridas longas.';
+        } else if (paceCV < 0.20 && heartRateCV > 0.25) {
+          // Baixo CV pace + Alto CV FC = Possível problema
+          diagnosis = '⚠️ **FC instável com ritmo constante.** Pode indicar fadiga acumulada, desidratação, condições climáticas adversas ou necessidade de melhor condicionamento aeróbico. Monitore recuperação.';
+        } else if (paceCV > 0.30 && heartRateCV > 0.25) {
+          // Ambos altos = Precisa avaliar contexto
+          diagnosis = '🔄 **Alta variabilidade em ritmo e FC.** Se intencional (intervalado/fartlek), indica treino de qualidade com estímulos variados. Se não intencional, considere melhorar controle de ritmo e pacing.';
         } else {
-          diagnosis = 'Ritmo e esforço muito variáveis → treino intervalado, fartlek, ou atividade desorganizada';
+          // Caso intermediário
+          diagnosis = '✅ **Variação moderada.** Combinação equilibrada de variações de ritmo e resposta cardiovascular. Treino com mix de intensidades ou transições controladas entre zonas.';
         }
 
         setAnalysis({
