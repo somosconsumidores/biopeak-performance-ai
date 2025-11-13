@@ -16,6 +16,9 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		6913BC8B2E81DD79003F3372 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6913BC8A2E81DD79003F3372 /* PrivacyInfo.xcprivacy */; };
 		6913BC8D2E81DEE6003F3372 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6913BC8C2E81DEE6003F3372 /* ViewController.swift */; };
+		694FD4472EC623C3008F964C /* BioPeakAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694FD4462EC623C3008F964C /* BioPeakAudioSession.swift */; };
+		694FD4492EC623CF008F964C /* BioPeakLocationTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694FD4482EC623CF008F964C /* BioPeakLocationTracker.swift */; };
+		694FD44B2EC623D9008F964C /* BioPeakLocationTrackerPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 694FD44A2EC623D9008F964C /* BioPeakLocationTrackerPlugin.m */; };
 		6989684D2E74C20D00229971 /* BioPeakHealthKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */; };
 		6989684E2E74C20D00229977 /* BioPeakAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6989684F2E74C20D00229972 /* BioPeakAudioSession.swift */; };
 		698968502E74C20D00229978 /* BioPeakLocationTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698968512E74C20D00229973 /* BioPeakLocationTracker.swift */; };
@@ -37,6 +40,10 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		6913BC8A2E81DD79003F3372 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6913BC8C2E81DEE6003F3372 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		694FD4462EC623C3008F964C /* BioPeakAudioSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BioPeakAudioSession.swift; sourceTree = "<group>"; };
+		694FD4482EC623CF008F964C /* BioPeakLocationTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BioPeakLocationTracker.swift; sourceTree = "<group>"; };
+		694FD44A2EC623D9008F964C /* BioPeakLocationTrackerPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BioPeakLocationTrackerPlugin.m; sourceTree = "<group>"; };
+		694FD44C2EC623DC008F964C /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		695826A12E744D0C00F03165 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BioPeakHealthKit.swift; sourceTree = "<group>"; };
 		6989684F2E74C20D00229972 /* BioPeakAudioSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BioPeakAudioSession.swift; sourceTree = "<group>"; };
@@ -90,6 +97,9 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				694FD44A2EC623D9008F964C /* BioPeakLocationTrackerPlugin.m */,
+				694FD4482EC623CF008F964C /* BioPeakLocationTracker.swift */,
+				694FD4462EC623C3008F964C /* BioPeakAudioSession.swift */,
 				6913BC8C2E81DEE6003F3372 /* ViewController.swift */,
 				6913BC8A2E81DD79003F3372 /* PrivacyInfo.xcprivacy */,
 				6989684C2E74C20D00229971 /* BioPeakHealthKit.swift */,
@@ -107,6 +117,7 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				694FD44C2EC623DC008F964C /* App-Bridging-Header.h */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -132,7 +143,6 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				9592DBEFFC6D2A0C8D5DEB22 /* [CP] Embed Pods Frameworks */,
-				D22C62D9BDA72E9CF0A33122 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -229,21 +239,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-App/Pods-App-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		D22C62D9BDA72E9CF0A33122 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-App/Pods-App-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -251,7 +246,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				694FD44B2EC623D9008F964C /* BioPeakLocationTrackerPlugin.m in Sources */,
 				6913BC8D2E81DEE6003F3372 /* ViewController.swift in Sources */,
+				694FD4472EC623C3008F964C /* BioPeakAudioSession.swift in Sources */,
+				694FD4492EC623CF008F964C /* BioPeakLocationTracker.swift in Sources */,
 				6989684D2E74C20D00229971 /* BioPeakHealthKit.swift in Sources */,
 				6989684E2E74C20D00229977 /* BioPeakAudioSession.swift in Sources */,
 				698968502E74C20D00229978 /* BioPeakLocationTracker.swift in Sources */,
@@ -398,18 +396,19 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 8GDR946AQF;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "BioPeak-ai";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.5.1;
+				MARKETING_VERSION = 1.5.3;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.biopeak-ai.performance";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -424,17 +423,18 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 8GDR946AQF;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "BioPeak-ai";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.5.1;
+				MARKETING_VERSION = 1.5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.biopeak-ai.performance";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

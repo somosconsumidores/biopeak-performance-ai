@@ -1,0 +1,1362 @@
+--------- beginning of main
+11-11 18:31:17.717  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:17.718   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:18.120   890   905 D ccci_mdinit: (1):monitor_time_update_thread round:15310 ########
+11-11 18:31:18.219  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:18.221   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:18.721  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:18.722   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+--------- beginning of system
+11-11 18:31:19.004   519   519 D io_stats: !@ 179,0 r 10525060 242978098 w 1927547 35490996 d 194829 41684724 f 626819 506702 iot 3099100 0 th 0 0 0 pt 0 inp 0 0 90971.111
+11-11 18:31:19.224  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:19.225   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:19.588  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:19.588  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:19.588  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:19.589  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:19.589  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:19.589  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:19.655  1960  1960 I wpa_supplicant: Heartbeat 11042
+11-11 18:31:19.726  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:19.727   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:20.034  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:20.035  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:20.035  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:20.228  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:20.229   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:20.498 32516 32516 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:20.500 32516 32516 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:20.500 32516 32516 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:20.731  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:20.732   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:21.005   519   519 D io_stats: !@ Read_top(KB): .office.outlook(31993) 4
+11-11 18:31:21.005   519   519 D io_stats: !@ Write_top(KB): .office.outlook(31993) 480 kworker/u16:3:/(15463) 76
+11-11 18:31:21.028  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:21.233  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:21.234   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:21.735  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:21.737   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:22.238  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:22.239   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:22.607  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:22.607  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:22.607  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:22.608  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:22.608  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:22.608  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:22.740  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:22.741   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:23.007   519   519 D io_stats: !@ 179,0 r 10525060 242978098 w 1927657 35491620 d 194829 41684724 f 626827 506726 iot 3099104 0 th 0 0 0 pt 0 inp 0 0 90975.114
+11-11 18:31:23.242  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:23.243   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:23.744  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:23.746   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:24.246  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:24.248   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:24.734   610 32511 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+11-11 18:31:24.749  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:24.750   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:25.008   519   519 D io_stats: !@ Write_top(KB): f2fs_ckpt-254:5(630) 312 kworker/0:2:/(12382) 224 henticator:auth(32064) 12
+11-11 18:31:25.057  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:25.057  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:25.057  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:25.251  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:25.252   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:25.386   819   873 I libPerfCtl: xgfGetFPS pid:-1 fps:0
+11-11 18:31:25.386   819   873 I libPerfCtl: xgfGetFPS ioctl_ret:-1
+11-11 18:31:25.503 32517 32517 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:25.504 32517 32517 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:25.504 32517 32517 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:25.630  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:25.631  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:25.631  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:25.631  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:25.631  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -29 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:25.631  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:25.753  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:25.755   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:26.030  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:26.256  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:26.257   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:26.758  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:26.759   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:27.260  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:27.261   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:27.763  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:27.764   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:28.265  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:28.266   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:28.653  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:28.655  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:28.655  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:28.655  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:28.655  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:28.655  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:28.767  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:28.769   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:29.261   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:31:29.265   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:31:29.267   610   624 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:31:29.269  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:29.271   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:31:29.271   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:29.275   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:31:29.282   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:31:29.287   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:31:29.288   610   624 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:31:29.294   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:31:29.298   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:31:29.308  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10258(com.microsoft.office.outlook), 4(FAIL), isBlocked=true, 0ms
+11-11 18:31:29.666  1960  1960 I wpa_supplicant: Heartbeat 11043
+11-11 18:31:29.772  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:29.773   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:30.081  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:30.081  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:30.081  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:30.274  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:30.276   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:30.527 32523 32523 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:30.529 32523 32523 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:30.529 32523 32523 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:30.777  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:30.779   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:31.013   519   519 D io_stats: !@ 179,0 r 10525060 242978098 w 1927669 35491684 d 194829 41684724 f 626827 506729 iot 3099108 0 th 0 0 0 pt 0 inp 0 0 90983.120
+11-11 18:31:31.030  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:31.280  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:31.281   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:31.678  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:31.678  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:31.678  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:31.679  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:31.679  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:31.679  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:31.783  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:31.784   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:32.048  1494  1779 D ConnectivityService: reportNetworkActive, notify 2 listeners
+11-11 18:31:32.284  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:32.285   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:32.316  1494  1526 E Watchdog: !@Sync: 3031 heap(MB): 98 / 110 FD: 1054 [2025-11-11 18:31:32.315]
+11-11 18:31:32.786  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:32.788   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:33.014   519   519 D io_stats: !@ 179,0 r 10525060 242978098 w 1927677 35492132 d 194829 41684724 f 626827 506729 iot 3099112 0 th 0 0 0 pt 0 inp 0 0 90985.121
+11-11 18:31:33.014   519   519 D io_stats: !@ Write_top(KB): .office.outlook(31993) 448 kworker/u16:2:/(17436) 36
+11-11 18:31:33.289  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:33.290   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:33.791  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:33.792   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:34.293  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:34.295   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:34.701  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:34.701  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:34.701  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:34.701  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:34.701  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:34.701  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:34.796  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:34.797   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:35.015   519   519 D io_stats: !@ 179,0 r 10525060 242978098 w 1927682 35492148 d 194829 41684724 f 626828 506732 iot 3099116 0 th 0 0 0 pt 0 inp 0 0 90987.122
+11-11 18:31:35.107  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:35.108  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:35.108  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:35.298  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:35.299   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:35.542 32524 32524 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:35.543 32524 32524 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:35.543 32524 32524 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:35.800  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:35.802   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:36.031  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:36.303  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:36.304   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:36.485  1494  1790 W DeviceStorageMonitorService: updateBroadcasts(/data) oldLevel:0, newLevel:0, seq:1
+11-11 18:31:36.486  1494  1790 D DeviceStorageMonitorService: Available File Node Number is [13446194]
+11-11 18:31:36.486  1494  1790 W DeviceStorageMonitorService: updateBroadcasts_filenode(/data) fn_oldLevel:0, fn_newLevel:0, seq:1
+11-11 18:31:36.805  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:36.806   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:37.017   519   519 D io_stats: !@ Write_top(KB): henticator:auth(32064) 12 kworker/2:1:/(29900) 4
+11-11 18:31:37.308  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:37.309   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:37.724  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:37.724  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:37.724  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:37.724  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:37.725  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:37.725  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:37.810  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:37.811   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:38.312  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:38.314   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [                 contacts = {contacts=92, raw_contacts=140, data=806, account={secphone(1)=0, google(2)=65, sim(3)=10, sim2(4)=0, agg(5)=0, duo(6)=7, samsung(7)=27, mobileservice(8)=0, com.whatsapp.w4b(10)=31, www.instagram.com(12)=0, com.garmin.di(13)=0}, trash=0, trash_acc={}, trash_sync=0, database=contacts2.db} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [               aggregated = {[2,10,6]=2, [2,10]=9, [2,3]=10, [2,6]=1, [2]=43, [7,10,6]=1, [7,10]=17, [7,6,10]=2, [7,6]=1, [7]=6} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [                  request = {} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [                    calls = {types={[100]=1, [1000]=35, [1150]=5}, database=calllog.db} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [                  profile = {contacts=0, raw_contacts=0, data=0, account={secphone(1)=0, google(2)=0, sim(3)=0, sim2(4)=0, agg(5)=0, duo(6)=0, samsung(7)=0, mobileservice(8)=0, com.whatsapp.w4b(10)=0, www.instagram.com(11)=0, com.garmin.di(12)=0}, trash=0, trash_acc={}, trash_sync=0, database=profile.db} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [               sa_profile = {contacts=1, raw_contacts=1, data=2, account={secphone(1)=1, google(2)=0, sim(3)=0, sim2(4)=0, agg(5)=0, duo(6)=0, samsung(7)=0, mobileservice(8)=0, com.whatsapp.w4b(10)=0, www.instagram.com(11)=0, com.garmin.di(12)=0}, trash=0, trash_acc={}, trash_sync=0, database=profile_sa.db} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: [                      etc = {binders=0, country_iso=BR, version=15.4.34, db_version=1901, csc=ZTO/, sec_enabled=false, is_roaming=false} ]
+11-11 18:31:38.663 18693 18747 V CpEventLog(u0): cp_state: ------------------------------------------------------------------------------
+11-11 18:31:38.815  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:38.817   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:39.301   610 32521 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+11-11 18:31:39.318  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:39.319   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:39.676  1960  1960 I wpa_supplicant: Heartbeat 11044
+11-11 18:31:39.821  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:39.822   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:39.847  1494  1665 I JobScheduler: maybeQueueReadyJobsForExecutionLocked: [BatchNetworkJob] 1 batched network jobs meet requirement for 120
+11-11 18:31:39.863 31993 31993 I OutlookAppComponentFactory: instantiateService, com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService
+11-11 18:31:39.866  1494  1665 W JobServiceContext: Sending onNetworkChanged for a job that isn't started. JobStatus{806f65f #u0a258/-1397020546 com.microsoft.office.outlook/com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService u=0 s=10258 TIME=-33s84ms:none NET READY}
+11-11 18:31:39.870  1494 10813 D PerProcessNandswap$NandswapHandler: nandswap start for non-activity com.microsoft.office.outlook(pid 31993) action:3 adj:250 type:2
+11-11 18:31:39.880 31993 32438 I TRuntime.CctTransportBackend: Making request to: https://firebaselogging.googleapis.com/v0cc/log/batch?format=json_proto3
+11-11 18:31:39.890  1494 10813 D PerProcessNandswap$NandswapHandler: nandswap end for non-activity com.microsoft.office.outlook(pid 31993) ret:12539498496 adj:250
+11-11 18:31:39.897  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10258(com.microsoft.office.outlook), SUCCESS, 14ms
+11-11 18:31:40.086 31993 32438 I TRuntime.CctTransportBackend: Status Code: 200
+11-11 18:31:40.126 31993 31993 D AppCenterCrashes: The memory running level (40) was saved.
+11-11 18:31:40.127 31993 32456 I ReactNativeJNI: Memory warning (pressure level: TRIM_MEMORY_BACKGROUND) received by JS VM, running a GC
+11-11 18:31:40.128  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:40.128  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:40.128  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:40.323  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:40.325   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:40.548 32531 32531 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:40.549 32531 32531 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:40.549 32531 32531 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:40.747  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:40.748  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:40.748  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:40.748  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:40.748  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:40.748  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:40.826  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:40.827   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:41.019   519   519 D io_stats: !@ 179,0 r 10525063 242978110 w 1927700 35492224 d 194829 41684724 f 626830 506741 iot 3099120 0 th 0 0 0 pt 0 inp 0 0 90993.126
+11-11 18:31:41.019   519   519 D io_stats: !@ Read_top(KB): .office.outlook(31993) 8 system_server:h(1494) 4
+11-11 18:31:41.020   519   519 D io_stats: !@ Write_top(KB): .office.outlook(31993) 56 kworker/1:1:/(16266) 8 kworker/u16:0:/(32525) 8
+11-11 18:31:41.033  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:41.328  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:41.329   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:41.410   826   849 D power@timer: [mtkPowerTimer] visRead:0
+11-11 18:31:41.831  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:41.832   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:42.333  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:42.334   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:42.835  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:42.837   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:43.338  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:43.339   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:43.771  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:43.771  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:43.772  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:43.772  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:43.772  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -29 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:43.772  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:43.840  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:43.841   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: SimulatedWatermarkPushNotification failed for account 73 00000000-0000-0000-5f01-0e0000000000
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: kotlinx.coroutines.TimeoutCancellationException: Timed out waiting for 30000 ms
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at FB.a1.a(Unknown Source:48)
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at FB.Z0.run(Unknown Source:10)
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at FB.j0$b.run(Unknown Source:2)
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at FB.j0.Z1(Unknown Source:18)
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at FB.Q.run(Unknown Source:42)
+11-11 18:31:44.175 31993 32533 E HxForceSyncUtil: 	at java.lang.Thread.run(Thread.java:1119)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: Sync failed
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: kotlinx.coroutines.TimeoutCancellationException: Timed out waiting for 30000 ms
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at FB.a1.a(Unknown Source:48)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at FB.Z0.run(Unknown Source:10)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at FB.j0$b.run(Unknown Source:2)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at FB.j0.Z1(Unknown Source:18)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at FB.Q.run(Unknown Source:42)
+11-11 18:31:44.178 31993 32535 E HxForceSyncUtil: 	at java.lang.Thread.run(Thread.java:1119)
+11-11 18:31:44.182 31993 32131 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=50f67fd3-64bc-43c8-934c-01b3723d3ed9, tags={ com.microsoft.office.outlook.sync.HxPeriodicBackgroundDataSyncWorker, OM_PRIMARY_TAG|HxPeriodicBackgroundDataSyncWorker, HxPeriodicBackgroundDataSyncWorker } ]
+11-11 18:31:44.334   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:31:44.341   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:31:44.341  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:44.342   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:44.342   610 20654 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:31:44.347   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:31:44.351   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:31:44.357   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:31:44.363   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:31:44.364   610 20654 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:31:44.369   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:31:44.374   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:31:44.385  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10258(com.microsoft.office.outlook), SUCCESS, 2ms
+11-11 18:31:44.843  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:44.845   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:45.021   519   519 D io_stats: !@ 179,0 r 10525063 242978110 w 1927712 35492340 d 194829 41684724 f 626831 506744 iot 3099124 0 th 0 0 0 pt 0 inp 0 0 90997.129
+11-11 18:31:45.022   519   519 D io_stats: !@ Write_top(KB): kworker/u16:0:/(32525) 100 henticator:auth(32064) 12 kworker/1:1:/(16266) 4
+11-11 18:31:45.119  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:45.123  1494  1779 D InetDiagMessage: Destroyed 2 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:45.124  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={10258} in 6ms
+11-11 18:31:45.126  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:45.129  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:45.130  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={20258} in 6ms
+11-11 18:31:45.144  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:45.144  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:45.144  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:45.345  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:45.347   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:45.572 32544 32544 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:45.573 32544 32544 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:45.573 32544 32544 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:45.848  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:45.849   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:46.034  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:46.350  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:46.352   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:46.417  1494  1531 I SemDvfsHyPerManager: acquire hyper - APP_LAUNCH/1494@24, type = -999
+11-11 18:31:46.418  1494  9334 D ActivityTaskManager: startActivityAsUser: callingPid=32547, callingUid=2000, caller=com.android.server.am.ActivityManagerService.startActivityAsUserWithFeature:28 com.android.server.am.ActivityManagerShellCommand.runStartActivity:569 com.android.server.am.ActivityManagerShellCommand.onCommand:1903 com.android.modules.utils.BasicShellCommandHandler.exec:97 android.os.ShellCommand.exec:38 com.android.server.am.ActivityManagerService.onShellCommand:169 android.os.Binder.shellCommand:1266 
+11-11 18:31:46.419   813   845 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1152945  [1494 / 24]    HINT : APP_LAUNCH    list : 
+11-11 18:31:46.419  1494  1523 I ChimeraSystemEventListener: appLaunchIntent package name is: com.biopeakai.performance
+11-11 18:31:46.420   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.422  1494  9334 W ActivityTaskManager: callingPackage for (uid=2000, pid=32547) has no WPC
+11-11 18:31:46.422   813   845 I mtkpower_client: ret_hdl:3499
+11-11 18:31:46.422  1494  1531 E libprocessgroup: Failed to write '0-7' to /dev/cpuset/cpus: Permission denied
+11-11 18:31:46.422   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.423   826   885 I libPowerHal: [perfLockAcq] idx:0 hdl:3499 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3499
+11-11 18:31:46.423   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400100 param:2000000 pr:3
+11-11 18:31:46.424   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(-1): -1 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:46.424   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3499
+11-11 18:31:46.424  1494  9334 D ActivityTaskManager: TaskLaunchParamsModifier:task=null activity=null display-area-from-current-params=null display-area-from-default-fallback=DefaultTaskDisplayArea_d0@187130739 display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@187130739
+11-11 18:31:46.425   813   845 I mtkpower_client: ret_hdl:3500
+11-11 18:31:46.425   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.426   826   885 I libPowerHal: [perfLockAcq] idx:1 hdl:3500 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3500
+11-11 18:31:46.426   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400000 param:1800000 pr:3
+11-11 18:31:46.426  1494  9334 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+11-11 18:31:46.426   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:46.426   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3500
+11-11 18:31:46.427   813   845 I mtkpower_client: ret_hdl:3501
+11-11 18:31:46.427   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.427  1494  9334 V GrammaticalInflectionUtils: AttributionSource: AttributionSource { uid = 10329, packageName = null, attributionTag = null, token = android.os.Binder@671b6cc, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+11-11 18:31:46.428  1494  9334 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+11-11 18:31:46.429   826   885 I libPowerHal: [perfLockAcq] idx:2 hdl:3501 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3501
+11-11 18:31:46.429  1494  9334 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+11-11 18:31:46.429   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1000000 param:0 pr:3
+11-11 18:31:46.429   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3501
+11-11 18:31:46.430   813   845 I mtkpower_client: ret_hdl:3502
+11-11 18:31:46.430   826   885 I libPowerHal: [perfLockAcq] idx:3 hdl:3502 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3502
+11-11 18:31:46.430   826   885 I libPowerHal: [set_cpuidle] enable:0, fd:14, scn:0xb400007c94516a30
+11-11 18:31:46.431   826   885 I libPowerHal: [get_cpu_dma_latency_value] 0
+11-11 18:31:46.431   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1c3c100 param:0 pr:3
+11-11 18:31:46.431   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3502
+11-11 18:31:46.431  1494  9334 D WindowManager: Transition is created, t=TransitionRecord{4c19899 id=-1 type=OPEN flags=0x0}, caller=com.android.server.wm.Transition.<init>:170 com.android.server.wm.ActivityStarter.startActivityUnchecked:330 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:88 
+11-11 18:31:46.432  1494  9334 D BLASTSyncEngine: SyncGroup is created, id=355, name=Transition-OPEN, caller=com.android.server.wm.BLASTSyncEngine$SyncGroup.<init>:51 com.android.server.wm.TransitionController.moveToCollecting:78 com.android.server.wm.ActivityStarter.startActivityUnchecked:333 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:88 com.android.server.am.ActivityManagerService.startActivityAsUserWithFeature:28 
+11-11 18:31:46.432  1494  9334 W BLASTSyncEngine: setSyncMethod, id=355, method=0, caller=com.android.server.wm.TransitionController.moveToCollecting:90 com.android.server.wm.ActivityStarter.startActivityUnchecked:333 com.android.server.wm.ActivityStarter.executeRequest:3397 
+11-11 18:31:46.432  1494  9334 V WindowManager: Start collecting in Transition: TransitionRecord{4c19899 id=355 type=OPEN flags=0x0}, caller=com.android.server.wm.ActivityStarter.startActivityUnchecked:333 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:88 com.android.server.am.ActivityManagerService.startActivityAsUserWithFeature:28 
+11-11 18:31:46.433  1494  9334 V WindowManager: Collecting in transition 355: ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity, caller=com.android.server.wm.TransitionController.collect:7 com.android.server.wm.ActivityStarter.startActivityUnchecked:626 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:88 
+11-11 18:31:46.433  1494  9334 D ActivityTaskManager: TaskLaunchParamsModifier:task=null activity=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t-1} display-area-from-current-params=null display-area-from-default-fallback=DefaultTaskDisplayArea_d0@187130739 display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@187130739
+11-11 18:31:46.433  1494  9334 D ActivityTaskManager: TaskLaunchParamsModifier:task=null activity=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t-1} display-area-from-current-params=null display-area-from-default-fallback=DefaultTaskDisplayArea_d0@187130739 display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@187130739 non-freeform-task-display-area display-area=DefaultTaskDisplayArea_d0@187130739 default-portrait freeform-size-mismatch=Rect(54, 376 - 666, 1176)
+11-11 18:31:46.437   878  1293 I BufferQueueDebug: [Task=587#3336](this:0xb400007d10047898,id:-1,api:0,p:-1,c:-1) BufferQueue core=(878:/system/bin/surfaceflinger)
+11-11 18:31:46.440   878  1293 I SurfaceFlinger: id=3336 createSurf, flag=24004, Task=587#3336
+11-11 18:31:46.441  1494  9334 D ActivityTaskManager: Top Process State changed to PROCESS_STATE_TOP_SLEEPING#2
+11-11 18:31:46.443  1494  9334 D ActivityTaskManager: TaskLaunchParamsModifier:task=Task{fe1b73f #587 type=standard A=10329:com.biopeakai.performance} activity=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t-1} display-from-task=0 display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@187130739 inherit-from-task=fullscreen non-freeform-task-display-area display-area=DefaultTaskDisplayArea_d0@187130739 default-portrait freeform-size-mismatch=Rect(54, 376 - 666, 1176)
+11-11 18:31:46.443  1494  9334 V WindowManager: Collecting in transition 355: Task{fe1b73f #587 type=standard A=10329:com.biopeakai.performance}, caller=com.android.server.wm.Transition.collectExistenceChange:42 com.android.server.wm.ActivityStarter.setNewTask:43 com.android.server.wm.ActivityStarter.startActivityInner:2088 com.android.server.wm.ActivityStarter.startActivityUnchecked:639 com.android.server.wm.ActivityStarter.executeRequest:3397 
+11-11 18:31:46.446   878  1293 I BufferQueueDebug: [ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}#3337](this:0xb400007d42125898,id:-1,api:0,p:-1,c:-1) BufferQueue core=(878:/system/bin/surfaceflinger)
+11-11 18:31:46.446   878  1293 I SurfaceFlinger: id=3337 createSurf, flag=84004, ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}#3337
+11-11 18:31:46.449  1494  9334 D ActivityTaskManager: Temporarily retain top process state for launching app
+11-11 18:31:46.450   826   848 I mtkpower@impl: [setMode] type:5, enabled:1
+11-11 18:31:46.451  1494  9334 V WindowManager: Checking theme of starting window: 0x7f11000d
+11-11 18:31:46.451  1494  9334 V WindowManager: Translucent=false Floating=false ShowWallpaper=false Disable=false
+11-11 18:31:46.454  1494  9334 D WindowManager: App launched activity=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, state=1
+11-11 18:31:46.457  1494  9334 V WindowManager: Collecting in transition 355: ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, caller=com.android.server.wm.Transition.collectExistenceChange:42 com.android.server.wm.ActivityStarter.handleStartResult:523 com.android.server.wm.ActivityStarter.startActivityUnchecked:653 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 
+11-11 18:31:46.457  1494  9334 V WindowManager: Requesting StartTransition: TransitionRecord{4c19899 id=355 type=OPEN flags=0x0}, caller=com.android.server.wm.ActivityStarter.handleStartResult:677 com.android.server.wm.ActivityStarter.startActivityUnchecked:653 com.android.server.wm.ActivityStarter.executeRequest:3397 com.android.server.wm.ActivityStarter.execute:1122 com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:88 
+11-11 18:31:46.458  1494  9334 I Pageboost: stop alp
+11-11 18:31:46.458  1494  9334 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.biopeakai.performance/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+11-11 18:31:46.459  3209  3209 E pageboostd: Received HALT command code 2
+11-11 18:31:46.461  1494  9334 I SemDvfsHyPerManager: acquire hyper - AMS_APP_LAUNCH/1494@18, type = -999
+11-11 18:31:46.461   813   845 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1143846  [1494 / 18]    HINT : AMS_APP_LAUNCH    list : 
+11-11 18:31:46.460  1987  2174 V WindowManagerShell: Transition requested (#355): android.os.BinderProxy@b585a71 TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=587 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.biopeakai.performance/.MainActivity } baseActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} topActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} origActivity=null realActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} numActivities=1 lastActiveTime=463457606 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@4932056} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 43 - 0, 0) topActivityInfo=ActivityInfo{f0328d7 com.biopeakai.performance.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isSleeping=true topActivityInSizeCompat=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isTopActivityStyleFloating=false appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=720 topActivityLetterboxHeight=1600 topActivityLetterboxAppWidth=720 topActivityLetterboxAppHeight=1600 isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive} topActivityBounds=null topActivityInDisplayCompat=false} originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10329:com.biopeakai.performance isTopTaskInStage=false topActivityUiMode=17 CoverLauncherWidgetTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false snappingGuideBounds=null isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false}, pipTask = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 355 }
+11-11 18:31:46.462   813   845 I mtkpower_client: perf_lock_rel, hdl:3499, tid:845
+11-11 18:31:46.463   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.465   826   885 I libPowerHal: [perfLockRel] hdl:3499, idx:0
+11-11 18:31:46.465   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400100 param:-1 pr:6
+11-11 18:31:46.465   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:46.465   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3499
+11-11 18:31:46.466  1494  1523 V GrammaticalInflectionUtils: AttributionSource: AttributionSource { uid = 10329, packageName = null, attributionTag = null, token = android.os.Binder@671b6cc, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+11-11 18:31:46.466   813   845 I mtkpower_client: ret_hdl:3503
+11-11 18:31:46.466   813   845 I mtkpower_client: perf_lock_rel, hdl:3500, tid:845
+11-11 18:31:46.467   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.469   826   885 I libPowerHal: [perfLockAcq] idx:4 hdl:3503 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3503
+11-11 18:31:46.469   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400100 param:2000000 pr:3
+11-11 18:31:46.469   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:46.469   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3503
+11-11 18:31:46.470   826   885 I libPowerHal: [perfLockRel] hdl:3500, idx:1
+11-11 18:31:46.470   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400000 param:-1 pr:6
+11-11 18:31:46.470   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(-1): -1 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:46.470   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3500
+11-11 18:31:46.471   813   845 I mtkpower_client: ret_hdl:3504
+11-11 18:31:46.471   813   845 I mtkpower_client: perf_lock_rel, hdl:3501, tid:845
+11-11 18:31:46.471   826   885 I libPowerHal: [perfLockAcq] idx:0 hdl:3504 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3504
+11-11 18:31:46.472  2785  2910 I HoneySpace.TopTaskSource: onTaskMovedToFront : taskId = 587, displayId = 0
+11-11 18:31:46.472   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400000 param:1800000 pr:3
+11-11 18:31:46.472   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:46.472   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3504
+11-11 18:31:46.472  1494  9334 V WindowManager: Starting Transition 355, caller=com.android.server.wm.WindowOrganizerController.startTransition:37 com.android.server.wm.WindowOrganizerController.startTransition:1 android.window.IWindowOrganizerController$Stub.onTransact:271 
+11-11 18:31:46.472   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.474   826   885 I libPowerHal: [perfLockRel] hdl:3501, idx:2
+11-11 18:31:46.475  2785  2912 I HoneySpace.TopTaskUseCase: topTaskId 587, DisplayId : 0
+11-11 18:31:46.475   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1000000 param:-1 pr:6
+11-11 18:31:46.475   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3501
+11-11 18:31:46.476   813   845 I mtkpower_client: ret_hdl:3505
+11-11 18:31:46.476   813   845 I mtkpower_client: perf_lock_rel, hdl:3502, tid:845
+11-11 18:31:46.477   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:46.477   813   845 I mtkpower_client: ret_hdl:3506
+11-11 18:31:46.479   826   885 I libPowerHal: [perfLockAcq] idx:1 hdl:3505 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3505
+11-11 18:31:46.479   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1000000 param:0 pr:3
+11-11 18:31:46.479   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3505
+11-11 18:31:46.479  2785 29265 I HoneySpace.RecentTasks: onRecentTasksChanged
+11-11 18:31:46.479   826   885 I libPowerHal: [perfLockRel] hdl:3502, idx:3
+11-11 18:31:46.480  2785 32396 I HoneySpace.RecentTasks: onRecentTasksChanged
+11-11 18:31:46.480   826   885 I libPowerHal: [set_cpuidle] enable:1, fd:14, scn:0xb400007c94516a30
+11-11 18:31:46.480   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1c3c100 param:1 pr:6
+11-11 18:31:46.480   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3502
+11-11 18:31:46.481   826   885 I libPowerHal: [perfLockAcq] idx:2 hdl:3506 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3506
+11-11 18:31:46.481   826   885 I libPowerHal: [set_cpuidle] enable:0, fd:14, scn:0xb400007c94513660
+11-11 18:31:46.481   826   885 I libPowerHal: [get_cpu_dma_latency_value] 0
+11-11 18:31:46.481   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1c3c100 param:0 pr:3
+11-11 18:31:46.481   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3506
+11-11 18:31:46.486  2785 32395 I HoneySpace.HistoryViewModel@37341655@OneUI: Illegal access. Unknown type. skip load history items
+11-11 18:31:46.490  2785 29265 I HoneySpace.HistoryViewModel@37341655@OneUI: Illegal access. Unknown type. skip load history items
+11-11 18:31:46.491   788   788 D Zygote  : Forked child process 32553
+11-11 18:31:46.492  1494  1532 I ActivityManager: Start proc 32553:com.biopeakai.performance/u0a329 for top-activity {com.biopeakai.performance/com.biopeakai.performance.MainActivity}
+11-11 18:31:46.492  1494  1532 D DynamicHiddenApp_BGProtectManager: [SecIpm] it's a ML_TYPE_EMPTYPROCESS protected process com.biopeakai.performance
+11-11 18:31:46.515 32553 32553 I kai.performance: Late-enabling -Xcheck:jni
+11-11 18:31:46.576 32553 32553 I kai.performance: Using CollectorTypeCMC GC.
+11-11 18:31:46.583 18313 18318 I adbd    : jdwp connection from 32553
+11-11 18:31:46.593 32553 32553 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-11 18:31:46.602 32553 32553 D ActivityThread: setConscryptValidator
+11-11 18:31:46.602 32553 32553 D ActivityThread: setConscryptValidator - put
+11-11 18:31:46.622  1494  9334 I ActivityManager: Changes in 10329 20 to 19, 0 to 127
+11-11 18:31:46.630  1494  1521 D PkgPredictorService-SecIpmManagerServiceImpl: onForegroundActivitiesChanged pid:32553 uid:10329
+11-11 18:31:46.630  1494  1521 W IPCThreadState: Sending oneway calls to frozen process.
+11-11 18:31:46.632  1494  3090 V PkgPredictorService-SecIpmManagerServiceImpl: discard foreground app:com.biopeakai.performance 0|false
+11-11 18:31:46.635  1494  3431 W UserManagerService: Requested status bar icon for non-badged user 0
+11-11 18:31:46.758  1494  1793 D MdnieScenarioControlService:  packageName : com.biopeakai.performance    className : com.biopeakai.performance.MainActivity
+11-11 18:31:46.759  1494  1793 V MdnieScenarioControlService: setUIMode from UI function(3)
+11-11 18:31:46.783  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:46.784  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:46.784  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:46.786  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:46.787  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:46.787  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:46.852  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:46.853   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:46.862  1494  1793 V MdnieScenarioControlService: mAclOffEnabled : false
+11-11 18:31:47.022   519   519 D io_stats: !@ 179,0 r 10525277 242988410 w 1927712 35492340 d 194829 41684724 f 626831 506744 iot 3099224 0 th 0 0 0 pt 0 inp 0 0 90999.130
+11-11 18:31:47.036 32553 32553 D nativeloader: Configuring clns-7 for other apk /data/app/~~blnPPR3rpyy7OwOsY4cD6A==/com.biopeakai.performance-8icbOkX-xrrdfIAJ4UFb3Q==/base.apk. target_sdk_version=35, uses_libraries=, library_path=/data/app/~~blnPPR3rpyy7OwOsY4cD6A==/com.biopeakai.performance-8icbOkX-xrrdfIAJ4UFb3Q==/lib/arm64, permitted_path=/data:/mnt/expand:/data/user/0/com.biopeakai.performance
+11-11 18:31:47.040 32553 32553 D CompatChangeReporter: Compat change id reported: 202956589; UID 10329; state: ENABLED
+11-11 18:31:47.059 32553 32553 V GraphicsEnvironment: Currently set values for:
+11-11 18:31:47.059 32553 32553 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-11 18:31:47.059 32553 32553 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-11 18:31:47.059 32553 32553 V GraphicsEnvironment: Global.Settings values are invalid: number of packages: 0, number of values: 0
+11-11 18:31:47.060 32553 32553 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-11 18:31:47.155 32553 32553 D CompatChangeReporter: Compat change id reported: 279646685; UID 10329; state: ENABLED
+11-11 18:31:47.166  1494  9334 D WindowManager: App launched activity=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, state=1
+11-11 18:31:47.167  1494  9334 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_NOSENSOR (5) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.DisplayRotation.updateOrientation:25 com.android.server.wm.DisplayContent.updateOrientation:65 com.android.server.wm.DisplayContent.updateOrientation:11 com.android.server.wm.RootWindowContainer.ensureVisibilityAndConfig:7 com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:209 com.android.server.wm.RootWindowContainer.attachApplication:90 
+11-11 18:31:47.167  1494  2688 I SemDvfsHyPerManager: acquire hyper - TASK_BOOST/1494@11, type = -999
+11-11 18:31:47.169  1494  9334 D SGM:FgCheckThread: notifyAppCreated(), packageName: com.biopeakai.performance, userId: 0, sendRet: true
+11-11 18:31:47.170   813   845 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1133276  [1494 / 11]    HINT : AMS_TASK_BOOST    list : 
+11-11 18:31:47.170  1494  1722 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_APP_CREATE, pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.170  1494  9334 D CompatChangeReporter: Compat change id reported: 324203798; UID 10329; state: ENABLED
+11-11 18:31:47.171   813   845 I mtkpower_client: perf_lock_rel, hdl:3503, tid:845
+11-11 18:31:47.171   813   845 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:845
+11-11 18:31:47.172  1494  9334 D SGM:FgCheckThread: TaskStackListener.onTaskFocusChanged(), taskId=587, focused=true
+11-11 18:31:47.173  1494  9334 D SGM:FgCheckThread:   sendRunningComponentFocus(), pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.174   826   885 I libPowerHal: [perfLockRel] hdl:3503, idx:4
+11-11 18:31:47.174   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400100 param:-1 pr:6
+11-11 18:31:47.174   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:47.174   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3503
+11-11 18:31:47.175   813   845 I mtkpower_client: ret_hdl:3507
+11-11 18:31:47.175   826   885 I libPowerHal: [perfLockAcq] idx:3 hdl:3507 hint:-1 pid:813 tid:845 duration:0 lock_user:vendor.samsung. => ret_hdl:3507
+11-11 18:31:47.175   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400100 param:2000000 pr:3
+11-11 18:31:47.175   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:47.175   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3507
+11-11 18:31:47.175  1494  1722 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_TASK_FOCUSED, pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.176  1494  1722 D SGM:FgCheckThread: handleTaskFocused().
+11-11 18:31:47.176  1494  1722 D SGM:FgCheckThread:   handleTaskFocused(), pkgName: com.biopeakai.performance, userID:0
+11-11 18:31:47.176  1494  1722 D SGM:FgCheckThread: handleResume().
+11-11 18:31:47.176  1494  1722 D SGM:SystemHelper: callReleaseBlock needReleaseBlock:false
+11-11 18:31:47.176  1494  1722 D SGM:FgCheckThread:   handleResume(). device is locked yet. ignore
+11-11 18:31:47.176  1494  9334 D InputDispatcher: Focused application(0): ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}
+11-11 18:31:47.178  1494  9334 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=true, r=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, caller=com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:62 com.android.server.wm.TaskFragment.setResumedActivity:29 com.android.server.wm.ActivityRecord.setState:104 com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:945 com.android.server.wm.RootWindowContainer.attachApplication:90 com.android.server.wm.ActivityTaskManagerService$LocalService.attachApplication:40 
+11-11 18:31:47.179  1494  9334 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=false, r=ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, caller=com.android.server.wm.ActivityTaskSupervisor.scheduleTopResumedActivityStateLossIfNeeded:11 com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:19 com.android.server.wm.TaskFragment.setResumedActivity:29 com.android.server.wm.ActivityRecord.setState:95 com.android.server.wm.TaskFragment.startPausing$1:210 com.android.server.wm.Task$$ExternalSyntheticLambda3.accept:271 
+11-11 18:31:47.182  1494  1524 D BLASTSyncEngine: SyncGroup 355:  Unfinished container: ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587} mSyncState=2
+11-11 18:31:47.179  2785  2910 I HoneySpace.TopTaskSource: onTaskFocusChanged(): taskId = 587
+11-11 18:31:47.183  2785  2910 I HoneySpace.TopTaskSource: onTaskMovedToFront : taskId = 587, displayId = 0
+11-11 18:31:47.184  1987  1987 I {OngoingActivityController}: onTaskFocusChanged focused:true, baseActivity:ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity}
+11-11 18:31:47.184  1494  1839 I ChimeraPolicyHandler: prepareForTrigger() - skip reason: screen off
+11-11 18:31:47.185  1494  1839 I ChimeraAggressivePolicyHandler: executePolicy() - prepareForTrigger fails
+11-11 18:31:47.185  1494  1804 D AS.MultiSoundManager: mForegroundUid = 10329
+11-11 18:31:47.189  1494  1523 D SGM:FgCheckThread: noteResumeComponent(), received pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.189  1494  1722 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_APP_RESUME, pkgName: com.biopeakai.performance, userid: 0
+11-11 18:31:47.189  1494  1722 D SGM:FgCheckThread: handleResume().
+11-11 18:31:47.190  1494  1722 D SGM:SystemHelper: callReleaseBlock needReleaseBlock:false
+11-11 18:31:47.190  1494  3307 D AutoRotationHandler: not support this mode 
+11-11 18:31:47.190  1494  1722 D SGM:FgCheckThread:   handleResume(). device is locked yet. ignore
+11-11 18:31:47.190  1494  3307 D AutoRotationHandler: not support this mode 
+11-11 18:31:47.191  8735  9450 I SDHMS:l : handleResumeComponent : put = com.biopeakai.performance, userid = 0 instanceid =44722188
+11-11 18:31:47.210  1494  9334 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.LOCKED_BOOT_COMPLETED dispatchLatency:3 completeLatency:586 dispatchRealLatency:3 completeRealLatency:587 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+11-11 18:31:47.213   878   878 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+11-11 18:31:47.216  1494  9334 D GraphicsStatsService: requestRenderEngineFor(com.biopeakai.performance)
+11-11 18:31:47.217 32553 32553 D ActivityThread: com.biopeakai.performance will use render engine as VK
+11-11 18:31:47.219 32553 32553 D HWUI    : HWUI - treat SMPTE_170M as sRGB
+11-11 18:31:47.224 32553 32571 D HWUI    : CacheManager constructor. deviceInfo=(1080, 1920)
+11-11 18:31:47.225 32553 32571 D libMEOW : meow new tls: 0xb400007612caee00
+11-11 18:31:47.225 32553 32571 D libMEOW : meow reload base cfg path: na
+11-11 18:31:47.225 32553 32571 D libMEOW : meow reload overlay cfg path: na
+11-11 18:31:47.237 32553 32571 E QT      : [QT]file does not exist
+11-11 18:31:47.238 32553 32571 D libMEOW : applied 1 plugins for [com.biopeakai.performance]:
+11-11 18:31:47.238 32553 32571 D libMEOW :   plugin 1: [libMEOW_gift.so]:
+11-11 18:31:47.240 32553 32571 D MMUD    : mtk_memory_debug_init com.biopeakai.performance 0xb400007612cda140
+11-11 18:31:47.243 32553 32584 E kai.performance: setpriority success to 100 : mali-cmar-backend
+11-11 18:31:47.246   363   363 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device VINTF manifest.
+11-11 18:31:47.279 32553 32553 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+11-11 18:31:47.342 32553 32574 D MMUD    : get_leak_baseline 3246391296
+11-11 18:31:47.354  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:47.355   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:47.376   813 32569 I mtkpower_client: perf_lock_rel, hdl:3507, tid:32569
+11-11 18:31:47.376   813 32569 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:32569
+11-11 18:31:47.377   826   885 I libPowerHal: [perfLockRel] hdl:3507, idx:3
+11-11 18:31:47.377   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400100 param:-1 pr:6
+11-11 18:31:47.377   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:47.377   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3507
+11-11 18:31:47.379   813 32569 I mtkpower_client: ret_hdl:3508
+11-11 18:31:47.379 32553 32553 D CompatChangeReporter: Compat change id reported: 309578419; UID 10329; state: ENABLED
+11-11 18:31:47.379   826   885 I libPowerHal: [perfLockAcq] idx:4 hdl:3508 hint:-1 pid:813 tid:32569 duration:0 lock_user:vendor.samsung. => ret_hdl:3508
+11-11 18:31:47.379   813 32569 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 1133276
+11-11 18:31:47.379   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400100 param:2000000 pr:3
+11-11 18:31:47.379   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:47.379   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3508
+11-11 18:31:47.401 32553 32553 I DecorView: setWindowBackground: isPopOver=false color=fffafafa d=android.graphics.drawable.ColorDrawable@acd0c00
+11-11 18:31:47.419 32553 32553 I kai.performance: hiddenapi: Accessing hidden method Landroid/view/View;->computeFitSystemWindows(Landroid/graphics/Rect;Landroid/graphics/Rect;)Z (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+11-11 18:31:47.419 32553 32553 I kai.performance: hiddenapi: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+11-11 18:31:47.442 32553 32553 I WebViewFactory: Loading com.google.android.webview version 141.0.7390.122 (code 739012233)
+11-11 18:31:47.451   826   848 I mtkpower@impl: [setMode] type:5, enabled:0
+11-11 18:31:47.453  1494  1523 I ActivityManager: Changes in 10329 2 to 11, 127 to 0
+11-11 18:31:47.463 32553 32553 V ResourcesManager: The following library key has been added: ResourcesKey{ mHash=14501303 mResDir=null mSplitDirs=[] mOverlayDirs=[] mLibDirs=[/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk,/data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk,/system_ext/framework/androidx.window.extensions.jar] mDisplayId=0 mOverrideConfig=v35 mCompatInfo={300dpi always-compat} mLoaders=[]}
+11-11 18:31:47.470 32553 32553 W kai.performance: Failed to find entry 'classes.dex': Entry not found
+11-11 18:31:47.475 32553 32553 D nativeloader: Configuring clns-8 for other apk /data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk. target_sdk_version=36, uses_libraries=ALL, library_path=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/lib/arm64:/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk!/lib/arm64-v8a:/data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand
+11-11 18:31:47.475 32553 32553 D nativeloader: Extending system_exposed_libraries: libaudiomirroring_jni.audiomirroring.samsung.so:libexifa.camera.samsung.so:libjpega.camera.samsung.so:libOpenCv.camera.samsung.so:libImageScreener.camera.samsung.so:libHpr_RecGAE_cvFeature_v1.0.camera.samsung.so:libHprFace_GAE_api.camera.samsung.so:libHprFace_GAE_jni.camera.samsung.so:libQREngine.camera.samsung.so:libInteractiveSegmentation.camera.samsung.so:libsmart_cropping.camera.samsung.so:libFacePreProcessing.camera.samsung.so:libFacePreProcessing_jni.camera.samsung.so:libhumantracking_util.camera.samsung.so:libsurfaceutil.camera.samsung.so:libsecimaging.camera.samsung.so:libsce_v1.crypto.samsung.so:lib_vnd_client.dk.samsung.so:lib_native_client.dk.samsung.so:lib_nativeJni.dk.samsung.so:lib.engmodejni.samsung.so:libSFEffect.fonteffect.samsung.so:libknox_remotedesktopclient.knox.samsung.so:libheifcapture_jni.media.samsung.so:libjpegsq.media.samsung.so:libslljpeg.media.samsung.so:libsemimagecrop_jni.media.samsung.so:libsimba.media.samsung.so:libsjpegxl.media.samsung.so:
+11-11 18:31:47.479 32553 32553 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-11 18:31:47.488 32553 32553 W kai.performance: Loading /data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/oat/arm64/base.odex non-executable as it requires an image which we failed to load
+11-11 18:31:47.494 32553 32553 D nativeloader: Configuring clns-9 for other apk /data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/lib/arm64:/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk!/lib/arm64-v8a:/data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand
+11-11 18:31:47.531   813 32551 I mtkpower_client: perf_lock_rel, hdl:3508, tid:32551
+11-11 18:31:47.531   813 32551 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:32551
+11-11 18:31:47.532   826   885 I libPowerHal: [perfLockRel] hdl:3508, idx:4
+11-11 18:31:47.532   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400100 param:-1 pr:6
+11-11 18:31:47.532   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:47.532   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3508
+11-11 18:31:47.533   813 32551 I mtkpower_client: ret_hdl:3509
+11-11 18:31:47.533   813 32551 I mtkpower_client: perf_lock_rel, hdl:3504, tid:32551
+11-11 18:31:47.533   826   885 I libPowerHal: [perfLockAcq] idx:3 hdl:3509 hint:-1 pid:813 tid:32551 duration:0 lock_user:vendor.samsung. => ret_hdl:3509
+11-11 18:31:47.533   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400100 param:2000000 pr:3
+11-11 18:31:47.533   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:47.533   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3509
+11-11 18:31:47.534   826   885 I libPowerHal: [perfLockRel] hdl:3504, idx:0
+11-11 18:31:47.534   813 32551 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:32551
+11-11 18:31:47.535   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400000 param:-1 pr:6
+11-11 18:31:47.535   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(-1): -1 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:47.535   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3504
+11-11 18:31:47.536   813 32551 I mtkpower_client: ret_hdl:3510
+11-11 18:31:47.536   826   885 I libPowerHal: [perfLockAcq] idx:0 hdl:3510 hint:-1 pid:813 tid:32551 duration:0 lock_user:vendor.samsung. => ret_hdl:3510
+11-11 18:31:47.536   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:400000 param:1800000 pr:3
+11-11 18:31:47.536   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(vendor.samsung.): 2000000 max(-1): -1
+11-11 18:31:47.536   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3510
+11-11 18:31:47.537   813 32551 I mtkpower_client: perf_lock_rel, hdl:3505, tid:32551
+11-11 18:31:47.537   813 32551 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:32551
+11-11 18:31:47.537   826   885 I libPowerHal: [perfLockRel] hdl:3505, idx:1
+11-11 18:31:47.539   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1000000 param:-1 pr:6
+11-11 18:31:47.540   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3505
+11-11 18:31:47.540   813 32551 I mtkpower_client: ret_hdl:3511
+11-11 18:31:47.540   813 32551 I mtkpower_client: perf_lock_rel, hdl:3506, tid:32551
+11-11 18:31:47.541   826   885 I libPowerHal: [perfLockAcq] idx:4 hdl:3511 hint:-1 pid:813 tid:32551 duration:0 lock_user:vendor.samsung. => ret_hdl:3511
+11-11 18:31:47.541   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1000000 param:0 pr:3
+11-11 18:31:47.541   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3511
+11-11 18:31:47.541   813 32551 I mtkpower_client: perf_lock_acq, hdl:0, dur:0, num:2, pid:813, tid:32551
+11-11 18:31:47.541   826   885 I libPowerHal: [perfLockRel] hdl:3506, idx:2
+11-11 18:31:47.542   826   885 I libPowerHal: [set_cpuidle] enable:1, fd:14, scn:0xb400007c94513660
+11-11 18:31:47.542   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1c3c100 param:1 pr:6
+11-11 18:31:47.542   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3506
+11-11 18:31:47.543   813 32551 I mtkpower_client: ret_hdl:3512
+11-11 18:31:47.543   826   885 I libPowerHal: [perfLockAcq] idx:1 hdl:3512 hint:-1 pid:813 tid:32551 duration:0 lock_user:vendor.samsung. => ret_hdl:3512
+11-11 18:31:47.543   826   885 I libPowerHal: [set_cpuidle] enable:0, fd:14, scn:0xb400007c94510290
+11-11 18:31:47.543   813 32551 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 1152945
+11-11 18:31:47.543   826   885 I libPowerHal: [get_cpu_dma_latency_value] 0
+11-11 18:31:47.544   826   885 I libPowerHal: [PE] vendor.samsung. update cmd:1c3c100 param:0 pr:3
+11-11 18:31:47.544   826   885 I libPowerHal: [perfLockAcq] Done for hdl : 3512
+11-11 18:31:47.588 32553 32553 I cr_WVCFactoryProvider: version=141.0.7390.122 (739012233) minSdkVersion=29 multiprocess=true packageId=2 splits=<none>
+11-11 18:31:47.675 32553 32553 D nativeloader: Load /data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk!/lib/arm64-v8a/libmonochrome_64.so using class loader ns clns-9 (caller=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk): ok
+11-11 18:31:47.680  1494  1523 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}
+11-11 18:31:47.680  1494  1523 W ActivityTaskManager: Activity pause timeout for ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}
+11-11 18:31:47.681 32553 32553 D nativeloader: Load /system/lib64/libwebviewchromium_plat_support.so using class loader ns clns-9 (caller=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk): ok
+11-11 18:31:47.684  1494  1523 D SGM:FgCheckThread: notePauseComponent(), received pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.684  1494  1523 D SGM:FgCheckThread: notePauseComponent(), received pkgName: com.biopeakai.performance, userId: 0
+11-11 18:31:47.684  1494  1523 D SGM:FgCheckThread: notifyFocusInOut(). of pkg: com.biopeakai.performance, type: 20, isSecGameFamily: false, userId: 0
+11-11 18:31:47.685  1494  1523 D SGM:GameManager: identifyGamePackage. com.biopeakai.performance, mCurrentUserId: 0, callerUserId: 0, callingMethodInfo: com.samsung.android.game.SemGameManager.isGamePackage(SemGameManager.java:105)
+11-11 18:31:47.685  1494  1523 D SGM:SemGameManager: isGamePackage(), pkgName=com.biopeakai.performance, ret=false
+11-11 18:31:47.685  1494  1523 D SGM:FgCheckThread:   notifyFocusInOut(). unexpected type. 20
+11-11 18:31:47.723 32553 32553 I cr_LibraryLoader: Successfully loaded native library
+11-11 18:31:47.727 32553 32553 I cr_CachingUmaRecorder: Flushed 16 samples from 16 histograms, 0 samples were dropped.
+11-11 18:31:47.740 32553 32553 I cr_CombinedPProvider: #registerProvider() provider:WV.ak@daa7dbf isPolicyCacheEnabled:false policyProvidersSize:0
+11-11 18:31:47.748 32553 32553 I cr_PolicyProvider: #setManagerAndSource() 0
+11-11 18:31:47.753  1494  9334 V GrammaticalInflectionUtils: AttributionSource: AttributionSource { uid = 99126, packageName = null, attributionTag = null, token = android.os.Binder@671b6cc, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+11-11 18:31:47.770  3128  3128 D Zygote  : Forked child process 32594
+11-11 18:31:47.779  1494  1532 I ActivityManager: Start proc 32594:com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0i126 for  {com.biopeakai.performance/org.chromium.content.app.SandboxedProcessService0:0}
+11-11 18:31:47.779  1494  1532 I DynamicHiddenApp_BGProtectManager: check webview name : com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0check hostingname webview : {com.biopeakai.performance/org.chromium.content.app.SandboxedProcessService0:0}
+11-11 18:31:47.781 32594 32594 E libc    : SetHeapTaggingLevel: re-enabling tagging after it was disabled is not supported
+11-11 18:31:47.791 32594 32594 I ocessService0:0: Using CollectorTypeCMC GC.
+11-11 18:31:47.797 32594 32594 E ocessService0:0: Not starting debugger since process cannot load the jdwp agent.
+11-11 18:31:47.803 32594 32594 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-11 18:31:47.808 32594 32594 D ActivityThread: setConscryptValidator
+11-11 18:31:47.808 32594 32594 D ActivityThread: setConscryptValidator - put
+11-11 18:31:47.815  9425  9425 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.safetynet.service.START pkg=com.google.android.gms }
+11-11 18:31:47.815  9425  9425 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.safetynet.service.START pkg=com.google.android.gms }
+11-11 18:31:47.837 32553 32553 I cr_CombinedPProvider: #linkNativeInternal() 1
+11-11 18:31:47.840 32553 32553 I cr_AppResProvider: #getApplicationRestrictionsFromUserManager() Bundle[EMPTY_PARCEL]
+11-11 18:31:47.840 32553 32553 I cr_PolicyProvider: #notifySettingsAvailable() 0
+11-11 18:31:47.840 32553 32553 I cr_CombinedPProvider: #onSettingsAvailable() 0
+11-11 18:31:47.840 32553 32553 I cr_CombinedPProvider: #flushPolicies()
+11-11 18:31:47.841 32594 32594 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-11 18:31:47.847 32594 32594 I LoadedApk: No resource references to update in package com.google.android.trichromelibrary
+11-11 18:31:47.852 32594 32594 I cr_WebViewApkApp: version=141.0.7390.122 (739012233) minSdkVersion=29 processName=com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0 splits=<none>
+11-11 18:31:47.856  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:47.857   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:47.860 32594 32594 I cr_ChildProcessService: Creating new ChildProcessService pid=32594
+11-11 18:31:47.933  1494  3431 V GrammaticalInflectionUtils: AttributionSource: AttributionSource { uid = 10208, packageName = null, attributionTag = null, token = android.os.Binder@671b6cc, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+11-11 18:31:47.938  9425  9425 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.safebrowsing.SafeBrowsingService.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+11-11 18:31:47.938  9425  9425 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.safebrowsing.SafeBrowsingService.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+11-11 18:31:47.950 32553 32553 W chromium: [WARNING:android_webview/browser/network_service/net_helpers.cc:143] HTTP Cache size is: 20971520
+11-11 18:31:47.952   788   788 D Zygote  : Forked child process 32620
+11-11 18:31:47.953  1494  1532 I ActivityManager: Start proc 32620:com.google.android.webview:webview_service/u0a208 for service {com.google.android.webview/org.chromium.android_webview.services.ComponentsProviderService}
+11-11 18:31:47.977 32620 32620 I webview_service: Using CollectorTypeCMC GC.
+11-11 18:31:47.978   813 32552 I mtkpower_client: perf_lock_rel, hdl:3509, tid:32552
+11-11 18:31:47.979   813 32552 I mtkpower_client: perf_lock_rel, hdl:3510, tid:32552
+11-11 18:31:47.980   826   885 I libPowerHal: [perfLockRel] hdl:3509, idx:3
+11-11 18:31:47.981   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400100 param:-1 pr:6
+11-11 18:31:47.981   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(vendor.samsung.): 1800000 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:47.982   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3509
+11-11 18:31:47.982 32620 32620 E webview_service: Not starting debugger since process cannot load the jdwp agent.
+11-11 18:31:47.983   813 32552 I mtkpower_client: perf_lock_rel, hdl:3511, tid:32552
+11-11 18:31:47.983   826   885 I libPowerHal: [perfLockRel] hdl:3510, idx:0
+11-11 18:31:47.984   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:400000 param:-1 pr:6
+11-11 18:31:47.985   826   885 I libPowerHal: [recordCPUFreqInfo] set cluster[0] min(-1): -1 max(-1): -1 cluster[1] min(-1): -1 max(-1): -1
+11-11 18:31:47.985   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3510
+11-11 18:31:47.986   826   885 I libPowerHal: [perfLockRel] hdl:3511, idx:4
+11-11 18:31:47.986   813 32552 I mtkpower_client: perf_lock_rel, hdl:3512, tid:32552
+11-11 18:31:47.987   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1000000 param:-1 pr:6
+11-11 18:31:47.987   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3511
+11-11 18:31:47.988   826   885 I libPowerHal: [perfLockRel] hdl:3512, idx:1
+11-11 18:31:47.988   813 32552 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 1143846
+11-11 18:31:47.989 32620 32620 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-11 18:31:47.989   826   885 I libPowerHal: [set_cpuidle] enable:1, fd:14, scn:0xb400007c94510290
+11-11 18:31:47.989   826   885 I libPowerHal: [PD] vendor.samsung. update cmd:1c3c100 param:1 pr:6
+11-11 18:31:47.989   826   885 I libPowerHal: [perfLockRel] Done for hdl : 3512
+11-11 18:31:47.993 32620 32620 D ActivityThread: setConscryptValidator
+11-11 18:31:47.993 32620 32620 D ActivityThread: setConscryptValidator - put
+11-11 18:31:48.024 32620 32620 W webview_service: Failed to find entry 'classes.dex': Entry not found
+11-11 18:31:48.025 32620 32620 D nativeloader: Configuring clns-7 for other apk /data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk. target_sdk_version=36, uses_libraries=ALL, library_path=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/lib/arm64:/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk!/lib/arm64-v8a:/data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.webview
+11-11 18:31:48.025 32620 32620 D nativeloader: Extending system_exposed_libraries: libaudiomirroring_jni.audiomirroring.samsung.so:libexifa.camera.samsung.so:libjpega.camera.samsung.so:libOpenCv.camera.samsung.so:libImageScreener.camera.samsung.so:libHpr_RecGAE_cvFeature_v1.0.camera.samsung.so:libHprFace_GAE_api.camera.samsung.so:libHprFace_GAE_jni.camera.samsung.so:libQREngine.camera.samsung.so:libInteractiveSegmentation.camera.samsung.so:libsmart_cropping.camera.samsung.so:libFacePreProcessing.camera.samsung.so:libFacePreProcessing_jni.camera.samsung.so:libhumantracking_util.camera.samsung.so:libsurfaceutil.camera.samsung.so:libsecimaging.camera.samsung.so:libsce_v1.crypto.samsung.so:lib_vnd_client.dk.samsung.so:lib_native_client.dk.samsung.so:lib_nativeJni.dk.samsung.so:lib.engmodejni.samsung.so:libSFEffect.fonteffect.samsung.so:libknox_remotedesktopclient.knox.samsung.so:libheifcapture_jni.media.samsung.so:libjpegsq.media.samsung.so:libslljpeg.media.samsung.so:libsemimagecrop_jni.media.samsung.so:libsimba.media.samsung.so:libsjpegxl.media.samsung.so:
+11-11 18:31:48.028 32620 32620 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-11 18:31:48.034 32620 32620 D nativeloader: Configuring clns-8 for other apk /data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/lib/arm64:/data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk!/lib/arm64-v8a:/data/app/~~kbAJ-LJtM7RjkgtmCfLeIQ==/com.google.android.trichromelibrary_739012233-D5IEZEJWkW_N7tJZ_TmdIQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.webview
+11-11 18:31:48.038 32553 32553 D ConnectivityManager: StackLog: [android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4736)] [android.net.ConnectivityManager.registerDefaultNetworkCallbackForUid(ConnectivityManager.java:5461)] [android.net.ConnectivityManager.registerDefaultNetworkCallback(ConnectivityManager.java:5428)] [WV.km1.e(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:37)] [WV.km1.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:1)] [org.chromium.android_webview.AwContentsLifecycleNotifier.onFirstWebViewCreated(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:19)] [J.N.JJ(Native Method)] [org.chromium.android_webview.AwContents.<init>(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:619)] [com.android.webview.chromium.k.run(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:163)] [WV.d23.run(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:13)] [org.chromium.base.task.PostTask.d(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:18)] [WV.e23.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:18)] [com.android.webview.chromium.WebViewChromiumFactoryProvider.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:3)] [com.android.webview.chromium.WebViewChromium.init(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:334)] [android.webkit.WebView.<init>(WebView.java:446)] [android.webkit.WebView.<init>(WebView.java:366)] [android.webkit.WebView.<init>(WebView.java:348)] [android.webkit.WebView.<init>(WebView.java:335)] [com.getcapacitor.CapacitorWebView.<init>(CapacitorWebView.java:22)] [java.lang.reflect.Constructor.newInstance0(Native Method)] [java.lang.reflect.Constructor.newInstance(Constructor.java:343)] [android.view.LayoutInflater.createView(LayoutInflater.java:758)] [android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:910)] [android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:865)] [android.view.LayoutInflater.rInflate(LayoutInflater.java:1027)] [android.view.LayoutInflater.rInflateChildren(LayoutInflater.java:988)] [android.view.LayoutInflater.inflate(LayoutInflater.java:576)] [android.view.LayoutInflater.inflate(LayoutInflater.java:468)] [android.view.LayoutInflater.inflate(LayoutInflater.java:419)] [androidx.appcompat.app.AppCompatDelegateImpl.setContentView(AppCompatDelegateImpl.java:775)] [androidx.appcompat.app.AppCompatActivity.setContentView(AppCompatActivity.java:197)] [com.getcapacitor.BridgeActivity.onCreate(BridgeActivity.java:28)] [com.biopeakai.performance.MainActivity.onCreate(MainActivity.java:15)] [android.app.Activity.performCreate(Activity.java:9363)] [android.app.Activity.performCreate(Activity.java:9332)] [android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1526)] [android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4440)] [android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4689)] [android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:112)] [android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:174)] [android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:109)] [android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:81)] [android.app.ActivityThread$H.handleMessage(ActivityThread.java:2899)]
+11-11 18:31:48.043  1494  9334 D ConnectivityService: requestNetwork for uid/pid:10329/32553 activeRequest: null callbackRequest: 6697 [NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647 isUidTracked: false declaredMethods: AVAIL|LOST|NC|LP
+11-11 18:31:48.045  1494  1779 D ConnectivityService:    accepting network in place of null for NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]
+11-11 18:31:48.047 32620 32620 V GraphicsEnvironment: Currently set values for:
+11-11 18:31:48.047 32620 32620 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-11 18:31:48.047 32620 32620 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-11 18:31:48.047 32620 32620 V GraphicsEnvironment: Global.Settings values are invalid: number of packages: 0, number of values: 0
+11-11 18:31:48.047 32620 32620 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-11 18:31:48.051 32620 32620 I LoadedApk: No resource references to update in package com.google.android.trichromelibrary
+11-11 18:31:48.051  1494  1762 D WifiNetworkFactory: got request NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]
+11-11 18:31:48.051  1494  1762 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]
+11-11 18:31:48.051  1494  1762 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]
+11-11 18:31:48.051  1494  1762 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=6698, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10329 RequestorUid: 10329 RequestorPkg: com.biopeakai.performance UnderlyingNetworks: Null] ]
+11-11 18:31:48.051  1494  1779 D ConnectivityService: Rematched networks [computed 0ms] [applied 2ms] [issued 5]
+11-11 18:31:48.051  1494  1779 D ConnectivityService: NetworkReassignment :
+11-11 18:31:48.051  1494  1779 D ConnectivityService:   6698 : null → 120
+11-11 18:31:48.054 32620 32620 I cr_WebViewApkApp: version=141.0.7390.122 (739012233) minSdkVersion=29 processName=com.google.android.webview:webview_service splits=<none>
+11-11 18:31:48.055 32553 32553 D ConnectivityManager: StackLog: [android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4736)] [android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4904)] [android.net.ConnectivityManager.registerNetworkCallback(ConnectivityManager.java:5321)] [WV.km1.e(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:86)] [WV.km1.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:1)] [org.chromium.android_webview.AwContentsLifecycleNotifier.onFirstWebViewCreated(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:19)] [J.N.JJ(Native Method)] [org.chromium.android_webview.AwContents.<init>(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:619)] [com.android.webview.chromium.k.run(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:163)] [WV.d23.run(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:13)] [org.chromium.base.task.PostTask.d(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:18)] [WV.e23.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:18)] [com.android.webview.chromium.WebViewChromiumFactoryProvider.a(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:3)] [com.android.webview.chromium.WebViewChromium.init(chromium-TrichromeWebViewGoogle6432.aab-stable-739012233:334)] [android.webkit.WebView.<init>(WebView.java:446)] [android.webkit.WebView.<init>(WebView.java:366)] [android.webkit.WebView.<init>(WebView.java:348)] [android.webkit.WebView.<init>(WebView.java:335)] [com.getcapacitor.CapacitorWebView.<init>(CapacitorWebView.java:22)] [java.lang.reflect.Constructor.newInstance0(Native Method)] [java.lang.reflect.Constructor.newInstance(Constructor.java:343)] [android.view.LayoutInflater.createView(LayoutInflater.java:758)] [android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:910)] [android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:865)] [android.view.LayoutInflater.rInflate(LayoutInflater.java:1027)] [android.view.LayoutInflater.rInflateChildren(LayoutInflater.java:988)] [android.view.LayoutInflater.inflate(LayoutInflater.java:576)] [android.view.LayoutInflater.inflate(LayoutInflater.java:468)] [android.view.LayoutInflater.inflate(LayoutInflater.java:419)] [androidx.appcompat.app.AppCompatDelegateImpl.setContentView(AppCompatDelegateImpl.java:775)] [androidx.appcompat.app.AppCompatActivity.setContentView(AppCompatActivity.java:197)] [com.getcapacitor.BridgeActivity.onCreate(BridgeActivity.java:28)] [com.biopeakai.performance.MainActivity.onCreate(MainActivity.java:15)] [android.app.Activity.performCreate(Activity.java:9363)] [android.app.Activity.performCreate(Activity.java:9332)] [android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1526)] [android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4440)] [android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4689)] [android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:112)] [android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:174)] [android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:109)] [android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:81)] [android.app.ActivityThread$H.handleMessage(ActivityThread.java:2899)]
+11-11 18:31:48.059  1494  2309 D CompatChangeReporter: Compat change id reported: 319212206; UID 10329; state: ENABLED
+11-11 18:31:48.063  1494  1779 D ConnectivityService: Rematched networks [computed 0ms] [applied 1ms] [issued 2]
+11-11 18:31:48.063  1494  1779 D ConnectivityService: NetworkReassignment : no changes
+11-11 18:31:48.150 32553 32553 D CompatChangeReporter: Compat change id reported: 352594277; UID 10329; state: ENABLED
+11-11 18:31:48.150   890   905 D ccci_mdinit: (1):monitor_time_update_thread round:15311 ########
+11-11 18:31:48.227 32553 32553 D Capacitor: Starting BridgeActivity
+11-11 18:31:48.290 32553 32553 D Capacitor: Registering plugin instance: CapacitorCookies
+11-11 18:31:48.305 32553 32553 D Capacitor: Registering plugin instance: WebView
+11-11 18:31:48.313 32553 32553 D Capacitor: Registering plugin instance: CapacitorHttp
+11-11 18:31:48.321 32553 32553 D Capacitor: Registering plugin instance: BackgroundGeolocation
+11-11 18:31:48.336 32553 32553 D Capacitor: Registering plugin instance: App
+11-11 18:31:48.343 32553 32553 D Capacitor: Registering plugin instance: Browser
+11-11 18:31:48.352 32553 32553 D Capacitor: Registering plugin instance: Camera
+11-11 18:31:48.357  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:48.358   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:48.362 32553 32553 D Capacitor: Registering plugin instance: Device
+11-11 18:31:48.369 32553 32553 D Capacitor: Registering plugin instance: Geolocation
+11-11 18:31:48.447 32553 32553 D Capacitor: Registering plugin instance: LocalNotifications
+11-11 18:31:48.462 32553 32553 D Capacitor: Registering plugin instance: Preferences
+11-11 18:31:48.473 32553 32553 D Capacitor: Registering plugin instance: ForegroundService
+11-11 18:31:48.483 32553 32553 D Capacitor: Registering plugin instance: Purchases
+11-11 18:31:48.567 32553 32553 W Capacitor: Unable to read file at path public/plugins
+11-11 18:31:48.581 32553 32553 D Capacitor: Loading app at https://localhost
+11-11 18:31:48.635 32553 32644 D libMEOW : meow new tls: 0xb40000759b2805c0
+11-11 18:31:48.635 32553 32644 D libMEOW : applied 1 plugins for [com.biopeakai.performance]:
+11-11 18:31:48.635 32553 32644 D libMEOW :   plugin 1: [libMEOW_gift.so]:
+11-11 18:31:48.643 32553 32613 W cr_media: BLUETOOTH_CONNECT permission is missing.
+11-11 18:31:48.653 32553 32613 W cr_media: getBluetoothAdapter() requires BLUETOOTH permission
+11-11 18:31:48.656 32553 32613 W cr_media: registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
+11-11 18:31:48.664 32553 32553 D MainActivity: 🔧 Registering inline plugins...
+11-11 18:31:48.664 32553 32553 D MainActivity: ✅ Inline plugins registered successfully
+11-11 18:31:48.667 32553 32607 D Capacitor: Handling local request: https://localhost/
+11-11 18:31:48.675 32594 32604 I cr_LibraryLoader: Successfully loaded native library
+11-11 18:31:48.678 32594 32604 I cr_CachingUmaRecorder: Flushed 2 samples from 2 histograms, 0 samples were dropped.
+11-11 18:31:48.680 32594 32604 W chromium: [WARNING:content/app/android/content_main_android.cc:82] android_setCpu already initialized
+11-11 18:31:48.691  8735  8869 I SDHMS:l : no app is Resumed!!! mResumedPackages.size = 0
+11-11 18:31:48.709 32553 32553 D Capacitor: App started
+11-11 18:31:48.712 32594 32604 W chromium: [WARNING:content/child/runtime_features.cc:559] Fenced frames cannot be enabled in this configuration. Use --enable-features=FencedFrames instead.
+11-11 18:31:48.712 32594 32604 W chromium: [WARNING:content/child/runtime_features.cc:584] Topics cannot be enabled in this configuration. Use --enable-features=BrowsingTopics in addition.
+11-11 18:31:48.712 32594 32604 W chromium: [WARNING:content/child/runtime_features.cc:605] SharedStorage cannot be enabled in this configuration. Use --enable-features=SharedStorageAPI in addition.
+11-11 18:31:48.716 32553 32553 W WindowOnBackDispatcher: OnBackInvokedCallback is not enabled for the application.
+11-11 18:31:48.716 32553 32553 W WindowOnBackDispatcher: Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+11-11 18:31:48.725 32553 32553 D Capacitor/AppPlugin: Firing change: true
+11-11 18:31:48.726 32553 32553 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-11 18:31:48.726 32553 32553 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-11 18:31:48.741 32553 32553 V Capacitor/BrowserPlugin: Notifying listeners for event browserFinished
+11-11 18:31:48.742 32553 32553 D Capacitor/BrowserPlugin: No listeners found for event browserFinished
+11-11 18:31:48.742 32553 32553 D Capacitor: App resumed
+11-11 18:31:48.752   878  1293 D SurfaceFlinger: [SF client] NEW(0xb400007d1d2c3f80) for (32553:com.biopeakai.performance)
+11-11 18:31:48.765 32553 32553 I ViewRootImpl: dVRR is disabled
+11-11 18:31:48.769 32553 32553 D HardwareRenderer: onDisplayChanged. displayId=0 current wxh=720x1600 mLargest wxh=0x0
+11-11 18:31:48.770 32553 32553 W HWUI    : Unknown dataspace 0
+11-11 18:31:48.771 32553 32571 D HWUI    : setMaxSurfaceArea requested wxh=(720,1600) requestedSurfaceArea(1152000) is smaller than defaultSurfaceArea(2073600). Use default.
+11-11 18:31:48.771 32553 32553 D HardwareRenderer: Set largestWidth and largestHeight as logical resolution. (720x1600)
+11-11 18:31:48.774 32553 32571 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+11-11 18:31:48.784  1494  9334 D InputTransport: Input channel constructed: '9ea4f63', fd=994
+11-11 18:31:48.784  1494  9334 D InputTransport: Input channel constructed: '9ea4f63', fd=996
+11-11 18:31:48.785  1494  9334 D InputTransport: Input channel constructed: '9ea4f63', fd=997
+11-11 18:31:48.788   878  1293 D SurfaceFlinger: [SF client] NEW(0xb400007d42099980) for (1494:system_server)
+11-11 18:31:48.789  1494  9334 D WindowManager: prepareSync <SYNC_STATE_WAITING_FOR_DRAW>, mPrepareSyncSeqId=0, win=Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity}
+11-11 18:31:48.791   878  1293 I BufferQueueDebug: [9ea4f63 com.biopeakai.performance/com.biopeakai.performance.MainActivity#3338](this:0xb400007d1006b898,id:-1,api:0,p:-1,c:-1) BufferQueue core=(878:/system/bin/surfaceflinger)
+11-11 18:31:48.792   878  1293 I SurfaceFlinger: id=3338 createSurf, flag=84004, 9ea4f63 com.biopeakai.performance/com.biopeakai.performance.MainActivity#3338
+11-11 18:31:48.792  1494  9334 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+11-11 18:31:48.793  1494  9334 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+11-11 18:31:48.794  1494  9334 D InputTransport: Input channel destroyed: '9ea4f63', fd=997
+11-11 18:31:48.795 32553 32553 D InputTransport: Input channel constructed: '9ea4f63', fd=200
+11-11 18:31:48.801 32553 32553 I InsetsController: onStateChanged: host=com.biopeakai.performance/com.biopeakai.performance.MainActivity, from=android.view.ViewRootImpl.setView:1999, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 720, 1600), mDisplayCutout=DisplayCutout{insets=Rect(0, 43 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(320, 0 - 400, 43), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=720 displayHeight=1600 physicalDisplayWidth=720 physicalDisplayHeight=1600 density={1.875} cutoutSpec={M 0,0 H -21.33333333333333 V 22.93333333333333 H 21.33333333333333 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=68, center=Point(68, 68)}, RoundedCorner{position=TopRight, radius=68, center=Point(652, 68)}, RoundedCorner{position=BottomRight, radius=68, center=Point(652, 1532)}, RoundedCorner{position=BottomLeft, radius=68, center=Point(68, 1532)}]}  mRoundedCornerFrame=Rect(0, 0 - 720, 1600), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(637, 0 - 720, 43) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=720 displayHeight=1600 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mVisible=false mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][720,43] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {4b00001 mType=navigationBars mFrame=[0,1510][720,1600] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {4b00004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {4b00005 mType=mandatorySystemGestures mFrame=[0,1510][720,1600] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {4b00006 mType=tappableElement mFrame=[0,1510][720,1600] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {4b00024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {4c020000 mType=statusBars mFrame=[0,0][720,43] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {4c020005 mType=mandatorySystemGestures mFrame=[0,0][720,66] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {4c020006 mType=tappableElement mFrame=[0,0][720,43] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+11-11 18:31:48.806 32553 32553 I VRI[MainActivity]@e158424: synced displayState. AttachInfo displayState=1
+11-11 18:31:48.807 32553 32553 I VRI[MainActivity]@e158424: setView = com.android.internal.policy.DecorView@338be90 IsHRR=false TM=true
+11-11 18:31:48.842 32553 32653 I CameraManagerGlobal: Connecting to camera service
+11-11 18:31:48.848 32553 32653 D VendorTagDescriptor: addVendorDescriptor: vendor tag id 8932615658386372252 added
+11-11 18:31:48.849  1083  2304 D CameraService: addListenerHelper: Add listener 0xb400007f007ff9c0, uid: 10329, pid: 32553
+11-11 18:31:48.852  1083  2304 I CameraService: getUidProcessState uid(10329) = (11)
+11-11 18:31:48.856  1083  2304 D CameraService: addListenerHelper: CameraDeviceState for CameraManager
+11-11 18:31:48.858  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:48.859   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:48.866 32553 32553 V Capacitor/AppPlugin: Notifying listeners for event pause
+11-11 18:31:48.866 32553 32553 D Capacitor/AppPlugin: No listeners found for event pause
+11-11 18:31:48.868 32553 32565 I CameraManagerGlobal: Camera 0 facing CAMERA_FACING_BACK state now CAMERA_STATE_CLOSED for client com.sec.android.app.camerasaver API Level 2 User Id 0Device Id 0
+11-11 18:31:48.870 32553 32565 I CameraManagerGlobal: Camera 1 facing CAMERA_FACING_FRONT state now CAMERA_STATE_CLOSED for client android.system API Level 2 User Id 0Device Id 0
+11-11 18:31:48.872 32553 32565 I CameraManagerGlobal: Camera 24 facing CAMERA_FACING_BACK state now CAMERA_STATE_CLOSED for client android.system API Level 2 User Id 0Device Id 0
+11-11 18:31:48.874 32553 32565 I CameraManagerGlobal: Camera 37 facing CAMERA_FACING_BACK state now CAMERA_STATE_CLOSED for client android.system API Level 2 User Id 0Device Id 0
+11-11 18:31:48.876 32553 32564 I CameraManagerGlobal: Camera 5 facing CAMERA_FACING_FRONT state now CAMERA_STATE_CLOSED for client android.system API Level 2 User Id 0Device Id 0
+11-11 18:31:48.878 32553 32564 I CameraManagerGlobal: Camera 80 facing CAMERA_FACING_BACK state now CAMERA_STATE_CLOSED for client android.system API Level 2 User Id 0Device Id 0
+11-11 18:31:48.882 32553 32653 I CameraManager: registerAvailabilityCallback: Is device callback = false
+11-11 18:31:48.889 32553 32553 D Capacitor: App paused
+11-11 18:31:48.899 32553 32653 I CameraManagerGlobal: postSingleUpdate device: camera id 0 status STATUS_PRESENT
+11-11 18:31:48.904 32553 32653 I CameraManagerGlobal: postSingleUpdate device: camera id 1 status STATUS_PRESENT
+11-11 18:31:48.921   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:48.921  1494  9334 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:584 completeLatency:2295 dispatchRealLatency:584 completeRealLatency:2295 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+11-11 18:31:48.922   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:48.926  1083  2304 I CameraService: onUidStateChanged: uid=10329, procState is changed. (11 -> 10)
+11-11 18:31:48.931   352  1614 I FontLog : (REDACTED) Font PFD returned from cache for %s
+11-11 18:31:48.931   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:48.946   352  1610 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:48.964  1494  9334 W ProcessStats: Tracking association SourceState{801cb42 com.biopeakai.performance/10329 Top #183207} whose proc state 1 is better than process ProcessState{bb391b4 com.google.android.gms.persistent/10196 pkg=com.google.android.gms} proc state 2 (53 skipped)
+11-11 18:31:48.965  1083  2304 I CameraService: onUidStateChanged: uid=10329, procState is changed. (10 -> 12)
+11-11 18:31:48.968   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:48.969   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:48.974 32553 32571 D HWUI    : HWUI - treat SMPTE_170M as sRGB
+11-11 18:31:48.976   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:48.982   352  1610 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:48.997   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:48.997   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:48.999   352  1614 I FontLog : (REDACTED) Font PFD returned from cache for %s
+11-11 18:31:49.000   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:49.009   352  1614 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:49.023   519   519 D io_stats: !@ 179,0 r 10526262 243006034 w 1927894 35493664 d 194829 41684724 f 626843 506780 iot 3099500 0 th 0 0 0 pt 0 inp 0 1 91001.130
+11-11 18:31:49.023   519   519 D io_stats: !@ Read_top(KB): kai.performance(32553) 9076 re-initialized>(32553) 8232 ocessService0:0(32594) 2828
+11-11 18:31:49.023   519   519 D io_stats: !@ Write_top(KB): f2fs_ckpt-254:5(630) 456 .office.outlook(31993) 444 kworker/5:1:/(15886) 112
+11-11 18:31:49.025   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:49.025   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:49.027   352  1614 I FontLog : (REDACTED) Font PFD returned from cache for %s
+11-11 18:31:49.027   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:49.033 32553 32608 D Capacitor: Handling local request: https://localhost/assets/index-CE6Mp6AS.js
+11-11 18:31:49.034 32553 32614 D Capacitor: Handling local request: https://localhost/assets/vendor-DNPOn2WF.js
+11-11 18:31:49.036   352  1614 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:49.040 32553 32618 D Capacitor: Handling local request: https://localhost/assets/index-9hD3Tfo8.css
+11-11 18:31:49.043 32553 32612 D Capacitor: Handling local request: https://localhost/assets/ui-CScHjbTr.js
+11-11 18:31:49.043  1494  9334 D CoreBackPreview: Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@aa93dbc, mPriority=0, mIsAnimationCallback=false}
+11-11 18:31:49.051  1494  9334 V WindowManager: Relayout Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity}: viewVisibility=0 req=720x1600 ty=1 d0
+11-11 18:31:49.053   878  1293 I BufferQueueDebug: [com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339](this:0xb400007d1006e898,id:-1,api:0,p:-1,c:-1) BufferQueue core=(878:/system/bin/surfaceflinger)
+11-11 18:31:49.054   878  1293 I SurfaceFlinger: id=3339 createSurf, flag=44004, com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339
+11-11 18:31:49.055  1494  9334 D WindowManager: makeSurface duration=3 name=com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553
+11-11 18:31:49.057  1494  9334 D BLASTSyncEngine: SyncGroup 355:  Unfinished container: ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587} mSyncState=2
+11-11 18:31:49.059   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:49.059  1494  9334 V WindowManager: SyncGroup 355: Finished!
+11-11 18:31:49.059   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:49.059  1494  9334 D ChangeTransitionController: onTransactionReady: TransitionRecord{4c19899 id=355 type=OPEN flags=0x0}
+11-11 18:31:49.060  1494  9334 V WindowManager: Start calculating TransitionInfo based on participants: {ActivityRecord{242c75e u0 com.biopeakai.performance/.MainActivity t587}, Task{fe1b73f #587 type=standard A=10329:com.biopeakai.performance}}
+11-11 18:31:49.061   352  1614 I FontLog : (REDACTED) Font PFD returned from cache for %s
+11-11 18:31:49.061   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:49.062  1494  9334 V WindowManager:   Final targets: []
+11-11 18:31:49.063  1494  9334 V WindowManager: Calling onTransitionReady: {id=355 t=OPEN f=0x40 trk=0 r=[] c=[]}
+11-11 18:31:49.065  1494  1520 V WindowManager: Sent Transition (#355) createdAt=11-11 18:31:46.431 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=587 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.biopeakai.performance/.MainActivity } baseActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} topActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} origActivity=null realActivity=ComponentInfo{com.biopeakai.performance/com.biopeakai.performance.MainActivity} numActivities=1 lastActiveTime=463457606 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 token=WCT{RemoteToken{646c145 Task{fe1b73f #587 type=standard A=10329:com.biopeakai.performance}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 43 - 0, 0) topActivityInfo=ActivityInfo{b61809a com.biopeakai.performance.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isSleeping=true topActivityInSizeCompat=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isTopActivityStyleFloating=false appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=720 topActivityLetterboxHeight=1600 topActivityLetterboxAppWidth=720 topActivityLetterboxAppHeight=1600 isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive} topActivityBounds=null topActivityInDisplayCompat=false} originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10329:com.biopeakai.performance isTopTaskInStage=false topActivityUiMode=17 CoverLauncherWidgetTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false snappingGuideBounds=null isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false}, pipTask = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 355 }
+11-11 18:31:49.065  1494  1520 V WindowManager:     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+11-11 18:31:49.065  1494  1520 V WindowManager:     info={id=355 t=OPEN f=0x40 trk=0 r=[] c=[]}
+11-11 18:31:49.065  1494  9334 V WindowManager: Relayout hash=9ea4f63, pid=32553, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030312
+11-11 18:31:49.065  1494  9334 V WindowManager:   fl=81810100
+11-11 18:31:49.065  1494  9334 V WindowManager:   pfl=100088c0
+11-11 18:31:49.065  1494  9334 V WindowManager:   apr=210
+11-11 18:31:49.065  1494  9334 V WindowManager:   bhv=1
+11-11 18:31:49.065  1494  9334 V WindowManager:   fitSides=0
+11-11 18:31:49.065  1494  9334 V WindowManager:   frameRateBoostOnTouch=true
+11-11 18:31:49.065  1494  9334 V WindowManager:   dvrrWindowFrameRateHint=true naviIconColor=0
+11-11 18:31:49.065  1494  9334 V WindowManager:   sfl=100000}
+11-11 18:31:49.065 32553 32623 W AudioCapabilities: Unsupported mime audio/x-ima
+11-11 18:31:49.067  1987  2311 V WindowManagerShell: onTransitionReady(transaction=6416681156562)
+11-11 18:31:49.069   352  1614 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:49.069  1987  2174 V WindowManagerShell: onTransitionReady (#355) android.os.BinderProxy@b585a71: {id=355 t=OPEN f=0x40 trk=0 r=[] c=[]}
+11-11 18:31:49.070  1987  2174 V WindowManagerShell: No transition roots in (#355) android.os.BinderProxy@b585a71@0 so abort
+11-11 18:31:49.071  1494  1523 I ActivityManager: Changes in 10091 5 to 6, 56 to 0
+11-11 18:31:49.072  1494  1523 I ActivityManager: Changes in 5026 5 to 6, 56 to 0
+11-11 18:31:49.073  1083  2304 I CameraService: onUidStateChanged: uid=10091, procState is changed. (5 -> 6)
+11-11 18:31:49.075  1083  2304 I CameraService: onUidStateChanged: uid=10058, procState is changed. (5 -> 1)
+11-11 18:31:49.076 32553 32553 D BufferQueueConsumer: [](id:7f2900000000,api:0,p:-1,c:32553) connect: controlledByApp=false
+11-11 18:31:49.078  1987  2174 I SurfaceControlRegistry: apply, t=StartTransaction_SyncId<355>, caller=android.view.SurfaceControl$Transaction.apply:3135 android.view.SurfaceControl$Transaction.apply:3122 android.view.SurfaceControl$Transaction.apply:3078 com.android.wm.shell.transition.Transitions.processReadyQueue:240 com.android.wm.shell.transition.Transitions.onAbort:54 com.android.wm.shell.transition.Transitions.dispatchReady:225 
+11-11 18:31:49.079  1987  2174 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#355) android.os.BinderProxy@b585a71@0
+11-11 18:31:49.079  1494  1830 I MR2ServiceImpl: Updating composite discovery preference | preference: RouteDiscoveryRequest{ preferredFeatures={}, activeScan=false }, active routers: []
+11-11 18:31:49.081  1987  2174 I SurfaceControlRegistry: apply, t=FinishTransaction_SyncId<355>, caller=android.view.SurfaceControl$Transaction.apply:3135 android.view.SurfaceControl$Transaction.apply:3122 android.view.SurfaceControl$Transaction.apply:3078 com.android.wm.shell.transition.Transitions.onFinish:308 com.android.wm.shell.transition.Transitions.processReadyQueue:246 com.android.wm.shell.transition.Transitions.onAbort:54 
+11-11 18:31:49.083 32553 32553 I BLASTBufferQueue: [VRI[MainActivity]@e158424#0](f:0,a:0,s:0) constructor()
+11-11 18:31:49.083  1494  2309 V WindowManager: Finish Transition: TransitionRecord{4c19899 id=355 type=OPEN flags=0x40}, caller=com.android.server.wm.WindowOrganizerController.finishTransitionInner:26 com.android.server.wm.WindowOrganizerController.finishAllTransitions:59 android.window.IWindowOrganizerController$Stub.onTransact:311 
+11-11 18:31:49.083 32553 32623 W AudioCapabilities: Unsupported mime audio/mpeg-L1
+11-11 18:31:49.084  1494  1520 V WindowManager: Finish Transition (#355): created at 11-11 18:31:46.431 collect-started=0.867ms request-sent=26.421ms started=41.137ms ready=747.373ms sent=2632.108ms finished=2652.243ms
+11-11 18:31:49.084 32553 32553 I BLASTBufferQueue_Java: new BLASTBufferQueue, mName= VRI[MainActivity]@e158424 mNativeObject= 0xb4000075aa387000 sc.mNativeObject= 0xb4000075aa2e1b40 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3397 android.view.ViewRootImpl.relayoutWindow:11361 android.view.ViewRootImpl.performTraversals:4544 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542 android.view.Choreographer$CallbackRecord.run:1751 android.view.Choreographer$CallbackRecord.run:1760 android.view.Choreographer.doCallbacks:1216 android.view.Choreographer.doFrame:1142 android.view.Choreographer$FrameDisplayEventReceiver.run:1707 
+11-11 18:31:49.085  1494  1523 I ActivityManager: Changes in 10091 6 to 5, 0 to 56
+11-11 18:31:49.085 32553 32553 I BLASTBufferQueue_Java: update, w= 720 h= 1600 mName = VRI[MainActivity]@e158424 mNativeObject= 0xb4000075aa387000 sc.mNativeObject= 0xb4000075aa2e1b40 format= -1 caller= android.graphics.BLASTBufferQueue.<init>:88 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3397 android.view.ViewRootImpl.relayoutWindow:11361 android.view.ViewRootImpl.performTraversals:4544 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542 
+11-11 18:31:49.085 32553 32553 I BLASTBufferQueue: [VRI[MainActivity]@e158424#0](f:0,a:0,s:0) update width=720 height=1600 format=-1 mTransformHint=0
+11-11 18:31:49.086  1083  2304 I CameraService: onUidStateChanged: uid=10091, procState is changed. (6 -> 5)
+11-11 18:31:49.087  1494  2309 D ChangeTransitionController: onTransitionFinished: TransitionRecord{4c19899 id=355 type=OPEN flags=0x40}
+11-11 18:31:49.088  1494  1523 I ActivityManager: Changes in 5026 6 to 5, 0 to 56
+11-11 18:31:49.088  1987  2174 V WindowManagerShell: Track 0 became idle
+11-11 18:31:49.088  1987  2174 V WindowManagerShell: All active transition animations finished
+11-11 18:31:49.090 32553 32623 W AudioCapabilities: Unsupported mime audio/mpeg-L2
+11-11 18:31:49.093 32553 32623 W VideoCapabilities: Unsupported mime video/wvc1
+11-11 18:31:49.093  1083  2304 I CameraService: onUidStateChanged: uid=10058, procState is changed. (1 -> 5)
+11-11 18:31:49.095  1494  1830 I MR2ServiceImpl: Updating composite discovery preference | preference: RouteDiscoveryRequest{ preferredFeatures={}, activeScan=false }, active routers: []
+11-11 18:31:49.096  1494  3431 W UserManagerService: Requested status bar icon for non-badged user 0
+11-11 18:31:49.099 32553 32553 E FBI     : Can't load library: dlopen failed: library "libmagtsync.so" not found
+11-11 18:31:49.100 32553 32553 I VRI[MainActivity]@e158424: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) relayoutAsync=false req=(720,1600)0 dur=26 res=0x3 s={true 0xb40000760978e800} ch=true seqId=0
+11-11 18:31:49.101 32553 32623 W VideoCapabilities: Unsupported mime video/x-ms-wmv
+11-11 18:31:49.104 32553 32553 D VRI[MainActivity]@e158424: mThreadedRenderer.initialize() mSurface={isValid=true 0xb40000760978e800} hwInitialized=true
+11-11 18:31:49.113 32553 32553 D VRI[MainActivity]@e158424: reportNextDraw android.view.ViewRootImpl.performTraversals:5193 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542 android.view.Choreographer$CallbackRecord.run:1751 android.view.Choreographer$CallbackRecord.run:1760 
+11-11 18:31:49.114 32553 32553 D VRI[MainActivity]@e158424: Setup new sync=wmsSync-VRI[MainActivity]@e158424#0
+11-11 18:31:49.114 32553 32553 I VRI[MainActivity]@e158424: Creating new active sync group VRI[MainActivity]@e158424#1
+11-11 18:31:49.119 32553 32553 D VRI[MainActivity]@e158424: registerCallbacksForSync syncBuffer=false
+11-11 18:31:49.136 32553 32553 I View    : setRequestedFrameRate frameRate=-4.0, this=com.getcapacitor.CapacitorWebView{6239fa VFEDHVC.. .F...... 0,0-720,1600 #7f0801cc app:id/webview}, caller=WV.ef.b:1 WV.fg.h:118 WV.fg.onDraw:7 com.android.webview.chromium.WebViewChromium.onDraw:35 android.webkit.WebView.onDraw:2959 
+11-11 18:31:49.145 32553 32571 D kai.performance: Can't load libmbrainSDK
+11-11 18:31:49.147 32553 32667 D VRI[MainActivity]@e158424: Received frameDrawingCallback syncResult=0 frameNum=1.
+11-11 18:31:49.149 32553 32667 I VRI[MainActivity]@e158424: mWNT: t=0xb4000075a91e0b00 mBlastBufferQueue=0xb4000075aa387000 fn= 1 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.ViewRootImpl$11.onFrameDraw:15016 android.view.ThreadedRenderer$1.onFrameDraw:761 <bottom of call stack> 
+11-11 18:31:49.149 32553 32667 I VRI[MainActivity]@e158424: Setting up sync and frameCommitCallback
+11-11 18:31:49.218 32553 32571 I GrallocExtra: gralloc_extra_query:is_SW3D 0
+11-11 18:31:49.220 32553 32571 I BLASTBufferQueue: [VRI[MainActivity]@e158424#0](f:0,a:0,s:0) onFrameAvailable the first frame is available
+11-11 18:31:49.221 32553 32571 I GrallocExtra: gralloc_extra_query:is_SW3D 0
+11-11 18:31:49.223 32553 32571 I BLASTBufferQueue: [VRI[MainActivity]@e158424#0](f:0,a:1,s:0) acquireNextBufferLocked size=720x1600 mFrameNumber=1 applyTransaction=true mTimestamp=91001327436191(auto) mPendingTransactions.size=0 graphicBufferId=139814070386690 transform=0
+11-11 18:31:49.224 32553 32571 D kai.performance: Can't load libmbrainSDK
+11-11 18:31:49.226 32553 32571 I VRI[MainActivity]@e158424: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+11-11 18:31:49.229 32553 32571 D HWUI    : CFMS:: SetUp Pid : 32553    Tid : 32571
+11-11 18:31:49.232 32553 32553 D VRI[MainActivity]@e158424: reportDrawFinished seqId=0
+11-11 18:31:49.233  1494  2309 D WindowManager: finishDrawingWindow: Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity} mDrawState=DRAW_PENDING seqId=0
+11-11 18:31:49.238 32553 32571 D HWUI    : CacheManager::trimMemory(20)
+11-11 18:31:49.238 32553 32571 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 31, oppidx_max 31, oppidx_min 0
+11-11 18:31:49.247  1494  1520 D [secipm]: mSecIpmManager report to nap
+11-11 18:31:49.247  1494  1520 I PkgPredictorService-SecIpmManagerServiceImpl: reportToNAP uid:10329 com.biopeakai.performance/com.biopeakai.performance.MainActivity thisTime:2819
+11-11 18:31:49.247  1494  1520 D PkgPredictorService-SecIpmManagerServiceImpl: reportToNAP: mHeavyLaunchCounter is false
+11-11 18:31:49.248  1494  3090 D PkgPredictorService-SecIpmManagerServiceImpl: ACTION_FOREGROUND_FINISH_EVENT sCurForegroundApp :com.biopeakai.performance
+11-11 18:31:49.255  1494  1520 I ActivityTaskManager: Displayed com.biopeakai.performance/.MainActivity for user 0: +2s819ms
+11-11 18:31:49.255  1494  1520 I Pageboost: Launch time gathered : pid 32553 com.biopeakai.performance 2819
+11-11 18:31:49.255  3209  3209 E pageboostd: Received HALT command code 2
+11-11 18:31:49.268 32553 32553 I kai.performance: hiddenapi: Accessing hidden field Landroid/content/pm/ApplicationInfo;->primaryCpuAbi:Ljava/lang/String; (runtime_flags=0, domain=platform, api=unsupported) from Lorg/chromium/android_webview/SystemStateUtil; (domain=app) using reflection: allowed
+11-11 18:31:49.289 32553 32553 D VRI[MainActivity]@e158424: Not drawing due to screen off
+11-11 18:31:49.295 32553 32553 I VRI[MainActivity]@e158424: stopped(true) old = false
+11-11 18:31:49.295 32553 32553 D VRI[MainActivity]@e158424: WindowStopped on com.biopeakai.performance/com.biopeakai.performance.MainActivity set to true
+11-11 18:31:49.295 32553 32571 D HWUI    : CacheManager::trimMemory(20)
+11-11 18:31:49.295 32553 32571 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 31, oppidx_max 31, oppidx_min 0
+11-11 18:31:49.302 32553 32623 W VideoCapabilities: Unrecognized profile/level 32768/256 for video/mp4v-es
+11-11 18:31:49.304 32553 32553 D Capacitor/AppPlugin: Firing change: false
+11-11 18:31:49.305 32553 32553 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-11 18:31:49.305 32553 32553 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-11 18:31:49.305 32553 32553 D Capacitor: App stopped
+11-11 18:31:49.306 32553 32623 W VideoCapabilities: Unrecognized profile/level 32768/256 for video/mp4v-es
+11-11 18:31:49.308 32553 32553 D Capacitor: Saving instance state!
+11-11 18:31:49.326 32553 32571 I BLASTBufferQueue: [VRI[MainActivity]@e158424#0](f:0,a:1,s:0) destructor()
+11-11 18:31:49.327 32553 32571 D BufferQueueConsumer: [VRI[MainActivity]@e158424#0(BLAST Consumer)0](id:7f2900000000,api:0,p:-1,c:32553) disconnect
+11-11 18:31:49.328 32553 32571 D HWUI    : CacheManager::trimMemory(20)
+11-11 18:31:49.331 32553 32571 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 31, oppidx_max 31, oppidx_min 0
+11-11 18:31:49.334  1494  3431 V WindowManager: Relayout Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity}: viewVisibility=4 req=720x1600 ty=1 d0
+11-11 18:31:49.336  1494  3431 V WindowManager: Relayout hash=9ea4f63, pid=32553, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=pan forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030312
+11-11 18:31:49.336  1494  3431 V WindowManager:   fl=81810100
+11-11 18:31:49.336  1494  3431 V WindowManager:   pfl=100088c0
+11-11 18:31:49.336  1494  3431 V WindowManager:   apr=210
+11-11 18:31:49.336  1494  3431 V WindowManager:   bhv=1
+11-11 18:31:49.336  1494  3431 V WindowManager:   fitSides=0
+11-11 18:31:49.336  1494  3431 V WindowManager:   frameRateBoostOnTouch=true
+11-11 18:31:49.336  1494  3431 V WindowManager:   dvrrWindowFrameRateHint=true naviIconColor=0
+11-11 18:31:49.336  1494  3431 V WindowManager:   sfl=100000}
+11-11 18:31:49.338   352  1614 I FontLog : (REDACTED) Received query %s, URI %s
+11-11 18:31:49.339   352  1614 I FontLog : (REDACTED) Query [%s] resolved to %s
+11-11 18:31:49.342   352  1614 I FontLog : (REDACTED) Fetch %s end status %s
+11-11 18:31:49.347 32553 32553 I VRI[MainActivity]@e158424: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) relayoutAsync=false req=(720,1600)4 dur=13 res=0x2 s={false 0x0} ch=false seqId=0
+11-11 18:31:49.347 32553 32553 D VRI[MainActivity]@e158424: Not drawing due to not visible. Reason=View.INVISIBLE
+11-11 18:31:49.354  1494  1523 D SGM:FgCheckThread: getForegroundApp(), foregroundPkgName=com.biopeakai.performance
+11-11 18:31:49.354  1494  2309 V WindowManager: Setting visibility of Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity}: false, caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:19 com.android.server.wm.WindowToken.setClientVisible:49 com.android.server.wm.ActivityRecord.setClientVisible:8 com.android.server.wm.ActivityRecord.activityStopped:201 com.android.server.wm.ActivityClientController.activityStopped:95 
+11-11 18:31:49.354  1494  1523 D SGM:FgCheckThread: pkgName: com.biopeakai.performance is not in foreground
+11-11 18:31:49.355  1494  2309 E WindowManager: win=Window{9ea4f63 u0 com.biopeakai.performance/com.biopeakai.performance.MainActivity} destroySurfaces: appStopped=true cleanupOnResume=false win.mWindowRemovalAllowed=false win.mRemoveOnExit=false win.mViewVisibility=4 caller=com.android.server.wm.ActivityRecord.destroySurfaces:25 com.android.server.wm.ActivityRecord.activityStopped:204 com.android.server.wm.ActivityClientController.activityStopped:95 android.app.IActivityClientController$Stub.onTransact:722 com.android.server.wm.ActivityClientController.onTransact:1 android.os.Binder.execTransactInternal:1541 android.os.Binder.execTransact:1480 
+11-11 18:31:49.356  1494  2309 I WindowManager: Destroying surface Surface(name=com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553)/@0xeeb8ba7 called by com.android.server.wm.WindowStateAnimator.destroySurface:11 com.android.server.wm.WindowStateAnimator.destroySurfaceLocked:54 com.android.server.wm.WindowState.destroySurfaceUnchecked:5 com.android.server.wm.WindowState.destroySurface:126 com.android.server.wm.ActivityRecord.destroySurfaces:25 com.android.server.wm.ActivityRecord.activityStopped:204 com.android.server.wm.ActivityClientController.activityStopped:95 android.app.IActivityClientController$Stub.onTransact:722 
+11-11 18:31:49.357 32553 32553 I VRI[MainActivity]@e158424: handleAppVisibility mAppVisible = true visible = false
+11-11 18:31:49.357   352  1614 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:49.360  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:49.361   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:49.361   878   878 I SurfaceFlinger: onHandleDestroyed: name=com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339, layerId=3339, parentId=0
+11-11 18:31:49.362   878   878 I SurfaceFlinger: id=3339 Removed com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339 (113)
+11-11 18:31:49.367 32553 32623 W VideoCapabilities: Unrecognized profile/level 32768/256 for video/mp4v-es
+11-11 18:31:49.377   352  1614 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+11-11 18:31:49.378   878   878 I Layer   : id=3339 Destroyed com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339
+11-11 18:31:49.378   878   878 I BufferQueueDebug: [com.biopeakai.performance/com.biopeakai.performance.MainActivity$_32553#3339](this:0xb400007d1006e898,id:-1,api:0,p:-1,c:878) onDestructor()
+11-11 18:31:49.655  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10329(com.biopeakai.performance), SUCCESS, 359ms
+11-11 18:31:49.655  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10329(com.biopeakai.performance), SUCCESS, 360ms
+11-11 18:31:49.686  1960  1960 I wpa_supplicant: Heartbeat 11045
+11-11 18:31:49.794  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:49.795  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:49.795  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:49.798  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:49.798  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:49.798  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:49.854 32553 32608 W kai.performance: Long monitor contention with owner ThreadPoolForeg (32614) at java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get()(MimeMap.java:475) waiters=0 in java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get() for 804ms
+11-11 18:31:49.855 32553 32612 W kai.performance: Long monitor contention with owner ThreadPoolForeg (32614) at java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get()(MimeMap.java:475) waiters=1 in java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get() for 804ms
+11-11 18:31:49.856 32553 32618 W kai.performance: Long monitor contention with owner ThreadPoolForeg (32614) at java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get()(MimeMap.java:475) waiters=2 in java.lang.Object libcore.content.type.MimeMap$MemoizingSupplier.get() for 805ms
+11-11 18:31:49.861  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:49.862   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:50.167  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:50.167  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:50.167  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:50.362  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:50.363   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:50.569 32684 32684 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:50.571 32684 32684 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:50.571 32684 32684 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:50.864  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:50.864   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:51.024   519   519 D io_stats: !@ 179,0 r 10530673 243071898 w 1927906 35493720 d 194829 41684724 f 626847 506786 iot 3100536 0 th 0 0 0 pt 0 inp 0 0 91003.131
+11-11 18:31:51.034  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:51.347 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: [Supabase] Initializing client for platform: android, isNative: true
+11-11 18:31:51.365  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:51.366   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:51.547 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 8007 - Msg: [BioPeakHealthKit] JS Wrapper v3.0 loaded with CAPBridgedPlugin
+11-11 18:31:51.586 32553 32557 I kai.performance: Compiler allocated 7416KB to compile void android.view.ViewRootImpl.performTraversals()
+11-11 18:31:51.672 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 8072 - Msg: 🔍 Platform detection: [object Object]
+11-11 18:31:51.705 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: 🔍 NATIVE PERMISSIONS DEBUG: [object Object]
+11-11 18:31:51.746 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: [Survey] No user found, skipping survey check
+11-11 18:31:51.749 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 8072 - Msg: 📡 [App] Registering deep link listener...
+11-11 18:31:51.785 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130852, pluginId: Device, methodName: getInfo
+11-11 18:31:51.786 32553 32553 V Capacitor: callback: 86130852, pluginId: Device, methodName: getInfo, methodData: {}
+11-11 18:31:51.787 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 8072 - Msg: 🔍 Platform detection: [object Object]
+11-11 18:31:51.790 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130853, pluginId: App, methodName: addListener
+11-11 18:31:51.790 32553 32553 V Capacitor: callback: 86130853, pluginId: App, methodName: addListener, methodData: {"eventName":"appUrlOpen"}
+11-11 18:31:51.791 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: 🔍 NATIVE PERMISSIONS DEBUG: [object Object]
+11-11 18:31:51.803 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130854, pluginId: Device, methodName: getInfo
+11-11 18:31:51.804 32553 32553 V Capacitor: callback: 86130854, pluginId: Device, methodName: getInfo, methodData: {}
+11-11 18:31:51.810 32553 32607 D Capacitor: Handling local request: https://localhost/assets/index-CgpvQvXf.js
+11-11 18:31:51.817 32553 32608 D Capacitor: Handling local request: https://localhost/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png
+11-11 18:31:51.821 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130855, pluginId: Geolocation, methodName: checkPermissions
+11-11 18:31:51.821 32553 32553 V Capacitor: callback: 86130855, pluginId: Geolocation, methodName: checkPermissions, methodData: {}
+11-11 18:31:51.823 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: 🔍 NATIVE PERMISSIONS DEBUG: [object Object]
+11-11 18:31:51.825 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130856, pluginId: Geolocation, methodName: checkPermissions
+11-11 18:31:51.825 32553 32553 V Capacitor: callback: 86130856, pluginId: Geolocation, methodName: checkPermissions, methodData: {}
+11-11 18:31:51.826 32553 32608 D Capacitor: Handling local request: https://localhost/lovable-uploads/ff33ae7e-c56d-4f43-8adc-d5733ad44f11.png
+11-11 18:31:51.836 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130857, pluginId: Preferences, methodName: get
+11-11 18:31:51.837 32553 32553 V Capacitor: callback: 86130857, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token-code-verifier"}
+11-11 18:31:51.867  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:51.867   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:51.884 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130858, pluginId: Camera, methodName: checkPermissions
+11-11 18:31:51.885 32553 32553 V Capacitor: callback: 86130858, pluginId: Camera, methodName: checkPermissions, methodData: {}
+11-11 18:31:51.887 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130859, pluginId: Camera, methodName: checkPermissions
+11-11 18:31:51.888 32553 32553 V Capacitor: callback: 86130859, pluginId: Camera, methodName: checkPermissions, methodData: {}
+11-11 18:31:51.891 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130860, pluginId: Preferences, methodName: get
+11-11 18:31:51.891 32553 32553 V Capacitor: callback: 86130860, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:51.905 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: 🔍 NATIVE PERMISSIONS DEBUG: [object Object]
+11-11 18:31:51.916 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130861, pluginId: Preferences, methodName: get
+11-11 18:31:51.917 32553 32553 V Capacitor: callback: 86130861, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:51.920 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130862, pluginId: Preferences, methodName: get
+11-11 18:31:51.920 32553 32553 V Capacitor: callback: 86130862, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:51.932 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130863, pluginId: Preferences, methodName: get
+11-11 18:31:51.933 32553 32553 V Capacitor: callback: 86130863, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:51.937 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130864, pluginId: Preferences, methodName: get
+11-11 18:31:51.937 32553 32553 V Capacitor: callback: 86130864, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:51.939 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: Auth state change: INITIAL_SESSION undefined
+11-11 18:31:51.942 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 8072 - Msg: 🔍 Platform detection: [object Object]
+11-11 18:31:52.077 32553 32553 I Capacitor/Console: File: https://localhost/assets/index-CE6Mp6AS.js - Line 7745 - Msg: 🔍 NATIVE PERMISSIONS DEBUG: [object Object]
+11-11 18:31:52.097 32553 32607 D Capacitor: Handling local request: https://localhost/lovable-uploads/3dba3af8-cea5-4fda-8621-8da7e87686be.png
+11-11 18:31:52.101 32553 32607 D Capacitor: Handling local request: https://localhost/lovable-uploads/d6369016-de44-4236-b4dd-a28816ff2041.png
+11-11 18:31:52.131 32553 32607 D Capacitor: Handling local request: https://localhost/assets/integrations-banner-BVi9y692.png
+11-11 18:31:52.140 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130865, pluginId: Preferences, methodName: get
+11-11 18:31:52.140 32553 32553 V Capacitor: callback: 86130865, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:52.146 32553 32553 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 86130866, pluginId: Preferences, methodName: get
+11-11 18:31:52.147 32553 32553 V Capacitor: callback: 86130866, pluginId: Preferences, methodName: get, methodData: {"key":"sb-grcwlmltlcltmwbhdpky-auth-token"}
+11-11 18:31:52.148 31676 31685 W Binder  : Caught a RuntimeException from the binder stub implementation.
+11-11 18:31:52.148 31676 31685 W Binder  : java.lang.UnsupportedOperationException
+11-11 18:31:52.148 31676 31685 W Binder  : 	at bzxb.a(PG:3)
+11-11 18:31:52.148 31676 31685 W Binder  : 	at bzxb.dispatchTransaction(PG:33)
+11-11 18:31:52.148 31676 31685 W Binder  : 	at pxz.onTransact(PG:13)
+11-11 18:31:52.148 31676 31685 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1541)
+11-11 18:31:52.148 31676 31685 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1480)
+11-11 18:31:52.150 32553 32608 D Capacitor: Handling local request: https://localhost/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png
+11-11 18:31:52.157 32553 32608 D Capacitor: Handling local request: https://localhost/lovable-uploads/9db8aa58-3e45-4e91-81a9-1e132feb4593.png
+11-11 18:31:52.159  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10329(com.biopeakai.performance), SUCCESS, 16ms
+11-11 18:31:52.171 31676 31685 W Binder  : Caught a RuntimeException from the binder stub implementation.
+11-11 18:31:52.171 31676 31685 W Binder  : java.lang.UnsupportedOperationException
+11-11 18:31:52.171 31676 31685 W Binder  : 	at bzxb.a(PG:3)
+11-11 18:31:52.171 31676 31685 W Binder  : 	at bzxb.dispatchTransaction(PG:33)
+11-11 18:31:52.171 31676 31685 W Binder  : 	at pxz.onTransact(PG:13)
+11-11 18:31:52.171 31676 31685 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1541)
+11-11 18:31:52.171 31676 31685 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1480)
+11-11 18:31:52.180 32553 32607 D Capacitor: Handling local request: https://localhost/assets/app-store-badge-BvL15smo.png
+11-11 18:31:52.182 32553 32609 D Capacitor: Handling local request: https://localhost/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png?v=1762896711951
+11-11 18:31:52.201  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10329(com.biopeakai.performance), SUCCESS, 20ms
+11-11 18:31:52.224  1494  1839 I ChimeraPolicyHandler: prepareForTrigger() - skip reason: screen off
+11-11 18:31:52.224  1494  1839 I ChimeraAggressivePolicyHandler: executePolicy() - prepareForTrigger fails
+11-11 18:31:52.269  1494  1968 I Pageboost: Launcher App Execution
+11-11 18:31:52.269  1494  1968 E Pageboost: ioinfo read failed
+11-11 18:31:52.334 31676 31685 W Binder  : Caught a RuntimeException from the binder stub implementation.
+11-11 18:31:52.334 31676 31685 W Binder  : java.lang.UnsupportedOperationException
+11-11 18:31:52.334 31676 31685 W Binder  : 	at bzxb.a(PG:3)
+11-11 18:31:52.334 31676 31685 W Binder  : 	at bzxb.dispatchTransaction(PG:33)
+11-11 18:31:52.334 31676 31685 W Binder  : 	at pxz.onTransact(PG:13)
+11-11 18:31:52.334 31676 31685 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1541)
+11-11 18:31:52.334 31676 31685 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1480)
+11-11 18:31:52.366 31676 31685 W Binder  : Caught a RuntimeException from the binder stub implementation.
+11-11 18:31:52.366 31676 31685 W Binder  : java.lang.UnsupportedOperationException
+11-11 18:31:52.366 31676 31685 W Binder  : 	at bzxb.a(PG:3)
+11-11 18:31:52.366 31676 31685 W Binder  : 	at bzxb.dispatchTransaction(PG:33)
+11-11 18:31:52.366 31676 31685 W Binder  : 	at pxz.onTransact(PG:13)
+11-11 18:31:52.366 31676 31685 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1541)
+11-11 18:31:52.366 31676 31685 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1480)
+11-11 18:31:52.368  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:52.368   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:52.486 32553 32693 D ProfileInstaller: Installing profile for com.biopeakai.performance
+11-11 18:31:52.662 13148 13164 W Binder  : Caught a RuntimeException from the binder stub implementation.
+11-11 18:31:52.662 13148 13164 W Binder  : java.lang.UnsupportedOperationException
+11-11 18:31:52.662 13148 13164 W Binder  : 	at bzxb.a(PG:3)
+11-11 18:31:52.662 13148 13164 W Binder  : 	at bzxb.dispatchTransaction(PG:33)
+11-11 18:31:52.662 13148 13164 W Binder  : 	at pxz.onTransact(PG:13)
+11-11 18:31:52.662 13148 13164 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1541)
+11-11 18:31:52.662 13148 13164 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1480)
+11-11 18:31:52.807  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:52.808  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:52.808  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:52.808  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:52.808  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -32 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:52.808  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:52.869  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:52.870   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:53.024   519   519 D io_stats: !@ 179,0 r 10531155 243079170 w 1927924 35493804 d 194829 41684724 f 626847 506786 iot 3100680 0 th 0 0 0 pt 0 inp 0 0 91005.132
+11-11 18:31:53.025   519   519 D io_stats: !@ Read_top(KB): ThreadPoolForeg(32662) 71852 kai.performance(32553) 608 system_server:h(1494) 176
+11-11 18:31:53.025   519   519 D io_stats: !@ Write_top(KB): earchbox:search(31676) 84 kai.performance(32553) 32 .gms.persistent(352) 12
+11-11 18:31:53.049 32553 32607 D Capacitor: Handling local request: https://localhost/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png?v=1762896712993
+11-11 18:31:53.370  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:53.371   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:53.872  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:53.873   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:53.905  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:53.907  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:53.907  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={10201} in 4ms
+11-11 18:31:53.909  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:53.912  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:53.912  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={20201} in 5ms
+11-11 18:31:53.973  1494  1779 D InetDiagMessage: Destroyed 4 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:53.974  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:53.975  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={10329} in 6ms
+11-11 18:31:53.978  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:53.980  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:53.981  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={20329} in 5ms
+11-11 18:31:54.301  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:54.302  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:54.302  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={10208} in 3ms
+11-11 18:31:54.304  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+11-11 18:31:54.306  1494  1779 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+11-11 18:31:54.307  1494  1779 D InetDiagMessage: Destroyed live tcp sockets for uids={20208} in 4ms
+11-11 18:31:54.375  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:54.376   610 32540 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+11-11 18:31:54.376   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:54.858  1967  2747 D PhoneInterfaceManager: setDataEnabledForReason() Reason=1 Pid=1494 App=system
+11-11 18:31:54.877  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:54.878   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:55.185  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:31:55.185  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:31:55.185  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:31:55.380  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:55.381   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:55.597 32695 32695 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:31:55.599 32695 32695 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:31:55.599 32695 32695 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:31:55.831  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:55.831  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:55.831  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:55.831  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:55.831  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:55.832  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:55.883  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:55.884   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:56.035  1153  1153 I thermal_repeater: socket -1
+11-11 18:31:56.385  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:56.386   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:56.887  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:56.889   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:57.028   519   519 D io_stats: !@ 179,0 r 10531161 243079226 w 1927978 35494588 d 194829 41684724 f 626851 506800 iot 3100696 0 th 0 0 0 pt 0 inp 0 0 91009.135
+11-11 18:31:57.028   519   519 D io_stats: !@ Read_top(KB): m.android.phone(1967) 24 system_server:h(1494) 12 kai.performance(32553) 8
+11-11 18:31:57.028   519   519 D io_stats: !@ Write_top(KB): system_server:h(1494) 540 kworker/u16:0:/(32525) 224 henticator:auth(32064) 12
+11-11 18:31:57.389  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:57.390   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:57.618 13148 13164 I IPCThreadState: oneway function results for code 2 on binder at 0xb400007649838f40 will be dropped but finished with status UNKNOWN_TRANSACTION
+11-11 18:31:57.632 31676 31685 I IPCThreadState: oneway function results for code 2 on binder at 0xb4000076498d0180 will be dropped but finished with status UNKNOWN_TRANSACTION
+11-11 18:31:57.891  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:57.892   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:58.393  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:58.395   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:58.854  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:58.855  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:31:58.855  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:31:58.855  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:31:58.855  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:31:58.855  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:31:58.896  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:58.897   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:59.325 32553 32571 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 31, oppidx_max 31, oppidx_min 0
+11-11 18:31:59.326 32553 32571 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 31, oppidx_max 31, oppidx_min 0
+11-11 18:31:59.338  1494  1552 D BatteryExternalStatsWorker: update stats : update-network-download (6)
+11-11 18:31:59.339  1494  1552 D BatteryExternalStatsWorker: Update Rail Energy data
+11-11 18:31:59.340  1494  1552 D BatteryExternalStatsWorker: Fetch modem data
+11-11 18:31:59.398  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:59.399   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:31:59.427  1494  2309 D TelephonyManager: requestModemActivityInfo: Sending result to app: ModemActivityInfo{ mTimestamp=463470570 mSleepTimeMs=333684670 mIdleTimeMs=126822648 mActivityStatsTechSpecificInfo=[{mRat=UNKNOWN,mFrequencyRange=UNKNOWN,mTxTimeMs[]=[12391, 66543, 128264, 98386, 34547],mRxTimeMs=2947663}]}
+11-11 18:31:59.427  1494  1552 D BatteryExternalStatsWorker: mStats lock released
+11-11 18:31:59.435  1494  1552 D BatteryStatsImpl: NetworkStats size(modem): 70
+11-11 18:31:59.437  1494  1552 D BatteryExternalStatsWorker: Update modem state
+11-11 18:31:59.437  1494  1552 D BatteryExternalStatsWorker: done updateExternalStatsLocked
+11-11 18:31:59.697  1960  1960 I wpa_supplicant: Heartbeat 11046
+11-11 18:31:59.900  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:31:59.901   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:00.148   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:32:00.151   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:32:00.152   610   610 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:32:00.156   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:32:00.160   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:32:00.165   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:32:00.168   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:32:00.168   610   610 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:32:00.171   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:32:00.174   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:32:00.181  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10258(com.microsoft.office.outlook), 4(FAIL), isBlocked=true, 0ms
+11-11 18:32:00.209  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:32:00.209  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:32:00.209  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:32:00.219  1494  1571 D MARs:ActiveTrafficFilter: filter : com.whatsapp.w4b(0)
+11-11 18:32:00.220  1494  1571 D MARs:ActiveTrafficFilter: filter : com.garmin.android.apps.connectmobile(0)
+11-11 18:32:00.222  1494  1571 D MARs:ActiveTrafficFilter: filter : com.microsoft.office.outlook(0)
+11-11 18:32:00.223  1494  1571 D MARs:ActiveTrafficFilter: filter : com.azure.authenticator(0)
+11-11 18:32:00.402  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:00.403   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:00.607 32698 32698 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:32:00.608 32698 32698 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:32:00.608 32698 32698 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:32:00.904  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:00.905   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:01.031   519   519 D io_stats: !@ 179,0 r 10531287 243080926 w 1927987 35499004 d 194829 41684724 f 626851 506800 iot 3100720 0 th 0 0 0 pt 0 inp 0 0 91013.138
+11-11 18:32:01.031   519   519 D io_stats: !@ Read_top(KB): m.android.phone(1967) 692 rild:normal(1174) 436 kai.performance(32553) 296
+11-11 18:32:01.032   519   519 D io_stats: !@ Write_top(KB): kworker/u16:0:/(32525) 4416
+11-11 18:32:01.036  1153  1153 I thermal_repeater: socket -1
+11-11 18:32:01.406  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:01.407   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:01.877  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:01.877  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:01.877  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:01.877  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:01.878  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:01.878  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:01.909  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:01.910   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:02.335  1494  1526 E Watchdog: !@Sync: 3032 heap(MB): 105 / 110 FD: 1057 [2025-11-11 18:32:02.334]
+11-11 18:32:02.411  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:02.413   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:02.914  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:02.915   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:03.416  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:03.417   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:03.918  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:03.920   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:04.026  1494  2277 W ProcessStats: Tracking association SourceState{ec66852 com.biopeakai.performance/10329 Top #183230} whose proc state 1 is better than process ProcessState{173cc37 com.google.android.gms/10196 pkg=com.google.android.gms} proc state 8 (89 skipped)
+11-11 18:32:04.028  9425  9425 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.safetynet.service.START pkg=com.google.android.gms }
+11-11 18:32:04.035  9425  9425 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.safebrowsing.SafeBrowsingService.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+11-11 18:32:04.039  1494  2277 I ActivityManager: Killing 29114:com.google.android.permissioncontroller/u0a245 (adj 985): empty #17
+11-11 18:32:04.078  1494  1536 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10245/pid_29114
+11-11 18:32:04.079   788   788 I Zygote  : Process 29114 exited due to signal 9 (Killed)
+11-11 18:32:04.082  1494  1521 W IPCThreadState: Sending oneway calls to frozen process.
+11-11 18:32:04.085  1494  1521 D DisplayManagerService: Drop pending events for gone uid 10245
+11-11 18:32:04.421  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:04.422   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:04.891  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:04.892  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:04.892  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:04.892  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:04.892  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -30 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:04.892  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:04.923  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:04.924   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:05.033   519   519 D io_stats: !@ 179,0 r 10531287 243080926 w 1928002 35499484 d 194829 41684724 f 626852 506803 iot 3100732 0 th 0 0 0 pt 0 inp 0 0 91017.141
+11-11 18:32:05.034   519   519 D io_stats: !@ Write_top(KB): .office.outlook(31993) 448 kai.performance(32553) 16 henticator:auth(32064) 12
+11-11 18:32:05.049 32553 32558 I kai.performance: Background concurrent mark compact GC freed 20MB AllocSpace bytes, 57(1976KB) LOS objects, 56% free, 4679KB/10MB, paused 471us,8.989ms total 363.131ms
+11-11 18:32:05.055 32553 32560 W kai.performance: ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~CulH_2PCPn_d7Hf2pOcmOg==/com.google.android.webview-hOngfqQbS8dl2RN8SG0USw==/base.apk' with 2 weak references
+11-11 18:32:05.230  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:32:05.230  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:32:05.230  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:32:05.244  1494  1571 D MARs:ActiveTrafficFilter: filter : com.whatsapp.w4b(0)
+11-11 18:32:05.246  1494  1571 D MARs:ActiveTrafficFilter: filter : com.garmin.android.apps.connectmobile(0)
+11-11 18:32:05.248  1494  1571 D MARs:ActiveTrafficFilter: filter : com.microsoft.office.outlook(0)
+11-11 18:32:05.251  1494  1571 D MARs:ActiveTrafficFilter: filter : com.azure.authenticator(0)
+11-11 18:32:05.425  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:05.426   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:05.623 32700 32700 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:32:05.624 32700 32700 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:32:05.624 32700 32700 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:32:05.795 31309 31337 I id.gms.unstable: Explicit concurrent mark compact GC freed 1212KB AllocSpace bytes, 10(364KB) LOS objects, 38% free, 3228KB/5276KB, paused 1.217ms,8.324ms total 208.268ms
+11-11 18:32:05.927  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:05.928   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:06.037  1153  1153 I thermal_repeater: socket -1
+11-11 18:32:06.430  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:06.431   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:06.932  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:06.933   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:07.266  2317  2689 W droid.bluetooth: system/gd/hci/acl_manager/le_impl.h:1458 OnPause: le_impl :: AckPause
+11-11 18:32:07.267  2317  2689 I bluetooth: system/gd/hci/le_advertising_manager.cc:1602 OnPause: address_manager_registered=true
+11-11 18:32:07.269   797   797 D [BT]    : mtk_bt_op: BT_VND_OP_LPM_WAKE_SET_STATE
+11-11 18:32:07.288  2317  2689 I bluetooth: system/gd/hci/le_address_manager.cc:749 OnCommandComplete: Received command complete with op_code LE_SET_RANDOM_ADDRESS(0x2005)
+11-11 18:32:07.289  2317  2689 I bluetooth: system/gd/hci/le_address_manager.cc:770 OnCommandComplete: update random address : xx:xx:xx:xx:7d:db
+11-11 18:32:07.289  2317  2689 I bluetooth: system/gd/hci/le_address_manager.cc:372 resume_registered_clients: Resuming registered clients
+11-11 18:32:07.289  2317  2689 W droid.bluetooth: system/gd/hci/acl_manager/le_impl.h:1478 OnResume: le_impl :: AckResume
+11-11 18:32:07.289  2317  2689 I bluetooth: system/gd/hci/le_advertising_manager.cc:1649 OnResume: address_manager_registered=true
+11-11 18:32:07.435  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:07.436   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:07.912  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:07.912  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:07.912  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:07.916  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:07.916  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -29 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:07.917  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:07.937  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:07.938   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:08.439  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:08.440   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:08.942  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:08.943   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:09.036   519   519 D io_stats: !@ Read_top(KB): earchbox:search(31676) 160
+11-11 18:32:09.037   519   519 D io_stats: !@ Write_top(KB): kworker/u16:0:/(32525) 84
+11-11 18:32:09.444  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:09.445   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:09.707  1960  1960 I wpa_supplicant: Heartbeat 11047
+11-11 18:32:09.947  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:09.948   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:10.176   610 32696 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+11-11 18:32:10.258  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:32:10.258  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:32:10.258  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:32:10.449  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:10.450   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:10.627 32702 32702 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:32:10.629 32702 32702 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:32:10.629 32702 32702 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:32:10.939  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:10.939  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:10.939  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:10.940  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:10.940  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:10.940  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:10.951  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:10.952   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:11.039  1153  1153 I thermal_repeater: socket -1
+11-11 18:32:11.453  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:11.454   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:11.955  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:11.956   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:12.458  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:12.459   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:12.960  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:12.961   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:13.462  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:13.463   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:13.962  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:13.963  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:13.963  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:13.963  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:13.963  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:13.963  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:13.965  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:13.966   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:14.423  1494  9299 W ProcessStats: Tracking association SourceState{d9ec79b com.biopeakai.performance/10329 Top #183241} whose proc state 1 is better than process ProcessState{bb391b4 com.google.android.gms.persistent/10196 pkg=com.google.android.gms} proc state 2 (13 skipped)
+11-11 18:32:14.455 32553 32703 I kai.performance: hiddenapi: Accessing hidden method Ldalvik/system/VMStack;->getStackClass2()Ljava/lang/Class; (runtime_flags=0, domain=core-platform, api=unsupported) from LWV/r6; (domain=app) using reflection: allowed
+11-11 18:32:14.463 32553 32703 E FilePhenotypeFlags: Config package com.google.android.gms.clearcut_client#com.biopeakai.performance cannot use FILE backing without declarative registration. See go/phenotype-android-integration#phenotype for more information. This will lead to stale flags.
+11-11 18:32:14.466  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:14.467   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:14.968  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:14.969   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:15.040   519   519 D io_stats: !@ 179,0 r 10531309 243081306 w 1928017 35499616 d 194829 41684724 f 626853 506806 iot 3100740 0 th 0 0 0 pt 0 inp 0 0 91027.147
+11-11 18:32:15.204   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:32:15.207   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:32:15.208   610   610 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:32:15.212   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:32:15.216   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:32:15.223   611   611 W keymint_tee: [WRN]begin req PARAMS: A32, BM2, PD64, 
+11-11 18:32:15.228   611   611 D android.hardware.security.keymint-service: begin: ret 0
+11-11 18:32:15.230   610   610 I keystore2: system/security/keystore2/src/security_level.rs:454 - In create_operation. Success to create IKeystoreOperation. 10258, None
+11-11 18:32:15.234   611   611 D android.hardware.security.keymint-service: update: ret 0
+11-11 18:32:15.238   611   611 D android.hardware.security.keymint-service: finish: ret 0
+11-11 18:32:15.246  1494  1935 D NetdEventListenerService: DNS Requested by 120, 10258(com.microsoft.office.outlook), 4(FAIL), isBlocked=true, 0ms
+11-11 18:32:15.281  1494  1571 D MARsPolicyManager: triggerAction called!
+11-11 18:32:15.281  1494  1571 I NSLocationMonitor: getGPSUsingApps() called
+11-11 18:32:15.281  1494  1571 W NSLocationMonitor: NSMonitorService is not connected, return null
+11-11 18:32:15.470  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:15.471   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:15.651 32706 32706 I vtservice_aidl: [VT][SRV]before VTService_AiDL_instantiate
+11-11 18:32:15.653 32706 32706 E vtservice_aidl: [VT][SRV] VideoTelephony AIDL add service failed!!
+11-11 18:32:15.653 32706 32706 I vtservice_aidl: [VT][SRV] VideoTelephony : aidl service is terminating...
+11-11 18:32:15.972  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:15.973   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:16.040  1153  1153 I thermal_repeater: socket -1
+11-11 18:32:16.475  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:16.476   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:16.977  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:16.978   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:16.986  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:16.987  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.System to android.provider.Settings.Secure, returning read-only value.
+11-11 18:32:16.987  2355  2996 W Settings: Setting wifi_on has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-11 18:32:16.987  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: isProfiling, hash=26797213, started=true
+11-11 18:32:16.987  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: Rssi : -31 highrange : -75 lowrange : -85 mIsRssiInHystersis : false
+11-11 18:32:16.987  2355  2996 I EPDG -- SIM0 [SMARTWIFI]: getHandoverThresholdMet: value is: false
+11-11 18:32:17.042   519   519 D io_stats: !@ Read_top(KB): kai.performance(32553) 200 .gms.persistent(352) 12 ocessService0:0(32594) 8
+11-11 18:32:17.042   519   519 D io_stats: !@ Write_top(KB): kworker/u16:0:/(32525) 440 kai.performance(32553) 32 henticator:auth(32064) 12
+11-11 18:32:17.300   797  2709 D [BT]    : mtk_bt_op: BT_VND_OP_LPM_WAKE_SET_STATE
+11-11 18:32:17.479  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:17.480   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:17.981  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:17.982   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.
+11-11 18:32:18.165   890   905 D ccci_mdinit: (1):monitor_time_update_thread round:15312 ########
+11-11 18:32:18.483  1046  1300 W VT      : [SRV] [THREAD] get hild fail, try again
+11-11 18:32:18.485   363   363 I hwservicemanager: getTransport: Cannot find entry vendor.mediatek.hardware.videotelephony@1.0::IVideoTelephony/default in either framework or device VINTF manifest.

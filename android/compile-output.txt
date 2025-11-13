@@ -1,0 +1,223 @@
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :revenuecat-purchases-capacitor
+The org.gradle.api.plugins.Convention type has been deprecated. This is scheduled to be removed in Gradle 9.0. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#deprecated_access_to_conventions
+	at build_54hz6qzjjywoei0yu1yqcnac8.run(/Users/sandroalvesleao/Documents/biopeak-clean/biopeak-performance-ai/node_modules/@revenuecat/purchases-capacitor/android/build.gradle:20)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preDebugBuild UP-TO-DATE
+> Task :capacitor-android:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-app:preBuild UP-TO-DATE
+> Task :capacitor-app:preDebugBuild UP-TO-DATE
+> Task :capacitor-app:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-browser:preBuild UP-TO-DATE
+> Task :capacitor-browser:preDebugBuild UP-TO-DATE
+> Task :capacitor-browser:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-camera:preBuild UP-TO-DATE
+> Task :capacitor-camera:preDebugBuild UP-TO-DATE
+> Task :capacitor-camera:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-community-background-geolocation:preBuild UP-TO-DATE
+> Task :capacitor-community-background-geolocation:preDebugBuild UP-TO-DATE
+> Task :capacitor-community-background-geolocation:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-device:preBuild UP-TO-DATE
+> Task :capacitor-device:preDebugBuild UP-TO-DATE
+> Task :capacitor-device:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-geolocation:preBuild UP-TO-DATE
+> Task :capacitor-geolocation:preDebugBuild UP-TO-DATE
+> Task :capacitor-geolocation:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-local-notifications:preBuild UP-TO-DATE
+> Task :capacitor-local-notifications:preDebugBuild UP-TO-DATE
+> Task :capacitor-local-notifications:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-preferences:preBuild UP-TO-DATE
+> Task :capacitor-preferences:preDebugBuild UP-TO-DATE
+> Task :capacitor-preferences:writeDebugAarMetadata UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:preBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:preDebugBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:writeDebugAarMetadata UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:preBuild UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:preDebugBuild UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResources UP-TO-DATE
+> Task :capacitor-android:packageDebugResources UP-TO-DATE
+> Task :capacitor-app:generateDebugResValues UP-TO-DATE
+> Task :capacitor-app:generateDebugResources UP-TO-DATE
+> Task :capacitor-app:packageDebugResources UP-TO-DATE
+> Task :capacitor-browser:generateDebugResValues UP-TO-DATE
+> Task :capacitor-browser:generateDebugResources UP-TO-DATE
+> Task :capacitor-browser:packageDebugResources UP-TO-DATE
+> Task :capacitor-camera:generateDebugResValues UP-TO-DATE
+> Task :capacitor-camera:generateDebugResources UP-TO-DATE
+> Task :capacitor-camera:packageDebugResources UP-TO-DATE
+> Task :capacitor-community-background-geolocation:generateDebugResValues UP-TO-DATE
+> Task :capacitor-community-background-geolocation:generateDebugResources UP-TO-DATE
+> Task :capacitor-community-background-geolocation:packageDebugResources UP-TO-DATE
+> Task :capacitor-device:generateDebugResValues UP-TO-DATE
+> Task :capacitor-device:generateDebugResources UP-TO-DATE
+> Task :capacitor-device:packageDebugResources UP-TO-DATE
+> Task :capacitor-geolocation:generateDebugResValues UP-TO-DATE
+> Task :capacitor-geolocation:generateDebugResources UP-TO-DATE
+> Task :capacitor-geolocation:packageDebugResources UP-TO-DATE
+> Task :capacitor-local-notifications:generateDebugResValues UP-TO-DATE
+> Task :capacitor-local-notifications:generateDebugResources UP-TO-DATE
+> Task :capacitor-local-notifications:packageDebugResources UP-TO-DATE
+> Task :capacitor-preferences:generateDebugResValues UP-TO-DATE
+> Task :capacitor-preferences:generateDebugResources UP-TO-DATE
+> Task :capacitor-preferences:packageDebugResources UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:generateDebugResValues UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:generateDebugResources UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:packageDebugResources UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:generateDebugResValues UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:generateDebugResources UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:processDebugManifest UP-TO-DATE
+> Task :capacitor-app:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-app:processDebugManifest UP-TO-DATE
+> Task :capacitor-browser:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-browser:processDebugManifest UP-TO-DATE
+> Task :capacitor-camera:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-camera:processDebugManifest UP-TO-DATE
+> Task :capacitor-community-background-geolocation:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-community-background-geolocation:processDebugManifest UP-TO-DATE
+> Task :capacitor-device:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-device:processDebugManifest UP-TO-DATE
+> Task :capacitor-geolocation:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-geolocation:processDebugManifest UP-TO-DATE
+> Task :capacitor-local-notifications:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-local-notifications:processDebugManifest UP-TO-DATE
+> Task :capacitor-preferences:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-preferences:processDebugManifest UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:extractDeepLinksDebug UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:processDebugManifest UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:extractDeepLinksDebug UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :capacitor-android:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-android:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-android:generateDebugRFile UP-TO-DATE
+> Task :capacitor-app:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-app:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-app:generateDebugRFile UP-TO-DATE
+> Task :capacitor-browser:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-browser:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-browser:generateDebugRFile UP-TO-DATE
+> Task :capacitor-camera:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-camera:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-camera:generateDebugRFile UP-TO-DATE
+> Task :capacitor-community-background-geolocation:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-community-background-geolocation:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-community-background-geolocation:generateDebugRFile UP-TO-DATE
+> Task :capacitor-device:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-device:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-device:generateDebugRFile UP-TO-DATE
+> Task :capacitor-geolocation:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-geolocation:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-geolocation:generateDebugRFile UP-TO-DATE
+> Task :capacitor-local-notifications:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-local-notifications:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-local-notifications:generateDebugRFile UP-TO-DATE
+> Task :capacitor-preferences:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-preferences:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-preferences:generateDebugRFile UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:compileDebugLibraryResources UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:parseDebugLocalResources UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:generateDebugRFile UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:compileDebugLibraryResources UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:parseDebugLocalResources UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:generateDebugRFile UP-TO-DATE
+
+> Task :app:processDebugResources UP-TO-DATE
+Mutating the dependencies of configuration ':app:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-android:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-android:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-android:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-android:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-app:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-app:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-app:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-app:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-browser:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-browser:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-browser:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-browser:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-camera:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-camera:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-camera:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-camera:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-community-background-geolocation:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-community-background-geolocation:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-community-background-geolocation:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-community-background-geolocation:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-device:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-device:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-device:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-device:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-geolocation:checkKotlinGradlePluginConfigurationErrors
+
+> Task :capacitor-geolocation:compileDebugKotlin UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-geolocation:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-geolocation:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-geolocation:compileDebugJavaWithJavac NO-SOURCE
+> Task :capacitor-geolocation:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-local-notifications:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-local-notifications:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-local-notifications:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-local-notifications:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-preferences:javaPreCompileDebug UP-TO-DATE
+
+> Task :capacitor-preferences:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capacitor-preferences:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capacitor-preferences:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capawesome-team-capacitor-android-foreground-service:javaPreCompileDebug UP-TO-DATE
+
+> Task :capawesome-team-capacitor-android-foreground-service:compileDebugJavaWithJavac UP-TO-DATE
+Mutating the dependencies of configuration ':capawesome-team-capacitor-android-foreground-service:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :capawesome-team-capacitor-android-foreground-service:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :revenuecat-purchases-capacitor:compileDebugKotlin UP-TO-DATE
+Mutating the dependencies of configuration ':revenuecat-purchases-capacitor:debugCompileClasspath' after it has been resolved or consumed. This behavior has been deprecated. This will fail with an error in Gradle 9.0. After a Configuration has been resolved, consumed as a variant, or used for generating published metadata, it should not be modified. Consult the upgrading guide for further information: https://docs.gradle.org/8.11.1/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+
+> Task :revenuecat-purchases-capacitor:javaPreCompileDebug UP-TO-DATE
+> Task :revenuecat-purchases-capacitor:compileDebugJavaWithJavac NO-SOURCE
+> Task :revenuecat-purchases-capacitor:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+[Incubating] Problems report is available at: file:///Users/sandroalvesleao/Documents/biopeak-clean/biopeak-performance-ai/android/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1s
+136 actionable tasks: 1 executed, 135 up-to-date
