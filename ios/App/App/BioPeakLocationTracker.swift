@@ -16,6 +16,7 @@ public class BioPeakLocationTracker: CAPPlugin, CLLocationManagerDelegate {
     private var trainingGoal: String?
     private var shouldGiveFeedback: Bool = false
     private var sessionStartTime: TimeInterval?
+    private var feedbackInterval: Double = 500.0 // Default 500m, can be changed for testing
     
     // Supabase credentials
     private var supabaseUrl: String?
