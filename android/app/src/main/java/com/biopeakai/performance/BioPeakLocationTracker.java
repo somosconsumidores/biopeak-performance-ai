@@ -14,6 +14,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -318,18 +319,12 @@ public class BioPeakLocationTracker extends Plugin {
             }
         };
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(
-                locationReceiver,
-                new IntentFilter(BioPeakLocationService.BROADCAST_LOCATION_UPDATE),
-                Context.RECEIVER_NOT_EXPORTED
-            );
-        } else {
-            getContext().registerReceiver(
-                locationReceiver,
-                new IntentFilter(BioPeakLocationService.BROADCAST_LOCATION_UPDATE)
-            );
-        }
+        ContextCompat.registerReceiver(
+            getContext(),
+            locationReceiver,
+            new IntentFilter(BioPeakLocationService.BROADCAST_LOCATION_UPDATE),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        );
         
         Log.d(TAG, "📡 Broadcast receiver registered");
     }
