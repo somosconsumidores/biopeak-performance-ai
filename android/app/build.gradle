@@ -63,6 +63,9 @@ dependencies {
     
     // OkHttp for HTTP requests
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // Material Components (updated for Android 15+ edge-to-edge compatibility)
+    implementation 'com.google.android.material:material:1.12.0'
 }
 
 apply from: 'capacitor.build.gradle'

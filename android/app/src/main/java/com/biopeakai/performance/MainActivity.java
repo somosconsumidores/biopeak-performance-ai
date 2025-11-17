@@ -3,6 +3,7 @@ package com.biopeakai.performance;
 import android.os.Bundle;
 import android.util.Log;
 import com.getcapacitor.BridgeActivity;
+import androidx.core.view.WindowCompat;
 
 import com.biopeakai.performance.BioPeakAudioSession;
 import com.biopeakai.performance.BioPeakLocationTracker;
@@ -12,6 +13,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Enable edge-to-edge display for Android 15+ compatibility
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        
         Log.e(TAG, "🔧 onCreate: registering plugins BEFORE super.onCreate()...");
 
         try {
