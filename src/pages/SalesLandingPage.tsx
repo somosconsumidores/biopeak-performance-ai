@@ -28,6 +28,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import bioPeakIcon from '@/assets/biopeak-icon.png';
 import integrationsBanner from '@/assets/integrations-banner.png';
 
+// AI Coach screenshots
+import aiCoachDashboard from '@/assets/ai-coach-dashboard.png';
+import aiCoachPlan from '@/assets/ai-coach-plan.png';
+import aiCoachDetails from '@/assets/ai-coach-details.png';
+import aiCoachCalendar from '@/assets/ai-coach-calendar.png';
+
 export const SalesLandingPage = () => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
 
@@ -186,6 +192,159 @@ export const SalesLandingPage = () => {
                 alt="BioPeak App - Análise Inteligente de Performance para Corrida" 
                 className="w-full"
               />
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* AI Coach Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
+        
+        <div className="container mx-auto relative">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+                <Brain className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Seu Personal Coach Inteligente</span>
+              </div>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+                Treine <span className="bg-gradient-primary bg-clip-text text-transparent">Sem Relógios Caros</span>
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                O BioPeak AI Coach cria planos adaptativos personalizados, controla seus treinos e te guia em cada passo da sua evolução. Tecnologia de ponta acessível a todos.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          {/* AI Coach Features Grid */}
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 max-w-7xl mx-auto">
+            {/* Feature 1 - Dashboard */}
+            <ScrollReveal delay={100}>
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+                <div className="flex flex-col lg:flex-row gap-6 items-center">
+                  <div className="flex-1 space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      <Zap className="w-3 h-3" />
+                      Dashboard
+                    </div>
+                    <h3 className="text-2xl font-bold">Treino de Hoje, Sempre Pronto</h3>
+                    <p className="text-muted-foreground">
+                      Seu treino do dia esperando por você. Planejamento inteligente que se adapta à sua rotina e evolução.
+                    </p>
+                  </div>
+                  <div className="w-full lg:w-auto flex-shrink-0">
+                    <div className="relative group-hover:scale-105 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-3xl" />
+                      <img 
+                        src={aiCoachDashboard} 
+                        alt="BioPeak Dashboard - Treino de Hoje"
+                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Feature 2 - Training Plan */}
+            <ScrollReveal delay={200}>
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+                <div className="flex flex-col lg:flex-row gap-6 items-center">
+                  <div className="flex-1 space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      <Target className="w-3 h-3" />
+                      Plano Adaptativo
+                    </div>
+                    <h3 className="text-2xl font-bold">Plano Personalizado por IA</h3>
+                    <p className="text-muted-foreground">
+                      Dezenas de treinos criados especificamente para você. Acompanhe seu progresso e alcance seus objetivos.
+                    </p>
+                  </div>
+                  <div className="w-full lg:w-auto flex-shrink-0">
+                    <div className="relative group-hover:scale-105 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-3xl" />
+                      <img 
+                        src={aiCoachPlan} 
+                        alt="BioPeak Plano de Treinos"
+                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Feature 3 - Workout Details */}
+            <ScrollReveal delay={300}>
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+                <div className="flex flex-col lg:flex-row gap-6 items-center">
+                  <div className="flex-1 space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      <Activity className="w-3 h-3" />
+                      Detalhes
+                    </div>
+                    <h3 className="text-2xl font-bold">Cada Treino, Explicado</h3>
+                    <p className="text-muted-foreground">
+                      Entenda cada sessão com objetivos claros, zonas de treino e orientações detalhadas para executar perfeitamente.
+                    </p>
+                  </div>
+                  <div className="w-full lg:w-auto flex-shrink-0">
+                    <div className="relative group-hover:scale-105 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-3xl" />
+                      <img 
+                        src={aiCoachDetails} 
+                        alt="BioPeak Detalhes do Treino"
+                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Feature 4 - Calendar */}
+            <ScrollReveal delay={400}>
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+                <div className="flex flex-col lg:flex-row gap-6 items-center">
+                  <div className="flex-1 space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      <TrendingUp className="w-3 h-3" />
+                      Calendário
+                    </div>
+                    <h3 className="text-2xl font-bold">Visualize Sua Jornada</h3>
+                    <p className="text-muted-foreground">
+                      Calendário inteligente com tipos de treino coloridos. Acompanhe seu progresso e planeje sua evolução.
+                    </p>
+                  </div>
+                  <div className="w-full lg:w-auto flex-shrink-0">
+                    <div className="relative group-hover:scale-105 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-3xl" />
+                      <img 
+                        src={aiCoachCalendar} 
+                        alt="BioPeak Calendário de Treinos"
+                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+
+          {/* CTA */}
+          <ScrollReveal delay={500}>
+            <div className="text-center mt-16">
+              <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                Comece hoje mesmo e descubra como a IA pode transformar seus treinos
+              </p>
+              <Link to="/auth">
+                <Button size="lg" className="group">
+                  Começar Gratuitamente
+                  <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
             </div>
           </ScrollReveal>
         </div>
