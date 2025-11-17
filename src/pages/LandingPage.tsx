@@ -16,13 +16,13 @@ import {
   Users,
   Shield,
   ArrowRight,
+  CheckCircle,
   Star
 } from 'lucide-react';
 import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
 import { PricingPlans } from '@/components/PricingPlans';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
@@ -36,6 +36,12 @@ import aiCoachPlan from '@/assets/ai-coach-plan.png';
 import aiCoachDetails from '@/assets/ai-coach-details.png';
 import aiCoachCalendar from '@/assets/ai-coach-calendar.png';
 
+// Why BioPeak screenshots
+import whyBiopeak1 from '@/assets/why-biopeak-1.png';
+import whyBiopeak2 from '@/assets/why-biopeak-2.png';
+import whyBiopeak3 from '@/assets/why-biopeak-3.png';
+import whyBiopeak4 from '@/assets/why-biopeak-4.png';
+import whyBiopeak5 from '@/assets/why-biopeak-5.png';
 
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
@@ -44,41 +50,26 @@ const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.
 
 export const LandingPage = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [currentScreenshot, setCurrentScreenshot] = useState(0);
   const { theme } = useTheme();
   const { stats: appStats, loading: statsLoading } = useAppStats();
   const { t } = useTranslation();
 
-  const whyBioPeakSlides = [
-    {
-      id: "overtraining",
-      image: "/lovable-uploads/fd514276-aa01-465a-954c-580e5641de95.png",
-      title: "Overtraining",
-      fullTitle: "Risco de Overtraining",
-      description: "Monitore sinais de fadiga excessiva e previna lesões antes que aconteçam. Nossa IA analisa variabilidade da frequência cardíaca, qualidade do sono e percepção de esforço para alertar quando você precisa de mais recuperação."
-    },
-    {
-      id: "fitness-score",
-      image: "/lovable-uploads/617223a4-cfde-4217-9adf-12facb3501aa.png",
-      title: "BioPeak Fitness Score",
-      fullTitle: "BioPeak Fitness Score",
-      description: "Uma métrica única que consolida todos os seus dados de treino em um score compreensível. Acompanhe sua evolução de forma global e entenda como cada treino contribui para seu desenvolvimento atlético."
-    },
-    {
-      id: "calendario",
-      image: "/lovable-uploads/01d672b4-2333-4e3e-b726-36dfe80c93d3.png",
-      title: "Calendário de Provas",
-      fullTitle: "Calendário de Provas + IA Avançada",
-      description: "Planeje suas provas e deixe nossa IA criar a periodização perfeita. Analise sua preparação em tempo real, ajuste cargas de treino e chegue no dia da prova no seu melhor momento de forma."
-    },
-    {
-      id: "insights",
-      image: "/lovable-uploads/38a689f7-74f6-4a67-aa7c-b06d82048f9c.png",
-      title: "Insights",
-      fullTitle: "Insights sobre Performance Geral",
-      description: "Descubra padrões ocultos nos seus dados que só uma IA avançada pode identificar. Receba recomendações personalizadas sobre ritmo, zonas de treino e estratégias para maximizar seus resultados."
-    }
+  const whyBiopeakScreenshots = [
+    whyBiopeak1,
+    whyBiopeak2,
+    whyBiopeak3,
+    whyBiopeak4,
+    whyBiopeak5
   ];
 
+  // Auto-rotate screenshots
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentScreenshot((prev) => (prev + 1) % whyBiopeakScreenshots.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Get current effective theme
   const getEffectiveTheme = () => {
@@ -115,6 +106,14 @@ export const LandingPage = () => {
     }
   ];
 
+  const benefits = [
+    'Análise de overtraining em tempo real',
+    'Recomendações personalizadas de treino',
+    'Comparativo detalhado de sessões',
+    'Insights de recuperação muscular',
+    'Otimização de zonas de treino',
+    'Previsão de picos de performance'
+  ];
 
   const testimonials = [
     {
@@ -401,62 +400,77 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* Why BioPeak Section */}
-      <section className="py-20 px-4 bg-muted/30">
+      {/* Benefits Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Por que BioPeak?
-              </h2>
-              <p className="text-lg text-muted-foreground mb-2">
-                Treine mais inteligente do que nunca
-              </p>
-              <p className="text-lg text-muted-foreground">
-                Mais dados. Mais Inteligência. Mais performance
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={200}>
-            <div className="max-w-6xl mx-auto">
-              <Tabs defaultValue="overtraining" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 bg-muted/50 p-2 mb-8">
-                  {whyBioPeakSlides.map((slide) => (
-                    <TabsTrigger 
-                      key={slide.id} 
-                      value={slide.id}
-                      className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white text-sm md:text-base py-3 px-4 rounded-lg transition-all"
-                    >
-                      {slide.title}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                
-                {whyBioPeakSlides.map((slide) => (
-                  <TabsContent key={slide.id} value={slide.id} className="mt-0">
-                    <div className="grid lg:grid-cols-2 gap-8 items-center animate-fade-in">
-                      <div className="order-2 lg:order-1">
-                        <img
-                          src={slide.image}
-                          alt={slide.fullTitle}
-                          className="w-full rounded-lg shadow-lg"
-                        />
-                      </div>
-                      <div className="order-1 lg:order-2 space-y-6">
-                        <h3 className="text-2xl md:text-3xl font-bold text-primary">
-                          {slide.fullTitle}
-                        </h3>
-                        <p className="text-lg text-muted-foreground leading-relaxed">
-                          {slide.description}
-                        </p>
-                      </div>
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <ScrollReveal>
+              <div>
+                <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+                  {t('whyBioPeak').split(' ')[0]} {t('whyBioPeak').split(' ')[1]} <span className="bg-gradient-primary bg-clip-text text-transparent">{t('whyBioPeak').split(' ').slice(2).join(' ')}</span>
+                </h2>
+                <p className="text-xl text-muted-foreground mb-8">
+                  {t('whyDescription')}
+                </p>
+                <div className="space-y-4">
+                  {benefits.map((benefit, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <CheckCircle className="h-6 w-6 text-primary flex-shrink-0" />
+                      <span className="text-foreground">{benefit}</span>
                     </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </div>
-          </ScrollReveal>
+                  ))}
+                </div>
+              </div>
+            </ScrollReveal>
+            
+            <ScrollReveal delay={300}>
+              <div className="relative">
+                {/* Main display area with phone mockup effect */}
+                <div className="relative mx-auto max-w-sm">
+                  {/* Phone frame effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-accent/20 rounded-[3rem] blur-2xl animate-pulse" />
+                  
+                  {/* Screenshot carousel */}
+                  <div className="relative bg-background/10 backdrop-blur-sm rounded-[2.5rem] p-3 border-2 border-primary/30 shadow-2xl">
+                    <div className="relative overflow-hidden rounded-[2rem] aspect-[9/19.5] bg-background">
+                      {whyBiopeakScreenshots.map((screenshot, index) => (
+                        <img
+                          key={index}
+                          src={screenshot}
+                          alt={`BioPeak app demonstration ${index + 1}`}
+                          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
+                            index === currentScreenshot 
+                              ? 'opacity-100 scale-100' 
+                              : 'opacity-0 scale-95'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dot indicators */}
+                  <div className="flex justify-center gap-2 mt-6">
+                    {whyBiopeakScreenshots.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentScreenshot(index)}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                          index === currentScreenshot 
+                            ? 'bg-primary w-8' 
+                            : 'bg-primary/30 hover:bg-primary/50'
+                        }`}
+                        aria-label={`View screenshot ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Floating elements for visual interest */}
+                <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl animate-pulse" />
+                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-accent/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+              </div>
+            </ScrollReveal>
+          </div>
         </div>
       </section>
 
