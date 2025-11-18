@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   MapPin, 
   RefreshCw, 
   CheckCircle, 
   XCircle, 
   AlertTriangle,
+  Shield,
 } from 'lucide-react';
 
 interface GPSPermissionDialogProps {
@@ -89,6 +91,45 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
               {currentStatus || 'N/A'}
             </Badge>
           </div>
+
+          {/* Prominent Disclosure - Google Play Requirement */}
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">
+                    Por que precisamos da sua localização?
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    O BioPeak usa sua localização <strong>apenas durante os treinos</strong> para:
+                  </p>
+                  <ul className="text-sm space-y-1.5 text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400">•</span>
+                      <span>Rastrear distância e percurso em tempo real</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400">•</span>
+                      <span>Calcular velocidade, ritmo e pace</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400">•</span>
+                      <span>Registrar altitude e elevação do trajeto</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400">•</span>
+                      <span>Gerar mapas das suas atividades</span>
+                    </li>
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    Seus dados são <strong>privados</strong> e <strong>nunca compartilhados</strong> com terceiros.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="space-y-2">
