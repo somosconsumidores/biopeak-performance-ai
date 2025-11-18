@@ -396,15 +396,20 @@ const TrainingSession: React.FC = () => {
                   <span className="font-medium">GPS {enhancedGPS.isTracking ? 'Ativo' : 'Aguardando'}</span>
                 </div>
                 {enhancedGPS.status === 'prompt' || enhancedGPS.status === 'denied' ? (
-                  <Button
-                    onClick={() => setShowGPSDialog(true)}
-                    variant="default"
-                    size="default"
-                    className="bg-primary hover:bg-primary/90 font-semibold"
-                  >
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Autorize o GPS
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => setShowGPSDialog(true)}
+                      variant="default"
+                      size="default"
+                      className="bg-primary hover:bg-primary/90 font-semibold w-full"
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Autorize o GPS
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground px-4">
+                      Precisamos da sua localização para rastrear distância, ritmo e percurso durante o treino
+                    </p>
+                  </div>
                 ) : (
                   <Button
                     onClick={() => setShowGPSDialog(true)}
