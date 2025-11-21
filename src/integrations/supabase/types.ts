@@ -2042,6 +2042,235 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_campaign_config: {
+        Row: {
+          daily_budget: number | null
+          id: number
+          killer_threshold_multiplier: number | null
+          last_update: string | null
+          max_active_creatives: number | null
+          promote_threshold_conversions: number | null
+          promote_threshold_cpa: number | null
+        }
+        Insert: {
+          daily_budget?: number | null
+          id?: number
+          killer_threshold_multiplier?: number | null
+          last_update?: string | null
+          max_active_creatives?: number | null
+          promote_threshold_conversions?: number | null
+          promote_threshold_cpa?: number | null
+        }
+        Update: {
+          daily_budget?: number | null
+          id?: number
+          killer_threshold_multiplier?: number | null
+          last_update?: string | null
+          max_active_creatives?: number | null
+          promote_threshold_conversions?: number | null
+          promote_threshold_cpa?: number | null
+        }
+        Relationships: []
+      }
+      marketing_creatives: {
+        Row: {
+          angle: string | null
+          avatar: string | null
+          created_at: string | null
+          description: string | null
+          format: string | null
+          headline: string | null
+          id: string
+          image_prompt: string | null
+          kpi_target_cpa: number | null
+          landing_url: string | null
+          meta_ad_id: string | null
+          meta_adset_id: string | null
+          meta_campaign_id: string | null
+          primary_text: string | null
+          promise: string | null
+          proof: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          angle?: string | null
+          avatar?: string | null
+          created_at?: string | null
+          description?: string | null
+          format?: string | null
+          headline?: string | null
+          id?: string
+          image_prompt?: string | null
+          kpi_target_cpa?: number | null
+          landing_url?: string | null
+          meta_ad_id?: string | null
+          meta_adset_id?: string | null
+          meta_campaign_id?: string | null
+          primary_text?: string | null
+          promise?: string | null
+          proof?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          angle?: string | null
+          avatar?: string | null
+          created_at?: string | null
+          description?: string | null
+          format?: string | null
+          headline?: string | null
+          id?: string
+          image_prompt?: string | null
+          kpi_target_cpa?: number | null
+          landing_url?: string | null
+          meta_ad_id?: string | null
+          meta_adset_id?: string | null
+          meta_campaign_id?: string | null
+          primary_text?: string | null
+          promise?: string | null
+          proof?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      marketing_events: {
+        Row: {
+          event_time: string | null
+          event_type: string | null
+          id: number
+          payload: Json | null
+          workflow: string | null
+        }
+        Insert: {
+          event_time?: string | null
+          event_type?: string | null
+          id?: never
+          payload?: Json | null
+          workflow?: string | null
+        }
+        Update: {
+          event_time?: string | null
+          event_type?: string | null
+          id?: never
+          payload?: Json | null
+          workflow?: string | null
+        }
+        Relationships: []
+      }
+      marketing_learning_notes: {
+        Row: {
+          analysis: Json | null
+          created_at: string | null
+          id: string
+          inconclusive: string[] | null
+          losers: string[] | null
+          new_creatives: Json | null
+          run_date: string | null
+          winners: string[] | null
+        }
+        Insert: {
+          analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          inconclusive?: string[] | null
+          losers?: string[] | null
+          new_creatives?: Json | null
+          run_date?: string | null
+          winners?: string[] | null
+        }
+        Update: {
+          analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          inconclusive?: string[] | null
+          losers?: string[] | null
+          new_creatives?: Json | null
+          run_date?: string | null
+          winners?: string[] | null
+        }
+        Relationships: []
+      }
+      marketing_stats_daily: {
+        Row: {
+          ad_name: string | null
+          clicks: number | null
+          cpa: number | null
+          cpc: number | null
+          created_at: string | null
+          creative_id: string | null
+          ctr: number | null
+          date: string
+          fb_creative_id: string | null
+          id: number
+          impressions: number | null
+          meta_ad_id: string | null
+          purchases: number | null
+          revenue: number | null
+          roas: number | null
+          spend: number | null
+        }
+        Insert: {
+          ad_name?: string | null
+          clicks?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          creative_id?: string | null
+          ctr?: number | null
+          date: string
+          fb_creative_id?: string | null
+          id?: never
+          impressions?: number | null
+          meta_ad_id?: string | null
+          purchases?: number | null
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+        }
+        Update: {
+          ad_name?: string | null
+          clicks?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          creative_id?: string | null
+          ctr?: number | null
+          date?: string
+          fb_creative_id?: string | null
+          id?: never
+          impressions?: number | null
+          meta_ad_id?: string | null
+          purchases?: number | null
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_stats_daily_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "creative_performance_last_7d"
+            referencedColumns: ["creative_pk"]
+          },
+          {
+            foreignKeyName: "marketing_stats_daily_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_stats_daily_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "winners_losers_by_rule"
+            referencedColumns: ["creative_pk"]
+          },
+        ]
+      }
       mercadopago_payments: {
         Row: {
           amount_cents: number
@@ -4931,6 +5160,24 @@ export type Database = {
       }
     }
     Views: {
+      creative_performance_last_7d: {
+        Row: {
+          angle: string | null
+          clicks_7d: number | null
+          cpa_7d: number | null
+          cpc_7d: number | null
+          creative_pk: string | null
+          ctr_7d: number | null
+          impressions_7d: number | null
+          meta_ad_id: string | null
+          purchases_7d: number | null
+          revenue_7d: number | null
+          roas_7d: number | null
+          spend_7d: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
       v_all_activities_with_vo2_daniels: {
         Row: {
           active_kilocalories: number | null
@@ -4991,6 +5238,49 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           vo2_max_daniels?: never
+        }
+        Relationships: []
+      }
+      v_decisions_latest: {
+        Row: {
+          event_time: string | null
+          event_type: string | null
+          id: number | null
+          payload: Json | null
+          workflow: string | null
+        }
+        Insert: {
+          event_time?: string | null
+          event_type?: string | null
+          id?: number | null
+          payload?: Json | null
+          workflow?: string | null
+        }
+        Update: {
+          event_time?: string | null
+          event_type?: string | null
+          id?: number | null
+          payload?: Json | null
+          workflow?: string | null
+        }
+        Relationships: []
+      }
+      winners_losers_by_rule: {
+        Row: {
+          angle: string | null
+          classification: string | null
+          clicks_7d: number | null
+          cpa_7d: number | null
+          cpc_7d: number | null
+          creative_pk: string | null
+          ctr_7d: number | null
+          impressions_7d: number | null
+          meta_ad_id: string | null
+          purchases_7d: number | null
+          revenue_7d: number | null
+          roas_7d: number | null
+          spend_7d: number | null
+          status: string | null
         }
         Relationships: []
       }
