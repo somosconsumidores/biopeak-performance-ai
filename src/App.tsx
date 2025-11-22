@@ -52,6 +52,8 @@ import SavedStrategies from "./pages/SavedStrategies";
 import { AICoach } from "./pages/AICoach";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
+import { useAppOnboarding } from "./hooks/useAppOnboarding";
+import { AppOnboarding } from "./components/AppOnboarding";
 
 import RootErrorBoundary from "./components/RootErrorBoundary";
 
@@ -84,6 +86,7 @@ function AppRoutes() {
   const { checkOnboardingStatus } = useOnboarding();
   const { currentSurvey, isVisible: isSurveyVisible, submitResponse, dismissSurvey } = useSurveyPopup();
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const { hasSeenOnboarding, loading: appOnboardingLoading, completeOnboarding } = useAppOnboarding();
 
   useEffect(() => {
     if (user && !loading) {
@@ -143,6 +146,11 @@ function AppRoutes() {
       }
     };
   }, []);
+
+  // Show app onboarding for authenticated users who haven't seen it
+  if (user && !loading && !appOnboardingLoading && hasSeenOnboarding === false) {
+    return <AppOnboarding onComplete={completeOnboarding} />;
+  }
 
   return (
     <Router>
