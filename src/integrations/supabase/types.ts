@@ -2077,6 +2077,8 @@ export type Database = {
           angle: string | null
           avatar: string | null
           created_at: string | null
+          creative_json: Json | null
+          creative_type: string | null
           description: string | null
           format: string | null
           headline: string | null
@@ -2087,16 +2089,20 @@ export type Database = {
           meta_ad_id: string | null
           meta_adset_id: string | null
           meta_campaign_id: string | null
+          name: string | null
           primary_text: string | null
           promise: string | null
           proof: string | null
           status: string | null
+          storage_path: string | null
           updated_at: string | null
         }
         Insert: {
           angle?: string | null
           avatar?: string | null
           created_at?: string | null
+          creative_json?: Json | null
+          creative_type?: string | null
           description?: string | null
           format?: string | null
           headline?: string | null
@@ -2107,16 +2113,20 @@ export type Database = {
           meta_ad_id?: string | null
           meta_adset_id?: string | null
           meta_campaign_id?: string | null
+          name?: string | null
           primary_text?: string | null
           promise?: string | null
           proof?: string | null
           status?: string | null
+          storage_path?: string | null
           updated_at?: string | null
         }
         Update: {
           angle?: string | null
           avatar?: string | null
           created_at?: string | null
+          creative_json?: Json | null
+          creative_type?: string | null
           description?: string | null
           format?: string | null
           headline?: string | null
@@ -2127,10 +2137,12 @@ export type Database = {
           meta_ad_id?: string | null
           meta_adset_id?: string | null
           meta_campaign_id?: string | null
+          name?: string | null
           primary_text?: string | null
           promise?: string | null
           proof?: string | null
           status?: string | null
+          storage_path?: string | null
           updated_at?: string | null
         }
         Relationships: []

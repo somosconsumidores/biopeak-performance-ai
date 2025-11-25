@@ -28,6 +28,7 @@ import { PricingPlans } from '@/components/PricingPlans';
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
 import heroLogoLight from '@/assets/biopeak-logo-light.png';
 import appStoreBadge from '@/assets/app-store-badge.png';
+import playStoreBadge from '@/assets/google-play-badge.png';
 import integrationsLanding from '@/assets/integrations-landing.png';
 
 // AI Coach screenshots
@@ -529,23 +530,37 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="glass-card p-8 md:p-12 lg:p-16 text-center max-w-4xl mx-auto">
               <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                BioPeak também está disponível na <span className="bg-gradient-primary bg-clip-text text-transparent">App Store</span>
+                BioPeak também está disponível na <span className="bg-gradient-primary bg-clip-text text-transparent">App Store e Play Store</span>
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone
+                Monitore seus treinos, acompanhe sua evolução e receba insights de IA diretamente no seu iPhone e Android
               </p>
-              <a 
-                href="https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=cta&mt=homepage"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block transition-transform hover:scale-105"
-              >
-                <img 
-                  src={appStoreBadge} 
-                  alt="Disponível na App Store" 
-                  className="h-16 md:h-20 w-auto mx-auto"
-                />
-              </a>
+              <div className="flex flex-wrap justify-center items-center gap-4">
+                <a 
+                  href="https://apps.apple.com/us/app/biopeak-ai/id6752911184?ct=cta&mt=homepage"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block transition-transform hover:scale-105"
+                >
+                  <img 
+                    src={appStoreBadge} 
+                    alt="Disponível na App Store" 
+                    className="h-16 md:h-20 w-auto"
+                  />
+                </a>
+                <a 
+                  href="https://play.google.com/store/apps/details?id=com.biopeakai.performance&pcampaignid=homepage"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block transition-transform hover:scale-105"
+                >
+                  <img 
+                    src={playStoreBadge} 
+                    alt="Disponível na Play Store" 
+                    className="h-16 md:h-20 w-auto"
+                  />
+                </a>
+              </div>
             </div>
           </ScrollReveal>
         </div>
