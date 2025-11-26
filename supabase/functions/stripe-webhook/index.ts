@@ -524,14 +524,6 @@ serve(async (req) => {
             userId: profileByEmail.user_id,
             email: invoice.customer_email 
           });
-          
-          // Atualizar o stripe_customer_id no profile para futuras buscas
-          await supabaseAdmin
-            .from('profiles')
-            .update({ stripe_customer_id: invoice.customer as string })
-            .eq('user_id', profileByEmail.user_id);
-          
-          logStep('Updated profile with stripe_customer_id for future lookups');
         }
       }
       
@@ -611,6 +603,43 @@ serve(async (req) => {
             amount: invoice.amount_paid,
             currency: invoice.currency
           });
+        }
+        
+        // Atualizar a tabela subscribers para que o app reconheça a assinatura
+        if (invoice.subscription) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+            const isTrialing = subscription.status === 'trialing';
+            const isActive = subscription.status === 'active' || isTrialing;
+            
+            const subscriptionEnd = isTrialing && subscription.trial_end
+              ? new Date(subscription.trial_end * 1000).toISOString()
+              : subscription.current_period_end
+                ? new Date(subscription.current_period_end * 1000).toISOString()
+                : null;
+
+            await supabaseAdmin.from('subscribers').upsert({
+              user_id: profile.user_id,
+              email: profile.email || invoice.customer_email,
+              stripe_customer_id: invoice.customer as string,
+              subscribed: isActive,
+              subscription_type: isTrialing ? 'trial' : subscriptionType,
+              subscription_tier: subscriptionTier,
+              subscription_end: subscriptionEnd,
+              subscription_source: 'stripe',
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+
+            logStep('Updated subscribers table for invoice payment', {
+              userId: profile.user_id,
+              subscribed: isActive,
+              subscriptionEnd
+            });
+          } catch (subError) {
+            logStep('Error updating subscribers table', { 
+              error: subError instanceof Error ? subError.message : String(subError) 
+            });
+          }
         }
       } else {
         logStep('ERROR: Could not find user for invoice payment', { 
