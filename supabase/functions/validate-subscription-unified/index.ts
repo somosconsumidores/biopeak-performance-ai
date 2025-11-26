@@ -166,12 +166,15 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+    // Check for active or trialing subscriptions
+    const [activeSubscriptions, trialingSubscriptions] = await Promise.all([
+      stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 }),
+      stripe.subscriptions.list({ customer: customerId, status: "trialing", limit: 1 })
+    ]);
+    
+    const subscriptions = activeSubscriptions.data.length > 0 
+      ? activeSubscriptions 
+      : trialingSubscriptions;
     
     const stripeCheckDuration = Date.now() - stripeCheckStart;
     logMetric('stripe_check_duration_ms', stripeCheckDuration, { user_id: user.id });
@@ -184,11 +187,20 @@ serve(async (req) => {
     if (subscriptions.data.length > 0) {
       const sub = subscriptions.data[0];
       hasActiveSub = true;
-      subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
-      subscriptionType = "stripe";
+      
+      // For trialing subscriptions, use trial_end instead of current_period_end
+      const endTimestamp = sub.status === "trialing" && sub.trial_end 
+        ? sub.trial_end 
+        : sub.current_period_end;
+      subscriptionEnd = new Date(endTimestamp * 1000).toISOString();
+      subscriptionType = sub.status === "trialing" ? "trial" : "stripe";
       subscriptionTier = "premium";
       
-      logStep("Active Stripe subscription found", { subscriptionId: sub.id, endDate: subscriptionEnd });
+      logStep(`${sub.status === "trialing" ? "Trialing" : "Active"} Stripe subscription found`, { 
+        subscriptionId: sub.id, 
+        status: sub.status,
+        endDate: subscriptionEnd 
+      });
     }
 
     // Update database with fresh data

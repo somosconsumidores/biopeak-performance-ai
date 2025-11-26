@@ -141,12 +141,14 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 10,
-    });
+    // Check for active or trialing subscriptions
+    const [activeSubscriptions, trialingSubscriptions] = await Promise.all([
+      stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 }),
+      stripe.subscriptions.list({ customer: customerId, status: "trialing", limit: 10 })
+    ]);
+    
+    const allSubscriptions = [...activeSubscriptions.data, ...trialingSubscriptions.data];
+    const subscriptions = { data: allSubscriptions };
     
     let hasActiveSub = subscriptions.data.length > 0;
     let subscriptionType = null;
@@ -155,10 +157,20 @@ serve(async (req) => {
 
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      subscriptionType = "monthly";
+      
+      // For trialing subscriptions, use trial_end instead of current_period_end
+      const endTimestamp = subscription.status === "trialing" && subscription.trial_end 
+        ? subscription.trial_end 
+        : subscription.current_period_end;
+      subscriptionEnd = new Date(endTimestamp * 1000).toISOString();
+      subscriptionType = subscription.status === "trialing" ? "trial" : "monthly";
       subscriptionTier = "Premium";
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
+      
+      logStep(`${subscription.status === "trialing" ? "Trialing" : "Active"} subscription found`, { 
+        subscriptionId: subscription.id, 
+        status: subscription.status,
+        endDate: subscriptionEnd 
+      });
     } else {
       // Check for one-time payments and checkout sessions
       const [oneTimePayments, checkoutSessions] = await Promise.all([
