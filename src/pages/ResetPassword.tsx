@@ -69,6 +69,8 @@ export function ResetPassword() {
     e.preventDefault();
     setError('');
 
+    console.log('[ResetPassword] Submit clicked');
+
     if (password !== confirmPassword) {
       setError('As senhas não coincidem');
       return;
@@ -81,21 +83,45 @@ export function ResetPassword() {
 
     setIsLoading(true);
 
-    const { error } = await supabase.auth.updateUser({ 
-      password: password 
-    });
+    try {
+      // Garante que ainda existe uma sessão válida do link de recuperação
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (error) {
-      setError(error.message);
-    } else {
-      toast({
-        title: 'Senha atualizada!',
-        description: 'Sua senha foi alterada com sucesso.',
+      if (sessionError) {
+        console.error('[ResetPassword] Erro ao obter sessão antes de atualizar senha:', sessionError);
+        setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!session) {
+        console.error('[ResetPassword] Nenhuma sessão ativa ao tentar atualizar a senha');
+        setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.updateUser({ 
+        password: password 
       });
-      navigate('/dashboard');
-    }
 
-    setIsLoading(false);
+      if (error) {
+        console.error('[ResetPassword] Erro ao atualizar senha:', error);
+        setError(error.message || 'Não foi possível atualizar a senha. Tente novamente.');
+      } else {
+        console.log('[ResetPassword] Senha atualizada com sucesso para usuário', data?.user?.id);
+        toast({
+          title: 'Senha atualizada!',
+          description: 'Sua senha foi alterada com sucesso.',
+        });
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      console.error('[ResetPassword] Erro inesperado ao atualizar senha:', err);
+      setError('Ocorreu um erro inesperado ao atualizar a senha. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
