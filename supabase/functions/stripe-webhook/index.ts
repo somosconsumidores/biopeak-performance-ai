@@ -475,6 +475,7 @@ serve(async (req) => {
       logStep('Invoice payment succeeded', { 
         invoiceId: invoice.id, 
         customerId: invoice.customer,
+        customerEmail: invoice.customer_email,
         subscriptionId: invoice.subscription,
         amount: invoice.amount_paid,
         currency: invoice.currency
@@ -506,6 +507,31 @@ serve(async (req) => {
             userId: subscriber.user_id,
             email: subscriber.email 
           });
+        }
+      }
+      
+      // Se ainda não encontrou o profile, tentar por email
+      if (!profile && invoice.customer_email) {
+        const { data: profileByEmail } = await supabaseAdmin
+          .from('profiles')
+          .select('user_id, email')
+          .eq('email', invoice.customer_email)
+          .maybeSingle();
+        
+        if (profileByEmail) {
+          profile = profileByEmail;
+          logStep('Found user via invoice customer_email', { 
+            userId: profileByEmail.user_id,
+            email: invoice.customer_email 
+          });
+          
+          // Atualizar o stripe_customer_id no profile para futuras buscas
+          await supabaseAdmin
+            .from('profiles')
+            .update({ stripe_customer_id: invoice.customer as string })
+            .eq('user_id', profileByEmail.user_id);
+          
+          logStep('Updated profile with stripe_customer_id for future lookups');
         }
       }
       
