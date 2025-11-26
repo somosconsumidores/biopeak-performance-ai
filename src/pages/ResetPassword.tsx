@@ -21,49 +21,67 @@ export function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Listen for auth state changes (critical for password recovery links)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
+    // Escuta mudanças de auth (inclui PASSWORD_RECOVERY quando o link funciona)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[ResetPassword] Auth event:', event, session?.user?.id);
       
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked on password recovery link - session is now available
-        console.log('Password recovery event detected, user can now reset password');
+        console.log('[ResetPassword] PASSWORD_RECOVERY detectado, usuário pode redefinir a senha');
         setError('');
-        return;
       }
-      
+
       if (event === 'SIGNED_OUT') {
-        console.log('User signed out, redirecting to auth');
+        console.log('[ResetPassword] Usuário saiu, redirecionando para /auth');
         navigate('/auth');
-        return;
       }
     });
 
-    // Check current session on mount
-    const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error getting session:', error);
-        setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
-        return;
-      }
+    const handleInitialSession = async () => {
+      try {
+        const code = searchParams.get('code');
+        const type = searchParams.get('type');
 
-      if (!session) {
-        console.log('No session found, redirecting to auth');
-        navigate('/auth');
-        return;
-      }
+        // Fluxo novo do Supabase: ?code=...&type=recovery
+        if (code && type === 'recovery') {
+          console.log('[ResetPassword] Code de recuperação encontrado na URL, trocando por sessão...');
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('[ResetPassword] Erro ao trocar code por sessão:', error);
+            setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+            return;
+          }
+          console.log('[ResetPassword] Sessão criada via code para usuário', data.session?.user?.id);
+          return;
+        }
 
-      console.log('Session found, user can reset password');
+        // Fluxo antigo: tokens no hash / sessão já existente
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[ResetPassword] Erro ao obter sessão:', error);
+          setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+          return;
+        }
+
+        if (!session) {
+          console.log('[ResetPassword] Nenhuma sessão encontrada, redirecionando para /auth');
+          navigate('/auth');
+          return;
+        }
+
+        console.log('[ResetPassword] Sessão encontrada, usuário pode redefinir a senha');
+      } catch (err) {
+        console.error('[ResetPassword] Erro inesperado ao validar sessão de recuperação:', err);
+        setError('Ocorreu um erro ao validar o link de recuperação. Tente solicitar um novo link.');
+      }
     };
 
-    checkSession();
+    handleInitialSession();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
