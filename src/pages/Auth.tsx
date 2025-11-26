@@ -29,6 +29,23 @@ export function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Se o Supabase redirecionar para /auth com tokens de recuperação,
+  // encaminhamos imediatamente para /reset-password preservando query/hash
+  useEffect(() => {
+    try {
+      const type = searchParams.get('type');
+      const hash = window.location.hash || '';
+
+      if (type === 'recovery' || hash.includes('type=recovery') || hash.includes('access_token=')) {
+        const query = window.location.search || '';
+        console.log('[Auth] Password recovery detectado, redirecionando para /reset-password');
+        navigate(`/reset-password${query}${hash}`, { replace: true });
+      }
+    } catch (err) {
+      console.error('[Auth] Erro ao processar parâmetros de recuperação de senha:', err);
+    }
+  }, [navigate, searchParams]);
+
   useEffect(() => {
     const handleAuthRedirect = async () => {
       const selectedPlan = searchParams.get('plan');
