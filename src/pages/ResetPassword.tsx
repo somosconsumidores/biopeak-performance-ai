@@ -64,8 +64,8 @@ export function ResetPassword() {
         }
 
         if (!session) {
-          console.log('[ResetPassword] Nenhuma sessão encontrada, redirecionando para /auth');
-          navigate('/auth');
+          console.log('[ResetPassword] Nenhuma sessão encontrada para recuperação de senha');
+          setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
           return;
         }
 
