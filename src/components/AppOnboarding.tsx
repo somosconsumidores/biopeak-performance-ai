@@ -22,7 +22,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       {/* Step 1: Apresentação do BioPeak */}
       {currentStep === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-between p-6 animate-in fade-in duration-500">
+        <div className="flex-1 flex flex-col items-center overflow-y-auto p-6 animate-in fade-in duration-500">
           <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
               <Activity className="w-10 h-10 text-primary" />
@@ -69,7 +69,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
 
           <Button 
             onClick={handleNext}
-            className="w-full max-w-md h-14 text-lg font-semibold"
+            className="w-full max-w-md h-14 text-lg font-semibold mt-8 mb-4"
             size="lg"
           >
             Continuar
@@ -79,7 +79,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
 
       {/* Step 2: Um esforço em equipe */}
       {currentStep === 1 && (
-        <div className="flex-1 flex flex-col items-center justify-between p-6 animate-in fade-in duration-500">
+        <div className="flex-1 flex flex-col items-center overflow-y-auto p-6 animate-in fade-in duration-500">
           <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-background border-2 border-foreground flex items-center justify-center mb-4">
               <Users className="w-8 h-8" />
@@ -114,7 +114,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
 
           <Button 
             onClick={handleNext}
-            className="w-full max-w-md h-14 text-lg font-semibold"
+            className="w-full max-w-md h-14 text-lg font-semibold mt-8 mb-4"
             size="lg"
           >
             Continuar
@@ -124,7 +124,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
 
       {/* Step 3: Opções de privacidade */}
       {currentStep === 2 && (
-        <div className="flex-1 flex flex-col items-center justify-between p-6 animate-in fade-in duration-500">
+        <div className="flex-1 flex flex-col items-center overflow-y-auto p-6 animate-in fade-in duration-500">
           <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-background border-2 border-foreground flex items-center justify-center mb-4">
               <Lock className="w-8 h-8" />
@@ -173,7 +173,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
 
           <Button 
             onClick={handleNext}
-            className="w-full max-w-md h-14 text-lg font-semibold"
+            className="w-full max-w-md h-14 text-lg font-semibold mt-8 mb-4"
             size="lg"
           >
             Começar
