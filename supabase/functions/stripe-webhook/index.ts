@@ -640,6 +640,67 @@ serve(async (req) => {
               error: subError instanceof Error ? subError.message : String(subError) 
             });
           }
+        } else {
+          // FALLBACK: invoice.subscription is null - fetch active subscription from customer
+          logStep('invoice.subscription is null, fetching active subscription from customer', {
+            customerId: invoice.customer
+          });
+          
+          try {
+            const subscriptions = await stripe.subscriptions.list({
+              customer: invoice.customer as string,
+              status: 'all',
+              limit: 5
+            });
+            
+            // Find active or trialing subscription
+            const activeSubscription = subscriptions.data.find(
+              sub => sub.status === 'active' || sub.status === 'trialing'
+            );
+            
+            if (activeSubscription) {
+              logStep('Found active subscription via fallback', {
+                subscriptionId: activeSubscription.id,
+                status: activeSubscription.status
+              });
+              
+              const isTrialing = activeSubscription.status === 'trialing';
+              const isActive = activeSubscription.status === 'active' || isTrialing;
+              
+              const subscriptionEnd = isTrialing && activeSubscription.trial_end
+                ? new Date(activeSubscription.trial_end * 1000).toISOString()
+                : activeSubscription.current_period_end
+                  ? new Date(activeSubscription.current_period_end * 1000).toISOString()
+                  : null;
+
+              await supabaseAdmin.from('subscribers').upsert({
+                user_id: profile.user_id,
+                email: profile.email || invoice.customer_email,
+                stripe_customer_id: invoice.customer as string,
+                subscribed: isActive,
+                subscription_type: isTrialing ? 'trial' : subscriptionType,
+                subscription_tier: subscriptionTier,
+                subscription_end: subscriptionEnd,
+                subscription_source: 'stripe',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' });
+
+              logStep('Updated subscribers table via fallback', {
+                userId: profile.user_id,
+                subscribed: isActive,
+                subscriptionEnd
+              });
+            } else {
+              logStep('No active subscription found via fallback', {
+                customerId: invoice.customer,
+                totalSubscriptions: subscriptions.data.length
+              });
+            }
+          } catch (fallbackError) {
+            logStep('Error in subscription fallback', { 
+              error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) 
+            });
+          }
         }
       } else {
         logStep('ERROR: Could not find user for invoice payment', { 
