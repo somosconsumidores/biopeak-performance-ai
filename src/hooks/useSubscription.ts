@@ -116,6 +116,13 @@ export const useSubscription = () => {
       const source: SubscriptionSource = await detectSubscriptionSource(user.id);
       debugLog('📍 Detected subscription source:', source);
 
+      // If no source detected, run full unified check (Stripe + Stripe DB) and stop here
+      if (source === 'none') {
+        debugLog('🧪 No subscription source detected, running full Stripe verification via edge function');
+        await checkFullSubscriptionStatus();
+        return;
+      }
+
       // Step 1: Check cache first (instant response) - validate source match
       const cached = getCachedSubscription(source === 'stripe' ? 'stripe' : source === 'revenuecat' ? 'revenuecat' : undefined);
       if (cached && !isManualRefresh) {
