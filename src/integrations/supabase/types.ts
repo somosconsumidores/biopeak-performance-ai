@@ -2218,6 +2218,7 @@ export type Database = {
           id: number
           impressions: number | null
           meta_ad_id: string | null
+          meta_adset_id: string | null
           purchases: number | null
           revenue: number | null
           roas: number | null
@@ -2236,6 +2237,7 @@ export type Database = {
           id?: never
           impressions?: number | null
           meta_ad_id?: string | null
+          meta_adset_id?: string | null
           purchases?: number | null
           revenue?: number | null
           roas?: number | null
@@ -2254,6 +2256,7 @@ export type Database = {
           id?: never
           impressions?: number | null
           meta_ad_id?: string | null
+          meta_adset_id?: string | null
           purchases?: number | null
           revenue?: number | null
           roas?: number | null
@@ -5260,20 +5263,6 @@ export type Database = {
           id: number | null
           payload: Json | null
           workflow: string | null
-        }
-        Insert: {
-          event_time?: string | null
-          event_type?: string | null
-          id?: number | null
-          payload?: Json | null
-          workflow?: string | null
-        }
-        Update: {
-          event_time?: string | null
-          event_type?: string | null
-          id?: number | null
-          payload?: Json | null
-          workflow?: string | null
         }
         Relationships: []
       }
