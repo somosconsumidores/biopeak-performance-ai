@@ -21,9 +21,26 @@ export function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Handle the auth state change from the magic link
-    const handleAuthStateChange = async () => {
-      // Get the session from the URL parameters or storage
+    // Listen for auth state changes (critical for password recovery links)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        // User clicked on password recovery link - session is now available
+        console.log('Password recovery event detected, user can now reset password');
+        setError('');
+        return;
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out, redirecting to auth');
+        navigate('/auth');
+        return;
+      }
+    });
+
+    // Check current session on mount
+    const checkSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -38,12 +55,15 @@ export function ResetPassword() {
         return;
       }
 
-      // If we have a session, the user can reset their password
       console.log('Session found, user can reset password');
     };
 
-    handleAuthStateChange();
-  }, [searchParams, navigate]);
+    checkSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
