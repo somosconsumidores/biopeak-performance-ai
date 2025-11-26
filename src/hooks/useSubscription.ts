@@ -289,17 +289,17 @@ export const useSubscription = () => {
     }
   }, [user, isIOSNative, syncToSupabase]);
 
-  // Forçar refresh completo após login (iOS)
+  // Forçar refresh completo após login (todas as plataformas)
   useEffect(() => {
-    if (user && isIOSNative) {
-      debugLog('🔄 iOS login detected, scheduling full subscription check...');
+    if (user) {
+      debugLog('🔄 Login detected, scheduling full subscription check...');
       const timeoutId = setTimeout(() => {
         checkFullSubscriptionStatus();
       }, 2000);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [user?.id, isIOSNative, checkFullSubscriptionStatus]);
+  }, [user?.id, checkFullSubscriptionStatus]);
 
   // Initialize on mount and user change
   useEffect(() => {
