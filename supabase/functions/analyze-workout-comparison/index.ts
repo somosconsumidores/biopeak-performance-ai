@@ -73,6 +73,14 @@ interface ActivityComparison {
   };
 }
 
+// Helper para formatar pace em min:seg/km
+const formatPace = (paceMinKm: number | null): string => {
+  if (!paceMinKm) return 'N/A';
+  const minutes = Math.floor(paceMinKm);
+  const seconds = Math.round((paceMinKm - minutes) * 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+};
+
 // Classificação de tipos de atividade
 const classifyActivityType = (activityType: string | null): string => {
   if (!activityType) return 'Unknown';
@@ -316,7 +324,7 @@ ATIVIDADE ATUAL:
 - Tipo: ${classifiedType}
 - Duração: ${currentActivity.total_time_minutes?.toFixed(1) || 'N/A'} min
 - Distância: ${currentActivity.total_distance_meters ? (currentActivity.total_distance_meters / 1000).toFixed(1) : 'N/A'} km
-- Pace: ${currentActivity.pace_min_per_km?.toFixed(2) || 'N/A'} min/km
+- Pace: ${formatPace(currentActivity.pace_min_per_km)}
 - FC Média: ${currentActivity.average_heart_rate || 'N/A'} bpm
 - Calorias: ${currentActivity.active_kilocalories || 'N/A'}
 - Ganho de elevação: ${currentActivity.total_elevation_gain_in_meters || 'N/A'} m
@@ -326,7 +334,7 @@ ${historicalStats ? `
 - Total de treinos similares: ${historicalStats.totalActivities}
 - Duração média histórica: ${historicalStats.avgDuration?.toFixed(1) || 'N/A'} min (atual: ${comparisons.duration.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.duration.isImprovement ? 'melhor' : 'pior'})
 - Distância média histórica: ${historicalStats.avgDistance ? (historicalStats.avgDistance / 1000).toFixed(1) : 'N/A'} km (atual: ${comparisons.distance.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.distance.isImprovement ? 'maior' : 'menor'})
-- Pace médio histórico: ${historicalStats.avgPace?.toFixed(2) || 'N/A'} min/km (atual: ${comparisons.pace.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.pace.isImprovement ? 'mais rápido' : 'mais lento'})
+- Pace médio histórico: ${formatPace(historicalStats.avgPace)} (atual: ${comparisons.pace.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.pace.isImprovement ? 'mais rápido' : 'mais lento'})
 - FC média histórica: ${historicalStats.avgHeartRate?.toFixed(0) || 'N/A'} bpm (atual: ${comparisons.heartRate.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.heartRate.isImprovement ? 'maior' : 'menor'})
 ` : 'Sem dados históricos suficientes para comparação.'}
 
