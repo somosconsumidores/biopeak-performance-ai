@@ -185,7 +185,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
             }}
           >
             {/* BioPeak Branding */}
-            <div className="absolute top-36 left-0 right-0 text-center">
+            <div className="absolute top-52 left-0 right-0 text-center">
               <div className="text-white font-semibold text-lg opacity-90" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>
                 Seu Personal Coach Inteligente
               </div>
