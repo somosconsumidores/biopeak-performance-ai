@@ -3,18 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Share2, 
   Download,
   Image as ImageIcon,
   Instagram, 
   Facebook, 
-  Twitter, 
-  Linkedin, 
-  MessageCircle,
-  Check,
-  X
+  X,
+  ChevronRight
 } from 'lucide-react';
-import { SocialShareButton } from './SocialShareButton';
+
 import { WorkoutSharePreview } from './WorkoutSharePreview';
 import { WorkoutShareImage } from './WorkoutShareImage';
 import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
@@ -78,9 +74,6 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
     }
   };
 
-  // Check if Web Share API supports files
-  const canShareFiles = navigator.share && navigator.canShare && 
-    navigator.canShare({ files: [new File([''], 'test.png', { type: 'image/png' })] });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -136,95 +129,79 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
             />
           </div>
 
-          {/* Social Media Buttons */}
-          <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-base sm:text-lg font-semibold text-center text-gray-900">Compartilhar Imagem do Treino</h3>
-            <p className="text-xs sm:text-sm text-gray-600 text-center">
-              Gere uma imagem personalizada com suas métricas para compartilhar
-            </p>
-            
-            {/* Quick Share Button if supported */}
-            {canShareFiles && (
-              <Button
-                onClick={() => handleImageShare('native')}
-                disabled={isGeneratingImage}
-                className="w-full mb-3 sm:mb-4 bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-sm"
-              >
-                {isGeneratingImage ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    Gerando imagem...
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Compartilhar Imagem
-                  </>
-                )}
-              </Button>
-            )}
-            
-            <div className={`grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 transition-all duration-500 ${shareAnimationActive ? 'scale-95' : 'scale-100'}`}>
-              <SocialShareButton
-                icon={Instagram}
-                label="Instagram"
-                color="from-pink-500 to-purple-600"
-                onClick={() => handleImageShare('instagram')}
-                delay={0}
-                disabled={isGeneratingImage}
-              />
-              <SocialShareButton
-                icon={Facebook}
-                label="Facebook"
-                color="from-blue-600 to-blue-700"
-                onClick={() => handleImageShare('facebook')}
-                delay={100}
-                disabled={isGeneratingImage}
-              />
-              <SocialShareButton
-                icon={Twitter}
-                label="Twitter"
-                color="from-sky-400 to-blue-500"
-                onClick={() => handleImageShare('twitter')}
-                delay={200}
-                disabled={isGeneratingImage}
-              />
-              <SocialShareButton
-                icon={Linkedin}
-                label="LinkedIn"
-                color="from-blue-700 to-blue-800"
-                onClick={() => handleImageShare('linkedin')}
-                delay={300}
-                disabled={isGeneratingImage}
-              />
-              <SocialShareButton
-                icon={MessageCircle}
-                label="WhatsApp"
-                color="from-green-500 to-green-600"
-                onClick={() => handleImageShare('whatsapp')}
-                delay={400}
-                disabled={isGeneratingImage}
-              />
+          {/* Social Media Share */}
+          <div className="space-y-4">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-bold text-gray-900">Compartilhe sua conquista</h3>
+              <p className="text-sm text-gray-600">
+                Mostre seu progresso para o mundo
+              </p>
             </div>
+            
+            {/* Instagram Share Button */}
+            <Button
+              onClick={() => handleImageShare('instagram')}
+              disabled={isGeneratingImage}
+              className="w-full h-16 bg-gradient-to-br from-pink-500 via-purple-500 to-orange-500 hover:from-pink-600 hover:via-purple-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {isGeneratingImage ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
+                  <span className="text-base font-semibold">Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <Instagram className="h-6 w-6 mr-3" />
+                  <span className="flex-1 text-left">
+                    <div className="text-base font-bold">Instagram</div>
+                    <div className="text-xs opacity-90">Stories ou Feed</div>
+                  </span>
+                  <ChevronRight className="h-5 w-5" />
+                </>
+              )}
+            </Button>
+
+            {/* Facebook Share Button */}
+            <Button
+              onClick={() => handleImageShare('facebook')}
+              disabled={isGeneratingImage}
+              className="w-full h-16 bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {isGeneratingImage ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
+                  <span className="text-base font-semibold">Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <Facebook className="h-6 w-6 mr-3" />
+                  <span className="flex-1 text-left">
+                    <div className="text-base font-bold">Facebook</div>
+                    <div className="text-xs opacity-90">Compartilhe com amigos</div>
+                  </span>
+                  <ChevronRight className="h-5 w-5" />
+                </>
+              )}
+            </Button>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 gap-3 sm:gap-4">
+          {/* Download Option */}
+          <div className="pt-2">
             <Button
               variant="outline"
               onClick={() => handleImageShare('download')}
               disabled={isGeneratingImage}
-              className="bg-white border border-gray-300 hover:bg-gray-50 group text-sm text-gray-900"
+              className="w-full bg-white border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-semibold"
             >
               {isGeneratingImage ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2" />
                   Gerando...
                 </>
               ) : (
                 <>
-                  <Download className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                  Baixar Imagem
+                  <Download className="h-5 w-5 mr-2" />
+                  Apenas Baixar Imagem
                 </>
               )}
             </Button>
