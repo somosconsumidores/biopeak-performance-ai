@@ -8,8 +8,6 @@ import {
 
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
 import { usePlatform } from '@/hooks/usePlatform';
 import shareRunningBg from '@/assets/share-running.png';
 import shareSwimmingBg from '@/assets/share-swimming.png';
@@ -128,6 +126,10 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
       // Native Android sharing
       if (isAndroid) {
         try {
+          // Dynamic import Capacitor plugins (only loaded on native)
+          const { Share } = await import('@capacitor/share');
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+
           // Convert blob to base64
           const reader = new FileReader();
           reader.readAsDataURL(blob);
