@@ -4,7 +4,6 @@ import { toast } from '@/hooks/use-toast';
 
 export const useWorkoutImageShare = () => {
   const previewRef = useRef<HTMLDivElement>(null);
-  const mapReadyRef = useRef<boolean>(false);
 
   const generateWorkoutImage = useCallback(async (workoutData: any): Promise<{ blob: Blob; url: string } | null> => {
     if (!previewRef.current) {
@@ -20,41 +19,9 @@ export const useWorkoutImageShare = () => {
     console.log('🔍 IMAGE_SHARE: Starting image generation process...');
 
     try {
-      // Aguardar o mapa ficar pronto ou timeout de segurança
-      const mapReadyPromise = new Promise<void>((resolve) => {
-        if (mapReadyRef.current) {
-          console.log('🔍 IMAGE_SHARE: Map already ready');
-          resolve();
-          return;
-        }
-        
-        console.log('🔍 IMAGE_SHARE: Waiting for map to be ready...');
-        const checkMap = () => {
-          if (mapReadyRef.current) {
-            console.log('🔍 IMAGE_SHARE: Map is now ready');
-            resolve();
-          } else {
-            setTimeout(checkMap, 200);
-          }
-        };
-        checkMap();
-      });
-
-      // Aguardar o mapa com timeout de segurança de 15 segundos
-      console.log('🔍 IMAGE_SHARE: Racing between map ready and 15s timeout...');
-      await Promise.race([
-        mapReadyPromise,
-        new Promise(resolve => {
-          setTimeout(() => {
-            console.warn('🔍 IMAGE_SHARE: Timeout reached - proceeding without map confirmation');
-            resolve(undefined);
-          }, 15000);
-        })
-      ]);
-      
-      // Additional delay to ensure everything is settled
-      console.log('🔍 IMAGE_SHARE: Adding extra settling time...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Since there's no map anymore, just wait a bit for component to render
+      console.log('🔍 IMAGE_SHARE: Waiting for component to render...');
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       console.log('🔍 IMAGE_SHARE: Starting html2canvas capture...');
       const canvas = await html2canvas(previewRef.current, {
@@ -71,14 +38,6 @@ export const useWorkoutImageShare = () => {
         logging: true, // Enable logging for debugging
         onclone: (clonedDoc) => {
           console.log('🔍 IMAGE_SHARE: Document cloned for capture');
-          // Force all mapbox elements to be visible in cloned document
-          const mapElements = clonedDoc.querySelectorAll('[class*="mapbox"]');
-          mapElements.forEach(el => {
-            if (el instanceof HTMLElement) {
-              el.style.opacity = '1';
-              el.style.visibility = 'visible';
-            }
-          });
         }
       });
       
@@ -169,11 +128,11 @@ export const useWorkoutImageShare = () => {
 
 
   const onMapReady = useCallback(() => {
-    mapReadyRef.current = true;
+    // No longer needed since we removed the map
   }, []);
 
   const resetMapReady = useCallback(() => {
-    mapReadyRef.current = false;
+    // No longer needed since we removed the map
   }, []);
 
   return {

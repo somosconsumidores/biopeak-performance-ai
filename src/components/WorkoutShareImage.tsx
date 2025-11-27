@@ -1,7 +1,5 @@
 
-import React from 'react';
-import { SharePaceHeatmap } from './SharePaceHeatmap';
-import { useActivityPaceData } from '@/hooks/useActivityPaceData';
+import React, { useEffect } from 'react';
 
 interface WorkoutShareImageProps {
   workoutData: {
@@ -21,18 +19,13 @@ interface WorkoutShareImageProps {
 }
 
 export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImageProps) => {
-  // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
-  const activityId = workoutData.activity_id || workoutData.id || '';
-  const { paceData, loading: paceLoading } = useActivityPaceData(activityId);
-  
-  // Debug log for image generation
-  console.log('🔍 WORKOUT_SHARE_IMAGE: Component render', {
-    activityId,
-    hasPaceData: !!paceData,
-    paceDataLength: paceData?.length || 0,
-    isLoading: paceLoading,
-    hasCoordinates: !!workoutData.coordinates?.length
-  });
+  // Notify that image is ready immediately since there's no map to load
+  useEffect(() => {
+    if (onMapReady) {
+      console.log('🔍 WORKOUT_SHARE_IMAGE: Notifying ready (no map)');
+      onMapReady();
+    }
+  }, [onMapReady]);
   
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -129,32 +122,33 @@ export const WorkoutShareImage = ({ workoutData, onMapReady }: WorkoutShareImage
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Map Container */}
+      {/* Logo/Branding Area */}
       <div 
-        className="absolute rounded-3xl overflow-hidden"
+        className="absolute rounded-3xl overflow-hidden flex items-center justify-center"
         style={{ 
           top: '350px',
           left: '90px', 
           width: '900px',
           height: '600px',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(16, 185, 129, 0.3) 100%)',
+          backdropFilter: 'blur(10px)',
           border: '2px solid rgba(255,255,255,0.3)'
         }}
       >
-        {paceData && workoutData.coordinates?.length ? (
-          <SharePaceHeatmap 
-            data={paceData} 
-            onMapReady={onMapReady}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-900/80">
-            <div 
-              className="text-white font-bold text-4xl text-center"
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
-            >
-              {paceLoading ? 'Carregando mapa...' : 'Mapa não disponível'}
-            </div>
+        <div className="text-center">
+          <div 
+            className="text-white font-black text-8xl mb-6"
+            style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.8)' }}
+          >
+            BioPeak
           </div>
-        )}
+          <div 
+            className="text-white font-semibold text-4xl opacity-90"
+            style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+          >
+            Seu Personal Coach Inteligente
+          </div>
+        </div>
       </div>
 
       {/* Stats em grid 2x2 */}

@@ -8,7 +8,6 @@ import {
 
 import { WorkoutShareImage } from './WorkoutShareImage';
 import { useWorkoutImageShare } from '@/hooks/useWorkoutImageShare';
-import { useActivityPaceData } from '@/hooks/useActivityPaceData';
 import { toast } from '@/hooks/use-toast';
 
 interface ShareWorkoutDialogProps {
@@ -34,10 +33,6 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageBlob, setGeneratedImageBlob] = useState<Blob | null>(null);
   const { previewRef, generateWorkoutImage, shareWorkoutImage, onMapReady, resetMapReady } = useWorkoutImageShare();
-  
-  // CRITICAL: Use activity_id (Garmin ID) for data fetching as it has the actual GPS/chart data
-  const activityId = workoutData.activity_id || workoutData.id || '';
-  const { paceData } = useActivityPaceData(activityId);
 
   // Generate image automatically when dialog opens
   useEffect(() => {
@@ -57,8 +52,8 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
       setGeneratedImageBlob(null);
       setIsGeneratingImage(true);
 
-      // Wait for component to mount
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for component to mount (reduced since no map to load)
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       if (cancelled) return;
 
@@ -113,14 +108,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
           {/* Hidden div for image generation */}
           <div className="absolute -top-[10000px] left-0" ref={previewRef}>
             <WorkoutShareImage 
-              workoutData={{
-                ...workoutData,
-                id: activityId,
-                coordinates: paceData?.map(p => ({
-                  latitude: p.coordinates[0],
-                  longitude: p.coordinates[1]
-                })) || []
-              }} 
+              workoutData={workoutData}
               onMapReady={onMapReady}
             />
           </div>
