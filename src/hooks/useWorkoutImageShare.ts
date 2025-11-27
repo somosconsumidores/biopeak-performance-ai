@@ -120,50 +120,38 @@ export const useWorkoutImageShare = () => {
     const pace = workoutData.average_pace_in_minutes_per_kilometer
       ? `${Math.floor(workoutData.average_pace_in_minutes_per_kilometer)}:${String(Math.round((workoutData.average_pace_in_minutes_per_kilometer % 1) * 60)).padStart(2, '0')}/km`
       : '--';
-    const heartRate = workoutData.average_heart_rate_in_beats_per_minute
-      ? `${Math.round(workoutData.average_heart_rate_in_beats_per_minute)} bpm`
-      : '';
 
-    const shareText = `🏃‍♂️ Acabei de completar uma ${activity}!
-⏱️ ${duration} | 📍 ${distance} | 🏃 ${pace}${heartRate ? ` | ❤️ ${heartRate}` : ''}
-💪 Acompanhe meus treinos no BioPeak!
-#BioPeak #Fitness #Treino`;
+    const shareText = `🏃‍♂️ ${activity} • ${duration} • ${distance} • ${pace}\n💪 Treino no BioPeak`;
 
-    if (navigator.share && platform === 'native') {
+    // Download da imagem
+    downloadImage(imageBlob, platform);
+    
+    // Mensagens específicas por plataforma
+    if (platform === 'instagram') {
+      toast({
+        title: "✨ Imagem salva!",
+        description: "Abra o Instagram e selecione a imagem da galeria para postar no Stories ou Feed.",
+        duration: 6000,
+      });
+    } else if (platform === 'facebook') {
+      toast({
+        title: "✨ Imagem salva!",
+        description: "Abra o Facebook e selecione a imagem da galeria para criar sua postagem.",
+        duration: 6000,
+      });
+    } else if (platform === 'download') {
+      toast({
+        title: "Download concluído!",
+        description: "Imagem salva com sucesso.",
+      });
+    }
+    
+    // Tentar copiar texto para área de transferência (melhor esforço)
+    if (platform !== 'download') {
       try {
-        const file = new File([imageBlob], 'workout-biopeak.png', { type: 'image/png' });
-        await navigator.share({
-          title: 'Meu Treino no BioPeak',
-          text: shareText,
-          files: [file],
-        });
-        toast({
-          title: "Compartilhado!",
-          description: "Treino compartilhado com sucesso.",
-        });
+        await navigator.clipboard.writeText(shareText);
       } catch (error) {
-        console.error('Erro ao compartilhar:', error);
-        // Fallback para download
-        downloadImage(imageBlob);
-      }
-    } else {
-      // Para plataformas específicas, fazer download da imagem
-      downloadImage(imageBlob, platform);
-      
-      // Copiar texto para área de transferência
-      if (platform !== 'download') {
-        try {
-          await navigator.clipboard.writeText(shareText);
-          toast({
-            title: "Pronto para compartilhar!",
-            description: "Imagem baixada e texto copiado. Cole no " + getPlatformName(platform) + ".",
-          });
-        } catch (error) {
-          toast({
-            title: "Imagem baixada!",
-            description: "Use a imagem baixada para compartilhar no " + getPlatformName(platform) + ".",
-          });
-        }
+        // Silently fail - não é crítico
       }
     }
   }, [generateWorkoutImage]);
@@ -179,16 +167,6 @@ export const useWorkoutImageShare = () => {
     URL.revokeObjectURL(url);
   }, []);
 
-  const getPlatformName = (platform: string): string => {
-    const names: { [key: string]: string } = {
-      'instagram': 'Instagram',
-      'facebook': 'Facebook', 
-      'twitter': 'Twitter',
-      'linkedin': 'LinkedIn',
-      'whatsapp': 'WhatsApp',
-    };
-    return names[platform] || platform;
-  };
 
   const onMapReady = useCallback(() => {
     mapReadyRef.current = true;
