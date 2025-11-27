@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     // Optimize bundle size
     rollupOptions: {
-      external: ['jspdf'],
+      external: ['jspdf', '@capacitor/share', '@capacitor/filesystem'],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
