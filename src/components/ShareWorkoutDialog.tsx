@@ -8,6 +8,9 @@ import {
 
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { usePlatform } from '@/hooks/usePlatform';
 import shareRunningBg from '@/assets/share-running.png';
 import shareSwimmingBg from '@/assets/share-swimming.png';
 import shareCyclingBg from '@/assets/share-cycling.png';
@@ -33,6 +36,7 @@ interface ShareWorkoutDialogProps {
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [generatedImageBlob, setGeneratedImageBlob] = useState<Blob | null>(null);
   const imagePreviewRef = useRef<HTMLDivElement>(null);
+  const { isAndroid } = usePlatform();
 
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -121,7 +125,52 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
         }, 'image/png', 1.0);
       });
 
-      // Download image
+      // Native Android sharing
+      if (isAndroid) {
+        try {
+          // Convert blob to base64
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          
+          await new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+          });
+
+          const base64Data = reader.result as string;
+          const base64String = base64Data.split(',')[1];
+
+          // Save to filesystem temporarily
+          const fileName = `workout-biopeak-${Date.now()}.png`;
+          const savedFile = await Filesystem.writeFile({
+            path: fileName,
+            data: base64String,
+            directory: Directory.Cache
+          });
+
+          // Share using native share dialog
+          await Share.share({
+            title: 'Meu Treino BioPeak',
+            text: 'Confira meu treino no BioPeak! 🏃‍♂️💪',
+            url: savedFile.uri,
+            dialogTitle: 'Compartilhar no Instagram ou Facebook'
+          });
+
+          // Close dialog after sharing
+          onOpenChange(false);
+          
+        } catch (error) {
+          console.error('Error sharing on Android:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível compartilhar a imagem",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+
+      // Web fallback - download image
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
