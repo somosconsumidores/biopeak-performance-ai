@@ -195,7 +195,7 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
             </div>
 
             {/* Stats Grid */}
-            <div className="absolute bottom-32 left-4 right-4">
+            <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2">
               <div className="grid grid-cols-2 gap-6 text-white">
                 {/* Tempo */}
                 <div className="text-center bg-black/20 backdrop-blur-sm rounded-lg p-4">
