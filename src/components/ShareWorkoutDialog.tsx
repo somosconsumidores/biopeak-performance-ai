@@ -41,24 +41,52 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
   // Generate image automatically when dialog opens
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      setGeneratedImageUrl(null);
+      setGeneratedImageBlob(null);
+      setIsGeneratingImage(false);
+      return;
+    }
+
+    let cancelled = false;
+    
+    const generateImage = async () => {
+      console.log('🔍 Starting image generation process...');
       resetMapReady();
       setGeneratedImageUrl(null);
       setGeneratedImageBlob(null);
       setIsGeneratingImage(true);
 
-      // Wait a bit for the component to mount
-      const timer = setTimeout(async () => {
+      // Wait for component to mount
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (cancelled) return;
+
+      console.log('🔍 Calling generateWorkoutImage...');
+      try {
         const result = await generateWorkoutImage(workoutData);
+        if (cancelled) return;
+        
+        console.log('🔍 Generate result:', result ? 'Success' : 'Failed');
         if (result) {
           setGeneratedImageUrl(result.url);
           setGeneratedImageBlob(result.blob);
         }
-        setIsGeneratingImage(false);
-      }, 500);
+      } catch (error) {
+        console.error('🔍 Error generating image:', error);
+      } finally {
+        if (!cancelled) {
+          setIsGeneratingImage(false);
+        }
+      }
+    };
 
-      return () => clearTimeout(timer);
-    }
+    generateImage();
+
+    return () => {
+      console.log('🔍 Cleanup: cancelling generation');
+      cancelled = true;
+    };
   }, [open, generateWorkoutImage, workoutData, resetMapReady]);
 
   const handleShare = async (platform: string) => {
