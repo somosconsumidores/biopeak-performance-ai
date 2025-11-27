@@ -52,7 +52,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
       const min = Math.min(...heartRates);
       const max = Math.max(...heartRates);
       const binSize = 10;
-      const binCount = Math.ceil((max - min) / binSize);
+      const binCount = Math.max(1, Math.ceil((max - min) / binSize));
       
       const bins = Array.from({ length: binCount }, (_, i) => ({
         range: `${Math.round(min + i * binSize)}-${Math.round(min + (i + 1) * binSize)}`,
@@ -64,7 +64,9 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
 
       heartRates.forEach(hr => {
         const binIndex = Math.min(Math.floor((hr - min) / binSize), binCount - 1);
-        bins[binIndex].count++;
+        if (bins[binIndex]) {
+          bins[binIndex].count++;
+        }
       });
 
       bins.forEach(bin => {
@@ -99,7 +101,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
       const min = Math.min(...paces);
       const max = Math.max(...paces);
       const binSize = 0.5; // 30 seconds
-      const binCount = Math.ceil((max - min) / binSize);
+      const binCount = Math.max(1, Math.ceil((max - min) / binSize));
       
       const bins = Array.from({ length: binCount }, (_, i) => ({
         range: `${formatPaceRange(min + i * binSize)}-${formatPaceRange(min + (i + 1) * binSize)}`,
@@ -111,7 +113,9 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
 
       paces.forEach(pace => {
         const binIndex = Math.min(Math.floor((pace - min) / binSize), binCount - 1);
-        bins[binIndex].count++;
+        if (bins[binIndex]) {
+          bins[binIndex].count++;
+        }
       });
 
       bins.forEach(bin => {
