@@ -6,7 +6,7 @@ export const useWorkoutImageShare = () => {
   const previewRef = useRef<HTMLDivElement>(null);
   const mapReadyRef = useRef<boolean>(false);
 
-  const generateWorkoutImage = useCallback(async (workoutData: any): Promise<Blob | null> => {
+  const generateWorkoutImage = useCallback(async (workoutData: any): Promise<{ blob: Blob; url: string } | null> => {
     if (!previewRef.current) {
       console.error('🔍 IMAGE_SHARE: No preview element found');
       toast({
@@ -88,10 +88,12 @@ export const useWorkoutImageShare = () => {
         canvas.toBlob((blob) => {
           if (blob) {
             console.log('🔍 IMAGE_SHARE: Blob created successfully, size:', blob.size, 'bytes');
+            const url = URL.createObjectURL(blob);
+            resolve({ blob, url });
           } else {
             console.error('🔍 IMAGE_SHARE: Failed to create blob from canvas');
+            resolve(null);
           }
-          resolve(blob);
         }, 'image/png', 1.0);
       });
     } catch (error) {
@@ -105,9 +107,7 @@ export const useWorkoutImageShare = () => {
     }
   }, []);
 
-  const shareWorkoutImage = useCallback(async (platform: string, workoutData: any) => {
-    const imageBlob = await generateWorkoutImage(workoutData);
-    
+  const shareWorkoutImage = useCallback(async (platform: string, imageBlob: Blob, workoutData: any) => {
     if (!imageBlob) return;
 
     const activity = workoutData.activity_type || 'Atividade';
