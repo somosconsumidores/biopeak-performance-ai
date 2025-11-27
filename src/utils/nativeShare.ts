@@ -1,7 +1,10 @@
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-
 export const shareNatively = async (blob: Blob, platform: string) => {
+  // Dynamically load Capacitor plugins only when needed (Android native)
+  const [{ Share }, { Filesystem, Directory }] = await Promise.all([
+    import('@capacitor/share'),
+    import('@capacitor/filesystem'),
+  ]);
+
   // Convert blob to base64
   const reader = new FileReader();
   reader.readAsDataURL(blob);
@@ -16,17 +19,23 @@ export const shareNatively = async (blob: Blob, platform: string) => {
 
   // Save to filesystem temporarily
   const fileName = `workout-biopeak-${Date.now()}.png`;
-  const savedFile = await Filesystem.writeFile({
+  await Filesystem.writeFile({
     path: fileName,
     data: base64String,
-    directory: Directory.Cache
+    directory: Directory.Cache,
+  });
+
+  // Get full URI for the saved file
+  const fileUri = await Filesystem.getUri({
+    path: fileName,
+    directory: Directory.Cache,
   });
 
   // Share using native share dialog
   await Share.share({
     title: 'Meu Treino BioPeak',
     text: 'Confira meu treino no BioPeak! 🏃‍♂️💪',
-    url: savedFile.uri,
-    dialogTitle: 'Compartilhar no Instagram ou Facebook'
+    url: fileUri.uri,
+    dialogTitle: 'Compartilhar no Instagram ou Facebook',
   });
 };
