@@ -181,13 +181,6 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
               backgroundPosition: 'center'
             }}
           >
-            {/* BioPeak Branding */}
-            <div className="absolute top-52 left-0 right-0 text-center">
-              <div className="text-white font-semibold text-lg opacity-90" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>
-                Seu Personal Coach Inteligente
-              </div>
-            </div>
-
             {/* Stats Grid */}
             <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2">
               <div className="grid grid-cols-2 gap-6 text-white">
