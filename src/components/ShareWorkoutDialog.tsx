@@ -8,7 +8,6 @@ import {
 
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
-import { usePlatform } from '@/hooks/usePlatform';
 import shareRunningBg from '@/assets/share-running.png';
 import shareSwimmingBg from '@/assets/share-swimming.png';
 import shareCyclingBg from '@/assets/share-cycling.png';
@@ -34,7 +33,6 @@ interface ShareWorkoutDialogProps {
 export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWorkoutDialogProps) => {
   const [generatedImageBlob, setGeneratedImageBlob] = useState<Blob | null>(null);
   const imagePreviewRef = useRef<HTMLDivElement>(null);
-  const { isAndroid } = usePlatform();
 
   // Helper functions
   const formatDuration = (seconds: number | null) => {
@@ -123,45 +121,17 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
         }, 'image/png', 1.0);
       });
 
-      // Native Android sharing
-      if (isAndroid) {
-        try {
-          const { shareNatively } = await import('@/utils/nativeShare');
-          await shareNatively(blob, platform);
-          onOpenChange(false);
-        } catch (error) {
-          console.error('Error sharing on Android:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível compartilhar a imagem",
-            variant: "destructive"
-          });
-        }
-        return;
-      }
-
-      // Web fallback - download image
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `workout-biopeak-${platform}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      // Show platform-specific toast
-      if (platform === 'instagram') {
+      // Use Web Share API (works on Android/iOS WebView and modern browsers)
+      try {
+        const { shareNatively } = await import('@/utils/nativeShare');
+        await shareNatively(blob, platform);
+        onOpenChange(false);
+      } catch (error) {
+        console.error('Error sharing:', error);
         toast({
-          title: "✨ Imagem salva!",
-          description: "Abra o Instagram e selecione a imagem da galeria para postar no Stories ou Feed.",
-          duration: 6000,
-        });
-      } else if (platform === 'facebook') {
-        toast({
-          title: "✨ Imagem salva!",
-          description: "Abra o Facebook e selecione a imagem da galeria para criar sua postagem.",
-          duration: 6000,
+          title: "Erro",
+          description: "Não foi possível compartilhar a imagem",
+          variant: "destructive"
         });
       }
     } catch (error) {
