@@ -1,9 +1,14 @@
+import { Capacitor } from '@capacitor/core';
+
 export const shareNatively = async (blob: Blob, platform: string) => {
-  // Dynamically load Capacitor plugins only when needed (Android native)
-  const [{ Share }, { Filesystem, Directory }] = await Promise.all([
-    import('@capacitor/share'),
-    import('@capacitor/filesystem'),
-  ]);
+  // Access plugins from global Capacitor object (no npm imports needed)
+  const plugins = (Capacitor as any).Plugins;
+  const Share = plugins.Share;
+  const Filesystem = plugins.Filesystem;
+  
+  if (!Share || !Filesystem) {
+    throw new Error('Native plugins not available');
+  }
 
   // Convert blob to base64
   const reader = new FileReader();
@@ -22,13 +27,13 @@ export const shareNatively = async (blob: Blob, platform: string) => {
   await Filesystem.writeFile({
     path: fileName,
     data: base64String,
-    directory: Directory.Cache,
+    directory: 'CACHE',
   });
 
   // Get full URI for the saved file
   const fileUri = await Filesystem.getUri({
     path: fileName,
-    directory: Directory.Cache,
+    directory: 'CACHE',
   });
 
   // Share using native share dialog
