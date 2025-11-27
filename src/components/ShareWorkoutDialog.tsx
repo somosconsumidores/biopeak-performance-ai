@@ -8,6 +8,9 @@ import {
 
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
+import shareRunningBg from '@/assets/share-running.png';
+import shareSwimmingBg from '@/assets/share-swimming.png';
+import shareCyclingBg from '@/assets/share-cycling.png';
 
 interface ShareWorkoutDialogProps {
   open: boolean;
@@ -57,25 +60,19 @@ export const ShareWorkoutDialog = ({ open, onOpenChange, workoutData }: ShareWor
 
   const getBackgroundImage = () => {
     const type = workoutData.activity_type?.toUpperCase();
-    if (!type) return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png';
+    if (!type) return shareRunningBg;
     
-    if (['WEIGHTTRAINING', 'WORKOUT', 'STRENGTH_TRAINING'].includes(type)) {
-      return '/lovable-uploads/f5f0c382-e88d-48a8-9d67-a143cd9ca96a.png';
-    }
-    if (['WALK', 'WALKING'].includes(type)) {
-      return '/lovable-uploads/dbf161f1-3a70-4926-ae9d-bd30f245111b.png';
-    }
     if (['SWIM', 'LAP_SWIMMING', 'OPEN_WATER_SWIMMING'].includes(type)) {
-      return '/lovable-uploads/9020a919-c039-4674-ba74-e140186b0c3a.png';
+      return shareSwimmingBg;
     }
-    if (['RUN', 'RUNNING', 'TREADMILL_RUNNING', 'INDOOR_CARDIO'].includes(type)) {
-      return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png';
+    if (['RUN', 'RUNNING', 'TREADMILL_RUNNING', 'INDOOR_CARDIO', 'WALK', 'WALKING'].includes(type)) {
+      return shareRunningBg;
     }
     if (['RIDE', 'CYCLING', 'ROAD_BIKING', 'VIRTUALRIDE', 'MOUNTAIN_BIKING', 'INDOOR_CYCLING'].includes(type)) {
-      return '/lovable-uploads/a6245b34-933b-49cd-8ea7-fa9ff83e2bea.png';
+      return shareCyclingBg;
     }
     
-    return '/lovable-uploads/1c86ae07-e1c7-40fc-94a1-3a9771f8fb9a.png';
+    return shareRunningBg;
   };
 
   const formatWorkoutType = () => {
