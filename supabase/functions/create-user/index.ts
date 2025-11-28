@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
-        id: data.user.id,
+        user_id: data.user.id,
         display_name: name,
         phone: phone
       });
