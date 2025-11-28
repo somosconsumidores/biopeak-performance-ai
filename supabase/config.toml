@@ -251,3 +251,6 @@ verify_jwt = false
 
 [functions.calculate-overtraining-batch]
 verify_jwt = false
+
+[functions.create-user]
+verify_jwt = false
