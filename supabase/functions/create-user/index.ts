@@ -82,13 +82,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[create-user] Usuário criado com sucesso: ${data.user.id}`);
 
-    // Inserir o perfil na tabela profiles
+    // Inserir ou atualizar o perfil na tabela profiles (upsert)
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         user_id: data.user.id,
         display_name: name,
         phone: phone
+      }, {
+        onConflict: 'user_id'
       });
 
     if (profileError) {
