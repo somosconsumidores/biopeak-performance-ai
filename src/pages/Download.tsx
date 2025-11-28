@@ -74,57 +74,72 @@ export function Download() {
         <div className="absolute inset-0 bg-grid-white/[0.02]" />
         
         <div className="relative container mx-auto px-4 pt-20 pb-32">
-          <div className="text-center max-w-4xl mx-auto space-y-8">
-            <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
-              <Smartphone className="h-3 w-3 mr-1" />
-              Disponível para iOS e Android
-            </Badge>
+          <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            {/* Text Content */}
+            <div className="text-center md:text-left space-y-8">
+              <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+                <Smartphone className="h-3 w-3 mr-1" />
+                Disponível para iOS e Android
+              </Badge>
 
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-              Seu{' '}
-              <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">
-                Personal Coach
-              </span>
-              {' '}de Bolso
-            </h1>
+              <h1 className="text-5xl md:text-7xl font-bold leading-tight">
+                Seu{' '}
+                <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">
+                  Personal Coach
+                </span>
+                {' '}de Bolso
+              </h1>
 
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Treine, analise e evolua com IA. Sem relógios caros. Sem complicação.
-            </p>
+              <p className="text-xl md:text-2xl text-muted-foreground">
+                Treine, analise e evolua com IA. Sem relógios caros. Sem complicação.
+              </p>
 
-            {/* Download Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-              <Button 
-                size="lg" 
-                className="w-full sm:w-auto text-lg h-14 px-8 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-                onClick={handleAppStoreClick}
-              >
-                <Apple className="h-5 w-5 mr-2" />
-                App Store
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="w-full sm:w-auto text-lg h-14 px-8 border-2"
-                onClick={handleGooglePlayClick}
-              >
-                <Chrome className="h-5 w-5 mr-2" />
-                Google Play
-              </Button>
+              {/* Download Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center pt-8">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto text-lg h-14 px-8 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                  onClick={handleAppStoreClick}
+                >
+                  <Apple className="h-5 w-5 mr-2" />
+                  App Store
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="w-full sm:w-auto text-lg h-14 px-8 border-2"
+                  onClick={handleGooglePlayClick}
+                >
+                  <Chrome className="h-5 w-5 mr-2" />
+                  Google Play
+                </Button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-8 pt-16">
+                {stats.map((stat, index) => (
+                  <div key={index} className="text-center md:text-left">
+                    <div className="text-3xl md:text-4xl font-bold text-primary">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 pt-16 max-w-2xl mx-auto">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-3xl md:text-4xl font-bold text-primary">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
+            {/* App Screenshot */}
+            <div className="flex justify-center md:justify-end">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 blur-3xl rounded-full" />
+                <img 
+                  src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/1.png"
+                  alt="BioPeak App Screenshot"
+                  className="relative w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl"
+                />
+              </div>
             </div>
           </div>
         </div>
