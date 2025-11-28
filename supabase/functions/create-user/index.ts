@@ -82,6 +82,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[create-user] Usuário criado com sucesso: ${data.user.id}`);
 
+    // Inserir o perfil na tabela profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        display_name: name,
+        phone: phone
+      });
+
+    if (profileError) {
+      console.error(`[create-user] Erro ao criar perfil:`, profileError);
+      // Não retornar erro aqui para não bloquear o cadastro
+      // O perfil pode ser criado posteriormente
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,
