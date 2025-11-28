@@ -2217,6 +2217,7 @@ export type Database = {
           fb_creative_id: string | null
           id: number
           impressions: number | null
+          leads: number | null
           meta_ad_id: string | null
           meta_adset_id: string | null
           purchases: number | null
@@ -2236,6 +2237,7 @@ export type Database = {
           fb_creative_id?: string | null
           id?: never
           impressions?: number | null
+          leads?: number | null
           meta_ad_id?: string | null
           meta_adset_id?: string | null
           purchases?: number | null
@@ -2255,6 +2257,7 @@ export type Database = {
           fb_creative_id?: string | null
           id?: never
           impressions?: number | null
+          leads?: number | null
           meta_ad_id?: string | null
           meta_adset_id?: string | null
           purchases?: number | null
@@ -2268,7 +2271,7 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "creative_performance_last_7d"
-            referencedColumns: ["creative_pk"]
+            referencedColumns: ["creative_id"]
           },
           {
             foreignKeyName: "marketing_stats_daily_creative_id_fkey"
@@ -2281,8 +2284,15 @@ export type Database = {
             foreignKeyName: "marketing_stats_daily_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
+            referencedRelation: "v_decisions_latest"
+            referencedColumns: ["creative_id"]
+          },
+          {
+            foreignKeyName: "marketing_stats_daily_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
             referencedRelation: "winners_losers_by_rule"
-            referencedColumns: ["creative_pk"]
+            referencedColumns: ["creative_id"]
           },
         ]
       }
@@ -5179,15 +5189,16 @@ export type Database = {
         Row: {
           angle: string | null
           clicks_7d: number | null
-          cpa_7d: number | null
           cpc_7d: number | null
-          creative_pk: string | null
+          cpl_7d: number | null
+          creative_id: string | null
           ctr_7d: number | null
           impressions_7d: number | null
+          leads_7d: number | null
           meta_ad_id: string | null
+          meta_adset_id: string | null
           purchases_7d: number | null
           revenue_7d: number | null
-          roas_7d: number | null
           spend_7d: number | null
           status: string | null
         }
@@ -5258,11 +5269,21 @@ export type Database = {
       }
       v_decisions_latest: {
         Row: {
-          event_time: string | null
-          event_type: string | null
-          id: number | null
-          payload: Json | null
-          workflow: string | null
+          angle: string | null
+          classification: string | null
+          clicks_7d: number | null
+          cpc_7d: number | null
+          cpl_7d: number | null
+          creative_id: string | null
+          ctr_7d: number | null
+          impressions_7d: number | null
+          leads_7d: number | null
+          meta_ad_id: string | null
+          meta_adset_id: string | null
+          purchases_7d: number | null
+          revenue_7d: number | null
+          spend_7d: number | null
+          status: string | null
         }
         Relationships: []
       }
@@ -5271,15 +5292,16 @@ export type Database = {
           angle: string | null
           classification: string | null
           clicks_7d: number | null
-          cpa_7d: number | null
           cpc_7d: number | null
-          creative_pk: string | null
+          cpl_7d: number | null
+          creative_id: string | null
           ctr_7d: number | null
           impressions_7d: number | null
+          leads_7d: number | null
           meta_ad_id: string | null
+          meta_adset_id: string | null
           purchases_7d: number | null
           revenue_7d: number | null
-          roas_7d: number | null
           spend_7d: number | null
           status: string | null
         }

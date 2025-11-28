@@ -18,6 +18,7 @@ import { Browser } from "@capacitor/browser";
 
 import { LandingPage } from "./pages/LandingPage";
 import { SalesLandingPage } from "./pages/SalesLandingPage";
+import { Download } from "./pages/Download";
 import { Dashboard } from "./pages/Dashboard";
 import { WorkoutSession } from "./pages/WorkoutSession";
 import { WorkoutComparison } from "./pages/WorkoutComparison";
@@ -168,6 +169,11 @@ function AppRoutes() {
         <Route path="/landingpage" element={
           <PublicRoute>
             <SalesLandingPage />
+          </PublicRoute>
+        } />
+        <Route path="/download" element={
+          <PublicRoute>
+            <Download />
           </PublicRoute>
         } />
         <Route path="/reset-password" element={<ResetPassword />} />
