@@ -132,14 +132,11 @@ export function Download() {
 
             {/* App Screenshot */}
             <div className="flex justify-center md:justify-end">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 blur-3xl rounded-full" />
-                <img 
-                  src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/1.png"
-                  alt="BioPeak App Screenshot"
-                  className="relative w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl"
-                />
-              </div>
+              <img 
+                src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/1.png"
+                alt="BioPeak App Screenshot"
+                className="w-full max-w-sm md:max-w-md"
+              />
             </div>
           </div>
         </div>
