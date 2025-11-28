@@ -9,8 +9,9 @@ const corsHeaders = {
 interface CreateUserRequest {
   email: string;
   password: string;
+  name?: string;
+  phone?: string;
   metadata?: {
-    display_name?: string;
     [key: string]: any;
   };
 }
@@ -31,7 +32,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    const { email, password, metadata }: CreateUserRequest = await req.json();
+    const { email, password, name, phone, metadata }: CreateUserRequest = await req.json();
 
     // Validações básicas
     if (!email || !password) {
@@ -61,7 +62,11 @@ const handler = async (req: Request): Promise<Response> => {
       email,
       password,
       email_confirm: true, // Auto-confirma email
-      user_metadata: metadata || {}
+      user_metadata: {
+        display_name: name,
+        phone,
+        ...metadata
+      }
     });
 
     if (error) {
