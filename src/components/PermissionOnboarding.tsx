@@ -67,7 +67,7 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Usamos sua localização apenas durante os treinos para:
+                O BioPeak coleta dados de localização para rastrear seus treinos, <strong>mesmo quando o app está em segundo plano ou com a tela bloqueada</strong>:
               </p>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside pl-2">
                 <li>Rastrear distância e percurso</li>
@@ -75,6 +75,9 @@ export const PermissionOnboarding: React.FC<PermissionOnboardingProps> = ({
                 <li>Registrar altitude e elevação</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-3">
+                A coleta continua ativa durante toda a sessão de treino, mesmo que você bloqueie a tela ou alterne para outro app.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
                 Seus dados são privados e nunca compartilhados.
               </p>
             </CardContent>

@@ -102,7 +102,7 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
                     Por que precisamos da sua localização?
                   </h4>
                   <p className="text-sm text-muted-foreground mb-3">
-                    O BioPeak usa sua localização <strong>apenas durante os treinos</strong> para:
+                    O BioPeak coleta dados de localização para permitir o rastreamento de treinos, <strong>mesmo quando o app está em segundo plano ou não está em uso</strong>. Usamos para:
                   </p>
                   <ul className="text-sm space-y-1.5 text-muted-foreground">
                     <li className="flex items-start gap-2">
@@ -122,7 +122,10 @@ export const GPSPermissionDialog: React.FC<GPSPermissionDialogProps> = ({
                       <span>Gerar mapas das suas atividades</span>
                     </li>
                   </ul>
-                  <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground mt-3">
+                    A coleta de localização continua ativa enquanto você está em uma sessão de treino, mesmo que a tela esteja bloqueada ou você mude para outro app.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Shield className="h-3 w-3" />
                     Seus dados são <strong>privados</strong> e <strong>nunca compartilhados</strong> com terceiros.
                   </p>
