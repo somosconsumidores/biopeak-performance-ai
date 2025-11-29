@@ -90,7 +90,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
             </h1>
             
             <p className="text-base text-muted-foreground px-4">
-              Os dados que você coleta no BioPeak são privados e armazenados de forma segura. Utilizamos seus dados apenas para fornecer análises personalizadas e melhorar sua experiência de treino.
+              O BioPeak coleta dados de localização para permitir o rastreamento de treinos, <strong>mesmo quando o app está em segundo plano ou com a tela bloqueada</strong>. Seus dados são privados e armazenados de forma segura, utilizados apenas para fornecer análises personalizadas e melhorar sua experiência de treino.
             </p>
 
             <div className="relative w-full aspect-square max-w-sm my-8">
@@ -108,7 +108,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
             </div>
 
             <p className="text-sm text-muted-foreground px-6">
-              Seus treinos e dados de localização são protegidos e nunca compartilhados com terceiros sem sua permissão.
+              A coleta de localização acontece durante toda a sessão de treino, mesmo com a tela bloqueada. Seus dados são protegidos e nunca compartilhados com terceiros sem sua permissão.
             </p>
           </div>
 
@@ -144,7 +144,7 @@ export const AppOnboarding = ({ onComplete }: AppOnboardingProps) => {
                   <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
                   <div className="text-left text-sm">
                     <p className="font-medium">Localização GPS</p>
-                    <p className="text-muted-foreground">Apenas durante treinos</p>
+                    <p className="text-muted-foreground">Durante treinos, mesmo em segundo plano</p>
                   </div>
                 </div>
 
