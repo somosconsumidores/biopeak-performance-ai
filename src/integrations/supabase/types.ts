@@ -482,6 +482,38 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_sessions: {
+        Row: {
+          affiliate_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          session_token: string
+        }
+        Insert: {
+          affiliate_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          session_token: string
+        }
+        Update: {
+          affiliate_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          session_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_sessions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates_login"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_stats: {
         Row: {
           affiliate_login: string
@@ -523,8 +555,11 @@ export type Database = {
           affiliate_url: string | null
           created_at: string
           id: string
+          is_admin: boolean | null
           login: string
+          name: string | null
           password: string
+          phone: string | null
           updated_at: string
           utm_source: string | null
         }
@@ -532,8 +567,11 @@ export type Database = {
           affiliate_url?: string | null
           created_at?: string
           id?: string
+          is_admin?: boolean | null
           login: string
+          name?: string | null
           password: string
+          phone?: string | null
           updated_at?: string
           utm_source?: string | null
         }
@@ -541,8 +579,11 @@ export type Database = {
           affiliate_url?: string | null
           created_at?: string
           id?: string
+          is_admin?: boolean | null
           login?: string
+          name?: string | null
           password?: string
+          phone?: string | null
           updated_at?: string
           utm_source?: string | null
         }
