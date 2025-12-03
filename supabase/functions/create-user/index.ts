@@ -88,7 +88,8 @@ const handler = async (req: Request): Promise<Response> => {
       .upsert({
         user_id: data.user.id,
         display_name: name,
-        phone: phone
+        phone: phone,
+        utm_source: metadata?.utm_source || null
       }, {
         onConflict: 'user_id'
       });
