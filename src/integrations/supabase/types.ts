@@ -555,6 +555,7 @@ export type Database = {
           affiliate_url: string | null
           created_at: string
           id: string
+          instagram: string | null
           is_admin: boolean | null
           login: string
           name: string | null
@@ -567,6 +568,7 @@ export type Database = {
           affiliate_url?: string | null
           created_at?: string
           id?: string
+          instagram?: string | null
           is_admin?: boolean | null
           login: string
           name?: string | null
@@ -579,6 +581,7 @@ export type Database = {
           affiliate_url?: string | null
           created_at?: string
           id?: string
+          instagram?: string | null
           is_admin?: boolean | null
           login?: string
           name?: string | null
