@@ -5296,6 +5296,16 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_active_subscribers: {
+        Row: {
+          creation_date: string | null
+          display_name: string | null
+          email: string | null
+          phone: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       mv_biopeak_cycling_efficiency: {
         Row: {
           current_ef: number | null
