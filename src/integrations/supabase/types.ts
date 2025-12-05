@@ -5336,6 +5336,31 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_biopeak_fuel_predictor: {
+        Row: {
+          display_name: string | null
+          fuel_strategy: string | null
+          phone: string | null
+          planned_duration: number | null
+          predicted_burn_kcal: number | null
+          user_id: string | null
+          workout_title: string | null
+        }
+        Relationships: []
+      }
+      mv_biopeak_nutritional_profile: {
+        Row: {
+          age: number | null
+          avg_active_kcal: number | null
+          bmr_kcal: number | null
+          goal: string | null
+          sport_type: string | null
+          tdee_kcal: number | null
+          user_id: string | null
+          weight_kg: number | null
+        }
+        Relationships: []
+      }
       mv_whatsapp_dispatch_queue: {
         Row: {
           acwr_score: string | null

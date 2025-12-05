@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Brain, Home, BarChart, User, Calendar } from 'lucide-react';
+import { Brain, Home, BarChart, User, Calendar, Utensils } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const MobileBottomBar: React.FC = () => {
@@ -18,9 +18,8 @@ const MobileBottomBar: React.FC = () => {
 
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Início' },
-    { path: '/premium-stats', icon: BarChart, label: 'Painel' },
-    { path: '/workouts', icon: BarChart, label: 'Treinos' },
-    { path: '/training-plan', icon: Calendar, label: 'Calendário' },
+    { path: '/training-plan', icon: Calendar, label: 'Plano' },
+    { path: '/nutrition', icon: Utensils, label: 'Nutrição' },
     { path: '/insights', icon: Brain, label: 'Insights' },
     { path: '/profile', icon: User, label: 'Perfil' }
   ];
