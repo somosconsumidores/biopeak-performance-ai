@@ -1,12 +1,24 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
+
+interface Profile {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  birth_date: string | null;
+  weight_kg: number | null;
+  height_cm: number | null;
+  gender?: string | null;
+}
 
 interface NutritionalProfile {
-  bmr: number; // Basal Metabolic Rate
-  tdee: number; // Total Daily Energy Expenditure
-  avgTrainingCalories: number; // Average daily training calories (30 days)
+  bmr: number;
+  tdee: number;
+  avgTrainingCalories: number;
   proteinGrams: number;
   carbsGrams: number;
   fatGrams: number;
@@ -34,11 +46,41 @@ interface NutritionPlan {
 
 export function useNutritionalProfile() {
   const { user } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [avgDailyCalories, setAvgDailyCalories] = useState<number>(0);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [tomorrowWorkout, setTomorrowWorkout] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch profile data
+  const fetchProfile = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    try {
+      setProfileLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   // Check if user has required metabolic data
   const hasMetabolicData = useMemo(() => {
@@ -91,7 +133,6 @@ export function useNutritionalProfile() {
           const totalCalories = data.reduce((sum, activity) => {
             return sum + (activity.active_kilocalories || 0);
           }, 0);
-          // Daily average over 30 days
           setAvgDailyCalories(Math.round(totalCalories / 30));
         }
       } catch (error) {
@@ -167,11 +208,12 @@ export function useNutritionalProfile() {
     const height = profile.height_cm!;
     const age = calculateAge(profile.birth_date!);
     
-    // Default to male for now - can be updated based on profile.gender if available
-    const bmr = calculateBMR(weight, height, age, 'male');
+    // Use gender from profile if available
+    const gender = (profile.gender === 'female' ? 'female' : 'male') as 'male' | 'female';
+    const bmr = calculateBMR(weight, height, age, gender);
     
     // Determine activity level based on training frequency
-    let activityMultiplier = 1.55; // Moderate as default for athletes
+    let activityMultiplier = 1.55;
     let activityLevel: NutritionalProfile['activityLevel'] = 'moderate';
     
     if (avgDailyCalories > 500) {
@@ -188,7 +230,6 @@ export function useNutritionalProfile() {
     const tdee = Math.round(bmr * activityMultiplier);
 
     // Macro distribution for performance athletes
-    // Protein: 1.6-2.2g/kg, Carbs: 5-7g/kg for endurance, Fat: remaining
     const proteinGrams = Math.round(weight * 1.8);
     const carbsGrams = Math.round(weight * 5.5);
     const proteinCalories = proteinGrams * 4;
@@ -217,5 +258,6 @@ export function useNutritionalProfile() {
     tomorrowWorkout,
     hasMetabolicData,
     loading: loading || profileLoading,
+    refetchProfile: fetchProfile,
   };
 }

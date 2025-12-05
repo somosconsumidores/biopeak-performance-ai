@@ -5,7 +5,12 @@ import { useNutritionalProfile } from '@/hooks/useNutritionalProfile';
 import { Utensils } from 'lucide-react';
 
 export default function Nutrition() {
-  const { hasMetabolicData, loading } = useNutritionalProfile();
+  const { hasMetabolicData, loading, refetchProfile } = useNutritionalProfile();
+
+  const handleCalibrationComplete = () => {
+    // Refetch profile to update hasMetabolicData
+    refetchProfile();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,7 +34,7 @@ export default function Nutrition() {
             <div className="h-32 bg-muted/20 rounded-lg" />
           </div>
         ) : !hasMetabolicData ? (
-          <MetabolicCalibrationCard />
+          <MetabolicCalibrationCard onCalibrationComplete={handleCalibrationComplete} />
         ) : (
           <NutritionDashboard />
         )}
