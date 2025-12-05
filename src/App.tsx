@@ -51,6 +51,7 @@ import CheckoutMercadoPago from "./pages/CheckoutMercadoPago";
 import RacePlanning from "./pages/RacePlanning";
 import SavedStrategies from "./pages/SavedStrategies";
 import { AICoach } from "./pages/AICoach";
+import Nutrition from "./pages/Nutrition";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 import { useAppOnboarding } from "./hooks/useAppOnboarding";
@@ -289,6 +290,11 @@ function AppRoutes() {
         <Route path="/ai-coach" element={
           <ProtectedRoute>
             <AICoach />
+          </ProtectedRoute>
+        } />
+        <Route path="/nutrition" element={
+          <ProtectedRoute>
+            <Nutrition />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
