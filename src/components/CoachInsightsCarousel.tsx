@@ -116,8 +116,10 @@ const getIconComponent = (iconName: string): LucideIcon => {
 };
 
 // Parse KPI value to get numeric value for meter
-const parseKpiValue = (value: string): number | null => {
-  const match = value.match(/-?[\d.]+/);
+const parseKpiValue = (value: string | number | null | undefined): number | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value;
+  const match = String(value).match(/-?[\d.]+/);
   return match ? parseFloat(match[0]) : null;
 };
 
@@ -230,7 +232,7 @@ export const CoachInsightsCarousel = () => {
       const WatermarkIcon = getSportIcon(insight_type);
       const microcopy = getMicrocopy(insight_type);
       
-      const kpiNumeric = insight_data.kpi_value ? parseKpiValue(insight_data.kpi_value) : null;
+      const kpiNumeric = parseKpiValue(insight_data.kpi_value);
       const isACWR = insight_type === 'injury_risk_run';
       const isEfficiency = insight_type.includes('efficiency');
 
@@ -262,10 +264,10 @@ export const CoachInsightsCarousel = () => {
               </div>
 
               {/* KPI Value - Central Focus */}
-              {insight_data.kpi_value && (
+              {insight_data.kpi_value !== undefined && (
                 <div className="mb-3">
                   <span className={`text-3xl font-bold ${config.icon}`}>
-                    {insight_data.kpi_value}
+                    {String(insight_data.kpi_value)}
                   </span>
                 </div>
               )}
