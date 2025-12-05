@@ -7,7 +7,7 @@ export interface InsightData {
   body: string;
   status: 'positive' | 'warning' | 'neutral';
   icon: string;
-  kpi_value?: string;
+  kpi_value?: string | number;
   kpi_label?: string;
 }
 
