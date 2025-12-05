@@ -1,5 +1,8 @@
 project_id = "grcwlmltlcltmwbhdpky"
 
+[functions.app-download-redirect]
+verify_jwt = false
+
 [functions.generate-cycling-plan]
 verify_jwt = true
 

@@ -86,9 +86,9 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://minify-url.com/welcome-email" 
+                <a href="https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/app-download-redirect" 
                    style="display: inline-block; background-color: #0ea5e9; color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                  🔗 Conecte seu dispositivo agora e comece a evoluir
+                  📱 Faça o download do App BioPeak
                 </a>
               </div>
 
