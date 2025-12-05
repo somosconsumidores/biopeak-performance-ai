@@ -39,7 +39,7 @@ export const useCoachInsights = () => {
           .from('ai_coach_insights_history')
           .select('id, insight_type, insight_data, created_at')
           .eq('user_id', user.id)
-          .in('insight_type', ['running_efficiency_trend', 'cycling_efficiency_trend'])
+          .in('insight_type', ['running_efficiency_trend', 'cycling_efficiency_trend', 'efficiency_trend', 'injury_risk_run'])
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -49,14 +49,27 @@ export const useCoachInsights = () => {
           return;
         }
 
+        // Debug: log raw data from Supabase
+        console.log('[useCoachInsights] Raw Data:', data);
+
         // Parse and validate insight_data JSON safely
         const parsedInsights: CoachInsight[] = (data || [])
           .map((row): CoachInsight | null => {
             try {
-              const insightData = row.insight_data as InsightData;
+              // Defensive parsing: handle string or object
+              let insightData: InsightData;
+              if (typeof row.insight_data === 'string') {
+                insightData = JSON.parse(row.insight_data) as InsightData;
+              } else if (row.insight_data && typeof row.insight_data === 'object') {
+                insightData = row.insight_data as InsightData;
+              } else {
+                console.warn('[useCoachInsights] Invalid insight_data format:', row.insight_data);
+                return null;
+              }
               
-              // Validate required fields
-              if (!insightData?.title || !insightData?.body || !insightData?.status) {
+              // Flexible validation: check if object has required fields
+              if (!insightData || typeof insightData !== 'object' || !insightData.title || !insightData.body) {
+                console.warn('[useCoachInsights] Missing required fields:', insightData);
                 return null;
               }
 
