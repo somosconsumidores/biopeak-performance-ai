@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,16 +9,62 @@ import { Scale, Ruler, CalendarDays, Sparkles, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 export function MetabolicCalibrationCard() {
+  const { user } = useAuth();
   const { profile, updateProfile, updating } = useProfile();
-  const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
-  const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
-  const [birthDate, setBirthDate] = useState<Date | undefined>(
-    profile?.birth_date ? new Date(profile.birth_date) : undefined
-  );
+  const [weight, setWeight] = useState('');
+  const [height, setHeight] = useState('');
+  const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [loadingOnboarding, setLoadingOnboarding] = useState(true);
+
+  // Pre-populate form with data from profile or user_onboarding
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!user) {
+        setLoadingOnboarding(false);
+        return;
+      }
+
+      // First check profile data
+      if (profile?.weight_kg) setWeight(profile.weight_kg.toString());
+      if (profile?.height_cm) setHeight(profile.height_cm.toString());
+      if (profile?.birth_date) setBirthDate(new Date(profile.birth_date));
+
+      // If profile doesn't have all data, check user_onboarding
+      const needsOnboardingData = !profile?.weight_kg || !profile?.birth_date;
+      
+      if (needsOnboardingData) {
+        try {
+          const { data: onboardingData, error } = await supabase
+            .from('user_onboarding')
+            .select('weight_kg, birth_date')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!error && onboardingData) {
+            // Only set if not already set from profile
+            if (!profile?.weight_kg && onboardingData.weight_kg) {
+              setWeight(onboardingData.weight_kg.toString());
+            }
+            if (!profile?.birth_date && onboardingData.birth_date) {
+              setBirthDate(new Date(onboardingData.birth_date));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching onboarding data:', error);
+        }
+      }
+
+      setLoadingOnboarding(false);
+    };
+
+    loadInitialData();
+  }, [user, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +78,23 @@ export function MetabolicCalibrationCard() {
   };
 
   const isValid = weight && height && birthDate;
+
+  if (loadingOnboarding) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md glass-card border-primary/20 animate-pulse">
+          <div className="h-2 bg-gradient-to-r from-orange-500/50 via-amber-500/50 to-green-500/50" />
+          <CardContent className="p-8">
+            <div className="space-y-4">
+              <div className="h-16 w-16 mx-auto rounded-full bg-muted/20" />
+              <div className="h-6 w-48 mx-auto bg-muted/20 rounded" />
+              <div className="h-4 w-64 mx-auto bg-muted/20 rounded" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
