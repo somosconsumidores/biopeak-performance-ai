@@ -5336,6 +5336,19 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_whatsapp_dispatch_queue: {
+        Row: {
+          acwr_score: string | null
+          display_name: string | null
+          insight_generated_at: string | null
+          insight_id: string | null
+          message_body: string | null
+          phone: string | null
+          status_type: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_all_activities_with_vo2_daniels: {
         Row: {
           active_kilocalories: number | null
