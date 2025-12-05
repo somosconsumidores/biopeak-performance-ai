@@ -5306,6 +5306,16 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_biopeak_acwr_run: {
+        Row: {
+          acute_km: number | null
+          acwr_score: number | null
+          calculation_date: string | null
+          chronic_km: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       mv_biopeak_cycling_efficiency: {
         Row: {
           current_ef: number | null
