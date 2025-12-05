@@ -8,19 +8,24 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Scale, Ruler, CalendarDays, Sparkles, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-export function MetabolicCalibrationCard() {
+interface MetabolicCalibrationCardProps {
+  onCalibrationComplete: () => void;
+}
+
+export function MetabolicCalibrationCard({ onCalibrationComplete }: MetabolicCalibrationCardProps) {
   const { user } = useAuth();
-  const { profile, updateProfile, updating } = useProfile();
+  const { toast } = useToast();
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Pre-populate form with data from profile or user_onboarding
   useEffect(() => {
@@ -30,51 +35,86 @@ export function MetabolicCalibrationCard() {
         return;
       }
 
-      // First check profile data
-      if (profile?.weight_kg) setWeight(profile.weight_kg.toString());
-      if (profile?.height_cm) setHeight(profile.height_cm.toString());
-      if (profile?.birth_date) setBirthDate(new Date(profile.birth_date));
+      try {
+        // First fetch profile data
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('weight_kg, height_cm, birth_date')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      // If profile doesn't have all data, check user_onboarding
-      const needsOnboardingData = !profile?.weight_kg || !profile?.birth_date;
-      
-      if (needsOnboardingData) {
-        try {
-          const { data: onboardingData, error } = await supabase
+        if (profileData?.weight_kg) setWeight(profileData.weight_kg.toString());
+        if (profileData?.height_cm) setHeight(profileData.height_cm.toString());
+        if (profileData?.birth_date) setBirthDate(new Date(profileData.birth_date));
+
+        // If profile doesn't have all data, check user_onboarding
+        const needsOnboardingData = !profileData?.weight_kg || !profileData?.birth_date;
+        
+        if (needsOnboardingData) {
+          const { data: onboardingData } = await supabase
             .from('user_onboarding')
             .select('weight_kg, birth_date')
             .eq('user_id', user.id)
             .maybeSingle();
 
-          if (!error && onboardingData) {
-            // Only set if not already set from profile
-            if (!profile?.weight_kg && onboardingData.weight_kg) {
+          if (onboardingData) {
+            if (!profileData?.weight_kg && onboardingData.weight_kg) {
               setWeight(onboardingData.weight_kg.toString());
             }
-            if (!profile?.birth_date && onboardingData.birth_date) {
+            if (!profileData?.birth_date && onboardingData.birth_date) {
               setBirthDate(new Date(onboardingData.birth_date));
             }
           }
-        } catch (error) {
-          console.error('Error fetching onboarding data:', error);
         }
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+      } finally {
+        setLoadingOnboarding(false);
       }
-
-      setLoadingOnboarding(false);
     };
 
     loadInitialData();
-  }, [user, profile]);
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const updates: any = {};
-    if (weight) updates.weight_kg = parseFloat(weight);
-    if (height) updates.height_cm = parseFloat(height);
-    if (birthDate) updates.birth_date = birthDate.toISOString().split('T')[0];
+    if (!user || !weight || !height || !birthDate) return;
 
-    await updateProfile(updates);
+    setSaving(true);
+
+    try {
+      const updates = {
+        weight_kg: parseFloat(weight),
+        height_cm: parseFloat(height),
+        birth_date: birthDate.toISOString().split('T')[0],
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sucesso!',
+        description: 'Seus dados metabólicos foram salvos.',
+      });
+
+      // Notify parent to refetch
+      onCalibrationComplete();
+    } catch (error) {
+      console.error('Error saving metabolic data:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar os dados.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isValid = weight && height && birthDate;
@@ -157,6 +197,7 @@ export function MetabolicCalibrationCard() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    type="button"
                     className={cn(
                       "w-full justify-start text-left font-normal bg-background/50 border-border/50",
                       !birthDate && "text-muted-foreground"
@@ -193,10 +234,10 @@ export function MetabolicCalibrationCard() {
 
             <Button
               type="submit"
-              disabled={!isValid || updating}
+              disabled={!isValid || saving}
               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
             >
-              {updating ? (
+              {saving ? (
                 'Salvando...'
               ) : (
                 <>
