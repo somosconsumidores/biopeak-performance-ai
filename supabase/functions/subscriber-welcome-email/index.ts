@@ -137,7 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin:0 0 20px 0;color:#111827;font-weight:600">🚀 Você está pronto para treinar de forma mais inteligente do que nunca!</p>
 
               <div style="text-align:center;margin:28px 0 8px">
-                <a href="https://biopeak-ai.com/dashboard" style="display:inline-block;background:#7B61FF;color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700">Acessar meu Painel</a>
+                <a href="https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/app-download-redirect" style="display:inline-block;background:#7B61FF;color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700">📱 Faça o download do App BioPeak</a>
               </div>
 
               <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px;margin:20px 0">
