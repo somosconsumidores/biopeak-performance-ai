@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Carousel,
@@ -8,6 +10,7 @@ import {
   CarouselItem,
 } from '@/components/ui/carousel';
 import { useCoachInsights, InsightData } from '@/hooks/useCoachInsights';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   TrendingUp,
   TrendingDown,
@@ -21,6 +24,8 @@ import {
   Sparkles,
   Footprints,
   Bike,
+  Crown,
+  Lock,
   LucideIcon,
 } from 'lucide-react';
 
@@ -179,9 +184,12 @@ const EfficiencyMeter = ({ value, color }: { value: number; color: string }) => 
 
 export const CoachInsightsCarousel = () => {
   const { insights, loading, error } = useCoachInsights();
+  const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const navigate = useNavigate();
 
   const carouselItems = useMemo(() => {
-    if (loading) {
+    // Show skeleton while loading subscription status
+    if (loading || subscriptionLoading) {
       return Array.from({ length: 2 }).map((_, i) => (
         <CarouselItem key={`skeleton-${i}`} className="basis-[85%] sm:basis-[320px] pl-4">
           <Card className="glass-card border-glass-border h-full overflow-hidden">
@@ -198,6 +206,50 @@ export const CoachInsightsCarousel = () => {
           </Card>
         </CarouselItem>
       ));
+    }
+
+    // Show Pro-only card for non-subscribers
+    if (!isSubscribed) {
+      return [
+        <CarouselItem key="pro-only" className="basis-[85%] sm:basis-[320px] pl-4">
+          <Card className="glass-card border-primary/30 h-full overflow-hidden relative bg-gradient-to-br from-primary/5 via-transparent to-primary/10">
+            {/* Lock watermark */}
+            <div className="absolute -bottom-4 -right-4 opacity-[0.05] pointer-events-none">
+              <Lock className="h-32 w-32" />
+            </div>
+            
+            <CardContent className="p-5 flex flex-col items-center justify-center min-h-[220px] text-center relative z-10">
+              <div className="p-3 rounded-full bg-primary/10 mb-4">
+                <Crown className="h-6 w-6 text-primary" />
+              </div>
+              
+              <Badge 
+                variant="outline" 
+                className="bg-primary/20 text-primary border-0 text-[10px] font-semibold px-3 py-1 mb-3"
+              >
+                CONTEÚDO PRO
+              </Badge>
+              
+              <h4 className="font-semibold text-sm text-foreground mb-2">
+                Insights do Coach IA
+              </h4>
+              
+              <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
+                Análises personalizadas e inteligentes sobre seu desempenho, exclusivo para assinantes Pro.
+              </p>
+              
+              <Button 
+                size="sm" 
+                onClick={() => navigate('/paywall')}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Desbloquear Insights
+              </Button>
+            </CardContent>
+          </Card>
+        </CarouselItem>,
+      ];
     }
 
     if (error || insights.length === 0) {
@@ -302,7 +354,7 @@ export const CoachInsightsCarousel = () => {
         </CarouselItem>
       );
     });
-  }, [insights, loading, error]);
+  }, [insights, loading, error, isSubscribed, subscriptionLoading, navigate]);
 
   return (
     <div className="w-full">
