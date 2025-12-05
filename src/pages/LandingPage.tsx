@@ -44,6 +44,9 @@ import whyBiopeak3 from '@/assets/why-biopeak-3.png';
 import whyBiopeak4 from '@/assets/why-biopeak-4.png';
 import whyBiopeak5 from '@/assets/why-biopeak-5.png';
 
+// Hero section image
+import heroSectionImage from '@/assets/hero-section.png';
+
 // Footer logo imports (keeping theme-based logos for footer)
 const bioPeakLogoDark = '/lovable-uploads/adcbb6e8-7310-425b-9c9b-3643e930a025.png';
 const bioPeakLogoLight = '/lovable-uploads/aa28b51e-71c3-4b13-a8ae-a1bd20e98fb2.png';
@@ -190,7 +193,7 @@ export const LandingPage = () => {
               {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
-              <img src="/lovable-uploads/d6369016-de44-4236-b4dd-a28816ff2041.png" alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
+              <img src={heroSectionImage} alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
             </div>
             <div className="flex justify-center mb-8">
               <img 

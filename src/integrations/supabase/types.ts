@@ -5296,6 +5296,26 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_biopeak_cycling_efficiency: {
+        Row: {
+          current_ef: number | null
+          previous_ef: number | null
+          user_id: string | null
+          variation_percent: number | null
+          week_start: string | null
+        }
+        Relationships: []
+      }
+      mv_biopeak_efficiency_analysis: {
+        Row: {
+          current_ef: number | null
+          previous_ef: number | null
+          user_id: string | null
+          variation_percent: number | null
+          week_start: string | null
+        }
+        Relationships: []
+      }
       v_all_activities_with_vo2_daniels: {
         Row: {
           active_kilocalories: number | null
@@ -5376,6 +5396,16 @@ export type Database = {
           revenue_7d: number | null
           spend_7d: number | null
           status: string | null
+        }
+        Relationships: []
+      }
+      view_biopeak_efficiency_analysis: {
+        Row: {
+          current_ef: number | null
+          previous_ef: number | null
+          user_id: string | null
+          variation_percent: number | null
+          week_start: string | null
         }
         Relationships: []
       }
