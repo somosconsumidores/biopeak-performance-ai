@@ -79,7 +79,17 @@ export const useCoachInsights = () => {
           })
           .filter((item): item is CoachInsight => item !== null);
 
-        setInsights(parsedInsights);
+        // Deduplicate: keep only the most recent insight of each type
+        // Since query is ordered by created_at DESC, first occurrence is most recent
+        const seenTypes = new Map<string, CoachInsight>();
+        for (const insight of parsedInsights) {
+          if (!seenTypes.has(insight.insight_type)) {
+            seenTypes.set(insight.insight_type, insight);
+          }
+        }
+        const deduplicatedInsights = Array.from(seenTypes.values());
+
+        setInsights(deduplicatedInsights);
       } catch (err) {
         console.error('[useCoachInsights] Unexpected error:', err);
         setError('Erro ao carregar insights');
