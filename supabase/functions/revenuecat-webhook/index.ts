@@ -1,4 +1,4 @@
-// RevenueCat Webhook Handler - Updated to fix UPSERT constraint error
+// RevenueCat Webhook Handler - Updated to record payments in faturamento table
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
@@ -40,18 +40,39 @@ serve(async (req) => {
     let subscribed = false;
     let subscription_tier = null;
     let subscription_end = null;
+    let shouldRecordPayment = false;
+    let paymentType = '';
 
     switch (event.type) {
       case 'INITIAL_PURCHASE':
-      case 'RENEWAL':
-      case 'UNCANCELLATION':
         subscribed = true;
         subscription_tier = 'premium';
-        // RevenueCat envia expiration_at_ms
+        shouldRecordPayment = true;
+        paymentType = 'revenuecat_initial';
         if (event.expiration_at_ms) {
           subscription_end = new Date(event.expiration_at_ms).toISOString();
         }
-        console.log('✅ Setting subscription to active');
+        console.log('✅ Setting subscription to active (initial purchase)');
+        break;
+
+      case 'RENEWAL':
+        subscribed = true;
+        subscription_tier = 'premium';
+        shouldRecordPayment = true;
+        paymentType = 'revenuecat_renewal';
+        if (event.expiration_at_ms) {
+          subscription_end = new Date(event.expiration_at_ms).toISOString();
+        }
+        console.log('✅ Setting subscription to active (renewal)');
+        break;
+
+      case 'UNCANCELLATION':
+        subscribed = true;
+        subscription_tier = 'premium';
+        if (event.expiration_at_ms) {
+          subscription_end = new Date(event.expiration_at_ms).toISOString();
+        }
+        console.log('✅ Setting subscription to active (uncancellation)');
         break;
 
       case 'CANCELLATION':
@@ -126,12 +147,100 @@ serve(async (req) => {
     }
 
     console.log('✅ Database update successful:', data);
+
+    // Registrar pagamento na tabela faturamento para INITIAL_PURCHASE e RENEWAL
+    if (shouldRecordPayment) {
+      const transactionId = event.transaction_id || event.id || `rc_${Date.now()}`;
+      const priceInCents = event.price_in_purchased_currency 
+        ? Math.round(event.price_in_purchased_currency * 100)
+        : event.price 
+          ? Math.round(event.price * 100) 
+          : 0;
+      const currency = event.currency || 'BRL';
+      const purchasedAt = event.purchased_at_ms 
+        ? new Date(event.purchased_at_ms).toISOString()
+        : new Date().toISOString();
+
+      console.log('💰 Recording payment in faturamento:', {
+        transaction_id: transactionId,
+        price_cents: priceInCents,
+        currency,
+        payment_type: paymentType
+      });
+
+      // Verificar se já existe registro com este transaction_id para evitar duplicatas
+      const { data: existingPayment } = await supabase
+        .from('faturamento')
+        .select('id')
+        .eq('stripe_payment_id', transactionId)
+        .single();
+
+      if (!existingPayment) {
+        const { error: faturamentoError } = await supabase
+          .from('faturamento')
+          .insert({
+            user_id: app_user_id,
+            stripe_customer_id: `revenuecat_${app_user_id}`,
+            stripe_payment_id: transactionId,
+            valor_centavos: priceInCents,
+            moeda: currency,
+            status: 'completed',
+            tipo_pagamento: paymentType,
+            data_pagamento: purchasedAt,
+            descricao: `RevenueCat ${event.product_id || 'subscription'}`,
+            periodo_inicio: purchasedAt,
+            periodo_fim: subscription_end,
+            metadata: {
+              revenuecat_event_type: event.type,
+              product_id: event.product_id,
+              store: event.store,
+              environment: event.environment
+            }
+          });
+
+        if (faturamentoError) {
+          console.error('❌ Error recording payment in faturamento:', faturamentoError);
+          // Não lançar erro aqui - o subscriber já foi atualizado
+        } else {
+          console.log('✅ Payment recorded in faturamento successfully');
+        }
+      } else {
+        console.log('⚠️ Payment already exists in faturamento, skipping duplicate');
+      }
+    }
+
     console.log(`🎉 Updated subscription for user ${app_user_id}:`, {
       subscribed,
       subscription_tier,
       subscription_end
     });
 
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: `Subscription updated for user ${app_user_id}`,
+        data: { subscribed, subscription_tier, subscription_end }
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
+
+  } catch (error) {
+    console.error('💥 Error processing RevenueCat webhook:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        success: false
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
+  }
+});
     return new Response(
       JSON.stringify({ 
         success: true,
