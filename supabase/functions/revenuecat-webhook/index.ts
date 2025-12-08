@@ -200,7 +200,6 @@ serve(async (req) => {
 
         if (faturamentoError) {
           console.error('❌ Error recording payment in faturamento:', faturamentoError);
-          // Não lançar erro aqui - o subscriber já foi atualizado
         } else {
           console.log('✅ Payment recorded in faturamento successfully');
         }
@@ -215,32 +214,6 @@ serve(async (req) => {
       subscription_end
     });
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: `Subscription updated for user ${app_user_id}`,
-        data: { subscribed, subscription_tier, subscription_end }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
-  } catch (error) {
-    console.error('💥 Error processing RevenueCat webhook:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
-  }
-});
     return new Response(
       JSON.stringify({ 
         success: true,
