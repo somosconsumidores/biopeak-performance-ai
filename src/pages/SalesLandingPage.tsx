@@ -313,19 +313,19 @@ export const SalesLandingPage = () => {
                   <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
                       <Activity className="w-3 h-3" />
-                      Detalhes
+                      Nutrição
                     </div>
-                    <h3 className="text-2xl font-bold">Cada Treino, Explicado</h3>
+                    <h3 className="text-2xl font-bold">Plano Nutricional de Acordo com Seu Plano de Treino</h3>
                     <p className="text-muted-foreground">
-                      Entenda cada sessão com objetivos claros, zonas de treino e orientações detalhadas para executar perfeitamente.
+                      Receba um Plano Nutricional criado com base em seu plano de treino para maximizar sua performance.
                     </p>
                   </div>
                   <div className="w-full lg:w-auto flex-shrink-0">
                     <div className="relative group-hover:scale-105 transition-transform duration-300">
                       <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-3xl" />
                       <img 
-                        src={aiCoachDetails} 
-                        alt="BioPeak Detalhes do Treino"
+                        src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/PlanoNutricional.png" 
+                        alt="BioPeak Plano Nutricional"
                         className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
                       />
                     </div>
