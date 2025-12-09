@@ -243,7 +243,7 @@ export const SalesLandingPage = () => {
                 Treine <span className="bg-gradient-primary bg-clip-text text-transparent">Sem Relógios Caros</span>
               </h2>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                O BioPeak AI Coach cria planos adaptativos personalizados, controla seus treinos e te guia em cada passo da sua evolução. Tecnologia de ponta acessível a todos.
+                O BioPeak AI Coach cria planos adaptativos personalizados, controla seus treinos e te guia em cada passo da sua evolução. E ainda fornece um Plano Nutricional de acordo com o seu Plano de Treino. BioPeak cumpre o ciclo completo para que sua performance alcance o patamar máximo.
               </p>
             </div>
           </ScrollReveal>
