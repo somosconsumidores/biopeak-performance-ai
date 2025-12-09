@@ -350,7 +350,7 @@ export const LandingPage = () => {
                       <img 
                         src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/PlanoNutricional.png" 
                         alt="BioPeak Plano Nutricional"
-                        className="relative w-full lg:w-64 h-auto max-h-[400px] object-contain rounded-2xl shadow-2xl"
+                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
                       />
                     </div>
                   </div>
