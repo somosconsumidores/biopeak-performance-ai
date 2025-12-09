@@ -14,7 +14,8 @@ import {
   Target,
   TrendingUp,
   HeartHandshake,
-  Zap
+  Zap,
+  Utensils
 } from 'lucide-react';
 
 export const PricingPlans = () => {
@@ -72,6 +73,11 @@ export const PricingPlans = () => {
       icon: Zap,
       title: "Insights de Performance",
       description: "Recomendações personalizadas baseadas nos seus dados"
+    },
+    {
+      icon: Utensils,
+      title: "Plano Nutricional",
+      description: "Receba um Plano Nutricional criado de acordo com seu Plano de Treino"
     }
   ];
 
