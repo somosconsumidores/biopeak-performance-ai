@@ -21,15 +21,8 @@ interface AdminStats {
     garmin: number;
     polar: number;
     strava: number;
-    zepp: number;
   };
-  activitySourceBreakdown: {
-    garmin: number;
-    polar: number;
-    strava: number;
-    gpx: number;
-    healthkit: number;
-  };
+  usersByActivitySource: { source: string; count: number }[];
 }
 
 export function useAdminDashboardStats() {
@@ -43,65 +36,77 @@ export function useAdminDashboardStats() {
         setLoading(true);
         setError(null);
 
-        // Fetch all stats in parallel
-        const [
-          profilesResult,
-          garminTokensResult,
-          polarTokensResult,
-          stravaTokensResult,
-          zeppTokensResult,
-          activitiesResult,
-          subscribersResult,
-          phonesResult,
-          trainingPlansResult,
-          agesResult,
-          goalResult,
-          levelResult,
-          appResult,
-          activitySourcesResult
-        ] = await Promise.all([
-          // Total users
-          supabase.from('profiles').select('id', { count: 'exact', head: true }),
-          // Garmin tokens
-          supabase.from('garmin_tokens').select('user_id', { count: 'exact', head: true }).eq('is_active', true),
-          // Polar tokens
-          supabase.from('polar_tokens').select('user_id', { count: 'exact', head: true }),
-          // Strava tokens
-          supabase.from('strava_tokens').select('user_id', { count: 'exact', head: true }),
-          // Zepp tokens
-          supabase.from('zepp_tokens').select('user_id', { count: 'exact', head: true }),
-          // Users with activities
-          supabase.from('all_activities').select('user_id'),
-          // Active subscribers
-          supabase.from('subscribers').select('id', { count: 'exact', head: true }).eq('subscribed', true),
-          // Users with phone
-          supabase.from('profiles').select('id', { count: 'exact', head: true }).not('phone', 'is', null).neq('phone', ''),
-          // Users with active training plan
-          supabase.from('training_plans').select('user_id').eq('status', 'active'),
-          // Ages - get profiles with birth_date
-          supabase.from('profiles').select('id, birth_date'),
-          // Goal distribution
-          supabase.from('user_onboarding').select('goal').not('goal', 'is', null),
-          // Athletic level distribution
-          supabase.from('user_onboarding').select('athletic_level').not('athletic_level', 'is', null),
-          // App distribution
-          supabase.from('user_onboarding').select('aplicativo').not('aplicativo', 'is', null),
-          // Activity sources breakdown
-          supabase.from('all_activities').select('user_id, activity_source')
+        // 1. Total users in profiles
+        const { count: totalUsers } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        // 2. Users with active tokens (Garmin, Strava, Polar) - fetch user_ids
+        const [garminTokens, stravaTokens, polarTokens] = await Promise.all([
+          supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
+          supabase.from('strava_tokens').select('user_id').not('access_token', 'is', null),
+          supabase.from('polar_tokens').select('user_id').eq('is_active', true),
         ]);
 
-        // Get subscriber user IDs for age calculation
-        const subscriberIds = await supabase.from('subscribers').select('user_id').eq('subscribed', true);
+        const garminUserIds = new Set((garminTokens.data || []).map(t => t.user_id));
+        const stravaUserIds = new Set((stravaTokens.data || []).map(t => t.user_id));
+        const polarUserIds = new Set((polarTokens.data || []).map(t => t.user_id));
 
-        // Calculate unique users with activities
-        const uniqueActivityUsers = new Set((activitiesResult.data || []).map(a => a.user_id));
+        const allTokenUserIds = new Set<string>();
+        garminUserIds.forEach(id => allTokenUserIds.add(id));
+        stravaUserIds.forEach(id => allTokenUserIds.add(id));
+        polarUserIds.forEach(id => allTokenUserIds.add(id));
 
-        // Calculate unique users with active training plans
-        const uniquePlanUsers = new Set((trainingPlansResult.data || []).map(p => p.user_id));
+        // 3. Users with activities (unique users in all_activities)
+        const { data: activityData } = await supabase
+          .from('all_activities')
+          .select('user_id, activity_source');
 
-        // Calculate ages
-        const profilesWithAge = (agesResult.data || []).filter(p => p.birth_date);
-        const calculateAge = (birthDate: string) => {
+        const uniqueActivityUsers = new Set((activityData || []).map(a => a.user_id));
+
+        // Calculate users by activity source
+        const sourceUserMap: Record<string, Set<string>> = {};
+        (activityData || []).forEach(a => {
+          if (!sourceUserMap[a.activity_source]) {
+            sourceUserMap[a.activity_source] = new Set();
+          }
+          sourceUserMap[a.activity_source].add(a.user_id);
+        });
+
+        const usersByActivitySource = Object.entries(sourceUserMap)
+          .map(([source, users]) => ({ source, count: users.size }))
+          .sort((a, b) => b.count - a.count);
+
+        // 4. Active subscribers (subscribed = true in subscribers table)
+        const { data: subscribers } = await supabase
+          .from('subscribers')
+          .select('user_id')
+          .eq('subscribed', true);
+
+        const activeSubscriberIds = new Set((subscribers || []).map(s => s.user_id));
+
+        // 5. Users with phone
+        const { count: usersWithPhone } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .not('phone', 'is', null)
+          .neq('phone', '');
+
+        // 6. Users with active training plans (status = 'active')
+        const { data: activePlans } = await supabase
+          .from('training_plans')
+          .select('user_id')
+          .eq('status', 'active');
+
+        const uniqueActivePlanUsers = new Set((activePlans || []).map(p => p.user_id));
+
+        // 7. Average age - all users with birth_date
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, birth_date')
+          .not('birth_date', 'is', null);
+
+        const calculateAge = (birthDate: string): number => {
           const today = new Date();
           const birth = new Date(birthDate);
           let age = today.getFullYear() - birth.getFullYear();
@@ -112,32 +117,47 @@ export function useAdminDashboardStats() {
           return age;
         };
 
-        const allAges = profilesWithAge.map(p => calculateAge(p.birth_date));
-        const avgAgeAll = allAges.length > 0 ? allAges.reduce((a, b) => a + b, 0) / allAges.length : null;
+        let avgAgeAll: number | null = null;
+        if (allProfiles && allProfiles.length > 0) {
+          const ages = allProfiles.filter(p => p.birth_date).map(p => calculateAge(p.birth_date!));
+          if (ages.length > 0) {
+            avgAgeAll = Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10;
+          }
+        }
 
-        const subscriberUserIds = new Set((subscriberIds.data || []).map(s => s.user_id));
-        const subscriberAges = profilesWithAge
-          .filter(p => subscriberUserIds.has(p.id))
-          .map(p => calculateAge(p.birth_date));
-        const avgAgeSubscribers = subscriberAges.length > 0 
-          ? subscriberAges.reduce((a, b) => a + b, 0) / subscriberAges.length 
-          : null;
+        // 8. Average age - subscribers only (from subscribers table with subscribed=true)
+        let avgAgeSubscribers: number | null = null;
+        if (activeSubscriberIds.size > 0 && allProfiles) {
+          const subscriberProfiles = allProfiles.filter(p => activeSubscriberIds.has(p.user_id) && p.birth_date);
+          if (subscriberProfiles.length > 0) {
+            const ages = subscriberProfiles.map(p => calculateAge(p.birth_date!));
+            avgAgeSubscribers = Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10;
+          }
+        }
 
-        // Process onboarding distributions
-        const processDistribution = (data: any[], field: string): { label: string; value: number }[] => {
-          const counts: Record<string, number> = {};
-          (data || []).forEach(item => {
-            const value = item[field];
-            if (value) {
-              // Normalize the value (lowercase, trim)
-              const normalized = value.toString().toLowerCase().trim();
-              counts[normalized] = (counts[normalized] || 0) + 1;
-            }
-          });
-          return Object.entries(counts)
-            .map(([label, value]) => ({ label, value }))
-            .sort((a, b) => b.value - a.value);
-        };
+        // 9. Onboarding distributions from user_onboarding table
+        const { data: onboardingData } = await supabase
+          .from('user_onboarding')
+          .select('goal, athletic_level, aplicativo');
+
+        const goalCounts: Record<string, number> = {};
+        const levelCounts: Record<string, number> = {};
+        const appCounts: Record<string, number> = {};
+
+        (onboardingData || []).forEach(row => {
+          if (row.goal) {
+            const key = row.goal.toLowerCase().trim();
+            goalCounts[key] = (goalCounts[key] || 0) + 1;
+          }
+          if (row.athletic_level) {
+            const key = row.athletic_level.toLowerCase().trim();
+            levelCounts[key] = (levelCounts[key] || 0) + 1;
+          }
+          if (row.aplicativo) {
+            const key = row.aplicativo.toLowerCase().trim();
+            appCounts[key] = (appCounts[key] || 0) + 1;
+          }
+        });
 
         // Goal labels mapping
         const goalLabels: Record<string, string> = {
@@ -158,66 +178,39 @@ export function useAdminDashboardStats() {
           'elite': 'Elite'
         };
 
-        const goalDist = processDistribution(goalResult.data || [], 'goal').map(item => ({
-          label: goalLabels[item.label] || item.label,
-          value: item.value
-        }));
+        const onboardingGoal = Object.entries(goalCounts)
+          .map(([key, value]) => ({ label: goalLabels[key] || key, value }))
+          .sort((a, b) => b.value - a.value);
 
-        const levelDist = processDistribution(levelResult.data || [], 'athletic_level').map(item => ({
-          label: levelLabels[item.label] || item.label,
-          value: item.value
-        }));
+        const onboardingLevel = Object.entries(levelCounts)
+          .map(([key, value]) => ({ label: levelLabels[key] || key, value }))
+          .sort((a, b) => b.value - a.value);
 
-        // Process activity sources
-        const activitySources = (activitySourcesResult.data || []).reduce((acc, item) => {
-          const source = item.activity_source?.toLowerCase() || 'unknown';
-          if (!acc[source]) acc[source] = new Set();
-          acc[source].add(item.user_id);
-          return acc;
-        }, {} as Record<string, Set<string>>);
-
-        // Calculate unique users with any active token
-        const allTokenUsers = new Set<string>();
-        // We need to fetch actual user_ids for tokens
-        const [garminUsers, polarUsers, stravaUsers, zeppUsers] = await Promise.all([
-          supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
-          supabase.from('polar_tokens').select('user_id'),
-          supabase.from('strava_tokens').select('user_id'),
-          supabase.from('zepp_tokens').select('user_id')
-        ]);
-
-        (garminUsers.data || []).forEach(t => allTokenUsers.add(t.user_id));
-        (polarUsers.data || []).forEach(t => allTokenUsers.add(t.user_id));
-        (stravaUsers.data || []).forEach(t => allTokenUsers.add(t.user_id));
-        (zeppUsers.data || []).forEach(t => allTokenUsers.add(t.user_id));
+        const onboardingApp = Object.entries(appCounts)
+          .map(([key, value]) => ({ label: key, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10);
 
         setStats({
-          totalUsers: profilesResult.count || 0,
-          usersWithActiveTokens: allTokenUsers.size,
+          totalUsers: totalUsers || 0,
+          usersWithActiveTokens: allTokenUserIds.size,
           usersWithActivities: uniqueActivityUsers.size,
-          activeSubscribers: subscribersResult.count || 0,
-          usersWithPhone: phonesResult.count || 0,
-          usersWithActivePlan: uniquePlanUsers.size,
-          avgAgeAll: avgAgeAll ? Math.round(avgAgeAll * 10) / 10 : null,
-          avgAgeSubscribers: avgAgeSubscribers ? Math.round(avgAgeSubscribers * 10) / 10 : null,
+          activeSubscribers: activeSubscriberIds.size,
+          usersWithPhone: usersWithPhone || 0,
+          usersWithActivePlan: uniqueActivePlanUsers.size,
+          avgAgeAll,
+          avgAgeSubscribers,
           onboardingDistribution: {
-            goal: goalDist,
-            athleticLevel: levelDist,
-            aplicativo: processDistribution(appResult.data || [], 'aplicativo').slice(0, 10)
+            goal: onboardingGoal,
+            athleticLevel: onboardingLevel,
+            aplicativo: onboardingApp
           },
           tokenBreakdown: {
-            garmin: garminTokensResult.count || 0,
-            polar: polarTokensResult.count || 0,
-            strava: stravaTokensResult.count || 0,
-            zepp: zeppTokensResult.count || 0
+            garmin: garminUserIds.size,
+            polar: polarUserIds.size,
+            strava: stravaUserIds.size
           },
-          activitySourceBreakdown: {
-            garmin: activitySources['garmin']?.size || 0,
-            polar: activitySources['polar']?.size || 0,
-            strava: activitySources['strava']?.size || 0,
-            gpx: activitySources['gpx']?.size || 0,
-            healthkit: activitySources['healthkit']?.size || 0
-          }
+          usersByActivitySource
         });
       } catch (err) {
         console.error('Error fetching admin stats:', err);
@@ -230,5 +223,5 @@ export function useAdminDashboardStats() {
     fetchStats();
   }, []);
 
-  return { stats, loading, error, refetch: () => {} };
+  return { stats, loading, error };
 }

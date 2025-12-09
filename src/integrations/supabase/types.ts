@@ -5827,14 +5827,6 @@ export type Database = {
       update_training_plan_workouts:
         | {
             Args: {
-              plan_id_param: string
-              plan_updates: Json
-              workouts_data: Json
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
               p_plan_id: string
               p_total_weeks: number
               p_total_workouts: number
@@ -5842,6 +5834,14 @@ export type Database = {
               p_workouts: Json
             }
             Returns: undefined
+          }
+        | {
+            Args: {
+              plan_id_param: string
+              plan_updates: Json
+              workouts_data: Json
+            }
+            Returns: Json
           }
       urlencode:
         | { Args: { data: Json }; Returns: string }

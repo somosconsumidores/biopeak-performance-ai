@@ -1,6 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminDashboardStats } from '@/hooks/useAdminDashboardStats';
-import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
@@ -12,7 +11,6 @@ import {
   Loader2,
   ShieldAlert,
   Watch,
-  Bike,
   Footprints
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -113,38 +111,44 @@ export default function AdminDashboard() {
       </CardHeader>
       <CardContent>
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey="value"
-                nameKey="label"
-              >
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value: number) => [value, 'Usuários']}
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))', 
-                  borderColor: 'hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend 
-                layout="vertical" 
-                align="right" 
-                verticalAlign="middle"
-                formatter={(value) => <span className="text-xs">{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          {data.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                  nameKey="label"
+                >
+                  {data.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number) => [value, 'Usuários']}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    borderColor: 'hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Legend 
+                  layout="vertical" 
+                  align="right" 
+                  verticalAlign="middle"
+                  formatter={(value) => <span className="text-xs">{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+              Sem dados
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -195,7 +199,7 @@ export default function AdminDashboard() {
           <StatCard 
             title="Com Telefone" 
             value={stats.usersWithPhone.toLocaleString()}
-            subtitle={`${((stats.usersWithPhone / stats.totalUsers) * 100).toFixed(1)}% do total`}
+            subtitle={stats.totalUsers > 0 ? `${((stats.usersWithPhone / stats.totalUsers) * 100).toFixed(1)}% do total` : ''}
             icon={Phone}
             color="text-cyan-500"
           />
@@ -228,11 +232,11 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {Object.entries(stats.activitySourceBreakdown).map(([source, count]) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {stats.usersByActivitySource.map(({ source, count }) => (
                 <div key={source} className="text-center p-4 bg-muted rounded-lg">
                   <p className="text-2xl font-bold">{count}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{source}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{source.replace('_', ' ')}</p>
                 </div>
               ))}
             </div>
