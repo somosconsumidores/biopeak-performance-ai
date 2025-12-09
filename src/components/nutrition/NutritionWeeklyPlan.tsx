@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -16,7 +16,7 @@ import {
   Moon, 
   ShoppingCart,
   Sparkles,
-  Loader2
+  Dumbbell
 } from 'lucide-react';
 
 interface DayMeals {
@@ -46,9 +46,8 @@ const mealConfig = [
 
 export function NutritionWeeklyPlan() {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [planData, setPlanData] = useState<NutritionalPlanData | null>(null);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [activeDay, setActiveDay] = useState<string>('');
@@ -89,21 +88,8 @@ export function NutritionWeeklyPlan() {
     }
   };
 
-  const handleGeneratePlan = async () => {
-    setGenerating(true);
-    toast({
-      title: "🥗 Solicitando ao Nutri IA...",
-      description: "Seu plano nutricional personalizado está sendo criado.",
-    });
-    
-    // Simular delay - futuramente chamar edge function
-    setTimeout(() => {
-      setGenerating(false);
-      toast({
-        title: "📋 Em breve!",
-        description: "O plano nutricional será gerado pela IA do coach.",
-      });
-    }, 2000);
+  const handleGoToTrainingPlan = () => {
+    navigate('/training-plan');
   };
 
   const toggleCheckItem = (item: string) => {
@@ -143,25 +129,15 @@ export function NutritionWeeklyPlan() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Plano Nutricional Personalizado</h3>
               <p className="text-sm text-muted-foreground max-w-md">
-                Receba um cardápio semanal completo, adaptado ao seu perfil de atleta e objetivos de treino.
+                Receba um cardápio semanal completo, adaptado ao seu perfil de atleta e plano de treino.
               </p>
             </div>
             <Button 
-              onClick={handleGeneratePlan} 
-              disabled={generating}
+              onClick={handleGoToTrainingPlan} 
               className="mt-4"
             >
-              {generating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Brain className="h-4 w-4 mr-2" />
-                  Gerar Meu Plano Nutricional
-                </>
-              )}
+              <Dumbbell className="h-4 w-4 mr-2" />
+              Gerar Meu Plano de Treino
             </Button>
           </div>
         </CardContent>
