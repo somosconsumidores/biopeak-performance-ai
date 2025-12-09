@@ -58,8 +58,10 @@ import {
   Star,
   RefreshCw,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Apple
 } from 'lucide-react';
+import { NutritionWeeklyPlan } from '@/components/nutrition/NutritionWeeklyPlan';
 import { Progress } from '@/components/ui/progress';
 
 export const Dashboard = () => {
@@ -280,28 +282,36 @@ export const Dashboard = () => {
           <ScrollReveal delay={20}>
             <div className="mb-6 md:mb-8">
               {/* Mobile: Grid layout with icons */}
-              <div className="md:hidden grid grid-cols-4 gap-2">
+              <div className="md:hidden overflow-x-auto pb-2 -mx-3 px-3">
+                <div className="flex gap-2 min-w-max">
                 {[
                   {
                     id: 'fitness-score',
                     icon: TrendingUpIcon,
-                    title: 'BioPeak Fitness',
+                    title: 'Fitness',
                     subtitle: 'Score',
                     gradient: 'from-emerald-500 to-teal-500'
                   },
                   {
                     id: 'overtraining-risk',
                     icon: ShieldAlert,
-                    title: 'Risco de',
-                    subtitle: 'Overtraining',
+                    title: 'Risco',
+                    subtitle: 'Overtrain',
                     gradient: 'from-amber-500 to-orange-500'
                   },
                   {
                     id: 'training-plan',
                     icon: TargetIcon,
-                    title: 'Plano de',
+                    title: 'Plano',
                     subtitle: 'Treino',
                     gradient: 'from-blue-500 to-indigo-500'
+                  },
+                  {
+                    id: 'nutrition-plan',
+                    icon: Apple,
+                    title: 'Plano',
+                    subtitle: 'Nutricional',
+                    gradient: 'from-green-500 to-emerald-500'
                   },
                   {
                     id: 'insights',
@@ -317,26 +327,26 @@ export const Dashboard = () => {
                   return (
                     <div 
                       key={section.id}
-                      className="cursor-pointer transition-all duration-300 hover:scale-105 group"
+                      className="cursor-pointer transition-all duration-300 hover:scale-105 group w-16 flex-shrink-0"
                       onClick={() => setActiveSection(section.id)}
                     >
                       <div className="relative">
                         <div className={`
-                          relative w-full aspect-square rounded-3xl p-1 transition-all duration-300
+                          relative w-14 h-14 rounded-2xl p-0.5 transition-all duration-300
                           ${isActive 
-                            ? 'bg-gradient-to-br ' + section.gradient + ' shadow-2xl ring-2 ring-white/30' 
+                            ? 'bg-gradient-to-br ' + section.gradient + ' shadow-xl ring-2 ring-white/30' 
                             : 'bg-gradient-to-br from-muted/60 to-muted/40 hover:from-muted/80 hover:to-muted/60'
                           }
                         `}>
                           <div className={`
-                            w-full h-full rounded-[20px] flex items-center justify-center transition-all duration-300
+                            w-full h-full rounded-[14px] flex items-center justify-center transition-all duration-300
                             ${isActive 
                               ? 'bg-white/10 backdrop-blur-sm' 
                               : 'bg-white/5 group-hover:bg-white/10'
                             }
                           `}>
                             <IconComponent className={`
-                              h-6 w-6 transition-all duration-300
+                              h-5 w-5 transition-all duration-300
                               ${isActive ? 'text-white scale-110' : 'text-muted-foreground group-hover:text-foreground'}
                             `} />
                           </div>
@@ -347,15 +357,15 @@ export const Dashboard = () => {
                         )}
                       </div>
                       
-                      <div className="mt-2 text-center">
+                      <div className="mt-1.5 text-center">
                         <div className={`
-                          text-xs font-medium leading-tight transition-colors duration-300
+                          text-[10px] font-medium leading-tight transition-colors duration-300
                           ${isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}
                         `}>
                           {section.title}
                         </div>
                         <div className={`
-                          text-xs leading-tight transition-colors duration-300
+                          text-[10px] leading-tight transition-colors duration-300
                           ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/80'}
                         `}>
                           {section.subtitle}
@@ -364,6 +374,7 @@ export const Dashboard = () => {
                     </div>
                   );
                 })}
+                </div>
               </div>
 
               {/* Desktop: Simple pill toggle */}
@@ -373,6 +384,7 @@ export const Dashboard = () => {
                     { id: 'fitness-score', label: 'BioPeak Fitness Score' },
                     { id: 'overtraining-risk', label: 'Risco de Overtraining' },
                     { id: 'training-plan', label: 'Plano de Treino' },
+                    { id: 'nutrition-plan', label: 'Plano Nutricional' },
                     { id: 'insights', label: 'Insights' }
                   ].map((section) => {
                     const isActive = activeSection === section.id;
@@ -1042,6 +1054,11 @@ export const Dashboard = () => {
                     </CardContent>
                   </Card>
                 </>
+              )}
+
+              {/* Nutrition Plan Section */}
+              {!loading && activeSection === 'nutrition-plan' && (
+                <NutritionWeeklyPlan />
               )}
               
               {/* Insights Section */}
