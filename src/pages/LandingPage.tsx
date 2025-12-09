@@ -276,7 +276,7 @@ export const LandingPage = () => {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 max-w-7xl mx-auto">
             {/* Feature 1 - Dashboard */}
             <ScrollReveal delay={100}>
-              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300 h-full">
                 <div className="flex flex-col lg:flex-row gap-6 items-center">
                   <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
@@ -304,7 +304,7 @@ export const LandingPage = () => {
 
             {/* Feature 2 - Training Plan */}
             <ScrollReveal delay={200}>
-              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300 h-full">
                 <div className="flex flex-col lg:flex-row gap-6 items-center">
                   <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
@@ -332,7 +332,7 @@ export const LandingPage = () => {
 
             {/* Feature 3 - Details */}
             <ScrollReveal delay={300}>
-              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300 h-full">
                 <div className="flex flex-col lg:flex-row gap-6 items-center">
                   <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
@@ -350,7 +350,7 @@ export const LandingPage = () => {
                       <img 
                         src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/PlanoNutricional.png" 
                         alt="BioPeak Plano Nutricional"
-                        className="relative w-full lg:w-64 h-auto rounded-2xl shadow-2xl"
+                        className="relative w-full lg:w-64 min-h-[320px] object-cover rounded-2xl shadow-2xl"
                       />
                     </div>
                   </div>
@@ -360,7 +360,7 @@ export const LandingPage = () => {
 
             {/* Feature 4 - Calendar */}
             <ScrollReveal delay={400}>
-              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300">
+              <div className="glass-card border-glass-border p-6 lg:p-8 group hover:border-primary/30 transition-all duration-300 h-full">
                 <div className="flex flex-col lg:flex-row gap-6 items-center">
                   <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
