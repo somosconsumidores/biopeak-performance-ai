@@ -40,6 +40,7 @@ import { ContratoLicenca } from "./pages/ContratoLicenca";
 import { AdminPanel } from "./pages/AdminPanel";
 import { AdminSubscriptions } from "./pages/AdminSubscriptions";
 import AdminFixSubscription from "./pages/AdminFixSubscription";
+import AdminDashboard from "./pages/AdminDashboard";
 import SleepFeedbacks from "./pages/SleepFeedbacks";
 import { Onboarding } from "./pages/Onboarding";
 import TrainingPlan from "./pages/TrainingPlan";
@@ -256,6 +257,11 @@ function AppRoutes() {
         <Route path="/admin/fix-subscription" element={
           <ProtectedRoute>
             <AdminFixSubscription />
+          </ProtectedRoute>
+        } />
+        <Route path="/admindashboard" element={
+          <ProtectedRoute>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
         <Route path="/sleep-feedbacks" element={
