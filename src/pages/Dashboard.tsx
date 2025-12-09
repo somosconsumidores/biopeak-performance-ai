@@ -68,7 +68,18 @@ export const Dashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [filters, setFilters] = useState({ period: '30d', activityType: 'all' });
-  const [activeSection, setActiveSection] = useState('fitness-score');
+  
+  // Read section from URL params (for native app navigation to nutrition)
+  const sectionFromUrl = searchParams.get('section');
+  const [activeSection, setActiveSection] = useState(sectionFromUrl || 'fitness-score');
+  
+  // Update activeSection when URL param changes
+  useEffect(() => {
+    if (sectionFromUrl) {
+      setActiveSection(sectionFromUrl);
+    }
+  }, [sectionFromUrl]);
+  
   const [hasStrategies, setHasStrategies] = useState(false);
   const { loadStrategies } = useRaceStrategies();
   const { 
