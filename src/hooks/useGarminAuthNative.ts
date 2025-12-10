@@ -205,6 +205,67 @@ export const useGarminAuthNative = () => {
     };
   }, [user?.id, queryClient]);
 
+  // App state change listener: check for token when app returns from background
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !user?.id) return;
+
+    const { App: CapApp } = require('@capacitor/app');
+    
+    let listenerHandle: any = null;
+
+    const setupListener = async () => {
+      listenerHandle = await CapApp.addListener('appStateChange', async ({ isActive }: { isActive: boolean }) => {
+        if (isActive && isWaitingForAuth) {
+          console.log('📱 [GarminAuthNative] App returned to foreground, checking token...');
+          
+          // Check if token was saved while we were in background
+          const { data: token } = await supabase
+            .from('garmin_tokens')
+            .select('id, is_active')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (token) {
+            console.log('✅ [GarminAuthNative] Token found via app state check!');
+            setIsWaitingForAuth(false);
+            localStorage.removeItem('garmin_native_auth_pending');
+            localStorage.removeItem('garmin_pkce');
+
+            // Invalidate queries
+            queryClient.invalidateQueries({ queryKey: ['garmin-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['garmin-connection'] });
+            queryClient.invalidateQueries({ queryKey: ['garmin-activities'] });
+
+            toast({
+              title: '✅ Garmin conectado!',
+              description: 'Suas atividades serão sincronizadas automaticamente.',
+            });
+
+            // Trigger backfill
+            console.log('🔄 [GarminAuthNative] Triggering backfill via app state check...');
+            try {
+              await supabase.functions.invoke('backfill-activities', {
+                body: { timeRange: 'last_30_days' }
+              });
+              console.log('✅ [GarminAuthNative] Backfill triggered successfully');
+            } catch (e) {
+              console.log('⚠️ [GarminAuthNative] Backfill error:', e);
+            }
+          }
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (listenerHandle) {
+        listenerHandle.remove();
+      }
+    };
+  }, [user?.id, isWaitingForAuth, queryClient]);
+
   // Security timeout (5 minutes)
   useEffect(() => {
     if (!isWaitingForAuth) return;

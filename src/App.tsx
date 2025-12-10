@@ -15,6 +15,8 @@ import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { LandingPage } from "./pages/LandingPage";
 import { SalesLandingPage } from "./pages/SalesLandingPage";
@@ -90,6 +92,7 @@ function AppRoutes() {
   const { currentSurvey, isVisible: isSurveyVisible, submitResponse, dismissSurvey } = useSurveyPopup();
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const { hasSeenOnboarding, loading: appOnboardingLoading, completeOnboarding } = useAppOnboarding();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (user && !loading) {
@@ -147,7 +150,24 @@ function AppRoutes() {
           localStorage.removeItem('garmin_native_auth_pending');
           localStorage.removeItem('garmin_pkce');
           
-          console.log('🧹 [App] Garmin auth flags cleared, Realtime listener will handle token detection');
+          // Forçar refresh das queries de conexão (fallback caso Realtime não tenha funcionado)
+          queryClient.invalidateQueries({ queryKey: ['garmin-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['garmin-connection'] });
+          queryClient.invalidateQueries({ queryKey: ['garmin-activities'] });
+          
+          // Disparar backfill automático como fallback
+          console.log('🔄 [App] Triggering Garmin backfill as fallback...');
+          supabase.functions.invoke('backfill-activities', {
+            body: { timeRange: 'last_30_days' }
+          }).then(({ error }) => {
+            if (error) {
+              console.log('⚠️ [App] Garmin backfill error:', error);
+            } else {
+              console.log('✅ [App] Garmin backfill triggered successfully');
+            }
+          }).catch(e => console.log('⚠️ [App] Garmin backfill error:', e));
+          
+          console.log('🧹 [App] Garmin auth flags cleared, queries invalidated');
         }
       });
     };
