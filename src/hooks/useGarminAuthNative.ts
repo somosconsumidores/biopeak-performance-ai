@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { App as CapApp } from '@capacitor/app';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -208,8 +209,6 @@ export const useGarminAuthNative = () => {
   // App state change listener: check for token when app returns from background
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !user?.id) return;
-
-    const { App: CapApp } = require('@capacitor/app');
     
     let listenerHandle: any = null;
 
