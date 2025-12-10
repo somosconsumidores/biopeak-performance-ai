@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useGarminAuth } from '@/hooks/useGarminAuth';
+import { useGarminAuthNative } from '@/hooks/useGarminAuthNative';
 import { useGarminStats } from '@/hooks/useGarminStats';
 import { useStravaAuth } from '@/hooks/useStravaAuth';
 import { useStravaAuthNative } from '@/hooks/useStravaAuthNative';
@@ -84,6 +85,9 @@ export function GarminSync() {
     disconnect: disconnectGarmin 
   } = useGarminAuth();
   const { activitiesCount: garminActivities, lastSyncAt: garminLastSync, deviceName: garminDevice, loading: garminLoading } = useGarminStats();
+  
+  // Garmin native auth
+  const { connectGarminViaSystemBrowser, isWaitingForAuth: isWaitingForGarminAuth } = useGarminAuthNative();
   
   // Strava integration
   const { handleStravaConnect, isLoading: stravaConnecting } = useStravaAuth();
@@ -201,7 +205,18 @@ export function GarminSync() {
 
   const handleConnectGarmin = () => {
     console.log('[GarminSync] Connect button clicked');
-    startGarminFlow();
+    
+    // CRÍTICO: Detectar plataforma DENTRO do evento de clique
+    const isNative = Capacitor.isNativePlatform();
+    console.log('[GarminSync] Platform detected:', { isNative });
+    
+    if (isNative) {
+      console.log('[GarminSync] Using NATIVE flow (Browser.open)');
+      connectGarminViaSystemBrowser();
+    } else {
+      console.log('[GarminSync] Using WEB flow (window.location.href)');
+      startGarminFlow();
+    }
   };
 
   const handleConnectStrava = () => {
@@ -357,14 +372,14 @@ export function GarminSync() {
                         
                         <Button 
                           onClick={handleConnectGarmin}
-                          disabled={garminConnecting}
+                          disabled={garminConnecting || isWaitingForGarminAuth}
                           className="w-full"
                           size="lg"
                         >
-                          {garminConnecting ? (
+                          {garminConnecting || isWaitingForGarminAuth ? (
                             <>
                               <Zap className="h-4 w-4 mr-2 animate-pulse" />
-                              Conectando...
+                              {isWaitingForGarminAuth ? 'Aguardando autorização...' : 'Conectando...'}
                             </>
                           ) : (
                             <>
