@@ -136,7 +136,18 @@ function AppRoutes() {
           localStorage.removeItem('strava_connect_user_id');
           localStorage.removeItem('strava_oauth_user_id');
           
-          console.log('🧹 [App] Auth flags cleared, Realtime listener will handle token detection');
+          console.log('🧹 [App] Strava auth flags cleared, Realtime listener will handle token detection');
+        }
+        
+        // Detectar se é callback do Garmin
+        if (data.url.startsWith('biopeak://garmin-success')) {
+          console.log('✅ [App] Garmin success deep link detected - Safari View já fechado pelo iOS');
+          
+          // Limpar flags de autenticação
+          localStorage.removeItem('garmin_native_auth_pending');
+          localStorage.removeItem('garmin_pkce');
+          
+          console.log('🧹 [App] Garmin auth flags cleared, Realtime listener will handle token detection');
         }
       });
     };
