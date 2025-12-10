@@ -80,35 +80,6 @@ serve(async (req) => {
 
     // Handle POST request for token exchange
     if (req.method === "POST") {
-      // Get the authorization header
-      const authHeader = req.headers.get('authorization');
-      if (!authHeader) {
-        console.error('[garmin-oauth] No authorization header found');
-        throw new Error('No authorization header');
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      let user;
-      let isServiceRole = false;
-
-      console.log('[garmin-oauth] Token received (first 20 chars):', token.substring(0, 20));
-      console.log('[garmin-oauth] Service key (first 20 chars):', supabaseKey?.substring(0, 20));
-
-      // Check if it's a service role call (for force renewal)
-      if (token === supabaseKey) {
-        isServiceRole = true;
-        console.log('[garmin-oauth] Service role authentication detected');
-      } else {
-        // Verify the JWT token for regular user calls
-        const { data: userData, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !userData.user) {
-          console.error('[garmin-oauth] Authentication error:', authError);
-          throw new Error('Invalid token');
-        }
-        user = userData.user;
-        console.log('[garmin-oauth] User authenticated:', user.id);
-      }
-
       let body;
       try {
         const rawText = await req.text();
@@ -124,6 +95,41 @@ serve(async (req) => {
       } catch (error) {
         console.error('[garmin-oauth] Failed to parse request body:', error);
         throw new Error('Invalid request body - must be valid JSON');
+      }
+
+      // Determine authentication mode
+      const authHeader = req.headers.get('authorization');
+      let user: { id: string } | null = null;
+      let isServiceRole = false;
+      let isPublicCallback = false;
+
+      // Check if this is a public callback (userId passed in body from state parameter)
+      if (body.userId && !authHeader?.includes('Bearer ')) {
+        isPublicCallback = true;
+        user = { id: body.userId };
+        console.log('[garmin-oauth] Public callback mode - userId from state:', body.userId);
+      } else if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        console.log('[garmin-oauth] Token received (first 20 chars):', token.substring(0, 20));
+        console.log('[garmin-oauth] Service key (first 20 chars):', supabaseKey?.substring(0, 20));
+
+        // Check if it's a service role call (for force renewal)
+        if (token === supabaseKey) {
+          isServiceRole = true;
+          console.log('[garmin-oauth] Service role authentication detected');
+        } else {
+          // Verify the JWT token for regular user calls
+          const { data: userData, error: authError } = await supabase.auth.getUser(token);
+          if (authError || !userData.user) {
+            console.error('[garmin-oauth] Authentication error:', authError);
+            throw new Error('Invalid token');
+          }
+          user = userData.user;
+          console.log('[garmin-oauth] User authenticated:', user.id);
+        }
+      } else {
+        console.error('[garmin-oauth] No authorization header and no userId in body');
+        throw new Error('No authorization header or userId');
       }
 
       const { code, codeVerifier, redirectUri, refresh_token, grant_type } = body;
@@ -427,6 +433,7 @@ serve(async (req) => {
           expires_at: expiresAt,
           refresh_token_expires_at: refreshTokenExpiresAt,
           initial_sync_completed: false, // Always false for new connections
+          is_active: true, // Mark as active for native app real-time listener
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'
