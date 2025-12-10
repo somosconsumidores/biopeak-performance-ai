@@ -25,8 +25,10 @@ export const useGarminAuth = () => {
   const [tokens, setTokens] = useState<GarminTokens | null>(null);
   const { toast } = useToast();
 
-  // Check for existing tokens on mount
+  // Check for existing tokens on mount and setup realtime listener
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     const checkExistingTokens = async () => {
       try {
         console.log('[useGarminAuth] Checking for existing tokens...');
@@ -57,12 +59,45 @@ export const useGarminAuth = () => {
         } else {
           setIsConnected(false);
         }
+
+        // Setup realtime listener for automatic UI updates
+        console.log('[useGarminAuth] Setting up Realtime listener for token changes');
+        channel = supabase
+          .channel('garmin-tokens-ui-sync')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'garmin_tokens',
+              filter: `user_id=eq.${user.id}`
+            },
+            (payload) => {
+              console.log('[useGarminAuth] Realtime update:', payload.eventType);
+              if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                const newToken = payload.new as { is_active?: boolean };
+                setIsConnected(newToken.is_active === true);
+              } else if (payload.eventType === 'DELETE') {
+                setIsConnected(false);
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('[useGarminAuth] Realtime channel status:', status);
+          });
       } catch (error) {
         console.error('[useGarminAuth] Error checking tokens:', error);
       }
     };
 
     checkExistingTokens();
+
+    return () => {
+      if (channel) {
+        console.log('[useGarminAuth] Cleaning up Realtime listener');
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   const startOAuthFlow = useCallback(async () => {
