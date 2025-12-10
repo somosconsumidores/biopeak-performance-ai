@@ -9,6 +9,20 @@ export function GarminCallback() {
   const { isConnected, handleOAuthCallback } = useGarminAuth();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Safety redirect: ensure callback is processed on production domain
+  useEffect(() => {
+    const urlParams = parseCallbackParams(window.location.href);
+    const host = window.location.hostname;
+    const isProdHost = host === 'biopeak-ai.com' || host === 'www.biopeak-ai.com';
+    
+    if (urlParams.code && urlParams.state && !isProdHost) {
+      const target = `https://biopeak-ai.com/garmin-callback?code=${urlParams.code}&state=${urlParams.state}`;
+      console.log('[GarminCallback] Redirecting to production:', target);
+      window.location.href = target;
+      return;
+    }
+  }, []);
+
   useEffect(() => {
     const processCallback = async () => {
       if (isProcessing) return;

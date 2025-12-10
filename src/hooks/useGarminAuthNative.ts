@@ -7,8 +7,8 @@ import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { generatePKCE, generateState, buildGarminAuthURL } from '@/lib/garmin-oauth';
 
-// Hardcoded redirect URI - must match Garmin Developer Portal
-const GARMIN_REDIRECT_URI = 'https://preview--biopeak-performance-ai.lovable.app/garmin-callback';
+// Hardcoded redirect URI - must match Garmin Developer Portal (production)
+const GARMIN_REDIRECT_URI = 'https://biopeak-ai.com/garmin-callback';
 
 export const useGarminAuthNative = () => {
   const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
