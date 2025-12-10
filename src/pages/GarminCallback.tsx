@@ -115,11 +115,13 @@ export function GarminCallback() {
 
         setStatus('success');
         
-        // Check if this is a native flow - use deep link to return to app
-        const isNativeFlow = localStorage.getItem('garmin_native_auth_pending') === 'true';
+        // Detect native flow by state format: userId:timestamp
+        // localStorage is NOT shared between Safari View Controller and the app
+        // So we detect native flow by checking if state has UUID format (36 chars)
+        const isNativeOrPublicCallback = stateParts.length >= 2 && stateParts[0].length === 36;
         
-        if (isNativeFlow) {
-          console.log('📱 [GarminCallback] Native flow detected - using deep link');
+        if (isNativeOrPublicCallback) {
+          console.log('📱 [GarminCallback] Native/public callback detected - using deep link');
           // Deep link will close Safari View Controller and return to app
           // Small delay to show success message
           setTimeout(() => {
