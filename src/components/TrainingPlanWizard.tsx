@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -54,6 +54,8 @@ interface TrainingPlanWizardProps {
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   onComplete?: () => void;
+  initialSportType?: 'running' | 'cycling' | 'swimming' | 'strength';
+  parentPlanId?: string;
 }
 
 const STEP_TITLES: Record<number, string> = {
@@ -98,7 +100,9 @@ export function TrainingPlanWizard({
   open = true, 
   onOpenChange, 
   onClose, 
-  onComplete 
+  onComplete,
+  initialSportType,
+  parentPlanId
 }: TrainingPlanWizardProps) {
   const {
     currentStep,
@@ -116,6 +120,16 @@ export function TrainingPlanWizard({
   
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Set initial sport type and parent plan when provided
+  useEffect(() => {
+    if (open && initialSportType) {
+      updateWizardData({ sportType: initialSportType });
+      if (parentPlanId) {
+        updateWizardData({ parentPlanId });
+      }
+    }
+  }, [open, initialSportType, parentPlanId]);
 
   const progress = ((stepSequence.indexOf(currentStep) + 1) / totalSteps) * 100;
   const currentStepIndex = stepSequence.indexOf(currentStep) + 1;

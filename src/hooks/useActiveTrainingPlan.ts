@@ -15,6 +15,8 @@ export interface TrainingPlan {
   target_time_minutes_min?: number;
   target_time_minutes_max?: number;
   created_at: string;
+  is_complementary?: boolean;
+  parent_plan_id?: string;
 }
 
 export interface TrainingWorkout {
@@ -61,12 +63,14 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
     setError(null);
 
     try {
-      // Fetch active training plan
+      // Fetch active main training plan (not complementary/strength)
       const { data: planData, error: planError } = await supabase
         .from('training_plans')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
+        .or('is_complementary.is.null,is_complementary.eq.false')
+        .neq('sport_type', 'strength')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

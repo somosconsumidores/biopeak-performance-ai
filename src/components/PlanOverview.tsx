@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { TrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlans';
 import { Calendar, Target, Clock, CheckCircle2, MoreVertical, RefreshCw, Settings, Trash2 } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

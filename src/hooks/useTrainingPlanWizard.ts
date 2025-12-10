@@ -752,6 +752,20 @@ export function useTrainingPlanWizard() {
       const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
       const planId = uuidv4();
       
+      // Helper to get plan name based on sport type
+      const getPlanName = (): string => {
+        switch (wizardData.sportType) {
+          case 'cycling':
+            return `Plano ${CYCLING_GOALS.find(g => g.id === wizardData.goal)?.label || 'Ciclismo'}`;
+          case 'swimming':
+            return `Plano ${SWIMMING_GOALS.find(g => g.id === wizardData.goal)?.label || 'Natação'}`;
+          case 'strength':
+            return `Plano ${STRENGTH_GOALS.find(g => g.id === wizardData.strengthGoal)?.label || 'Força'}`;
+          default:
+            return `Plano ${GOALS.find(g => g.id === wizardData.goal)?.label || 'Corrida'}`;
+        }
+      };
+      
       // Calculate target time for race goals
       const calculatedTargetTime = calculateTargetTime();
       
@@ -783,10 +797,8 @@ export function useTrainingPlanWizard() {
         .insert({
           id: planId,
           user_id: user.id,
-          plan_name: `Plano ${wizardData.sportType === 'cycling' 
-            ? CYCLING_GOALS.find(g => g.id === wizardData.goal)?.label 
-            : GOALS.find(g => g.id === wizardData.goal)?.label || 'Treino'}`,
-          goal_type: wizardData.goal,
+          plan_name: getPlanName(),
+          goal_type: wizardData.goal || wizardData.strengthGoal || 'general',
           sport_type: wizardData.sportType,
           ftp_watts: wizardData.sportType === 'cycling' ? wizardData.ftpWatts : null,
           equipment_type: wizardData.sportType === 'cycling' ? wizardData.equipmentType : null,
@@ -796,6 +808,8 @@ export function useTrainingPlanWizard() {
           status: 'pending',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
           goal_target_time_minutes: calculatedTargetTime ? Math.round(calculatedTargetTime) : undefined,
+          is_complementary: wizardData.sportType === 'strength',
+          parent_plan_id: wizardData.sportType === 'strength' ? wizardData.parentPlanId : null,
         });
 
       if (planError) {
@@ -893,34 +907,66 @@ export function useTrainingPlanWizard() {
       }
 
       // Determine which edge function to call based on sport type
-      const edgeFunctionName = wizardData.sportType === 'cycling' 
-        ? 'generate-cycling-plan' 
-        : 'generate-training-plan';
-      
+      let edgeFunctionName: string;
       let functionPayload: any;
       
-      if (wizardData.sportType === 'cycling') {
-        functionPayload = {
-          planId,
-          userId: user.id,
-          goal: wizardData.goal,
-          level: wizardData.cyclingLevel,
-          ftpWatts: wizardData.ftpWatts,
-          maxHeartRate: wizardData.maxHeartRate,
-          availableHoursPerWeek: wizardData.availableHoursPerWeek,
-          availableDays: wizardData.availableDays,
-          equipmentType: wizardData.equipmentType,
-          startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
-          planDurationWeeks: wizardData.planDurationWeeks,
-          targetEventDate: wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
-          targetEventDescription: wizardData.targetEventDescription
-        };
-      } else {
-        functionPayload = {
-          plan_id: planId,
-          declared_paces: declaredPaces,
-          absolute_beginner: absoluteBeginner
-        };
+      switch (wizardData.sportType) {
+        case 'cycling':
+          edgeFunctionName = 'generate-cycling-plan';
+          functionPayload = {
+            planId,
+            userId: user.id,
+            goal: wizardData.goal,
+            level: wizardData.cyclingLevel,
+            ftpWatts: wizardData.ftpWatts,
+            maxHeartRate: wizardData.maxHeartRate,
+            availableHoursPerWeek: wizardData.availableHoursPerWeek,
+            availableDays: wizardData.availableDays,
+            equipmentType: wizardData.equipmentType,
+            startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
+            planDurationWeeks: wizardData.planDurationWeeks,
+            targetEventDate: wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
+            targetEventDescription: wizardData.targetEventDescription
+          };
+          break;
+          
+        case 'swimming':
+          edgeFunctionName = 'generate-swimming-plan';
+          functionPayload = {
+            planId,
+            userId: user.id,
+            cssSecondsPerHundred: wizardData.cssSecondsPerHundred,
+            poolLength: wizardData.poolLength,
+            availableHoursPerWeek: wizardData.availableHoursPerWeek || (wizardData.weeklyFrequency * 1.5),
+            availableDays: wizardData.availableDays,
+            swimmingEquipment: wizardData.swimmingEquipment,
+            level: wizardData.swimmingLevel,
+            startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
+            planDurationWeeks: wizardData.planDurationWeeks,
+          };
+          break;
+          
+        case 'strength':
+          edgeFunctionName = 'generate-strength-plan';
+          functionPayload = {
+            planId,
+            userId: user.id,
+            strengthGoal: wizardData.strengthGoal,
+            strengthEquipment: wizardData.strengthEquipment,
+            strengthFrequency: wizardData.strengthFrequency,
+            parentPlanId: wizardData.parentPlanId,
+            startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
+            planDurationWeeks: wizardData.planDurationWeeks,
+          };
+          break;
+          
+        default: // running
+          edgeFunctionName = 'generate-training-plan';
+          functionPayload = {
+            plan_id: planId,
+            declared_paces: declaredPaces,
+            absolute_beginner: absoluteBeginner
+          };
       }
 
       console.log(`Calling ${edgeFunctionName} with payload:`, functionPayload);

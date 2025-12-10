@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { TrainingWorkout } from '@/hooks/useActiveTrainingPlans';
 import { ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore, startOfDay, addMonths, subMonths, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -37,6 +37,20 @@ const WORKOUT_TYPE_COLORS: Record<string, string> = {
   'long_brick': 'bg-violet-500 hover:bg-violet-600',
   'event_simulation': 'bg-rose-500 hover:bg-rose-600',
   'strength_endurance': 'bg-stone-600 hover:bg-stone-700',
+  // Swimming types
+  'warmup': 'bg-green-400 hover:bg-green-500',
+  'technique': 'bg-teal-500 hover:bg-teal-600',
+  'aerobic': 'bg-blue-400 hover:bg-blue-500',
+  'sprint': 'bg-red-600 hover:bg-red-700',
+  'mixed': 'bg-violet-500 hover:bg-violet-600',
+  'test': 'bg-amber-500 hover:bg-amber-600',
+  // Strength types
+  'full_body': 'bg-stone-600 hover:bg-stone-700',
+  'upper_body': 'bg-blue-600 hover:bg-blue-700',
+  'lower_body': 'bg-emerald-600 hover:bg-emerald-700',
+  'core': 'bg-amber-500 hover:bg-amber-600',
+  'plyometric': 'bg-red-500 hover:bg-red-600',
+  'mobility': 'bg-purple-400 hover:bg-purple-500',
 };
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
@@ -64,6 +78,20 @@ const WORKOUT_TYPE_LABELS: Record<string, string> = {
   'long_brick': 'Longo + Intensidade',
   'event_simulation': 'Simulação de Prova',
   'strength_endurance': 'Resistência Muscular',
+  // Swimming types
+  'warmup': 'Aquecimento',
+  'technique': 'Técnica',
+  'aerobic': 'Aeróbico',
+  'sprint': 'Sprint',
+  'mixed': 'Misto',
+  'test': 'Teste',
+  // Strength types
+  'full_body': 'Corpo Inteiro',
+  'upper_body': 'Trem Superior',
+  'lower_body': 'Trem Inferior',
+  'core': 'Core',
+  'plyometric': 'Pliométrico',
+  'mobility': 'Mobilidade',
 };
 
 export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarProps) {
