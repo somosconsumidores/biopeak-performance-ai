@@ -164,6 +164,24 @@ export const useGarminAuthNative = () => {
             description: 'Suas atividades serão sincronizadas automaticamente.',
           });
 
+          // Trigger automatic backfill to sync activities (30 days)
+          console.log('🔄 [GarminAuthNative] Triggering automatic backfill...');
+          try {
+            const { error: backfillError } = await supabase.functions.invoke('backfill-activities', {
+              body: {
+                timeRange: 'last_30_days'
+              }
+            });
+            
+            if (backfillError) {
+              console.log('⚠️ [GarminAuthNative] Backfill error:', backfillError);
+            } else {
+              console.log('✅ [GarminAuthNative] Backfill triggered successfully');
+            }
+          } catch (e) {
+            console.log('⚠️ [GarminAuthNative] Backfill error:', e);
+          }
+
           // Clean up PKCE data from Supabase
           try {
             await supabase
