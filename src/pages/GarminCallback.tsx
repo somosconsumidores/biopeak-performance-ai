@@ -52,28 +52,62 @@ export function GarminCallback() {
         return;
       }
 
-      // Extract userId from state (format: userId:timestamp)
+      // Detect flow type by state format
+      // Native flow: state = "userId:timestamp" (UUID is 36 chars)
+      // Web/PWA flow: state = random PKCE string
       const stateParts = urlParams.state.split(':');
-      if (stateParts.length < 2) {
-        console.error('❌ Invalid state format - expected userId:timestamp');
-        setStatus('error');
-        setErrorMessage('Formato de state inválido');
-        return;
+      const isNativeFlow = stateParts.length >= 2 && stateParts[0].length === 36;
+      
+      let userId: string | null = null;
+      let codeVerifier: string | null = null;
+
+      if (isNativeFlow) {
+        // === NATIVE FLOW ===
+        // State format: userId:timestamp
+        userId = stateParts[0];
+        console.log('📱 Native flow detected - userId from state:', userId);
+        // Edge function will fetch PKCE from Supabase using service role
+        
+      } else {
+        // === WEB/PWA FLOW ===
+        console.log('🌐 Web/PWA flow detected - checking authenticated user');
+        
+        // Get authenticated user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('❌ User not authenticated');
+          setStatus('error');
+          setErrorMessage('Usuário não autenticado. Faça login e tente novamente.');
+          return;
+        }
+        userId = user.id;
+        console.log('🔍 Authenticated userId:', userId);
+        
+        // Verify PKCE from localStorage
+        const pkceData = getPKCEData();
+        if (!pkceData) {
+          console.error('❌ PKCE data not found in localStorage');
+          setStatus('error');
+          setErrorMessage('Dados de segurança não encontrados. Tente novamente.');
+          return;
+        }
+        
+        if (pkceData.state !== urlParams.state) {
+          console.error('❌ State mismatch - possible CSRF attack');
+          console.error('Expected:', pkceData.state, 'Got:', urlParams.state);
+          setStatus('error');
+          setErrorMessage('Parâmetros de segurança inválidos. Tente novamente.');
+          return;
+        }
+        
+        codeVerifier = pkceData.codeVerifier;
+        console.log('🔐 PKCE verified from localStorage');
       }
 
-      const userId = stateParts[0];
-      console.log('🔍 Extracted userId from state:', userId);
-
-      // For native flow, send code + userId to edge function (it will fetch PKCE internally)
-      // For web flow, try localStorage first
-      let pkceData = getPKCEData();
-      console.log('🔍 PKCE from localStorage:', pkceData ? 'found' : 'not found');
-
-      console.log('📞 Calling garmin-oauth Edge Function with userId from state...');
+      console.log('📞 Calling garmin-oauth Edge Function...');
       
       try {
         // Call the edge function directly without JWT (public mode with userId)
-        // Edge function will fetch PKCE from Supabase using service role
         const response = await fetch(`https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-oauth`, {
           method: 'POST',
           headers: {
@@ -82,9 +116,9 @@ export function GarminCallback() {
           },
           body: JSON.stringify({
             code: urlParams.code,
-            codeVerifier: pkceData?.codeVerifier, // Optional - edge function will fetch if not provided
+            codeVerifier: codeVerifier, // Web: from localStorage, Native: null (edge fetches from DB)
             redirectUri: GARMIN_REDIRECT_URI,
-            userId: userId, // Pass userId from state for public callback
+            userId: userId,
           }),
         });
 
@@ -97,16 +131,18 @@ export function GarminCallback() {
 
         console.log('✅ Garmin OAuth completed successfully');
         
-        // Clean up PKCE data from Supabase
-        try {
-          await supabase
-            .from('oauth_temp_tokens')
-            .delete()
-            .eq('user_id', userId)
-            .eq('provider', 'garmin_pkce');
-          console.log('🧹 PKCE data cleaned from Supabase');
-        } catch (e) {
-          console.log('⚠️ Could not clean PKCE data:', e);
+        // Clean up PKCE data from Supabase (if native flow stored it there)
+        if (isNativeFlow) {
+          try {
+            await supabase
+              .from('oauth_temp_tokens')
+              .delete()
+              .eq('user_id', userId)
+              .eq('provider', 'garmin_pkce');
+            console.log('🧹 PKCE data cleaned from Supabase');
+          } catch (e) {
+            console.log('⚠️ Could not clean PKCE data:', e);
+          }
         }
 
         // Clear localStorage
@@ -115,26 +151,20 @@ export function GarminCallback() {
 
         setStatus('success');
         
-        // Detect native flow by state format: userId:timestamp
-        // localStorage is NOT shared between Safari View Controller and the app
-        // So we detect native flow by checking if state has UUID format (36 chars)
-        const isNativeOrPublicCallback = stateParts.length >= 2 && stateParts[0].length === 36;
-        
-        if (isNativeOrPublicCallback) {
-          console.log('📱 [GarminCallback] Native/public callback detected - using deep link');
+        if (isNativeFlow) {
+          console.log('📱 [GarminCallback] Native flow - using deep link');
           // Deep link will close Safari View Controller and return to app
-          // Small delay to show success message
           setTimeout(() => {
             window.location.href = 'biopeak://garmin-success';
           }, 1500);
         } else {
-          // Web flow - redirect to sync page
-          console.log('🌐 [GarminCallback] Web flow - redirecting to /sync');
+          // Web/PWA flow - redirect to sync page
+          console.log('🌐 [GarminCallback] Web/PWA flow - redirecting to /sync');
           setTimeout(() => {
             navigate('/sync');
           }, 2000);
         }
-        
+
       } catch (error) {
         console.error('❌ Error processing OAuth callback:', error);
         setStatus('error');
