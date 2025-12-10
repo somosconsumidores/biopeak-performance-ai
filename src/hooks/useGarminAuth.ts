@@ -13,9 +13,8 @@ import {
 } from '@/lib/garmin-oauth';
 import { useToast } from '@/hooks/use-toast';
 
-// Hardcoded redirect URI for consistency across platforms
-// On native apps, window.location.origin returns localhost, so we use the PWA URL
-const GARMIN_CALLBACK_URL = 'https://preview--biopeak-performance-ai.lovable.app/garmin-callback';
+// Hardcoded redirect URI for consistency across platforms (production)
+const GARMIN_CALLBACK_URL = 'https://biopeak-ai.com/garmin-callback';
 const REDIRECT_URI = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
   ? GARMIN_CALLBACK_URL 
   : `${window.location.origin}/garmin-callback`;
