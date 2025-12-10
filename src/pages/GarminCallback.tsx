@@ -64,61 +64,25 @@ export function GarminCallback() {
       const userId = stateParts[0];
       console.log('🔍 Extracted userId from state:', userId);
 
-      // Try to get PKCE data from localStorage first (web flow)
+      // For native flow, send code + userId to edge function (it will fetch PKCE internally)
+      // For web flow, try localStorage first
       let pkceData = getPKCEData();
       console.log('🔍 PKCE from localStorage:', pkceData ? 'found' : 'not found');
-      
-      // If not found in localStorage, try to fetch from Supabase (native flow)
-      if (!pkceData) {
-        console.log('🔍 Attempting to fetch PKCE from Supabase for user:', userId);
-        
-        try {
-          const { data: pkceFromDb, error: pkceError } = await supabase
-            .from('oauth_temp_tokens')
-            .select('oauth_token, oauth_token_secret')
-            .eq('user_id', userId)
-            .eq('provider', 'garmin_pkce')
-            .maybeSingle();
-          
-          if (pkceError) {
-            console.error('❌ Error fetching PKCE from Supabase:', pkceError);
-          } else if (pkceFromDb) {
-            console.log('✅ PKCE found in Supabase');
-            pkceData = {
-              codeVerifier: pkceFromDb.oauth_token,
-              state: pkceFromDb.oauth_token_secret
-            };
-            
-            // Store in localStorage for reference
-            storePKCEData(pkceData);
-          } else {
-            console.log('⚠️ No PKCE data found in Supabase');
-          }
-        } catch (e) {
-          console.error('❌ Error in PKCE Supabase lookup:', e);
-        }
-      }
-      
-      if (!pkceData) {
-        console.error('❌ No PKCE data found anywhere');
-        setStatus('error');
-        setErrorMessage('Dados de autenticação não encontrados. Tente conectar novamente.');
-        return;
-      }
 
       console.log('📞 Calling garmin-oauth Edge Function with userId from state...');
       
       try {
         // Call the edge function directly without JWT (public mode with userId)
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://grcwlmltlcltmwbhdpky.supabase.co'}/functions/v1/garmin-oauth`, {
+        // Edge function will fetch PKCE from Supabase using service role
+        const response = await fetch(`https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/garmin-oauth`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM',
           },
           body: JSON.stringify({
             code: urlParams.code,
-            codeVerifier: pkceData.codeVerifier,
+            codeVerifier: pkceData?.codeVerifier, // Optional - edge function will fetch if not provided
             redirectUri: GARMIN_REDIRECT_URI,
             userId: userId, // Pass userId from state for public callback
           }),

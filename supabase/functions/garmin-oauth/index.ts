@@ -132,7 +132,7 @@ serve(async (req) => {
         throw new Error('No authorization header or userId');
       }
 
-      const { code, codeVerifier, redirectUri, refresh_token, grant_type } = body;
+      let { code, codeVerifier, redirectUri, refresh_token, grant_type } = body;
 
       console.log('[garmin-oauth] Received parameters:', {
         code: !!code,
@@ -141,6 +141,27 @@ serve(async (req) => {
         refresh_token: !!refresh_token,
         grant_type: grant_type
       });
+
+      // For public callback mode, fetch PKCE from Supabase if not provided
+      if (isPublicCallback && !codeVerifier && code && user) {
+        console.log('[garmin-oauth] Public callback mode - fetching PKCE from Supabase for user:', user.id);
+        
+        const { data: pkceData, error: pkceError } = await supabase
+          .from('oauth_temp_tokens')
+          .select('oauth_token')
+          .eq('user_id', user.id)
+          .eq('provider', 'garmin_pkce')
+          .maybeSingle();
+        
+        if (pkceError) {
+          console.error('[garmin-oauth] Error fetching PKCE from Supabase:', pkceError);
+        } else if (pkceData) {
+          codeVerifier = pkceData.oauth_token;
+          console.log('[garmin-oauth] PKCE retrieved from Supabase successfully');
+        } else {
+          console.error('[garmin-oauth] No PKCE data found in Supabase for user:', user.id);
+        }
+      }
 
       // Handle refresh token flow
       if (grant_type === 'refresh_token') {
