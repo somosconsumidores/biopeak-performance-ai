@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TrainingPlanWizardData } from '@/hooks/useTrainingPlanWizard';
+import { TrainingPlanWizardData, SWIMMING_GOALS, STRENGTH_GOALS, CYCLING_GOALS } from '@/hooks/useTrainingPlanWizard';
 import { 
   Target, 
   User, 
@@ -11,7 +11,11 @@ import {
   Trophy,
   CheckCircle2,
   Clock,
-  Zap
+  Zap,
+  Waves,
+  Dumbbell,
+  Bike,
+  Footprints
 } from 'lucide-react';
 import { format, addWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -45,6 +49,25 @@ const ATHLETE_LEVELS = {
   'Elite': { label: 'Elite', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
 };
 
+const SWIMMING_LEVELS = {
+  'beginner': { label: 'Iniciante', color: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' },
+  'intermediate': { label: 'Intermediário', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' },
+  'advanced': { label: 'Avançado', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
+};
+
+const STRENGTH_EQUIPMENT_LABELS = {
+  'full_gym': 'Academia Completa',
+  'home_basic': 'Home Gym Básico',
+  'bodyweight': 'Peso Corporal',
+};
+
+const STRENGTH_GOAL_LABELS = {
+  'injury_prevention': 'Prevenção de Lesões',
+  'performance': 'Melhoria de Performance',
+  'general': 'Fortalecimento Geral',
+  'core': 'Foco em Core',
+};
+
 interface SummaryStepProps {
   wizardData: TrainingPlanWizardData;
   calculateTargetTime?: () => number | undefined;
@@ -70,24 +93,63 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Format CSS to display
+  const formatCSS = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}/100m`;
+  };
+
+  // Get sport-specific icon and color
+  const getSportIcon = () => {
+    switch (wizardData.sportType) {
+      case 'swimming': return <Waves className="h-8 w-8 text-cyan-500" />;
+      case 'cycling': return <Bike className="h-8 w-8 text-blue-500" />;
+      case 'strength': return <Dumbbell className="h-8 w-8 text-purple-500" />;
+      default: return <Footprints className="h-8 w-8 text-green-500" />;
+    }
+  };
+
+  const getSportLabel = () => {
+    switch (wizardData.sportType) {
+      case 'swimming': return 'Natação';
+      case 'cycling': return 'Ciclismo';
+      case 'strength': return 'Força';
+      default: return 'Corrida';
+    }
+  };
+
+  const getGoalLabel = () => {
+    if (wizardData.sportType === 'swimming') {
+      return SWIMMING_GOALS.find(g => g.id === wizardData.goal)?.label || wizardData.goal;
+    }
+    if (wizardData.sportType === 'cycling') {
+      return CYCLING_GOALS.find(g => g.id === wizardData.goal)?.label || wizardData.goal;
+    }
+    if (wizardData.sportType === 'strength') {
+      return STRENGTH_GOAL_LABELS[wizardData.strengthGoal as keyof typeof STRENGTH_GOAL_LABELS] || wizardData.strengthGoal;
+    }
+    return GOALS[wizardData.goal as keyof typeof GOALS] || wizardData.goal;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-3">
         <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="h-8 w-8 text-primary" />
+          {getSportIcon()}
         </div>
         <div>
-          <h3 className="text-xl font-bold text-foreground">Seu Plano Personalizado</h3>
+          <h3 className="text-xl font-bold text-foreground">Seu Plano de {getSportLabel()}</h3>
           <p className="text-sm text-muted-foreground">
-            Revise todas as informações antes de gerar seu plano de treino
+            Revise todas as informações antes de gerar seu plano
           </p>
         </div>
       </div>
 
       {/* Summary cards */}
-      {/* Beginner Notice */}
-      {wizardData.unknownPaces && (['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && (
+      {/* Beginner Notice for Running */}
+      {wizardData.sportType === 'running' && wizardData.unknownPaces && (['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && (
         <Card className="glass-card border-blue-500 bg-blue-50 dark:bg-blue-950/30">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -118,7 +180,7 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
           </CardHeader>
           <CardContent className="pt-0">
             <div className="font-medium text-foreground">
-              {GOALS[wizardData.goal as keyof typeof GOALS] || wizardData.goal}
+              {getGoalLabel()}
             </div>
             {wizardData.goalDescription && (
               <div className="text-sm text-muted-foreground mt-1">
@@ -128,44 +190,178 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
           </CardContent>
         </Card>
 
-        {/* Athlete Profile */}
-        <Card className="glass-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              Perfil do Atleta
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Nível:</span>
-              <Badge variant="secondary" className={athleteLevel.color}>
-                {athleteLevel.label}
-              </Badge>
-            </div>
-            
-            {wizardData.birthDate && (
+        {/* Athlete Profile - Running */}
+        {wizardData.sportType === 'running' && (
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Perfil do Atleta
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Nascimento:</span>
-                <span className="text-sm font-medium">
-                  {format(wizardData.birthDate, "dd/MM/yyyy")}
-                </span>
+                <span className="text-sm text-muted-foreground">Nível:</span>
+                <Badge variant="secondary" className={athleteLevel.color}>
+                  {athleteLevel.label}
+                </Badge>
               </div>
-            )}
-            
-            {wizardData.gender && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Gênero:</span>
-                <span className="text-sm font-medium">
-                  {wizardData.gender === 'male' ? 'Masculino' : 'Feminino'}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              
+              {wizardData.birthDate && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Nascimento:</span>
+                  <span className="text-sm font-medium">
+                    {format(wizardData.birthDate, "dd/MM/yyyy")}
+                  </span>
+                </div>
+              )}
+              
+              {wizardData.gender && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Gênero:</span>
+                  <span className="text-sm font-medium">
+                    {wizardData.gender === 'male' ? 'Masculino' : 'Feminino'}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Current Times */}
-        {Object.values(wizardData.estimatedTimes).some(time => time) && (
+        {/* Swimming Profile */}
+        {wizardData.sportType === 'swimming' && (
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Waves className="h-4 w-4 text-cyan-500" />
+                Perfil de Natação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              {wizardData.swimmingLevel && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Nível:</span>
+                  <Badge variant="secondary" className={SWIMMING_LEVELS[wizardData.swimmingLevel].color}>
+                    {SWIMMING_LEVELS[wizardData.swimmingLevel].label}
+                  </Badge>
+                </div>
+              )}
+              
+              {wizardData.cssSecondsPerHundred && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">CSS:</span>
+                  <span className="text-sm font-medium font-mono">
+                    {formatCSS(wizardData.cssSecondsPerHundred)}
+                  </span>
+                </div>
+              )}
+              
+              {wizardData.poolLength && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Piscina:</span>
+                  <Badge variant="outline">{wizardData.poolLength}m</Badge>
+                </div>
+              )}
+              
+              {wizardData.swimmingEquipment && wizardData.swimmingEquipment.length > 0 && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Equipamentos:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {wizardData.swimmingEquipment.map(eq => (
+                      <Badge key={eq} variant="secondary" className="text-xs">
+                        {eq === 'palmar' ? 'Palmar' : 
+                         eq === 'nadadeira' ? 'Nadadeira' :
+                         eq === 'pull_buoy' ? 'Pull Buoy' :
+                         eq === 'snorkel' ? 'Snorkel' : eq}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Strength Profile */}
+        {wizardData.sportType === 'strength' && (
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-purple-500" />
+                Perfil de Força
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              {wizardData.strengthGoal && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Objetivo:</span>
+                  <span className="text-sm font-medium">
+                    {STRENGTH_GOAL_LABELS[wizardData.strengthGoal]}
+                  </span>
+                </div>
+              )}
+              
+              {wizardData.strengthEquipment && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Equipamentos:</span>
+                  <Badge variant="secondary">
+                    {STRENGTH_EQUIPMENT_LABELS[wizardData.strengthEquipment]}
+                  </Badge>
+                </div>
+              )}
+              
+              {wizardData.strengthFrequency && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Frequência:</span>
+                  <Badge variant="outline">{wizardData.strengthFrequency}x por semana</Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cycling Profile */}
+        {wizardData.sportType === 'cycling' && (
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bike className="h-4 w-4 text-blue-500" />
+                Perfil de Ciclismo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              {wizardData.cyclingLevel && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Nível:</span>
+                  <Badge variant="secondary" className={ATHLETE_LEVELS[wizardData.cyclingLevel === 'beginner' ? 'Beginner' : wizardData.cyclingLevel === 'intermediate' ? 'Intermediate' : 'Advanced'].color}>
+                    {wizardData.cyclingLevel === 'beginner' ? 'Iniciante' : wizardData.cyclingLevel === 'intermediate' ? 'Intermediário' : 'Avançado'}
+                  </Badge>
+                </div>
+              )}
+              
+              {wizardData.ftpWatts && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">FTP:</span>
+                  <span className="text-sm font-medium font-mono">{wizardData.ftpWatts}W</span>
+                </div>
+              )}
+              
+              {wizardData.equipmentType && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Equipamento:</span>
+                  <Badge variant="outline">
+                    {wizardData.equipmentType === 'road' ? 'Speed' : 
+                     wizardData.equipmentType === 'mtb' ? 'Mountain Bike' :
+                     wizardData.equipmentType === 'trainer' ? 'Rolo/Trainer' : 'Misto'}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Current Times - Running only */}
+        {wizardData.sportType === 'running' && Object.values(wizardData.estimatedTimes).some(time => time) && (
           <Card className="glass-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -204,41 +400,56 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
           </Card>
         )}
 
-        {/* Training Schedule */}
-        <Card className="glass-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              Cronograma de Treino
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Frequência:</span>
-              <Badge variant="outline">
-                {wizardData.weeklyFrequency}x por semana
-              </Badge>
-            </div>
-            
-            <div>
-              <span className="text-sm text-muted-foreground">Dias disponíveis:</span>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {wizardData.availableDays.map(dayId => (
-                  <Badge key={dayId} variant="secondary" className="text-xs">
-                    {DAYS_OF_WEEK[dayId as keyof typeof DAYS_OF_WEEK]}
+        {/* Training Schedule - Not for Strength */}
+        {wizardData.sportType !== 'strength' && (
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                Cronograma de Treino
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              {wizardData.sportType === 'running' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Frequência:</span>
+                  <Badge variant="outline">
+                    {wizardData.weeklyFrequency}x por semana
                   </Badge>
-                ))}
+                </div>
+              )}
+              
+              {(wizardData.sportType === 'swimming' || wizardData.sportType === 'cycling') && wizardData.availableHoursPerWeek && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Horas/semana:</span>
+                  <Badge variant="outline">
+                    {wizardData.availableHoursPerWeek}h
+                  </Badge>
+                </div>
+              )}
+              
+              <div>
+                <span className="text-sm text-muted-foreground">Dias disponíveis:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {wizardData.availableDays.map(dayId => (
+                    <Badge key={dayId} variant="secondary" className="text-xs">
+                      {DAYS_OF_WEEK[dayId as keyof typeof DAYS_OF_WEEK]}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Corrida longa:</span>
-              <span className="text-sm font-medium">
-                {DAYS_OF_WEEK[wizardData.longRunDay as keyof typeof DAYS_OF_WEEK]}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+              
+              {wizardData.sportType === 'running' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Corrida longa:</span>
+                  <span className="text-sm font-medium">
+                    {DAYS_OF_WEEK[wizardData.longRunDay as keyof typeof DAYS_OF_WEEK]}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Plan Duration */}
         <Card className="glass-card">
@@ -272,8 +483,8 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
           </CardContent>
         </Card>
 
-        {/* Race Date (if applicable) */}
-        {wizardData.hasRaceDate && wizardData.raceDate && (
+        {/* Race Date (if applicable) - Running only */}
+        {wizardData.sportType === 'running' && wizardData.hasRaceDate && wizardData.raceDate && (
           <Card className="glass-card border-primary/20 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -294,8 +505,8 @@ export function SummaryStep({ wizardData, calculateTargetTime }: SummaryStepProp
           </Card>
         )}
 
-        {/* Target Time for Race Goals */}
-        {(['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && targetTimeMinutes && (
+        {/* Target Time for Race Goals - Running only */}
+        {wizardData.sportType === 'running' && (['5k', '10k', 'half_marathon', '21k', 'marathon', '42k'].includes(wizardData.goal)) && targetTimeMinutes && (
           <Card className="glass-card border-accent/20 bg-gradient-to-r from-accent/5 via-primary/5 to-accent/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">

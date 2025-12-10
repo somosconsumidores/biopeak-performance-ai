@@ -517,6 +517,90 @@ export function useTrainingPlanWizard() {
         ].some(answer => answer === true);
         
         return allQuestionsAnswered && !hasPositiveAnswer && wizardData.healthDeclaration.declaration_accepted === true;
+      
+      // Swimming steps (20-30)
+      case 20: // Swimming Goal
+        return !!wizardData.goal;
+      case 21: // Swimming Level
+        return !!wizardData.swimmingLevel;
+      case 22: // CSS
+        return wizardData.hasCssTest !== undefined && 
+               (wizardData.hasCssTest === false || (wizardData.cssSecondsPerHundred && wizardData.cssSecondsPerHundred > 60));
+      case 23: // Pool Length
+        return !!wizardData.poolLength;
+      case 24: // Swimming Equipment
+        return true; // Optional
+      case 25: // Available Hours (Swimming)
+        return !!wizardData.availableHoursPerWeek && wizardData.availableHoursPerWeek >= 2;
+      case 26: // Available Days (Swimming)
+        return wizardData.availableDays.length >= 2;
+      case 27: // Start Date (Swimming)
+        return !!wizardData.startDate;
+      case 28: // Plan Duration (Swimming)
+        return wizardData.planDurationWeeks >= 4 && wizardData.planDurationWeeks <= 52;
+      case 29: // Summary (Swimming)
+        return true;
+      case 30: { // Health Declaration (Swimming)
+        if (!wizardData.healthDeclaration) return false;
+        const swimmingQuestionsAnswered = [
+          'question_1_heart_problem',
+          'question_2_chest_pain_during_activity',
+          'question_3_chest_pain_last_3months',
+          'question_4_balance_consciousness_loss',
+          'question_5_bone_joint_problem',
+          'question_6_taking_medication',
+          'question_7_other_impediment',
+        ].every(q => wizardData.healthDeclaration![q as keyof typeof wizardData.healthDeclaration] !== undefined);
+        
+        const swimmingHasPositive = [
+          wizardData.healthDeclaration.question_1_heart_problem,
+          wizardData.healthDeclaration.question_2_chest_pain_during_activity,
+          wizardData.healthDeclaration.question_3_chest_pain_last_3months,
+          wizardData.healthDeclaration.question_4_balance_consciousness_loss,
+          wizardData.healthDeclaration.question_5_bone_joint_problem,
+          wizardData.healthDeclaration.question_6_taking_medication,
+          wizardData.healthDeclaration.question_7_other_impediment,
+        ].some(answer => answer === true);
+        
+        return swimmingQuestionsAnswered && !swimmingHasPositive && wizardData.healthDeclaration.declaration_accepted === true;
+      }
+      
+      // Strength steps (40-45)
+      case 40: // Parent Plan Selection
+        return !!wizardData.parentPlanId;
+      case 41: // Strength Goal
+        return !!wizardData.strengthGoal;
+      case 42: // Strength Equipment
+        return !!wizardData.strengthEquipment;
+      case 43: // Strength Frequency
+        return !!wizardData.strengthFrequency && (wizardData.strengthFrequency === 2 || wizardData.strengthFrequency === 3);
+      case 44: // Summary (Strength)
+        return true;
+      case 45: { // Health Declaration (Strength)
+        if (!wizardData.healthDeclaration) return false;
+        const strengthQuestionsAnswered = [
+          'question_1_heart_problem',
+          'question_2_chest_pain_during_activity',
+          'question_3_chest_pain_last_3months',
+          'question_4_balance_consciousness_loss',
+          'question_5_bone_joint_problem',
+          'question_6_taking_medication',
+          'question_7_other_impediment',
+        ].every(q => wizardData.healthDeclaration![q as keyof typeof wizardData.healthDeclaration] !== undefined);
+        
+        const strengthHasPositive = [
+          wizardData.healthDeclaration.question_1_heart_problem,
+          wizardData.healthDeclaration.question_2_chest_pain_during_activity,
+          wizardData.healthDeclaration.question_3_chest_pain_last_3months,
+          wizardData.healthDeclaration.question_4_balance_consciousness_loss,
+          wizardData.healthDeclaration.question_5_bone_joint_problem,
+          wizardData.healthDeclaration.question_6_taking_medication,
+          wizardData.healthDeclaration.question_7_other_impediment,
+        ].some(answer => answer === true);
+        
+        return strengthQuestionsAnswered && !strengthHasPositive && wizardData.healthDeclaration.declaration_accepted === true;
+      }
+      
       default:
         return false;
     }
