@@ -168,7 +168,7 @@ export const useGarminAuthNative = () => {
           // Trigger automatic backfill to sync activities (30 days)
           console.log('🔄 [GarminAuthNative] Triggering automatic backfill...');
           try {
-            const { error: backfillError } = await supabase.functions.invoke('backfill-activities', {
+            const { data: backfillData, error: backfillError } = await supabase.functions.invoke('backfill-activities', {
               body: {
                 timeRange: 'last_30_days'
               }
@@ -177,7 +177,19 @@ export const useGarminAuthNative = () => {
             if (backfillError) {
               console.log('⚠️ [GarminAuthNative] Backfill error:', backfillError);
             } else {
-              console.log('✅ [GarminAuthNative] Backfill triggered successfully');
+              console.log('✅ [GarminAuthNative] Backfill response:', backfillData);
+              
+              // Check if backfill was already processed (duplicate request)
+              const activitiesMsg = backfillData?.activities?.message || '';
+              const detailsMsg = backfillData?.activityDetails?.message || '';
+              const isDuplicate = activitiesMsg.includes('already') || detailsMsg.includes('already');
+              
+              if (isDuplicate) {
+                toast({
+                  title: 'Conta já sincronizada',
+                  description: 'Suas atividades históricas já foram importadas anteriormente. Novas atividades serão sincronizadas automaticamente.',
+                });
+              }
             }
           } catch (e) {
             console.log('⚠️ [GarminAuthNative] Backfill error:', e);
