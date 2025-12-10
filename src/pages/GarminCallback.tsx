@@ -151,12 +151,23 @@ export function GarminCallback() {
 
         setStatus('success');
         
-        // Show success message and redirect or close
-        // The native app's real-time listener will detect the token and close the browser
-        // For web flow, redirect to sync page after a short delay
-        setTimeout(() => {
-          navigate('/sync');
-        }, 2000);
+        // Check if this is a native flow - use deep link to return to app
+        const isNativeFlow = localStorage.getItem('garmin_native_auth_pending') === 'true';
+        
+        if (isNativeFlow) {
+          console.log('📱 [GarminCallback] Native flow detected - using deep link');
+          // Deep link will close Safari View Controller and return to app
+          // Small delay to show success message
+          setTimeout(() => {
+            window.location.href = 'biopeak://garmin-success';
+          }, 1500);
+        } else {
+          // Web flow - redirect to sync page
+          console.log('🌐 [GarminCallback] Web flow - redirecting to /sync');
+          setTimeout(() => {
+            navigate('/sync');
+          }, 2000);
+        }
         
       } catch (error) {
         console.error('❌ Error processing OAuth callback:', error);
@@ -193,8 +204,11 @@ export function GarminCallback() {
             <h2 className="text-xl font-semibold text-foreground mb-2">
               Garmin conectado com sucesso!
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-4">
               Suas atividades serão sincronizadas automaticamente.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Você pode voltar ao app BioPeak agora.
             </p>
           </>
         )}
