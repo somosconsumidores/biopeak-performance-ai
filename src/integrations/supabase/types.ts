@@ -4447,6 +4447,8 @@ export type Database = {
           goal_target_time_minutes: number | null
           goal_type: string
           id: string
+          is_complementary: boolean | null
+          parent_plan_id: string | null
           plan_name: string | null
           plan_summary: Json | null
           sport_type: string
@@ -4469,6 +4471,8 @@ export type Database = {
           goal_target_time_minutes?: number | null
           goal_type: string
           id?: string
+          is_complementary?: boolean | null
+          parent_plan_id?: string | null
           plan_name?: string | null
           plan_summary?: Json | null
           sport_type?: string
@@ -4491,6 +4495,8 @@ export type Database = {
           goal_target_time_minutes?: number | null
           goal_type?: string
           id?: string
+          is_complementary?: boolean | null
+          parent_plan_id?: string | null
           plan_name?: string | null
           plan_summary?: Json | null
           sport_type?: string
@@ -4503,7 +4509,15 @@ export type Database = {
           user_id?: string
           weeks?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "training_plans_parent_plan_id_fkey"
+            columns: ["parent_plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       training_sessions: {
         Row: {

@@ -36,6 +36,19 @@ import { SummaryStep } from './wizard-steps/SummaryStep';
 import { RaceGoalStep } from './wizard-steps/RaceGoalStep';
 import { HealthDeclarationStep } from './wizard-steps/HealthDeclarationStep';
 
+// Swimming steps
+import { SwimmingGoalSelectionStep } from './wizard-steps/SwimmingGoalSelectionStep';
+import { SwimmingLevelStep } from './wizard-steps/SwimmingLevelStep';
+import { SwimmingCSSStep } from './wizard-steps/SwimmingCSSStep';
+import { PoolLengthStep } from './wizard-steps/PoolLengthStep';
+import { SwimmingEquipmentStep } from './wizard-steps/SwimmingEquipmentStep';
+
+// Strength steps
+import { StrengthGoalStep } from './wizard-steps/StrengthGoalStep';
+import { StrengthEquipmentStep } from './wizard-steps/StrengthEquipmentStep';
+import { StrengthFrequencyStep } from './wizard-steps/StrengthFrequencyStep';
+import { StrengthParentPlanStep } from './wizard-steps/StrengthParentPlanStep';
+
 interface TrainingPlanWizardProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -155,6 +168,67 @@ export function TrainingPlanWizard({
   const renderCurrentStep = () => {
     const { sportType } = wizardData;
     
+    // Swimming flow steps (20-29)
+    if (sportType === 'swimming') {
+      switch (currentStep) {
+        case 0:
+          return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
+        case 1:
+          return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 2:
+          return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 20:
+          return <SwimmingGoalSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 21:
+          return <SwimmingLevelStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 22:
+          return <SwimmingCSSStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 23:
+          return <PoolLengthStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 24:
+          return <SwimmingEquipmentStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 25:
+          return <CyclingTimeAvailableStep wizardData={wizardData} updateWizardData={updateWizardData} />; // Reuse for hours
+        case 26:
+          return <AvailableDaysStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 27:
+          return <StartDateStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 28:
+          return <PlanDurationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 29:
+          return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
+        case 30:
+          return <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        default:
+          return null;
+      }
+    }
+    
+    // Strength flow steps (40-49)
+    if (sportType === 'strength') {
+      switch (currentStep) {
+        case 0:
+          return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
+        case 1:
+          return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 40:
+          return <StrengthParentPlanStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 41:
+          return <StrengthGoalStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 42:
+          return <StrengthEquipmentStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 43:
+          return <StrengthFrequencyStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 44:
+          return <SummaryStep wizardData={wizardData} calculateTargetTime={calculateTargetTime} />;
+        case 45:
+          return <HealthDeclarationStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        default:
+          return null;
+      }
+    }
+    
+    // Cycling and Running flows (original)
     switch (currentStep) {
       case 0:
         return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;

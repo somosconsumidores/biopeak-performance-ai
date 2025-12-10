@@ -10,7 +10,7 @@ import { validateRaceTime } from '@/utils/raceTimeValidation';
 
 export interface TrainingPlanWizardData {
   // Step 0.5: Sport selection (new first step)
-  sportType: 'running' | 'cycling';
+  sportType: 'running' | 'cycling' | 'swimming' | 'strength';
   
   // Step 1: Phone number
   phone?: string;
@@ -27,6 +27,21 @@ export interface TrainingPlanWizardData {
   availableHoursPerWeek?: number;
   equipmentType?: 'road' | 'mtb' | 'trainer' | 'mixed';
   targetEventDescription?: string;
+  
+  // Swimming-specific fields
+  swimmingLevel?: 'beginner' | 'intermediate' | 'advanced';
+  cssSecondsPerHundred?: number; // Critical Swim Speed (seconds per 100m)
+  hasCssTest?: boolean;
+  poolLength?: 25 | 50;
+  swimmingEquipment?: string[]; // palmar, nadadeira, pull_buoy, snorkel
+  time400m?: string; // For CSS calculation
+  time200m?: string; // For CSS calculation
+  
+  // Strength-specific fields
+  strengthGoal?: 'injury_prevention' | 'performance' | 'general' | 'core';
+  strengthEquipment?: 'full_gym' | 'home_basic' | 'bodyweight';
+  strengthFrequency?: 2 | 3;
+  parentPlanId?: string; // Links strength plan to main aerobic plan
   
   // Step 3: Athlete level confirmation/adjustment
   athleteLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
@@ -107,6 +122,23 @@ export const CYCLING_GOALS = [
   { id: 'cycling_return', label: 'Retorno ao Pedal', icon: 'RotateCcw' },
   { id: 'cycling_triathlon', label: 'Triathlon / Duathlon', icon: 'Trophy' },
   { id: 'cycling_maintenance', label: 'Manutenção e Saúde', icon: 'Heart' },
+];
+
+export const SWIMMING_GOALS = [
+  { id: 'swimming_general_fitness', label: 'Condicionamento Geral', icon: 'Activity' },
+  { id: 'swimming_weight_loss', label: 'Perda de Peso', icon: 'Scale' },
+  { id: 'swimming_1500m', label: 'Prova de 1500m', icon: 'Medal' },
+  { id: 'swimming_3km', label: 'Prova de 3km / Águas Abertas', icon: 'Waves' },
+  { id: 'swimming_triathlon', label: 'Triathlon / Duathlon', icon: 'Trophy' },
+  { id: 'swimming_technique', label: 'Melhorar Técnica', icon: 'Target' },
+  { id: 'swimming_maintenance', label: 'Manutenção e Saúde', icon: 'Heart' },
+];
+
+export const STRENGTH_GOALS = [
+  { id: 'strength_injury_prevention', label: 'Prevenção de Lesões', icon: 'Shield' },
+  { id: 'strength_performance', label: 'Melhoria de Performance', icon: 'TrendingUp' },
+  { id: 'strength_general', label: 'Fortalecimento Geral', icon: 'Dumbbell' },
+  { id: 'strength_core', label: 'Foco em Core', icon: 'Target' },
 ];
 
 const DAYS_OF_WEEK = [
@@ -270,7 +302,33 @@ export function useTrainingPlanWizard() {
   const getStepSequence = () => {
     const baseSteps = [0, 1]; // Step 0 = Disclaimer, Step 1 = Sport Selection
     
-    if (wizardData.sportType === 'cycling') {
+    if (wizardData.sportType === 'swimming') {
+      // Swimming sequence (steps 20-30)
+      baseSteps.push(
+        2,   // Phone
+        20,  // Swimming Goal
+        21,  // Swimming Level
+        22,  // CSS
+        23,  // Pool Length
+        24,  // Swimming Equipment
+        25,  // Available Hours (reuse cycling component)
+        26,  // Available Days
+        27,  // Start Date
+        28,  // Plan Duration
+        29,  // Summary
+        30   // Health Declaration
+      );
+    } else if (wizardData.sportType === 'strength') {
+      // Strength sequence (steps 40-45)
+      baseSteps.push(
+        40,  // Parent Plan Selection
+        41,  // Strength Goal
+        42,  // Strength Equipment
+        43,  // Strength Frequency
+        44,  // Summary
+        45   // Health Declaration
+      );
+    } else if (wizardData.sportType === 'cycling') {
       // Cycling sequence
       baseSteps.push(
         2,  // Phone
