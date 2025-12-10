@@ -6,6 +6,12 @@ verify_jwt = false
 [functions.generate-cycling-plan]
 verify_jwt = true
 
+[functions.generate-swimming-plan]
+verify_jwt = true
+
+[functions.generate-strength-plan]
+verify_jwt = true
+
 [functions.delete-user-account]
 verify_jwt = true
 
