@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Calendar, Plus, Target } from 'lucide-react';
+import { Calendar, Plus, Target, Dumbbell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/Header';
 import { RaceCalendar } from '@/components/RaceCalendar';
 import { PlanOverview } from '@/components/PlanOverview';
@@ -12,23 +13,25 @@ import { WorkoutCalendar } from '@/components/WorkoutCalendar';
 import { WorkoutDetailDialog } from '@/components/WorkoutDetailDialog';
 import { TrainingPlanRestricted } from '@/components/TrainingPlanRestricted';
 import { TrainingPlanAnalysisDialog } from '@/components/TrainingPlanAnalysisDialog';
-import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { useActiveTrainingPlans, TrainingWorkout } from '@/hooks/useActiveTrainingPlans';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { useTrainingPlanAnalysis } from '@/hooks/useTrainingPlanAnalysis';
 
 const TrainingPlan = () => {
-  const { plan, workouts, loading, refreshPlan, deletePlan } = useActiveTrainingPlan();
+  const { mainPlan, strengthPlan, workouts, loading, refreshPlans, deletePlan, canAddStrengthPlan, hasStrengthPlan } = useActiveTrainingPlans();
   const { isSubscribed } = useSubscription();
   const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [strengthWizardOpen, setStrengthWizardOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const { result: analysisResult, loading: analysisLoading, error: analysisError, analyzePlan, clearAnalysis } = useTrainingPlanAnalysis();
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
-    refreshPlan();
+    setStrengthWizardOpen(false);
+    refreshPlans();
     toast({
       title: "Plano criado com sucesso!",
       description: "Seu plano de treino personalizado foi gerado.",
@@ -36,10 +39,18 @@ const TrainingPlan = () => {
   };
 
   const handleAnalysisClick = async () => {
-    if (!plan) return;
+    if (!mainPlan) return;
     
     setAnalysisDialogOpen(true);
-    await analyzePlan(plan.id);
+    await analyzePlan(mainPlan.id);
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    await deletePlan(planId);
+    toast({
+      title: "Plano cancelado",
+      description: "Seu plano foi cancelado com sucesso.",
+    });
   };
 
   const handleAnalysisDialogClose = () => {
@@ -60,12 +71,12 @@ const TrainingPlan = () => {
             </p>
           </div>
 
-          {/* Training Plan Section */}
+          {/* Main Training Plan Section */}
           <Card className="w-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
                 <Calendar className="h-5 w-5" />
-                Plano de Treino Ativo
+                Plano de Treino Principal
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -76,12 +87,12 @@ const TrainingPlan = () => {
                     <p className="text-sm text-muted-foreground">Carregando plano...</p>
                   </div>
                 </div>
-              ) : plan ? (
+              ) : mainPlan ? (
                 <PlanOverview 
-                  plan={plan} 
-                  workouts={workouts}
-                  onDeletePlan={deletePlan}
-                  onRefreshPlan={refreshPlan}
+                  plan={mainPlan} 
+                  workouts={workouts.filter(w => w.plan_id === mainPlan.id)}
+                  onDeletePlan={() => handleDeletePlan(mainPlan.id)}
+                  onRefreshPlan={refreshPlans}
                 />
               ) : isSubscribed ? (
                 <div className="text-center py-8">
@@ -93,10 +104,9 @@ const TrainingPlan = () => {
                   <Button 
                     className="w-full max-w-xs bg-primary hover:bg-primary/90"
                     onClick={() => setWizardOpen(true)}
-                    disabled={!!plan}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {plan ? 'Cancele o plano atual primeiro' : 'Criar Plano'}
+                    Criar Plano
                   </Button>
                 </div>
               ) : (
@@ -105,8 +115,46 @@ const TrainingPlan = () => {
             </CardContent>
           </Card>
 
-          {/* Workout Calendar - Show when there's an active plan */}
-          {plan && workouts.length > 0 && (
+          {/* Strength Plan Section - Only show when main plan exists */}
+          {mainPlan && isSubscribed && (
+            <Card className="w-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Dumbbell className="h-5 w-5" />
+                  Plano de Força
+                  <Badge variant="secondary" className="ml-2 text-xs">Complementar</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {strengthPlan ? (
+                  <PlanOverview 
+                    plan={strengthPlan} 
+                    workouts={workouts.filter(w => w.plan_id === strengthPlan.id)}
+                    onDeletePlan={() => handleDeletePlan(strengthPlan.id)}
+                    onRefreshPlan={refreshPlans}
+                  />
+                ) : (
+                  <div className="text-center py-6">
+                    <Dumbbell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Adicione Treinos de Força</h3>
+                    <p className="text-muted-foreground mb-4 text-sm px-4">
+                      Complemente seu plano de {mainPlan.sport_type === 'running' ? 'corrida' : mainPlan.sport_type === 'cycling' ? 'ciclismo' : 'natação'} com treinos de força
+                    </p>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setStrengthWizardOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Plano de Força
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Workout Calendar - Show when there's any active plan */}
+          {(mainPlan || strengthPlan) && workouts.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
@@ -128,7 +176,7 @@ const TrainingPlan = () => {
           
           {/* Análise - Premium Only */}
           <div className="mt-4">
-            {plan && (
+            {mainPlan && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
@@ -169,11 +217,21 @@ const TrainingPlan = () => {
         onComplete={handleWizardComplete}
       />
 
+      {/* Strength Plan Wizard */}
+      <TrainingPlanWizard
+        open={strengthWizardOpen}
+        onOpenChange={setStrengthWizardOpen}
+        onClose={() => setStrengthWizardOpen(false)}
+        onComplete={handleWizardComplete}
+        initialSportType="strength"
+        parentPlanId={mainPlan?.id}
+      />
+
       <WorkoutDetailDialog 
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
-        sportType={plan?.sport_type}
+        sportType={selectedWorkout ? workouts.find(w => w.id === selectedWorkout.id)?.plan_id === strengthPlan?.id ? 'strength' : mainPlan?.sport_type : undefined}
       />
 
       <TrainingPlanAnalysisDialog
