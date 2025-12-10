@@ -92,11 +92,20 @@ export const useGarminAuth = () => {
 
     checkExistingTokens();
 
+    // Listener para forçar re-check (usado quando deep link retorna no Android)
+    const handleForceRecheck = () => {
+      console.log('[useGarminAuth] Force recheck triggered by deep link event');
+      checkExistingTokens();
+    };
+
+    window.addEventListener('garmin-force-recheck', handleForceRecheck);
+
     return () => {
       if (channel) {
         console.log('[useGarminAuth] Cleaning up Realtime listener');
         supabase.removeChannel(channel);
       }
+      window.removeEventListener('garmin-force-recheck', handleForceRecheck);
     };
   }, []);
 

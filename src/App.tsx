@@ -144,7 +144,7 @@ function AppRoutes() {
         
         // Detectar se é callback do Garmin
         if (data.url.startsWith('biopeak://garmin-success')) {
-          console.log('✅ [App] Garmin success deep link detected - Safari View já fechado pelo iOS');
+          console.log('✅ [App] Garmin success deep link detected');
           
           // Limpar flags de autenticação
           localStorage.removeItem('garmin_native_auth_pending');
@@ -154,6 +154,10 @@ function AppRoutes() {
           queryClient.invalidateQueries({ queryKey: ['garmin-stats'] });
           queryClient.invalidateQueries({ queryKey: ['garmin-connection'] });
           queryClient.invalidateQueries({ queryKey: ['garmin-activities'] });
+          
+          // Disparar evento para forçar useGarminAuth a re-verificar o estado de conexão
+          console.log('🔄 [App] Dispatching garmin-force-recheck event');
+          window.dispatchEvent(new CustomEvent('garmin-force-recheck'));
           
           // Disparar backfill automático como fallback
           console.log('🔄 [App] Triggering Garmin backfill as fallback...');
