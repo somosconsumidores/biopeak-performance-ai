@@ -46,7 +46,8 @@ export const useGarminAuthNative = () => {
 
       // Generate PKCE parameters
       const { codeVerifier, codeChallenge } = await generatePKCE();
-      const state = generateState();
+      // Include userId in state for public callback processing (format: userId:timestamp)
+      const state = `${user.id}:${Date.now()}`;
 
       console.log('🔐 [GarminAuthNative] Generated PKCE, saving to Supabase...');
 

@@ -184,11 +184,7 @@ function AppRoutes() {
             <Onboarding />
           </ProtectedRoute>
         } />
-        <Route path="/garmin-callback" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
-            <GarminCallback />
-          </ProtectedRoute>
-        } />
+        <Route path="/garmin-callback" element={<GarminCallback />} />
         <Route path="/polar-callback" element={
           <ProtectedRoute skipOnboardingCheck={true}>
             <PolarCallback />
