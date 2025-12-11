@@ -4324,6 +4324,56 @@ export type Database = {
           },
         ]
       }
+      swimming_css_zones: {
+        Row: {
+          created_at: string
+          css_seconds_per_100m: number
+          id: string
+          plan_id: string | null
+          updated_at: string
+          user_id: string
+          z1_seconds: number
+          z2_seconds: number
+          z3_seconds: number
+          z4_seconds: number
+          z5_seconds: number
+        }
+        Insert: {
+          created_at?: string
+          css_seconds_per_100m: number
+          id?: string
+          plan_id?: string | null
+          updated_at?: string
+          user_id: string
+          z1_seconds: number
+          z2_seconds: number
+          z3_seconds: number
+          z4_seconds: number
+          z5_seconds: number
+        }
+        Update: {
+          created_at?: string
+          css_seconds_per_100m?: number
+          id?: string
+          plan_id?: string | null
+          updated_at?: string
+          user_id?: string
+          z1_seconds?: number
+          z2_seconds?: number
+          z3_seconds?: number
+          z4_seconds?: number
+          z5_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "swimming_css_zones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plan_preferences: {
         Row: {
           created_at: string
