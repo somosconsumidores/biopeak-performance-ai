@@ -25,6 +25,25 @@ interface AdminStats {
   usersByActivitySource: { source: string; count: number }[];
 }
 
+// Goal labels mapping
+const goalLabels: Record<string, string> = {
+  'analysis': 'Análise de Dados',
+  'improve_times': 'Melhorar Tempos',
+  'general_training': 'Treino Geral',
+  'weight_loss': 'Perda de Peso',
+  'specific_goal': 'Objetivo Específico',
+  'fitness': 'Condicionamento',
+  'lifestyle': 'Estilo de Vida',
+  'other': 'Outro'
+};
+
+const levelLabels: Record<string, string> = {
+  'beginner': 'Iniciante',
+  'intermediate': 'Intermediário',
+  'advanced': 'Avançado',
+  'elite': 'Elite'
+};
+
 export function useAdminDashboardStats() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,178 +55,75 @@ export function useAdminDashboardStats() {
         setLoading(true);
         setError(null);
 
-        // 1. Total users in profiles
-        const { count: totalUsers } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
+        // Call RPC function that calculates all stats directly in PostgreSQL
+        const { data, error: rpcError } = await supabase.rpc('get_admin_dashboard_stats');
 
-        // 2. Users with active tokens (Garmin, Strava, Polar) - fetch user_ids
-        const [garminTokens, stravaTokens, polarTokens] = await Promise.all([
-          supabase.from('garmin_tokens').select('user_id').eq('is_active', true),
-          supabase.from('strava_tokens').select('user_id').not('access_token', 'is', null),
-          supabase.from('polar_tokens').select('user_id').eq('is_active', true),
-        ]);
-
-        const garminUserIds = new Set((garminTokens.data || []).map(t => t.user_id));
-        const stravaUserIds = new Set((stravaTokens.data || []).map(t => t.user_id));
-        const polarUserIds = new Set((polarTokens.data || []).map(t => t.user_id));
-
-        const allTokenUserIds = new Set<string>();
-        garminUserIds.forEach(id => allTokenUserIds.add(id));
-        stravaUserIds.forEach(id => allTokenUserIds.add(id));
-        polarUserIds.forEach(id => allTokenUserIds.add(id));
-
-        // 3. Users with activities (unique users in all_activities)
-        const { data: activityData } = await supabase
-          .from('all_activities')
-          .select('user_id, activity_source');
-
-        const uniqueActivityUsers = new Set((activityData || []).map(a => a.user_id));
-
-        // Calculate activity count by source (total records, not unique users)
-        const sourceCountMap: Record<string, number> = {};
-        (activityData || []).forEach(a => {
-          sourceCountMap[a.activity_source] = (sourceCountMap[a.activity_source] || 0) + 1;
-        });
-
-        const usersByActivitySource = Object.entries(sourceCountMap)
-          .map(([source, count]) => ({ source, count }))
-          .sort((a, b) => b.count - a.count);
-
-        // 4. Active subscribers (subscribed = true in subscribers table)
-        const { data: subscribers } = await supabase
-          .from('subscribers')
-          .select('user_id')
-          .eq('subscribed', true);
-
-        const activeSubscriberIds = new Set((subscribers || []).map(s => s.user_id));
-
-        // 5. Users with phone
-        const { count: usersWithPhone } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .not('phone', 'is', null)
-          .neq('phone', '');
-
-        // 6. Users with active training plans (status = 'active')
-        const { data: activePlans } = await supabase
-          .from('training_plans')
-          .select('user_id')
-          .eq('status', 'active');
-
-        const uniqueActivePlanUsers = new Set((activePlans || []).map(p => p.user_id));
-
-        // 7. Average age - all users with birth_date
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('user_id, birth_date')
-          .not('birth_date', 'is', null);
-
-        const calculateAge = (birthDate: string): number => {
-          const today = new Date();
-          const birth = new Date(birthDate);
-          let age = today.getFullYear() - birth.getFullYear();
-          const monthDiff = today.getMonth() - birth.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-            age--;
-          }
-          return age;
-        };
-
-        let avgAgeAll: number | null = null;
-        if (allProfiles && allProfiles.length > 0) {
-          const ages = allProfiles.filter(p => p.birth_date).map(p => calculateAge(p.birth_date!));
-          if (ages.length > 0) {
-            avgAgeAll = Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10;
-          }
+        if (rpcError) {
+          console.error('RPC error:', rpcError);
+          throw rpcError;
         }
 
-        // 8. Average age - subscribers only (from subscribers table with subscribed=true)
-        let avgAgeSubscribers: number | null = null;
-        if (activeSubscriberIds.size > 0 && allProfiles) {
-          const subscriberProfiles = allProfiles.filter(p => activeSubscriberIds.has(p.user_id) && p.birth_date);
-          if (subscriberProfiles.length > 0) {
-            const ages = subscriberProfiles.map(p => calculateAge(p.birth_date!));
-            avgAgeSubscribers = Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10;
-          }
+        if (!data) {
+          throw new Error('No data returned from get_admin_dashboard_stats');
         }
 
-        // 9. Onboarding distributions from user_onboarding table
-        const { data: onboardingData } = await supabase
-          .from('user_onboarding')
-          .select('goal, athletic_level, aplicativo');
+        console.log('Admin dashboard stats from RPC:', data);
 
-        const goalCounts: Record<string, number> = {};
-        const levelCounts: Record<string, number> = {};
-        const appCounts: Record<string, number> = {};
-
-        (onboardingData || []).forEach(row => {
-          if (row.goal) {
-            const key = row.goal.toLowerCase().trim();
-            goalCounts[key] = (goalCounts[key] || 0) + 1;
-          }
-          if (row.athletic_level) {
-            const key = row.athletic_level.toLowerCase().trim();
-            levelCounts[key] = (levelCounts[key] || 0) + 1;
-          }
-          if (row.aplicativo) {
-            const key = row.aplicativo.toLowerCase().trim();
-            appCounts[key] = (appCounts[key] || 0) + 1;
-          }
-        });
-
-        // Goal labels mapping
-        const goalLabels: Record<string, string> = {
-          'analysis': 'Análise de Dados',
-          'improve_times': 'Melhorar Tempos',
-          'general_training': 'Treino Geral',
-          'weight_loss': 'Perda de Peso',
-          'specific_goal': 'Objetivo Específico',
-          'fitness': 'Condicionamento',
-          'lifestyle': 'Estilo de Vida',
-          'other': 'Outro'
+        // Parse RPC response
+        const rpcData = data as {
+          total_users: number;
+          garmin_tokens: number;
+          strava_tokens: number;
+          polar_tokens: number;
+          users_with_activities: number;
+          active_subscribers: number;
+          users_with_phone: number;
+          active_plans: number;
+          avg_age_all: number | null;
+          avg_age_subscribers: number | null;
+          activity_sources: { source: string; count: number }[] | null;
+          goal_distribution: { name: string; value: number }[] | null;
+          athletic_level_distribution: { name: string; value: number }[] | null;
         };
 
-        const levelLabels: Record<string, string> = {
-          'beginner': 'Iniciante',
-          'intermediate': 'Intermediário',
-          'advanced': 'Avançado',
-          'elite': 'Elite'
-        };
+        // Transform goal distribution with labels
+        const goalDist = (rpcData.goal_distribution || []).map(g => ({
+          label: goalLabels[g.name?.toLowerCase()] || g.name || 'Outro',
+          value: Number(g.value) || 0
+        })).sort((a, b) => b.value - a.value);
 
-        const onboardingGoal = Object.entries(goalCounts)
-          .map(([key, value]) => ({ label: goalLabels[key] || key, value }))
-          .sort((a, b) => b.value - a.value);
+        // Transform athletic level distribution with labels
+        const levelDist = (rpcData.athletic_level_distribution || []).map(l => ({
+          label: levelLabels[l.name?.toLowerCase()] || l.name || 'Outro',
+          value: Number(l.value) || 0
+        })).sort((a, b) => b.value - a.value);
 
-        const onboardingLevel = Object.entries(levelCounts)
-          .map(([key, value]) => ({ label: levelLabels[key] || key, value }))
-          .sort((a, b) => b.value - a.value);
-
-        const onboardingApp = Object.entries(appCounts)
-          .map(([key, value]) => ({ label: key, value }))
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 10);
+        // Transform activity sources
+        const activitySources = (rpcData.activity_sources || []).map(s => ({
+          source: s.source || 'unknown',
+          count: Number(s.count) || 0
+        })).sort((a, b) => b.count - a.count);
 
         setStats({
-          totalUsers: totalUsers || 0,
-          usersWithActiveTokens: allTokenUserIds.size,
-          usersWithActivities: uniqueActivityUsers.size,
-          activeSubscribers: activeSubscriberIds.size,
-          usersWithPhone: usersWithPhone || 0,
-          usersWithActivePlan: uniqueActivePlanUsers.size,
-          avgAgeAll,
-          avgAgeSubscribers,
+          totalUsers: rpcData.total_users || 0,
+          usersWithActiveTokens: (rpcData.garmin_tokens || 0) + (rpcData.strava_tokens || 0) + (rpcData.polar_tokens || 0),
+          usersWithActivities: rpcData.users_with_activities || 0,
+          activeSubscribers: rpcData.active_subscribers || 0,
+          usersWithPhone: rpcData.users_with_phone || 0,
+          usersWithActivePlan: rpcData.active_plans || 0,
+          avgAgeAll: rpcData.avg_age_all,
+          avgAgeSubscribers: rpcData.avg_age_subscribers,
           onboardingDistribution: {
-            goal: onboardingGoal,
-            athleticLevel: onboardingLevel,
-            aplicativo: onboardingApp
+            goal: goalDist,
+            athleticLevel: levelDist,
+            aplicativo: [] // Not included in current RPC
           },
           tokenBreakdown: {
-            garmin: garminUserIds.size,
-            polar: polarUserIds.size,
-            strava: stravaUserIds.size
+            garmin: rpcData.garmin_tokens || 0,
+            polar: rpcData.polar_tokens || 0,
+            strava: rpcData.strava_tokens || 0
           },
-          usersByActivitySource
+          usersByActivitySource: activitySources
         });
       } catch (err) {
         console.error('Error fetching admin stats:', err);
