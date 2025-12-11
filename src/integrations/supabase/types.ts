@@ -5633,6 +5633,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_admin_user_stats: {
         Args: never
         Returns: {
