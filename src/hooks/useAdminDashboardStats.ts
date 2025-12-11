@@ -64,17 +64,14 @@ export function useAdminDashboardStats() {
 
         const uniqueActivityUsers = new Set((activityData || []).map(a => a.user_id));
 
-        // Calculate users by activity source
-        const sourceUserMap: Record<string, Set<string>> = {};
+        // Calculate activity count by source (total records, not unique users)
+        const sourceCountMap: Record<string, number> = {};
         (activityData || []).forEach(a => {
-          if (!sourceUserMap[a.activity_source]) {
-            sourceUserMap[a.activity_source] = new Set();
-          }
-          sourceUserMap[a.activity_source].add(a.user_id);
+          sourceCountMap[a.activity_source] = (sourceCountMap[a.activity_source] || 0) + 1;
         });
 
-        const usersByActivitySource = Object.entries(sourceUserMap)
-          .map(([source, users]) => ({ source, count: users.size }))
+        const usersByActivitySource = Object.entries(sourceCountMap)
+          .map(([source, count]) => ({ source, count }))
           .sort((a, b) => b.count - a.count);
 
         // 4. Active subscribers (subscribed = true in subscribers table)
