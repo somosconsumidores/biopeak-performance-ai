@@ -755,32 +755,75 @@ export function useTrainingPlanWizard() {
         return false;
       }
 
-      if (!wizardData.goal) {
-        console.error('❌ VALIDATION ERROR: Missing goal:', wizardData.goal);
-        toast({
-          title: "Erro de validação",
-          description: "Objetivo do plano não foi selecionado.",
-          variant: "destructive",
-          duration: 8000
-        });
-        return false;
+      // Validate goal based on sport type
+      if (wizardData.sportType === 'strength') {
+        if (!wizardData.strengthGoal) {
+          console.error('❌ VALIDATION ERROR: Missing strengthGoal:', wizardData.strengthGoal);
+          toast({
+            title: "Erro de validação",
+            description: "Objetivo do treino de força não foi selecionado.",
+            variant: "destructive",
+            duration: 8000
+          });
+          return false;
+        }
+      } else {
+        if (!wizardData.goal) {
+          console.error('❌ VALIDATION ERROR: Missing goal:', wizardData.goal);
+          toast({
+            title: "Erro de validação",
+            description: "Objetivo do plano não foi selecionado.",
+            variant: "destructive",
+            duration: 8000
+          });
+          return false;
+        }
       }
 
-      if (!wizardData.startDate) {
-        console.error('❌ VALIDATION ERROR: Missing startDate:', wizardData.startDate);
-        toast({
-          title: "Erro de validação",
-          description: "Data de início não foi definida.",
-          variant: "destructive",
-          duration: 8000
-        });
-        return false;
+      // For strength plans, startDate comes from parent plan
+      if (wizardData.sportType !== 'strength') {
+        if (!wizardData.startDate) {
+          console.error('❌ VALIDATION ERROR: Missing startDate:', wizardData.startDate);
+          toast({
+            title: "Erro de validação",
+            description: "Data de início não foi definida.",
+            variant: "destructive",
+            duration: 8000
+          });
+          return false;
+        }
       }
 
       console.log('✅ All validations passed, proceeding with plan creation');
 
-      // Create the training plan (required for preferences foreign key)
-      const endDate = addDays(wizardData.startDate, wizardData.planDurationWeeks * 7);
+      // For strength plans, fetch parent plan data to inherit dates
+      let parentPlanData: { start_date: string; end_date: string; weeks: number } | null = null;
+      if (wizardData.sportType === 'strength' && wizardData.parentPlanId) {
+        const { data: parentPlan, error: parentError } = await supabase
+          .from('training_plans')
+          .select('start_date, end_date, weeks')
+          .eq('id', wizardData.parentPlanId)
+          .single();
+        
+        if (parentError || !parentPlan) {
+          console.error('Error fetching parent plan:', parentError);
+          toast({
+            title: "Erro ao buscar plano pai",
+            description: "Não foi possível encontrar o plano aeróbico vinculado.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        parentPlanData = parentPlan;
+        console.log('📋 Parent plan data fetched:', parentPlanData);
+      }
+
+      // Calculate dates - use parent plan data for strength plans
+      const strengthStartDate = parentPlanData ? new Date(parentPlanData.start_date) : wizardData.startDate;
+      const strengthEndDate = parentPlanData ? new Date(parentPlanData.end_date) : null;
+      const strengthWeeks = parentPlanData ? parentPlanData.weeks : wizardData.planDurationWeeks;
+      
+      const endDate = strengthEndDate || addDays(strengthStartDate, wizardData.planDurationWeeks * 7);
       const planId = uuidv4();
       
       // Helper to get plan name based on sport type
@@ -829,13 +872,13 @@ export function useTrainingPlanWizard() {
           id: planId,
           user_id: user.id,
           plan_name: getPlanName(),
-          goal_type: wizardData.goal || wizardData.strengthGoal || 'general',
+          goal_type: wizardData.sportType === 'strength' ? wizardData.strengthGoal : (wizardData.goal || 'general'),
           sport_type: wizardData.sportType,
           ftp_watts: wizardData.sportType === 'cycling' ? wizardData.ftpWatts : null,
           equipment_type: wizardData.sportType === 'cycling' ? wizardData.equipmentType : null,
-          start_date: format(wizardData.startDate, 'yyyy-MM-dd'),
+          start_date: format(strengthStartDate, 'yyyy-MM-dd'),
           end_date: format(endDate, 'yyyy-MM-dd'),
-          weeks: wizardData.planDurationWeeks,
+          weeks: strengthWeeks,
           status: 'pending',
           target_event_date: wizardData.hasRaceDate && wizardData.raceDate ? format(wizardData.raceDate, 'yyyy-MM-dd') : null,
           goal_target_time_minutes: calculatedTargetTime ? Math.round(calculatedTargetTime) : undefined,
@@ -986,8 +1029,8 @@ export function useTrainingPlanWizard() {
             strengthEquipment: wizardData.strengthEquipment,
             strengthFrequency: wizardData.strengthFrequency,
             parentPlanId: wizardData.parentPlanId,
-            startDate: format(wizardData.startDate, 'yyyy-MM-dd'),
-            planDurationWeeks: wizardData.planDurationWeeks,
+            startDate: parentPlanData ? parentPlanData.start_date : format(strengthStartDate, 'yyyy-MM-dd'),
+            planDurationWeeks: strengthWeeks,
           };
           break;
           
