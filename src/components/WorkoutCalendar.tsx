@@ -185,7 +185,7 @@ export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarPro
                   {format(day, 'd')}
                 </div>
                 
-                <div className="flex-1 overflow-y-auto space-y-1">
+                <div className="flex-1 flex gap-0.5">
                   {dayWorkouts.map((workout) => {
                     const isCompleted = workout.status === 'completed';
                     const isLate = isOverdue(workout);
@@ -195,17 +195,17 @@ export function WorkoutCalendar({ workouts, onWorkoutClick }: WorkoutCalendarPro
                       <button
                         key={workout.id}
                         onClick={() => onWorkoutClick(workout)}
-                        className={`w-full h-6 rounded transition-all ${colorClass} relative group`}
+                        className={`flex-1 min-w-0 h-full rounded transition-all ${colorClass} relative group`}
                         title={`${WORKOUT_TYPE_LABELS[workout.workout_type] || workout.workout_type} - ${workout.title}`}
                       >
                         {isCompleted && (
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <CheckCircle2 className="h-4 w-4 text-white" />
+                            <CheckCircle2 className="h-3 w-3 text-white" />
                           </div>
                         )}
                         
                         {isLate && !isCompleted && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full border border-white" />
+                          <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-600 rounded-full border border-white" />
                         )}
                       </button>
                     );
