@@ -151,11 +151,25 @@ serve(async (req) => {
     // Registrar pagamento na tabela faturamento para INITIAL_PURCHASE e RENEWAL
     if (shouldRecordPayment) {
       const transactionId = event.transaction_id || event.id || `rc_${Date.now()}`;
-      const priceInCents = event.price_in_purchased_currency 
-        ? Math.round(event.price_in_purchased_currency * 100)
-        : event.price 
-          ? Math.round(event.price * 100) 
-          : 0;
+      
+      // RevenueCat pode enviar preço em diferentes campos
+      // Fallback para R$12,90 (1290 centavos) que é o preço mensal padrão
+      let priceInCents = 1290; // Default: R$12,90 mensal
+      
+      if (event.price_in_purchased_currency && event.price_in_purchased_currency > 0) {
+        priceInCents = Math.round(event.price_in_purchased_currency * 100);
+      } else if (event.price && event.price > 0) {
+        priceInCents = Math.round(event.price * 100);
+      } else if (event.product_id) {
+        // Determinar preço baseado no product_id
+        const productId = event.product_id.toLowerCase();
+        if (productId.includes('annual') || productId.includes('yearly') || productId.includes('anual')) {
+          priceInCents = 9990; // R$99,90 anual
+        } else {
+          priceInCents = 1290; // R$12,90 mensal
+        }
+      }
+      
       const currency = event.currency || 'BRL';
       const purchasedAt = event.purchased_at_ms 
         ? new Date(event.purchased_at_ms).toISOString()
@@ -165,7 +179,8 @@ serve(async (req) => {
         transaction_id: transactionId,
         price_cents: priceInCents,
         currency,
-        payment_type: paymentType
+        payment_type: paymentType,
+        product_id: event.product_id
       });
 
       // Verificar se já existe registro com este transaction_id para evitar duplicatas
@@ -194,7 +209,8 @@ serve(async (req) => {
               revenuecat_event_type: event.type,
               product_id: event.product_id,
               store: event.store,
-              environment: event.environment
+              environment: event.environment,
+              original_price: event.price_in_purchased_currency || event.price || null
             }
           });
 
