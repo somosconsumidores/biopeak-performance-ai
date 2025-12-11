@@ -631,13 +631,12 @@ export function useTrainingPlanWizard() {
       return false;
     }
 
-    // Check if user already has an active training plan
+    // Check if user already has active training plans
     const { data: existingActivePlans, error: checkError } = await supabase
       .from('training_plans')
-      .select('id, plan_name, status')
+      .select('id, plan_name, status, sport_type, is_complementary')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .limit(1);
+      .eq('status', 'active');
 
     if (checkError) {
       console.error('Error checking existing plans:', checkError);
@@ -649,15 +648,47 @@ export function useTrainingPlanWizard() {
       return false;
     }
 
-    if (existingActivePlans && existingActivePlans.length > 0) {
-      console.log('User already has an active plan:', existingActivePlans[0]);
-      toast({
-        title: "Você já possui um plano ativo",
-        description: "Para criar um novo plano, primeiro cancele ou finalize o plano atual na página de treinos.",
-        variant: "destructive",
-        duration: 6000
-      });
-      return false;
+    // Different validation based on sport type
+    if (wizardData.sportType === 'strength') {
+      // For strength plans: need exactly 1 aerobic plan, no existing strength plan
+      const aerobicPlans = existingActivePlans?.filter(p => !p.is_complementary && p.sport_type !== 'strength') || [];
+      const strengthPlans = existingActivePlans?.filter(p => p.is_complementary || p.sport_type === 'strength') || [];
+      
+      if (aerobicPlans.length === 0) {
+        console.log('No aerobic plan found for strength plan');
+        toast({
+          title: "Plano aeróbico necessário",
+          description: "Crie primeiro um plano de corrida, ciclismo ou natação para adicionar treino de força.",
+          variant: "destructive",
+          duration: 6000
+        });
+        return false;
+      }
+      
+      if (strengthPlans.length > 0) {
+        console.log('User already has a strength plan:', strengthPlans[0]);
+        toast({
+          title: "Você já possui um plano de força",
+          description: "Para criar um novo plano de força, primeiro cancele o plano atual.",
+          variant: "destructive",
+          duration: 6000
+        });
+        return false;
+      }
+    } else {
+      // For aerobic plans: cannot have existing aerobic plan
+      const aerobicPlans = existingActivePlans?.filter(p => !p.is_complementary && p.sport_type !== 'strength') || [];
+      
+      if (aerobicPlans.length > 0) {
+        console.log('User already has an aerobic plan:', aerobicPlans[0]);
+        toast({
+          title: "Você já possui um plano aeróbico ativo",
+          description: "Para criar um novo plano, primeiro cancele ou finalize o plano atual na página de treinos.",
+          variant: "destructive",
+          duration: 6000
+        });
+        return false;
+      }
     }
 
     console.log('✅ No active plans found, proceeding with plan creation');
