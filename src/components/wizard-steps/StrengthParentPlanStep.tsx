@@ -16,9 +16,9 @@ interface StrengthParentPlanStepProps {
 
 interface ActivePlan {
   id: string;
-  name: string;
+  plan_name: string;
   sport_type: string;
-  goal: string;
+  goal_type: string;
   start_date: string;
   end_date: string;
 }
@@ -46,7 +46,7 @@ export function StrengthParentPlanStep({ wizardData, updateWizardData }: Strengt
       
       const { data, error } = await supabase
         .from('training_plans')
-        .select('id, name, sport_type, goal, start_date, end_date')
+        .select('id, plan_name, sport_type, goal_type, start_date, end_date')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .eq('is_complementary', false)
@@ -127,9 +127,9 @@ export function StrengthParentPlanStep({ wizardData, updateWizardData }: Strengt
                 <Icon className="h-8 w-8 text-primary mt-1" />
                 <div className="flex-1">
                   <Label htmlFor={plan.id} className="cursor-pointer">
-                    <div className="font-semibold">{plan.name}</div>
+                    <div className="font-semibold">{plan.plan_name}</div>
                     <p className="text-sm text-muted-foreground">
-                      {sportLabel} • {plan.goal}
+                      {sportLabel} • {plan.goal_type}
                     </p>
                     <p className="text-xs text-muted-foreground/70 mt-1">
                       {format(new Date(plan.start_date), "d 'de' MMM", { locale: ptBR })} até{' '}
