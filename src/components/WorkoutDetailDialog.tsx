@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
-import { MapPin, Clock, Timer, Heart, Target, Calendar, FileText, CheckCircle, PlayCircle } from 'lucide-react';
+import { MapPin, Clock, Timer, Heart, Target, Calendar, FileText, CheckCircle, PlayCircle, HelpCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { ExerciseExplanationDialog } from './ExerciseExplanationDialog';
+import { extractExercisesFromDescription, findExercise, ExerciseInfo } from '@/data/strengthExercises';
 
 interface WorkoutDetailDialogProps {
   workout: TrainingWorkout | null;
@@ -19,6 +21,16 @@ interface WorkoutDetailDialogProps {
 export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'running' }: WorkoutDetailDialogProps) {
   const { markWorkoutCompleted, markWorkoutPlanned } = useActiveTrainingPlan();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseInfo | null>(null);
+  const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
+
+  const handleExerciseClick = (exerciseName: string) => {
+    const exercise = findExercise(exerciseName);
+    if (exercise) {
+      setSelectedExercise(exercise);
+      setExerciseDialogOpen(true);
+    }
+  };
 
   if (!workout) return null;
 
@@ -241,9 +253,16 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
                   <FileText className="h-5 w-5 text-primary mt-0.5" />
                   <div className="flex-1">
                     <h4 className="font-semibold text-base mb-2 text-foreground">Descrição do Treino</h4>
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
-                      {enhanceWorkoutDescription(workout.description, workout)}
-                    </p>
+                    {sportType === 'strength' ? (
+                      <StrengthWorkoutDescription 
+                        description={workout.description} 
+                        onExerciseClick={handleExerciseClick}
+                      />
+                    ) : (
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                        {enhanceWorkoutDescription(workout.description, workout)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -430,7 +449,107 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
             </CardContent>
           </Card>
         </div>
+
+        {/* Exercise Explanation Dialog for Strength Workouts */}
+        <ExerciseExplanationDialog
+          exercise={selectedExercise}
+          open={exerciseDialogOpen}
+          onClose={() => setExerciseDialogOpen(false)}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Component for rendering strength workout descriptions with clickable exercises
+function StrengthWorkoutDescription({ 
+  description, 
+  onExerciseClick 
+}: { 
+  description: string; 
+  onExerciseClick: (name: string) => void;
+}) {
+  const exerciseNames = extractExercisesFromDescription(description);
+  // Convert exercise names to ExerciseInfo objects
+  const exercises = exerciseNames
+    .map(name => findExercise(name))
+    .filter((ex): ex is ExerciseInfo => ex !== null);
+  
+  // Split description by lines and render each line with clickable exercises
+  const lines = description.split('\n');
+  
+  return (
+    <div className="text-sm text-foreground leading-relaxed space-y-2">
+      {lines.map((line, lineIndex) => {
+        // Check if this line contains any exercise
+        const exercisesInLine = exercises.filter(ex => 
+          line.toLowerCase().includes(ex.name.toLowerCase()) ||
+          ex.alternativeNames.some(alt => line.toLowerCase().includes(alt.toLowerCase()))
+        );
+        
+        if (exercisesInLine.length === 0) {
+          return <p key={lineIndex}>{line}</p>;
+        }
+        
+        // Render line with clickable exercise names
+        let parts: (string | React.ReactNode)[] = [line];
+        
+        exercisesInLine.forEach((exercise, exIndex) => {
+          const newParts: (string | React.ReactNode)[] = [];
+          
+          parts.forEach((part, partIndex) => {
+            if (typeof part !== 'string') {
+              newParts.push(part);
+              return;
+            }
+            
+            // Find all possible matches (main name or alternatives)
+            const allNames = [exercise.name, ...exercise.alternativeNames];
+            let matchFound = false;
+            
+            for (const name of allNames) {
+              const regex = new RegExp(`(${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+              const splitParts = part.split(regex);
+              
+              if (splitParts.length > 1) {
+                splitParts.forEach((splitPart, splitIndex) => {
+                  if (splitPart.toLowerCase() === name.toLowerCase()) {
+                    newParts.push(
+                      <button
+                        key={`${lineIndex}-${exIndex}-${partIndex}-${splitIndex}`}
+                        onClick={() => onExerciseClick(exercise.name)}
+                        className="inline-flex items-center gap-0.5 text-primary hover:text-primary/80 underline underline-offset-2 decoration-dotted font-medium transition-colors"
+                      >
+                        {splitPart}
+                        <HelpCircle className="h-3 w-3" />
+                      </button>
+                    );
+                  } else if (splitPart) {
+                    newParts.push(splitPart);
+                  }
+                });
+                matchFound = true;
+                break;
+              }
+            }
+            
+            if (!matchFound) {
+              newParts.push(part);
+            }
+          });
+          
+          parts = newParts;
+        });
+        
+        return <p key={lineIndex}>{parts}</p>;
+      })}
+      
+      {exercises.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+          <HelpCircle className="h-3 w-3" />
+          Clique nos exercícios sublinhados para ver instruções detalhadas
+        </p>
+      )}
+    </div>
   );
 }
