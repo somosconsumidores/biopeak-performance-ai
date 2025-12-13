@@ -23,6 +23,7 @@ import { useAppStats } from '@/hooks/useAppStats';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useTranslation } from '@/hooks/useTranslation';
 import { PricingPlans } from '@/components/PricingPlans';
+import { usePlatform } from '@/hooks/usePlatform';
 
 // Hero logos for different themes
 import heroLogoDark from '@/assets/biopeak-logo-dark.png';
@@ -58,6 +59,7 @@ export const LandingPage = () => {
   const { theme } = useTheme();
   const { stats: appStats, loading: statsLoading } = useAppStats();
   const { t } = useTranslation();
+  const { isIOS } = usePlatform();
 
   const whyBiopeakScreenshots = [
     whyBiopeak1,
@@ -551,18 +553,20 @@ export const LandingPage = () => {
                     className="h-16 md:h-20 w-auto"
                   />
                 </a>
-                <a 
-                  href="https://play.google.com/store/apps/details?id=com.biopeakai.performance&pcampaignid=homepage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block transition-transform hover:scale-105"
-                >
-                  <img 
-                    src={playStoreBadge} 
-                    alt="Disponível na Play Store" 
-                    className="h-16 md:h-20 w-auto"
-                  />
-                </a>
+                {!isIOS && (
+                  <a 
+                    href="https://play.google.com/store/apps/details?id=com.biopeakai.performance&pcampaignid=homepage"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block transition-transform hover:scale-105"
+                  >
+                    <img 
+                      src={playStoreBadge} 
+                      alt="Disponível na Play Store" 
+                      className="h-16 md:h-20 w-auto"
+                    />
+                  </a>
+                )}
               </div>
             </div>
           </ScrollReveal>

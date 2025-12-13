@@ -15,8 +15,10 @@ import {
   Chrome
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePlatform } from '@/hooks/usePlatform';
 
 export function Download() {
+  const { isIOS } = usePlatform();
   const navigate = useNavigate();
 
   const features = [
@@ -79,7 +81,7 @@ export function Download() {
             <div className="text-center md:text-left space-y-8">
               <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
                 <Smartphone className="h-3 w-3 mr-1" />
-                Disponível para iOS e Android
+                {isIOS ? 'Disponível na App Store' : 'Disponível para iOS e Android'}
               </Badge>
 
               <h1 className="text-5xl md:text-7xl font-bold leading-tight">
@@ -95,7 +97,7 @@ export function Download() {
               </p>
 
               {/* Download Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center pt-8">
+              <div className={`flex flex-col sm:flex-row gap-4 items-center pt-8 ${isIOS ? 'justify-center' : 'justify-center md:justify-start'}`}>
                 <Button 
                   size="lg" 
                   className="w-full sm:w-auto text-lg h-14 px-8 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
@@ -104,15 +106,17 @@ export function Download() {
                   <Apple className="h-5 w-5 mr-2" />
                   App Store
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  className="w-full sm:w-auto text-lg h-14 px-8 border-2"
-                  onClick={handleGooglePlayClick}
-                >
-                  <Chrome className="h-5 w-5 mr-2" />
-                  Google Play
-                </Button>
+                {!isIOS && (
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    className="w-full sm:w-auto text-lg h-14 px-8 border-2"
+                    onClick={handleGooglePlayClick}
+                  >
+                    <Chrome className="h-5 w-5 mr-2" />
+                    Google Play
+                  </Button>
+                )}
               </div>
 
               {/* Stats */}
@@ -236,15 +240,17 @@ export function Download() {
               <Apple className="h-5 w-5 mr-2" />
               Baixar no iPhone
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="w-full sm:w-auto text-lg h-14 px-8 border-2"
-              onClick={handleGooglePlayClick}
-            >
-              <Chrome className="h-5 w-5 mr-2" />
-              Baixar no Android
-            </Button>
+            {!isIOS && (
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="w-full sm:w-auto text-lg h-14 px-8 border-2"
+                onClick={handleGooglePlayClick}
+              >
+                <Chrome className="h-5 w-5 mr-2" />
+                Baixar no Android
+              </Button>
+            )}
           </div>
 
           <div className="pt-12">
