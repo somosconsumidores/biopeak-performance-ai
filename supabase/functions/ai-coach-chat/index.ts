@@ -457,7 +457,7 @@ ${context.lastActivityDetails ? `
 Atividade: ${context.lastActivityDetails.activity.activity_type} em ${context.lastActivityDetails.activity.activity_date}
 ${context.lastActivityDetails.activity.total_distance_meters ? `- Distância: ${(context.lastActivityDetails.activity.total_distance_meters / 1000).toFixed(2)} km` : ''}
 ${context.lastActivityDetails.activity.total_time_minutes ? `- Duração: ${Math.floor(context.lastActivityDetails.activity.total_time_minutes)} min` : ''}
-${context.lastActivityDetails.activity.avg_pace_min_per_km ? `- Pace médio: ${context.lastActivityDetails.activity.avg_pace_min_per_km}` : ''}
+${context.lastActivityDetails.activity.pace_min_per_km ? `- Pace médio: ${Number(context.lastActivityDetails.activity.pace_min_per_km).toFixed(2)} min/km` : ''}
 ${context.lastActivityDetails.activity.avg_heart_rate ? `- FC média: ${context.lastActivityDetails.activity.avg_heart_rate} bpm` : ''}
 ${context.lastActivityDetails.activity.max_heart_rate ? `- FC máxima: ${context.lastActivityDetails.activity.max_heart_rate} bpm` : ''}
 ${context.lastActivityDetails.activity.avg_cadence ? `- Cadência média: ${context.lastActivityDetails.activity.avg_cadence} spm` : ''}
@@ -466,7 +466,7 @@ ${context.lastActivityDetails.activity.total_calories ? `- Calorias: ${context.l
 
 ${context.lastActivityDetails.statistics ? `
 Estatísticas detalhadas:
-${context.lastActivityDetails.statistics.avg_pace_min_per_km ? `- Pace médio: ${context.lastActivityDetails.statistics.avg_pace_min_per_km}` : ''}
+${context.lastActivityDetails.statistics.average_pace_min_km ? `- Pace médio: ${Number(context.lastActivityDetails.statistics.average_pace_min_km).toFixed(2)} min/km` : ''}
 ${context.lastActivityDetails.statistics.avg_heart_rate ? `- FC média: ${context.lastActivityDetails.statistics.avg_heart_rate} bpm` : ''}
 ${context.lastActivityDetails.statistics.max_heart_rate ? `- FC máxima: ${context.lastActivityDetails.statistics.max_heart_rate} bpm` : ''}
 ${context.lastActivityDetails.statistics.avg_cadence ? `- Cadência média: ${context.lastActivityDetails.statistics.avg_cadence} spm` : ''}
@@ -512,7 +512,7 @@ ${context.statistics && context.statistics.length > 0 ? `
 ESTATÍSTICAS DETALHADAS (últimas atividades):
 ${context.statistics.slice(0, 3).map((s: any) => `
 - Atividade ${new Date(s.created_at).toLocaleDateString('pt-BR')}:
-  * Pace médio: ${s.avg_pace_min_per_km || 'N/A'}
+  * Pace médio: ${s.average_pace_min_km ? Number(s.average_pace_min_km).toFixed(2) + ' min/km' : 'N/A'}
   * FC média: ${s.avg_heart_rate || 'N/A'} bpm
   * Cadência média: ${s.avg_cadence || 'N/A'} spm
 `).join('')}
