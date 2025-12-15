@@ -5367,6 +5367,7 @@ export type Database = {
           email: string | null
           phone: string | null
           user_id: string | null
+          utm_source: string | null
         }
         Relationships: []
       }
