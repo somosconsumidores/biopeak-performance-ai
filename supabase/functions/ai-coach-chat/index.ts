@@ -242,6 +242,28 @@ async function fetchVariationAnalysis(userId: string, supabase: any) {
   return data || [];
 }
 
+// Fetch running activities specifically for pace evolution analysis
+async function fetchRunningActivitiesForEvolution(userId: string, supabase: any, limit: number = 20) {
+  const { data, error } = await supabase
+    .from('all_activities')
+    .select('activity_date, activity_type, activity_source, total_distance_meters, total_time_minutes, pace_min_per_km, average_heart_rate')
+    .eq('user_id', userId)
+    .or('activity_type.ilike.%run%,activity_type.ilike.%corrida%,activity_type.eq.RUNNING,activity_type.eq.TREADMILL_RUNNING')
+    .not('pace_min_per_km', 'is', null)
+    .gt('pace_min_per_km', 0)
+    .lt('pace_min_per_km', 15) // Filter out absurd paces (>15 min/km is walking)
+    .order('activity_date', { ascending: false })
+    .limit(limit);
+  
+  if (error) {
+    console.error('Error fetching running activities for evolution:', error);
+    return [];
+  }
+  
+  console.log(`[AI Coach] Fetched ${data?.length || 0} running activities for pace evolution analysis`);
+  return data || [];
+}
+
 // Fetch user goals/commitments
 async function fetchUserGoals(userId: string, supabase: any) {
   const { data, error } = await supabase
@@ -394,6 +416,15 @@ async function buildIntelligentContext(userId: string, userMessage: string, supa
     );
   }
   
+  // If asking about running/pace/evolution, fetch running activities specifically
+  if (messageLower.includes('corrida') || messageLower.includes('pace') || 
+      messageLower.includes('evolução') || messageLower.includes('ritmo')) {
+    fetchPromises.push(
+      fetchRunningActivitiesForEvolution(userId, supabase, 20)
+        .then(data => { context.runningActivities = data; })
+    );
+  }
+  
   if (messageLower.includes('treino') || messageLower.includes('plano') || messageLower.includes('workout')) {
     fetchPromises.push(
       fetchTrainingData(userId, supabase).then(data => { context.training = data; })
@@ -516,6 +547,18 @@ ${context.statistics.slice(0, 3).map((s: any) => `
   * FC média: ${s.avg_heart_rate || 'N/A'} bpm
   * Cadência média: ${s.avg_cadence || 'N/A'} spm
 `).join('')}
+` : ''}
+
+${context.runningActivities && context.runningActivities.length > 0 ? `
+📊 HISTÓRICO DE CORRIDAS (para análise de evolução de pace):
+${context.runningActivities.map((a: any) => `- ${a.activity_date}: ${Number(a.pace_min_per_km).toFixed(2)} min/km | ${(a.total_distance_meters/1000).toFixed(1)}km | FC ${a.average_heart_rate || 'N/A'}bpm (${a.activity_source})`).join('\n')}
+
+📈 ANÁLISE DE TENDÊNCIA DE PACE:
+- Total de corridas analisadas: ${context.runningActivities.length}
+- Pace mais rápido: ${Math.min(...context.runningActivities.filter((a:any) => a.pace_min_per_km).map((a:any) => Number(a.pace_min_per_km))).toFixed(2)} min/km
+- Pace mais lento: ${Math.max(...context.runningActivities.filter((a:any) => a.pace_min_per_km).map((a:any) => Number(a.pace_min_per_km))).toFixed(2)} min/km
+- Pace médio: ${(context.runningActivities.reduce((sum:number, a:any) => sum + (Number(a.pace_min_per_km) || 0), 0) / context.runningActivities.length).toFixed(2)} min/km
+- Corrida mais recente: ${context.runningActivities[0]?.activity_date} com pace ${Number(context.runningActivities[0]?.pace_min_per_km).toFixed(2)} min/km
 ` : ''}
 
 ${context.variationAnalysis && context.variationAnalysis.length > 0 ? `
