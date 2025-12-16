@@ -3,6 +3,7 @@ import { useAdminDashboardStats } from '@/hooks/useAdminDashboardStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
 import { SubscriberUniqueLoginsChart } from '@/components/SubscriberUniqueLoginsChart';
+import { SubscribersByUtmSourceChart } from '@/components/SubscribersByUtmSourceChart';
 import { 
   Users, 
   Activity, 
@@ -266,6 +267,7 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <UserUniqueLoginsChart />
           <SubscriberUniqueLoginsChart />
+          <SubscribersByUtmSourceChart />
         </div>
       </div>
     </div>
