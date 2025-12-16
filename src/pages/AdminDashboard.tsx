@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAdminDashboardStats } from '@/hooks/useAdminDashboardStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
+import { SubscriberUniqueLoginsChart } from '@/components/SubscriberUniqueLoginsChart';
 import { 
   Users, 
   Activity, 
@@ -261,8 +262,11 @@ export default function AdminDashboard() {
           />
         </div>
 
-        {/* Unique Logins Chart */}
-        <UserUniqueLoginsChart />
+        {/* Unique Logins Charts */}
+        <div className="space-y-6">
+          <UserUniqueLoginsChart />
+          <SubscriberUniqueLoginsChart />
+        </div>
       </div>
     </div>
   );

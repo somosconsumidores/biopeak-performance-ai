@@ -5723,6 +5723,13 @@ export type Database = {
           users: number
         }[]
       }
+      get_unique_logins_by_date_subscribers: {
+        Args: never
+        Returns: {
+          login_date: string
+          users: number
+        }[]
+      }
       get_unique_strava_activities_with_details: {
         Args: never
         Returns: {
