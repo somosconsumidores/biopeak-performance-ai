@@ -231,6 +231,11 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
       // Refresh plans to get updated workout data
       await fetchActivePlans();
 
+      // Notify other parts of the app (other hook instances/pages) to refresh immediately
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('training-workouts-changed'));
+      }
+
       const todayKey = new Date().toISOString().slice(0, 10);
       localStorage.removeItem(`daily_briefing_${todayKey}`);
     } catch (err) {
@@ -246,16 +251,28 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
 
   useEffect(() => {
     fetchActivePlans();
-  }, [user]);
+  }, [user?.id]);
+
+  // Local event bus: ensure other screens/widgets refresh immediately after reschedule
+  useEffect(() => {
+    if (!user) return;
+
+    const handler = () => {
+      fetchActivePlans();
+    };
+
+    window.addEventListener('training-workouts-changed', handler as EventListener);
+    return () => window.removeEventListener('training-workouts-changed', handler as EventListener);
+  }, [user?.id]);
 
   // Realtime subscription for workout changes (reschedule, completion, etc.)
   useEffect(() => {
     if (!user) return;
 
     console.log('🔄 Setting up realtime listener for workouts');
-    
+
     const channel = supabase
-      .channel('training-workouts-realtime')
+      .channel(`training-workouts-realtime:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -266,18 +283,16 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
         },
         (payload) => {
           console.log('🔄 Realtime workout change detected:', payload);
-          
+
           if (payload.eventType === 'UPDATE') {
             const updatedWorkout = payload.new as TrainingWorkout;
-            setWorkouts(prev => prev.map(w => 
-              w.id === updatedWorkout.id ? updatedWorkout : w
-            ));
+            setWorkouts((prev) => prev.map((w) => (w.id === updatedWorkout.id ? updatedWorkout : w)));
           } else if (payload.eventType === 'INSERT') {
             const newWorkout = payload.new as TrainingWorkout;
-            setWorkouts(prev => [...prev, newWorkout]);
+            setWorkouts((prev) => [...prev, newWorkout]);
           } else if (payload.eventType === 'DELETE') {
             const deletedWorkout = payload.old as TrainingWorkout;
-            setWorkouts(prev => prev.filter(w => w.id !== deletedWorkout.id));
+            setWorkouts((prev) => prev.filter((w) => w.id !== deletedWorkout.id));
           }
         }
       )
@@ -287,7 +302,7 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
       console.log('🔄 Cleaning up realtime listener');
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   // Derived values
   const allPlans = [mainPlan, strengthPlan].filter(Boolean) as TrainingPlan[];
