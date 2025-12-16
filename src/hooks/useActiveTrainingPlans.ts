@@ -248,6 +248,32 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
     fetchActivePlans();
   }, [user]);
 
+  // Realtime subscription for workout changes (reschedule, completion, etc.)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('training-workouts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'training_plan_workouts',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Workout change detected, refreshing plans...', payload);
+          fetchActivePlans();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   // Listen to realtime updates for training_plan_workouts
   useEffect(() => {
     if (!mainPlan && !strengthPlan) return;
