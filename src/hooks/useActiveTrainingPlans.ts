@@ -252,8 +252,10 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('🔄 Setting up realtime listener for workouts');
+    
     const channel = supabase
-      .channel('training-workouts-changes')
+      .channel('training-workouts-realtime')
       .on(
         'postgres_changes',
         {
@@ -263,40 +265,7 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Workout change detected, refreshing plans...', payload);
-          fetchActivePlans();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  // Listen to realtime updates for training_plan_workouts
-  useEffect(() => {
-    if (!mainPlan && !strengthPlan) return;
-
-    const planIds = [mainPlan?.id, strengthPlan?.id].filter(Boolean) as string[];
-    if (planIds.length === 0) return;
-
-    console.log('🔄 Setting up realtime listener for workouts (multiple plans)');
-    
-    const channel = supabase
-      .channel('training_plan_workouts_multi')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'training_plan_workouts',
-        },
-        (payload) => {
-          const workout = (payload.new || payload.old) as TrainingWorkout;
-          if (!planIds.includes(workout.plan_id)) return;
-
-          console.log('🔄 Realtime workout update:', payload);
+          console.log('🔄 Realtime workout change detected:', payload);
           
           if (payload.eventType === 'UPDATE') {
             const updatedWorkout = payload.new as TrainingWorkout;
@@ -318,7 +287,7 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
       console.log('🔄 Cleaning up realtime listener');
       supabase.removeChannel(channel);
     };
-  }, [mainPlan?.id, strengthPlan?.id]);
+  }, [user]);
 
   // Derived values
   const allPlans = [mainPlan, strengthPlan].filter(Boolean) as TrainingPlan[];
