@@ -5679,6 +5679,13 @@ export type Database = {
           users_with_strava_tokens: number
         }[]
       }
+      get_subscribers_by_utm_source: {
+        Args: never
+        Returns: {
+          subscribers_count: number
+          utm_source: string
+        }[]
+      }
       get_today_incomplete_workouts: {
         Args: never
         Returns: {
