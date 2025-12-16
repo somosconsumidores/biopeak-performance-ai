@@ -198,7 +198,19 @@ export const useActiveTrainingPlan = (): UseActiveTrainingPlanReturn => {
 
   useEffect(() => {
     fetchActivePlan();
-  }, [user]);
+  }, [user?.id]);
+
+  // Local event bus: ensure immediate refresh after reschedule (even if triggered elsewhere)
+  useEffect(() => {
+    if (!user) return;
+
+    const handler = () => {
+      fetchActivePlan();
+    };
+
+    window.addEventListener('training-workouts-changed', handler as EventListener);
+    return () => window.removeEventListener('training-workouts-changed', handler as EventListener);
+  }, [user?.id]);
 
   // Listen to realtime updates for training_plan_workouts
   useEffect(() => {
