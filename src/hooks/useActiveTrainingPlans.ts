@@ -51,6 +51,7 @@ interface UseActiveTrainingPlansReturn {
   markWorkoutCompleted: (workoutId: string, activityId?: string, activitySource?: string) => Promise<void>;
   markWorkoutPlanned: (workoutId: string) => Promise<void>;
   deletePlan: (planId: string) => Promise<void>;
+  rescheduleWorkout: (workoutId: string, newDate: string, strategy: 'swap' | 'replace' | 'push') => Promise<void>;
   hasStrengthPlan: boolean;
   canAddStrengthPlan: boolean;
 }
@@ -198,6 +199,47 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
     }
   };
 
+  const rescheduleWorkout = async (workoutId: string, newDate: string, strategy: 'swap' | 'replace' | 'push') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/reschedule-workout',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            workout_id: workoutId,
+            new_date: newDate,
+            strategy,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reschedule workout');
+      }
+
+      // Refresh plans to get updated workout data
+      await fetchActivePlans();
+
+      const todayKey = new Date().toISOString().slice(0, 10);
+      localStorage.removeItem(`daily_briefing_${todayKey}`);
+    } catch (err) {
+      console.error('Error rescheduling workout:', err);
+      setError(err instanceof Error ? err.message : 'Failed to reschedule workout');
+      throw err;
+    }
+  };
+
   const refreshPlans = async () => {
     await fetchActivePlans();
   };
@@ -272,6 +314,7 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
     markWorkoutCompleted,
     markWorkoutPlanned,
     deletePlan,
+    rescheduleWorkout,
     hasStrengthPlan,
     canAddStrengthPlan,
   };

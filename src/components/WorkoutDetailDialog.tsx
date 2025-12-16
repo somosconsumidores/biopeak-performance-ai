@@ -2,14 +2,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { TrainingWorkout, TrainingPlan } from '@/hooks/useActiveTrainingPlan';
 import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
-import { MapPin, Clock, Timer, Heart, Target, Calendar, FileText, CheckCircle, PlayCircle, HelpCircle } from 'lucide-react';
+import { MapPin, Clock, Timer, Heart, Target, Calendar, FileText, CheckCircle, PlayCircle, HelpCircle, CalendarDays } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import React, { useState } from 'react';
 import { ExerciseExplanationDialog } from './ExerciseExplanationDialog';
 import { extractExercisesFromDescription, findExercise, ExerciseInfo } from '@/data/strengthExercises';
+import { RescheduleWorkoutDialog } from './RescheduleWorkoutDialog';
+import { useActiveTrainingPlans } from '@/hooks/useActiveTrainingPlans';
+import { useToast } from '@/hooks/use-toast';
 
 interface WorkoutDetailDialogProps {
   workout: TrainingWorkout | null;
@@ -20,9 +23,12 @@ interface WorkoutDetailDialogProps {
 
 export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'running' }: WorkoutDetailDialogProps) {
   const { markWorkoutCompleted, markWorkoutPlanned } = useActiveTrainingPlan();
+  const { allPlans, workouts, rescheduleWorkout } = useActiveTrainingPlans();
+  const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseInfo | null>(null);
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
 
   const handleExerciseClick = (exerciseName: string) => {
     const exercise = findExercise(exerciseName);
@@ -191,9 +197,31 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
     }
   };
 
+  const handleReschedule = async (workoutId: string, newDate: string, strategy: 'swap' | 'replace' | 'push') => {
+    try {
+      await rescheduleWorkout(workoutId, newDate, strategy);
+      toast({
+        title: 'Treino reagendado',
+        description: `Treino movido para ${format(parseISO(newDate), "dd 'de' MMMM", { locale: ptBR })}`,
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        title: 'Erro ao reagendar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  // Find the plan for this workout
+  const workoutPlan = allPlans.find(p => p.id === workout?.plan_id) || null;
+
   const hrZoneInfo = workout.target_hr_zone ? getHRZoneInfo(workout.target_hr_zone) : null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -210,7 +238,7 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
 
         <div className="space-y-6">
           {/* Date and Status */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
@@ -218,10 +246,23 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
               </span>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={workout.status === 'completed' ? 'default' : 'secondary'}>
                 {workout.status === 'completed' ? 'Completo' : 'Planejado'}
               </Badge>
+              
+              {/* Reschedule button - only for planned workouts */}
+              {workout.status === 'planned' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRescheduleDialogOpen(true)}
+                  className="whitespace-nowrap flex items-center gap-1.5"
+                >
+                  <CalendarDays className="h-4 w-4 flex-shrink-0" />
+                  <span>Reagendar</span>
+                </Button>
+              )}
               
               <Button
                 size="sm"
@@ -458,6 +499,17 @@ export function WorkoutDetailDialog({ workout, open, onClose, sportType = 'runni
         />
       </DialogContent>
     </Dialog>
+
+    {/* Reschedule Workout Dialog */}
+    <RescheduleWorkoutDialog
+      workout={workout}
+      plan={workoutPlan as any}
+      allWorkouts={workouts as any}
+      open={rescheduleDialogOpen}
+      onClose={() => setRescheduleDialogOpen(false)}
+      onReschedule={handleReschedule}
+    />
+    </>
   );
 }
 
