@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminDashboardStats } from '@/hooks/useAdminDashboardStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UserUniqueLoginsChart } from '@/components/UserUniqueLoginsChart';
 import { 
   Users, 
   Activity, 
@@ -245,7 +246,7 @@ export default function AdminDashboard() {
 
         {/* Onboarding Charts */}
         <h2 className="text-xl font-semibold mb-4">Distribuição do Onboarding</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <DonutChart 
             data={stats.onboardingDistribution.goal} 
             title="Objetivo Principal"
@@ -259,6 +260,9 @@ export default function AdminDashboard() {
             title="Aplicativo Utilizado (Top 10)"
           />
         </div>
+
+        {/* Unique Logins Chart */}
+        <UserUniqueLoginsChart />
       </div>
     </div>
   );

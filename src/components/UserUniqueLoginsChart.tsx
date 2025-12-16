@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useUniqueLoginsChart } from '@/hooks/useUniqueLoginsChart';
 import { Users, Loader2 } from 'lucide-react';
 
@@ -20,7 +20,7 @@ export const UserUniqueLoginsChart = () => {
             Usuários únicos por dia (logins)
           </CardTitle>
           <CardDescription>
-            Contagem diária de usuários distintos que efetuaram login
+            Evolução dos últimos 60 dias
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-80">
@@ -39,7 +39,7 @@ export const UserUniqueLoginsChart = () => {
             Usuários únicos por dia (logins)
           </CardTitle>
           <CardDescription>
-            Contagem diária de usuários distintos que efetuaram login
+            Evolução dos últimos 60 dias
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-80">
@@ -50,6 +50,7 @@ export const UserUniqueLoginsChart = () => {
   }
 
   const total = data.reduce((sum, d) => sum + d.users, 0);
+  const avg = data.length > 0 ? Math.round(total / data.length) : 0;
 
   return (
     <Card>
@@ -59,21 +60,22 @@ export const UserUniqueLoginsChart = () => {
           Usuários únicos por dia (logins)
         </CardTitle>
         <CardDescription>
-          Contagem diária de usuários distintos que efetuaram login (Soma: {total})
+          Evolução dos últimos 60 dias — Total: {total.toLocaleString()} | Média: {avg}/dia
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="date" 
                 tickFormatter={formatDate}
                 className="text-muted-foreground"
-                interval="preserveStartEnd"
+                interval={Math.floor(data.length / 10)}
+                fontSize={11}
               />
-              <YAxis className="text-muted-foreground" />
+              <YAxis className="text-muted-foreground" fontSize={11} />
               <Tooltip 
                 labelFormatter={(value) => `Data: ${formatDate(value as string)}`}
                 formatter={(value) => [value as number, 'Usuários únicos']}
@@ -83,15 +85,12 @@ export const UserUniqueLoginsChart = () => {
                   borderRadius: '8px'
                 }}
               />
-              <Line 
-                type="monotone" 
+              <Bar 
                 dataKey="users" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                fill="hsl(var(--primary))"
+                radius={[2, 2, 0, 0]}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
