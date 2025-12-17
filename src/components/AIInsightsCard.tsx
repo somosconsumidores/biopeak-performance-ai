@@ -120,6 +120,14 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Re-analyze Button at Top */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleNewAnalysis} disabled={loading}>
+          <Brain className="h-4 w-4 mr-2" />
+          Reanalisar
+        </Button>
+      </div>
+
       {/* Main AI Insights */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* What Worked */}
@@ -251,13 +259,6 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
         </div>
       )}
 
-      {/* Re-analyze Button */}
-      <div className="text-center">
-        <Button variant="ghost" onClick={handleNewAnalysis} disabled={loading}>
-          <Brain className="h-4 w-4 mr-2" />
-          Reanalisar
-        </Button>
-      </div>
     </div>
   );
 };
