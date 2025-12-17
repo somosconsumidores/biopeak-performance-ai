@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface WorkoutAnalysis {
@@ -25,6 +25,7 @@ interface UseWorkoutAIAnalysisReturn {
   analyzeWorkout: (activityId: string, forceNew?: boolean) => Promise<void>;
   clearAnalysis: () => void;
   forceReanalyze: (activityId: string) => Promise<void>;
+  loadCachedAnalysis: (activityId: string) => void;
 }
 
 export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
@@ -113,6 +114,12 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     setError(null);
   };
 
+  const loadCachedAnalysis = useCallback((activityId: string) => {
+    if (activityId) {
+      setCurrentActivityId(activityId);
+    }
+  }, []);
+
   return {
     analysis,
     loading,
@@ -120,5 +127,6 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     analyzeWorkout,
     clearAnalysis,
     forceReanalyze,
+    loadCachedAnalysis,
   };
 };
