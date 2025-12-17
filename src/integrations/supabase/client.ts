@@ -3,11 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 
 // Create a storage adapter that works in both web and native environments
+// IMPORTANT: All methods must return Promises for consistency with Supabase client expectations
 const createStorageAdapter = () => {
   if (Capacitor.isNativePlatform()) {
     // Use Capacitor Preferences for native platforms
     return {
-      getItem: async (key: string) => {
+      getItem: async (key: string): Promise<string | null> => {
         try {
           const { Preferences } = await import('@capacitor/preferences');
           const { value } = await Preferences.get({ key });
@@ -17,7 +18,7 @@ const createStorageAdapter = () => {
           return null;
         }
       },
-      setItem: async (key: string, value: string) => {
+      setItem: async (key: string, value: string): Promise<void> => {
         try {
           const { Preferences } = await import('@capacitor/preferences');
           await Preferences.set({ key, value });
@@ -25,7 +26,7 @@ const createStorageAdapter = () => {
           console.warn('[Supabase] Native storage setItem error:', error);
         }
       },
-      removeItem: async (key: string) => {
+      removeItem: async (key: string): Promise<void> => {
         try {
           const { Preferences } = await import('@capacitor/preferences');
           await Preferences.remove({ key });
@@ -35,16 +36,29 @@ const createStorageAdapter = () => {
       },
     };
   } else {
-    // Use localStorage for web
+    // Use localStorage for web - wrapped in Promises for consistency
     return {
-      getItem: (key: string) => {
-        return localStorage.getItem(key);
+      getItem: async (key: string): Promise<string | null> => {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          console.warn('[Supabase] Web storage getItem error:', error);
+          return null;
+        }
       },
-      setItem: (key: string, value: string) => {
-        localStorage.setItem(key, value);
+      setItem: async (key: string, value: string): Promise<void> => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.warn('[Supabase] Web storage setItem error:', error);
+        }
       },
-      removeItem: (key: string) => {
-        localStorage.removeItem(key);
+      removeItem: async (key: string): Promise<void> => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          console.warn('[Supabase] Web storage removeItem error:', error);
+        }
       },
     };
   }
