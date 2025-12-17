@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.4";
 
-type ActivitySource = 'garmin' | 'polar' | 'strava' | 'strava_gpx' | 'zepp_gpx';
+type ActivitySource = 'garmin' | 'polar' | 'strava' | 'strava_gpx' | 'zepp_gpx' | 'biopeak_app' | 'biopeak';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -205,6 +205,18 @@ async function detectSource(admin: ReturnType<typeof createClient>, userId: stri
       if (!error && (count ?? 0) > 0) return "strava";
     }
   }
+  // biopeak_app (check all_activities for biopeak source)
+  {
+    const { data, error } = await admin
+      .from("all_activities")
+      .select("activity_source")
+      .eq("user_id", userId)
+      .or(`activity_id.eq.${activityId},id.eq.${activityId}`)
+      .maybeSingle();
+    if (!error && data && (data.activity_source === 'biopeak' || data.activity_source === 'biopeak_app')) {
+      return "biopeak_app";
+    }
+  }
   return null;
 }
 
@@ -353,6 +365,41 @@ serve(async (req) => {
         { strava_activity_id: stravaId },
         { column: "time_index", ascending: true }
       );
+    } else if (source === "biopeak_app" || source === "biopeak") {
+      // BioPeak App activities - try to get data from activity_chart_data first
+      const { data: chartData, error: chartErr } = await supabaseAdmin
+        .from("activity_chart_data")
+        .select("series_data")
+        .eq("user_id", userId)
+        .eq("activity_id", body.activity_id)
+        .maybeSingle();
+      
+      if (!chartErr && chartData?.series_data) {
+        console.log("[build-activity-chart-cache] Found BioPeak chart data");
+        raw = (chartData.series_data as any[]).map((p: any, idx: number) => ({
+          total_distance_in_meters: p.distance_m ?? (p.distance_km ? p.distance_km * 1000 : 0),
+          heart_rate: p.hr ?? p.heart_rate ?? null,
+          speed_meters_per_second: p.speed_ms ?? p.speed_meters_per_second ?? null,
+          sample_timestamp: idx, // Use index as pseudo-timestamp
+        }));
+      } else {
+        // Try performance_snapshots as fallback
+        const { data: snapshots, error: snapErr } = await supabaseAdmin
+          .from("performance_snapshots")
+          .select("distance_meters, heart_rate, speed_ms, timestamp_ms")
+          .eq("session_id", body.activity_id)
+          .order("timestamp_ms", { ascending: true });
+        
+        if (!snapErr && snapshots && snapshots.length > 0) {
+          console.log("[build-activity-chart-cache] Found BioPeak performance snapshots");
+          raw = snapshots.map((s: any) => ({
+            total_distance_in_meters: s.distance_meters ?? 0,
+            heart_rate: s.heart_rate ?? null,
+            speed_meters_per_second: s.speed_ms ?? null,
+            sample_timestamp: s.timestamp_ms ?? null,
+          }));
+        }
+      }
     }
 
     console.log("[build-activity-chart-cache] raw length:", raw.length);
