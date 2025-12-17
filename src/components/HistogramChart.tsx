@@ -5,18 +5,23 @@ import { Badge } from '@/components/ui/badge';
 import { Heart, TrendingUp, BarChart3, Info } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { isCyclingActivity, paceToSpeed } from '@/utils/activityTypeUtils';
 
 interface HistogramChartProps {
   activityId: string;
   refreshTrigger?: number;
   activitySource?: string;
+  activityType?: string | null;
 }
 
-export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: HistogramChartProps) => {
+export const HistogramChart = ({ activityId, refreshTrigger, activitySource, activityType }: HistogramChartProps) => {
   // Default to 'pace' for biopeak activities (no heart rate data)
   const defaultView = activitySource === 'biopeak' ? 'pace' : 'heart_rate';
   const [activeView, setActiveView] = useState<'heart_rate' | 'pace'>(defaultView);
   const { data: chartData, loading, error } = useActivityDetailsChart(activityId, refreshTrigger);
+  
+  // Check if it's a cycling activity to show speed instead of pace
+  const isCycling = isCyclingActivity(activityType);
 
   if (loading) {
     return (
@@ -97,48 +102,96 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
 
       if (paces.length === 0) return { data: [], stats: null };
 
-      // Create bins for pace (30 second intervals)
-      const min = Math.min(...paces);
-      const max = Math.max(...paces);
-      const binSize = 0.5; // 30 seconds
-      const binCount = Math.max(1, Math.ceil((max - min) / binSize));
-      
-      const bins = Array.from({ length: binCount }, (_, i) => ({
-        range: `${formatPaceRange(min + i * binSize)}-${formatPaceRange(min + (i + 1) * binSize)}`,
-        count: 0,
-        percentage: 0,
-        lowerBound: min + i * binSize,
-        upperBound: min + (i + 1) * binSize
-      }));
+      if (isCycling) {
+        // Convert paces to speeds for cycling
+        const speeds = paces.map(p => paceToSpeed(p));
+        
+        // Create bins for speed (2 km/h intervals)
+        const min = Math.min(...speeds);
+        const max = Math.max(...speeds);
+        const binSize = 2; // 2 km/h
+        const binCount = Math.max(1, Math.ceil((max - min) / binSize));
+        
+        const bins = Array.from({ length: binCount }, (_, i) => ({
+          range: `${(min + i * binSize).toFixed(0)}-${(min + (i + 1) * binSize).toFixed(0)}`,
+          count: 0,
+          percentage: 0,
+          lowerBound: min + i * binSize,
+          upperBound: min + (i + 1) * binSize
+        }));
 
-      paces.forEach(pace => {
-        const binIndex = Math.min(Math.floor((pace - min) / binSize), binCount - 1);
-        if (bins[binIndex]) {
-          bins[binIndex].count++;
-        }
-      });
+        speeds.forEach(speed => {
+          const binIndex = Math.min(Math.floor((speed - min) / binSize), binCount - 1);
+          if (bins[binIndex]) {
+            bins[binIndex].count++;
+          }
+        });
 
-      bins.forEach(bin => {
-        bin.percentage = (bin.count / paces.length) * 100;
-      });
+        bins.forEach(bin => {
+          bin.percentage = (bin.count / speeds.length) * 100;
+        });
 
-      // Calculate statistics
-      const mean = paces.reduce((a, b) => a + b, 0) / paces.length;
-      const sortedPace = paces.sort((a, b) => a - b);
-      const median = sortedPace[Math.floor(sortedPace.length / 2)];
-      const std = Math.sqrt(paces.reduce((sum, pace) => sum + Math.pow(pace - mean, 2), 0) / paces.length);
-      
-      return {
-        data: bins.filter(bin => bin.count > 0),
-        stats: {
-          mean: formatPace(mean),
-          median: formatPace(median),
-          std: `${Math.round(std * 60)}s`,
-          min: formatPace(min),
-          max: formatPace(max),
-          total: paces.length
-        }
-      };
+        // Calculate statistics
+        const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+        const sortedSpeeds = [...speeds].sort((a, b) => a - b);
+        const median = sortedSpeeds[Math.floor(sortedSpeeds.length / 2)];
+        const std = Math.sqrt(speeds.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / speeds.length);
+        
+        return {
+          data: bins.filter(bin => bin.count > 0),
+          stats: {
+            mean: `${mean.toFixed(1)} km/h`,
+            median: `${median.toFixed(1)} km/h`,
+            std: `${std.toFixed(1)} km/h`,
+            min: `${Math.min(...speeds).toFixed(1)} km/h`,
+            max: `${Math.max(...speeds).toFixed(1)} km/h`,
+            total: speeds.length
+          }
+        };
+      } else {
+        // Original pace logic for running/walking
+        const min = Math.min(...paces);
+        const max = Math.max(...paces);
+        const binSize = 0.5; // 30 seconds
+        const binCount = Math.max(1, Math.ceil((max - min) / binSize));
+        
+        const bins = Array.from({ length: binCount }, (_, i) => ({
+          range: `${formatPaceRange(min + i * binSize)}-${formatPaceRange(min + (i + 1) * binSize)}`,
+          count: 0,
+          percentage: 0,
+          lowerBound: min + i * binSize,
+          upperBound: min + (i + 1) * binSize
+        }));
+
+        paces.forEach(pace => {
+          const binIndex = Math.min(Math.floor((pace - min) / binSize), binCount - 1);
+          if (bins[binIndex]) {
+            bins[binIndex].count++;
+          }
+        });
+
+        bins.forEach(bin => {
+          bin.percentage = (bin.count / paces.length) * 100;
+        });
+
+        // Calculate statistics
+        const mean = paces.reduce((a, b) => a + b, 0) / paces.length;
+        const sortedPace = [...paces].sort((a, b) => a - b);
+        const median = sortedPace[Math.floor(sortedPace.length / 2)];
+        const std = Math.sqrt(paces.reduce((sum, pace) => sum + Math.pow(pace - mean, 2), 0) / paces.length);
+        
+        return {
+          data: bins.filter(bin => bin.count > 0),
+          stats: {
+            mean: formatPace(mean),
+            median: formatPace(median),
+            std: `${Math.round(std * 60)}s`,
+            min: formatPace(min),
+            max: formatPace(max),
+            total: paces.length
+          }
+        };
+      }
     }
   };
 
@@ -224,7 +277,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <CardTitle className="flex items-center space-x-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Distribuição de {activeView === 'heart_rate' ? 'Frequência Cardíaca' : 'Ritmo'}</span>
+            <span>Distribuição de {activeView === 'heart_rate' ? 'Frequência Cardíaca' : (isCycling ? 'Velocidade' : 'Ritmo')}</span>
           </CardTitle>
           <div className="flex space-x-2">
             <Button
@@ -243,7 +296,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
               className="flex items-center space-x-1"
             >
               <TrendingUp className="h-4 w-4" />
-              <span>Pace</span>
+              <span>{isCycling ? 'Velocidade' : 'Pace'}</span>
             </Button>
           </div>
         </div>
@@ -251,7 +304,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
       <CardContent>
         {histogramData.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            Dados insuficientes para {activeView === 'heart_rate' ? 'frequência cardíaca' : 'ritmo'}
+            Dados insuficientes para {activeView === 'heart_rate' ? 'frequência cardíaca' : (isCycling ? 'velocidade' : 'ritmo')}
           </div>
         ) : (
           <div className="space-y-6">
@@ -282,7 +335,7 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource }: H
                         const data = payload[0].payload;
                         return (
                           <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                            <p className="font-medium">{activeView === 'heart_rate' ? 'FC' : 'Pace'}: {label}</p>
+                            <p className="font-medium">{activeView === 'heart_rate' ? 'FC' : (isCycling ? 'Velocidade' : 'Pace')}: {label}{isCycling && activeView === 'pace' ? ' km/h' : ''}</p>
                             <p className="text-sm text-muted-foreground">
                               Frequência: {data.count} ({data.percentage.toFixed(1)}%)
                             </p>
