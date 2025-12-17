@@ -54,6 +54,7 @@ import { WorkoutAIAnalysisDialog } from '@/components/WorkoutAIAnalysisDialog';
 import { useStravaAnalysisRecovery } from '@/hooks/useStravaAnalysisRecovery';
 import { useActivityRecalculate } from '@/hooks/useActivityRecalculate';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
+import { isCyclingActivity, formatSpeed, formatSpeedOrPace, getSpeedOrPaceLabel } from '@/utils/activityTypeUtils';
 
 
 export const WorkoutSession = () => {
@@ -354,8 +355,12 @@ export const WorkoutSession = () => {
                   </div>
                   <div className="text-center">
                     <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
-                    <div className="text-lg sm:text-2xl font-bold">{formatPace(currentActivity.average_pace_in_minutes_per_kilometer)}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">Pace Médio</div>
+                    <div className="text-lg sm:text-2xl font-bold">
+                      {formatSpeedOrPace(currentActivity.average_pace_in_minutes_per_kilometer, currentActivity.activity_type)}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">
+                      {getSpeedOrPaceLabel(currentActivity.activity_type)}
+                    </div>
                   </div>
                   <div className="text-center">
                     <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary mx-auto mb-2" />
@@ -526,6 +531,7 @@ export const WorkoutSession = () => {
                   activityId={currentActivity.activity_id} 
                   refreshTrigger={combinedRefreshTrigger}
                   activitySource={(currentActivity as any)?.source?.toLowerCase()}
+                  activityType={currentActivity.activity_type}
                 />
               )}
             </div>
@@ -576,7 +582,8 @@ export const WorkoutSession = () => {
                 </Card>
               ) : (
                 <ActivitySegmentChart1km 
-                  activityId={currentActivity.activity_id} 
+                  activityId={currentActivity.activity_id}
+                  activityType={currentActivity.activity_type}
                 />
               )}
             </div>

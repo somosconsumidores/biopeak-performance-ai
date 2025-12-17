@@ -4,9 +4,11 @@ import { BarChart3, RotateCcw } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { isCyclingActivity, paceToSpeed } from '@/utils/activityTypeUtils';
 
 interface ActivitySegmentChart1kmProps {
   activityId: string;
+  activityType?: string | null;
 }
 
 interface SegmentData {
@@ -27,12 +29,15 @@ interface ActivityData {
   avg_heart_rate?: number;
 }
 
-export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmProps) => {
+export const ActivitySegmentChart1km = ({ activityId, activityType }: ActivitySegmentChart1kmProps) => {
   const [data, setData] = useState<ActivityData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [segmentSize, setSegmentSize] = useState<1 | 5>(1); // 1km or 5km segments
+  
+  // Check if it's a cycling activity to show speed instead of pace
+  const isCycling = isCyclingActivity(activityType);
 
   const fetchData = async () => {
     if (!activityId) {
@@ -210,6 +215,16 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
     return `${minutes.toString().padStart(2, '0')}'${seconds.toString().padStart(2, '0')}"`;
   };
 
+  const formatSpeed = (pace: number) => {
+    if (!pace || pace <= 0) return '--';
+    const speed = paceToSpeed(pace);
+    return `${speed.toFixed(1)}`;
+  };
+
+  const formatPaceOrSpeed = (pace: number) => {
+    return isCycling ? formatSpeed(pace) : formatPace(pace);
+  };
+
   const formatTime = (seconds: number) => {
     if (!seconds || seconds <= 0) return '--';
     const mins = Math.floor(seconds / 60);
@@ -360,7 +375,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
             <thead>
               <tr className="border-b border-border/50">
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">{segmentSize === 1 ? 'km' : 'Segmento'}</th>
-                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo(km)</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">{isCycling ? 'Velocidade(km/h)' : 'Ritmo(km)'}</th>
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Ritmo cardíaco</th>
               </tr>
             </thead>
@@ -377,7 +392,7 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
                   </td>
                   <td className="py-3 px-2">
                     <div className="flex items-center space-x-3 min-w-[120px]">
-                      <span className="text-sm font-medium w-12">{formatPace(segment.avgPace)}</span>
+                      <span className="text-sm font-medium w-12">{formatPaceOrSpeed(segment.avgPace)}</span>
                       <div className="flex-1 bg-muted rounded-full h-2 relative">
                         <div 
                           className={`h-2 rounded-full transition-all duration-300 ${
@@ -408,9 +423,12 @@ export const ActivitySegmentChart1km = ({ activityId }: ActivitySegmentChart1kmP
             </div>
             <div className="text-center">
               <div className="font-medium text-primary">
-                {formatPace(segmentData.reduce((sum, seg) => sum + seg.avgPace, 0) / segmentData.length)}
+                {isCycling 
+                  ? `${paceToSpeed(segmentData.reduce((sum, seg) => sum + seg.avgPace, 0) / segmentData.length).toFixed(1)} km/h`
+                  : formatPace(segmentData.reduce((sum, seg) => sum + seg.avgPace, 0) / segmentData.length)
+                }
               </div>
-              <div className="text-muted-foreground">Pace Médio</div>
+              <div className="text-muted-foreground">{isCycling ? 'Velocidade Média' : 'Pace Médio'}</div>
             </div>
             <div className="text-center">
               <div className="font-medium text-[#9333ea]">
