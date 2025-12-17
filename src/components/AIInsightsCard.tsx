@@ -21,7 +21,7 @@ interface AIInsightsCardProps {
 }
 
 export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
-  const { analysis, loading, error, analyzeWorkout, clearAnalysis } = useWorkoutAIAnalysis();
+  const { analysis, loading, error, analyzeWorkout, forceReanalyze } = useWorkoutAIAnalysis();
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
   // Load stored analysis when component mounts or activityId changes (only load from cache, don't trigger new analysis)
@@ -35,8 +35,7 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
   };
 
   const handleNewAnalysis = () => {
-    clearAnalysis();
-    analyzeWorkout(activityId);
+    forceReanalyze(activityId);
   };
 
   if (!analysis && !loading && !error) {
@@ -255,7 +254,7 @@ export const AIInsightsCard = ({ activityId }: AIInsightsCardProps) => {
       <div className="text-center">
         <Button variant="ghost" onClick={handleNewAnalysis} disabled={loading}>
           <Brain className="h-4 w-4 mr-2" />
-          Nova Análise
+          Reanalisar
         </Button>
       </div>
     </div>

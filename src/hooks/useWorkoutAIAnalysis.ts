@@ -22,8 +22,9 @@ interface UseWorkoutAIAnalysisReturn {
   analysis: WorkoutAnalysis | null;
   loading: boolean;
   error: string | null;
-  analyzeWorkout: (activityId: string) => Promise<void>;
+  analyzeWorkout: (activityId: string, forceNew?: boolean) => Promise<void>;
   clearAnalysis: () => void;
+  forceReanalyze: (activityId: string) => Promise<void>;
 }
 
 export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
@@ -55,10 +56,16 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     }
   }, [currentActivityId]);
 
-  const analyzeWorkout = async (activityId: string) => {
+  const analyzeWorkout = async (activityId: string, forceNew: boolean = false) => {
     if (!activityId) {
       setError('Activity ID is required');
       return;
+    }
+
+    // If forceNew, clear the cached analysis first
+    if (forceNew) {
+      localStorage.removeItem(`workout_analysis_${activityId}`);
+      console.log('🤖 AI Hook: Cleared cached analysis for activity:', activityId);
     }
 
     setCurrentActivityId(activityId);
@@ -94,6 +101,10 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     }
   };
 
+  const forceReanalyze = async (activityId: string) => {
+    await analyzeWorkout(activityId, true);
+  };
+
   const clearAnalysis = () => {
     if (currentActivityId) {
       localStorage.removeItem(`workout_analysis_${currentActivityId}`);
@@ -108,5 +119,6 @@ export const useWorkoutAIAnalysis = (): UseWorkoutAIAnalysisReturn => {
     error,
     analyzeWorkout,
     clearAnalysis,
+    forceReanalyze,
   };
 };
