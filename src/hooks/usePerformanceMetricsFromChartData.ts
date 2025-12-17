@@ -36,7 +36,8 @@ export function formatMetricsFromChartData(chartData: any): PerformanceMetrics {
 
   const data = chartData.series_data;
   const heartRates = data.map((p: any) => p.heart_rate || p.hr).filter((hr: number) => hr > 0);
-  const speeds = data.map((p: any) => p.speed_ms).filter((s: number) => s > 0);
+  // Filter speeds to realistic values: max 16.7 m/s (60 km/h)
+  const speeds = data.map((p: any) => p.speed_ms).filter((s: number) => s > 0 && s <= 16.7);
   
   // Calculate basic stats
   const avgHR = heartRates.length > 0 ? heartRates.reduce((a: number, b: number) => a + b, 0) / heartRates.length : null;

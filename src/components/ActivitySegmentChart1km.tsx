@@ -4,7 +4,7 @@ import { BarChart3, RotateCcw } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { isCyclingActivity, paceToSpeed } from '@/utils/activityTypeUtils';
+import { isCyclingActivity, paceToSpeed, isRealisticPace } from '@/utils/activityTypeUtils';
 
 interface ActivitySegmentChart1kmProps {
   activityId: string;
@@ -172,11 +172,11 @@ export const ActivitySegmentChart1km = ({ activityId, activityType }: ActivitySe
         segmentStartTime = lastSegmentEndTime;
       }
 
-      // Add current point to segment calculations
+      // Add current point to segment calculations - only use realistic paces
       const pace = point.pace_min_km;
       const heartRate = point.heart_rate || point.hr;
 
-      if (pace && pace > 0) {
+      if (pace && pace > 0 && isRealisticPace(pace)) {
         segmentPaceSum += pace;
         segmentDataPoints++;
       }
@@ -216,7 +216,7 @@ export const ActivitySegmentChart1km = ({ activityId, activityType }: ActivitySe
   };
 
   const formatSpeed = (pace: number) => {
-    if (!pace || pace <= 0) return '--';
+    if (!pace || pace <= 0 || !isRealisticPace(pace)) return '--';
     const speed = paceToSpeed(pace);
     return `${speed.toFixed(1)}`;
   };

@@ -233,11 +233,11 @@ export const PerformanceIndicators = ({ activityId, activitySource }: Performanc
       iconColor: 'bg-yellow-400'
     },
     
-    // Ritmo
+    // Ritmo - validate speed is realistic (max 60 km/h)
     {
       icon: <Gauge className="h-6 w-6" />,
       title: 'Ritmo & Velocidade',
-      mainValue: metrics.pace.averageSpeedKmh != null
+      mainValue: metrics.pace.averageSpeedKmh != null && metrics.pace.averageSpeedKmh <= 60
         ? `${metrics.pace.averageSpeedKmh.toFixed(1)}`
         : 'N/A',
       mainLabel: 'km/h',
@@ -245,7 +245,9 @@ export const PerformanceIndicators = ({ activityId, activitySource }: Performanc
         ? `${metrics.pace.paceVariationCoefficient.toFixed(1)}%`
         : undefined,
       secondaryLabel: hasHeartRateData ? 'Variação' : 'Consistência',
-      comment: metrics.pace.comment,
+      comment: metrics.pace.averageSpeedKmh != null && metrics.pace.averageSpeedKmh <= 60 
+        ? metrics.pace.comment 
+        : 'Dados de velocidade indisponíveis',
       gradient: 'bg-gradient-to-br from-blue-400/20 to-cyan-500/20',
       iconColor: 'bg-blue-400'
     },
