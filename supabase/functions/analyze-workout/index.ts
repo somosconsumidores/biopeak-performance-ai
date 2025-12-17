@@ -473,9 +473,22 @@ serve(async (req) => {
       return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
     
+    // Detect if activity is cycling
+    const cyclingTypes = ['ride', 'cycling', 'road_biking', 'virtualride', 'mountain_biking', 'indoor_cycling', 'virtual_ride', 'ebikeride', 'velomobile', 'biking', 'bike', 'ciclismo'];
+    const activityTypeLower = (activity.activity_type || '').toLowerCase();
+    const isCycling = cyclingTypes.some(t => activityTypeLower.includes(t));
+    
+    // Convert pace to speed (km/h) for cycling
+    const paceToSpeed = (paceMinKm: number) => {
+      if (!paceMinKm || paceMinKm <= 0) return null;
+      return 60 / paceMinKm; // km/h
+    };
+    
     const formattedPace = accuratePace ? formatPace(accuratePace) : 'N/A';
+    const averageSpeedKmh = accuratePace ? paceToSpeed(accuratePace) : null;
+    const formattedSpeed = averageSpeedKmh ? `${averageSpeedKmh.toFixed(1)} km/h` : 'N/A';
 
-    // Calculate pace variations from detailed data for more insights
+    // Calculate pace/speed variations from detailed data for more insights
     let paceAnalysis = '';
     if (activityDetails && activityDetails.length > 0) {
       const speedSamples = activityDetails
@@ -485,7 +498,14 @@ serve(async (req) => {
       if (speedSamples.length > 0) {
         const minPace = Math.min(...speedSamples);
         const maxPace = Math.max(...speedSamples);
-        paceAnalysis = `\n      - Variação de pace: ${minPace.toFixed(2)} - ${maxPace.toFixed(2)} min/km`;
+        if (isCycling) {
+          // For cycling, show speed range in km/h
+          const maxSpeed = paceToSpeed(minPace);
+          const minSpeed = paceToSpeed(maxPace);
+          paceAnalysis = `\n      - Variação de velocidade: ${minSpeed?.toFixed(1) || 'N/A'} - ${maxSpeed?.toFixed(1) || 'N/A'} km/h`;
+        } else {
+          paceAnalysis = `\n      - Variação de pace: ${minPace.toFixed(2)} - ${maxPace.toFixed(2)} min/km`;
+        }
       }
     }
 
@@ -496,7 +516,7 @@ serve(async (req) => {
     
     // Additional analysis for limited data scenarios (Strava)
     const isLimitedData = activitySource === 'strava' || activityDetails.length === 0;
-    console.log(`📊 Data analysis: source=${activitySource}, limited=${isLimitedData}, highIntensity=${isHighIntensityWorkout}`);
+    console.log(`📊 Data analysis: source=${activitySource}, limited=${isLimitedData}, highIntensity=${isHighIntensityWorkout}, isCycling=${isCycling}`);
 
     // Prepare analysis data with deep analysis components
     const analysisData = {
@@ -559,9 +579,14 @@ serve(async (req) => {
       - Distância: ${((activity.distance_in_meters || 0) / 1000).toFixed(1)} km
        - FC média: ${activity.average_heart_rate_in_beats_per_minute || 'N/A'} bpm
        - FC máxima: ${activity.max_heart_rate_in_beats_per_minute || 'N/A'} bpm
+       ${isCycling ? `
+       - Velocidade média: ${formattedSpeed} (${averageSpeedKmh?.toFixed(2) || 'N/A'} km/h decimal)
+       ${activity.average_speed_in_meters_per_second ? `- Velocidade da fonte: ${(activity.average_speed_in_meters_per_second * 3.6).toFixed(1)} km/h` : ''}
+       ` : `
        - Pace médio: ${formattedPace} min/km (${calculatedPaceFromDistance?.toFixed(3) || 'N/A'} min/km decimal)
        ${calculatedPaceFromSpeed ? `- Pace da velocidade: ${formatPace(calculatedPaceFromSpeed)} min/km` : ''}
        ${storedPace ? `- Pace armazenado: ${formatPace(storedPace)} min/km` : ''}${paceAnalysis}
+       `}
       - Calorias: ${activity.active_kilocalories || 'N/A'} kcal
       - Elevação: ${activity.total_elevation_gain_in_meters || 0}m
       ${limitedDataContext}
@@ -577,28 +602,36 @@ serve(async (req) => {
       📊 HISTOGRAMA DE CONSISTÊNCIA:
       - Total de pontos: ${histogramData.totalPoints}
       - FC média: ${histogramData.avgHeartRate || 'N/A'} bpm
-      - Pace média: ${histogramData.avgPace || 'N/A'} min/km
+      ${isCycling 
+        ? `- Velocidade média: ${histogramData.avgPace ? (60 / histogramData.avgPace).toFixed(1) : 'N/A'} km/h`
+        : `- Pace média: ${histogramData.avgPace || 'N/A'} min/km`}
       - Fonte: ${histogramData.source}
       - Amostras (primeiras 100): ${JSON.stringify(histogramData.samples.slice(0, 20))}...
       ` : ''}
       
       ${segmentsData.length > 0 ? `
-      🏃 ANÁLISE POR SEGMENTOS DE 1KM:
-      ${segmentsData.map((seg, i) => `
-      - Segmento ${seg.segment_number}: FC ${seg.avg_heart_rate || 'N/A'} bpm, Pace ${seg.avg_pace_min_km || 'N/A'} min/km, Duração ${seg.duration_seconds}s, Elevação +${seg.elevation_gain_meters || 0}m`).join('')}
+      ${isCycling ? '🚴 ANÁLISE POR SEGMENTOS DE 1KM:' : '🏃 ANÁLISE POR SEGMENTOS DE 1KM:'}
+      ${segmentsData.map((seg, i) => {
+        const segSpeed = seg.avg_pace_min_km ? (60 / seg.avg_pace_min_km).toFixed(1) : 'N/A';
+        return isCycling 
+          ? `\n      - Segmento ${seg.segment_number}: FC ${seg.avg_heart_rate || 'N/A'} bpm, Velocidade ${segSpeed} km/h, Duração ${seg.duration_seconds}s, Elevação +${seg.elevation_gain_meters || 0}m`
+          : `\n      - Segmento ${seg.segment_number}: FC ${seg.avg_heart_rate || 'N/A'} bpm, Pace ${seg.avg_pace_min_km || 'N/A'} min/km, Duração ${seg.duration_seconds}s, Elevação +${seg.elevation_gain_meters || 0}m`;
+      }).join('')}
       ` : ''}
       
       ${variationData ? `
       📈 ANÁLISE DE VARIAÇÃO:
       - Coeficiente de Variação FC: ${(variationData.heart_rate_cv * 100)?.toFixed(1) || 'N/A'}% (${variationData.heart_rate_cv_category})
-      - Coeficiente de Variação Pace: ${(variationData.pace_cv * 100)?.toFixed(1) || 'N/A'}% (${variationData.pace_cv_category})
+      - Coeficiente de Variação ${isCycling ? 'Velocidade' : 'Pace'}: ${(variationData.pace_cv * 100)?.toFixed(1) || 'N/A'}% (${variationData.pace_cv_category})
       - Diagnóstico automático: ${variationData.diagnosis}
       - Pontos de dados: ${variationData.data_points}
       ` : ''}
       
       ${bestSegmentsData ? `
       🏆 MELHOR SEGMENTO:
-      - Melhor 1km: ${bestSegmentsData.best_1km_pace_min_km} min/km
+      ${isCycling 
+        ? `- Melhor 1km: ${bestSegmentsData.best_1km_pace_min_km ? (60 / bestSegmentsData.best_1km_pace_min_km).toFixed(1) : 'N/A'} km/h`
+        : `- Melhor 1km: ${bestSegmentsData.best_1km_pace_min_km} min/km`}
       - Distância: ${bestSegmentsData.segment_start_distance_meters}m - ${bestSegmentsData.segment_end_distance_meters}m
       - Duração: ${bestSegmentsData.segment_duration_seconds}s
       ` : ''}
@@ -606,14 +639,22 @@ serve(async (req) => {
       ${segmentsData.length > 0 && bestKmSegmentHumanNumber !== null ? `
       ✅ VERDADE TERRENA (GROUND TRUTH) - Segmentos de 1km:
       - Indexação exibida ao usuário: baseada em 1 (KM 1, KM 2, ...)
-      - Melhor KM (por pace médio em 1km): KM ${bestKmSegmentHumanNumber} (${(bestKmSegmentPace || 0).toFixed(2)} min/km)
+      ${isCycling 
+        ? `- Melhor KM (por velocidade média em 1km): KM ${bestKmSegmentHumanNumber} (${bestKmSegmentPace ? (60 / bestKmSegmentPace).toFixed(1) : 'N/A'} km/h)`
+        : `- Melhor KM (por pace médio em 1km): KM ${bestKmSegmentHumanNumber} (${(bestKmSegmentPace || 0).toFixed(2)} min/km)`}
       - Não contradiga esta informação nos campos segmentAnalysis; utilize exatamente este número de segmento (humano).
-      ${problemKmSegments.length > 0 ? `\n      ⚠️ Segmentos potencialmente problemáticos (comparados à mediana dos 1km):\n      ${problemKmSegments.map(p => `- KM ${p.human}: ${p.pace.toFixed(2)} min/km (+${p.pct.toFixed(1)}%)`).join('\n')}` : ''}
+      ${problemKmSegments.length > 0 ? `\n      ⚠️ Segmentos potencialmente problemáticos (comparados à mediana dos 1km):\n      ${problemKmSegments.map(p => {
+        if (isCycling) {
+          const speed = 60 / p.pace;
+          return `- KM ${p.human}: ${speed.toFixed(1)} km/h (-${p.pct.toFixed(1)}% da mediana)`;
+        }
+        return `- KM ${p.human}: ${p.pace.toFixed(2)} min/km (+${p.pct.toFixed(1)}%)`;
+      }).join('\n')}` : ''}
       ` : ''}
       
       INSTRUÇÕES ESPECIAIS PARA DADOS LIMITADOS:
       ${isLimitedData ? `
-      - Analise a CONSISTÊNCIA DO PACE: variação, estabilidade, padrões
+      - Analise a CONSISTÊNCIA ${isCycling ? 'DA VELOCIDADE' : 'DO PACE'}: variação, estabilidade, padrões
       - Calcule EFICIÊNCIA DE MOVIMENTO: distância por minuto, economia de energia
       - Avalie PROGRESSÃO TEMPORAL: inicio vs meio vs final do treino
       - Identifique PADRÕES DE TERRENO: subidas/descidas baseado em elevação
@@ -623,21 +664,27 @@ serve(async (req) => {
       - Seja CRIATIVO e PERSPICAZ com os insights
       ` : 'Use todos os dados detalhados disponíveis para uma análise completa.'}
       
+      ${isCycling ? `
+      🚴 IMPORTANTE - ATIVIDADE DE CICLISMO:
+      Esta é uma atividade de CICLISMO. Use VELOCIDADE (km/h) em vez de PACE (min/km) em todas as análises e recomendações.
+      Ciclistas preferem métricas de velocidade. Adapte toda a linguagem e métricas para o contexto do ciclismo.
+      ` : ''}
+      
       INSTRUÇÕES PARA ANÁLISE PROFUNDA:
       ${histogramData || segmentsData.length > 0 || variationData ? `
       🎯 ANÁLISE DE CONSISTÊNCIA: Use os dados do histograma para diagnosticar:
-      - Padrões de FC e pace ao longo do tempo
+      - Padrões de FC e ${isCycling ? 'velocidade' : 'pace'} ao longo do tempo
       - Identificar momentos de instabilidade ou picos anômalos
       - Avaliar a distribuição estatística dos dados
       
-      🏃 DETECÇÃO DE SEGMENTOS PROBLEMA: Use os dados de segmentos de 1km para:
+      ${isCycling ? '🚴' : '🏃'} DETECÇÃO DE SEGMENTOS PROBLEMA: Use os dados de segmentos de 1km para:
       - Identificar segmentos com performance abaixo da média
       - Detectar fadiga progressiva ou recuperação inadequada
       - Correlacionar elevação com performance
       
       📊 INSIGHTS DE VARIAÇÃO: Use os coeficientes de variação para:
       - Explicar o tipo de treino baseado na variabilidade
-      - Sugerir melhorias na estratégia de pacing
+      - Sugerir melhorias na estratégia de ${isCycling ? 'cadência/velocidade' : 'pacing'}
       - Identificar padrões de inconsistência
       ` : ''}
       
@@ -660,7 +707,7 @@ serve(async (req) => {
         "deepAnalysis": {
           "consistencyDiagnosis": {
             "heartRateConsistency": "diagnóstico da consistência da FC baseado nos dados do histograma",
-            "paceConsistency": "diagnóstico da consistência do pace baseado nos dados do histograma",
+            "paceConsistency": "diagnóstico da consistência ${isCycling ? 'da velocidade' : 'do pace'} baseado nos dados do histograma",
             "overallConsistency": "diagnóstico geral de consistência"
           },
           "segmentAnalysis": {
@@ -679,18 +726,23 @@ serve(async (req) => {
             ]
           },
           "variationInsights": {
-            "paceVariation": "análise da variação do pace usando CV",
+            "paceVariation": "análise da variação ${isCycling ? 'da velocidade' : 'do pace'} usando CV",
             "heartRateVariation": "análise da variação da FC usando CV",
             "diagnosis": "diagnóstico integrado baseado nos CVs",
             "recommendations": ["recomendações baseadas na análise de variação"]
           },
           "technicalInsights": {
-            "runningEconomy": "análise da economia de corrida baseada nos dados disponíveis",
+            "${isCycling ? 'cyclingEfficiency' : 'runningEconomy'}": "análise da ${isCycling ? 'eficiência do pedal' : 'economia de corrida'} baseada nos dados disponíveis",
             "fatiguePattern": "padrão de fadiga identificado nos segmentos",
-            "tacticalAnalysis": "análise tática da estratégia de prova"
+            "tacticalAnalysis": "análise tática da estratégia ${isCycling ? 'do pedal' : 'de prova'}"
           }
         }
       }
+      
+      ${isCycling ? `
+      LEMBRETE FINAL PARA CICLISMO: Use SEMPRE velocidade (km/h) em vez de pace (min/km) em TODA a análise. 
+      Ciclistas não pensam em termos de pace, mas sim em velocidade média, velocidade máxima, etc.
+      ` : ''}
       
       Seja específico, prático e focado nos dados apresentados. Use linguagem motivacional mas realista.
     `;
