@@ -69,8 +69,15 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
 
   const isCycling = comparison?.currentActivity.classifiedType === 'Cycling';
 
-  const formatSpeed = (speedKmh: number | null) => {
-    if (speedKmh === null || speedKmh === undefined || speedKmh <= 0) return '--';
+  // Converte pace (min/km) para velocidade (km/h)
+  const paceToSpeedKmh = (paceMinPerKm: number | null): number | null => {
+    if (!paceMinPerKm || paceMinPerKm <= 0) return null;
+    return 60 / paceMinPerKm;
+  };
+
+  const formatSpeed = (paceMinPerKm: number | null) => {
+    const speedKmh = paceToSpeedKmh(paceMinPerKm);
+    if (speedKmh === null || speedKmh <= 0) return '--';
     return `${speedKmh.toFixed(1)} km/h`;
   };
 

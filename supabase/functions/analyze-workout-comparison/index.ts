@@ -81,6 +81,29 @@ const formatPace = (paceMinKm: number | null): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
 };
 
+// Helper para converter pace para velocidade (km/h)
+const paceToSpeed = (paceMinKm: number | null): number | null => {
+  if (!paceMinKm || paceMinKm <= 0) return null;
+  return 60 / paceMinKm;
+};
+
+// Helper para formatar velocidade em km/h
+const formatSpeed = (paceMinKm: number | null): string => {
+  const speedKmh = paceToSpeed(paceMinKm);
+  if (!speedKmh) return 'N/A';
+  return `${speedKmh.toFixed(1)} km/h`;
+};
+
+// Helper para formatar pace ou velocidade baseado no tipo de atividade
+const formatPaceOrSpeed = (paceMinKm: number | null, isCycling: boolean): string => {
+  return isCycling ? formatSpeed(paceMinKm) : formatPace(paceMinKm);
+};
+
+// Helper para obter label de pace/velocidade
+const getPaceOrSpeedLabel = (isCycling: boolean): string => {
+  return isCycling ? 'Velocidade' : 'Pace';
+};
+
 // Classificação de tipos de atividade
 const classifyActivityType = (activityType: string | null): string => {
   if (!activityType) return 'Unknown';
@@ -316,6 +339,12 @@ serve(async (req) => {
       } : null
     };
 
+    // Determinar se é ciclismo para usar velocidade ao invés de pace
+    const isCycling = classifiedType === 'Cycling';
+    const paceSpeedLabel = getPaceOrSpeedLabel(isCycling);
+    const currentPaceOrSpeed = formatPaceOrSpeed(currentActivity.pace_min_per_km, isCycling);
+    const historicalPaceOrSpeed = historicalStats ? formatPaceOrSpeed(historicalStats.avgPace, isCycling) : 'N/A';
+
     // 8. Chamar OpenAI para análise inteligente
     const aiPrompt = `
 Analise este treino de ${classifiedType} e forneça recomendações inteligentes e personalizadas:
@@ -324,7 +353,7 @@ ATIVIDADE ATUAL:
 - Tipo: ${classifiedType}
 - Duração: ${currentActivity.total_time_minutes?.toFixed(1) || 'N/A'} min
 - Distância: ${currentActivity.total_distance_meters ? (currentActivity.total_distance_meters / 1000).toFixed(1) : 'N/A'} km
-- Pace: ${formatPace(currentActivity.pace_min_per_km)}
+- ${paceSpeedLabel}: ${currentPaceOrSpeed}
 - FC Média: ${currentActivity.average_heart_rate || 'N/A'} bpm
 - Calorias: ${currentActivity.active_kilocalories || 'N/A'}
 - Ganho de elevação: ${currentActivity.total_elevation_gain_in_meters || 'N/A'} m
@@ -334,14 +363,14 @@ ${historicalStats ? `
 - Total de treinos similares: ${historicalStats.totalActivities}
 - Duração média histórica: ${historicalStats.avgDuration?.toFixed(1) || 'N/A'} min (atual: ${comparisons.duration.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.duration.isImprovement ? 'melhor' : 'pior'})
 - Distância média histórica: ${historicalStats.avgDistance ? (historicalStats.avgDistance / 1000).toFixed(1) : 'N/A'} km (atual: ${comparisons.distance.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.distance.isImprovement ? 'maior' : 'menor'})
-- Pace médio histórico: ${formatPace(historicalStats.avgPace)} (atual: ${comparisons.pace.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.pace.isImprovement ? 'mais rápido' : 'mais lento'})
+- ${paceSpeedLabel} médio histórico: ${historicalPaceOrSpeed} (atual: ${comparisons.pace.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.pace.isImprovement ? 'mais rápido' : 'mais lento'})
 - FC média histórica: ${historicalStats.avgHeartRate?.toFixed(0) || 'N/A'} bpm (atual: ${comparisons.heartRate.percentChange?.toFixed(1) || 'N/A'}% ${comparisons.heartRate.isImprovement ? 'maior' : 'menor'})
 ` : 'Sem dados históricos suficientes para comparação.'}
 
 ${chartData ? `
 DADOS GRANULARES DISPONÍVEIS:
 - ${chartData.data_points_count} pontos de dados coletados
-- Dados detalhados de FC e pace disponíveis
+- Dados detalhados de FC e ${isCycling ? 'velocidade' : 'pace'} disponíveis
 ` : ''}
 
 Por favor, forneça uma análise estruturada em JSON com o seguinte formato:
@@ -361,6 +390,8 @@ Por favor, forneça uma análise estruturada em JSON com o seguinte formato:
   "recoveryGuidance": "Uma frase sobre tempo de recovery recomendado",
   "nextWorkoutSuggestions": "Uma frase sugerindo o próximo tipo de treino"
 }
+
+IMPORTANTE: ${isCycling ? 'Esta é uma atividade de CICLISMO. Use sempre "velocidade" (km/h) nas análises e recomendações, NUNCA use "pace" ou "ritmo" em min/km.' : 'Use "pace" ou "ritmo" (min/km) nas análises e recomendações.'}
 
 Seja específico para o tipo de atividade (${classifiedType}), use os dados de comparação para dar insights valiosos, e mantenha as recomendações práticas e acionáveis. Se não houver dados históricos, foque na análise absoluta da performance atual.
 `;
