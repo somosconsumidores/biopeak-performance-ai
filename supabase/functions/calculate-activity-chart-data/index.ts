@@ -410,9 +410,26 @@ Deno.serve(async (req) => {
     type SeriesPoint = { time_s: number; distance_m: number | null; hr: number | null; speed_ms: number | null; pace_min_km: number | null }
     let series: SeriesPoint[] = []
 
+    const toEpochSeconds = (v: any): number | null => {
+      if (v == null) return null
+      if (typeof v === 'number' && isFinite(v)) return v > 1e10 ? v / 1000 : v // ms or s
+      if (typeof v === 'string') {
+        const ms = new Date(v).getTime()
+        return isFinite(ms) ? ms / 1000 : null
+      }
+      if (v instanceof Date) {
+        const ms = v.getTime()
+        return isFinite(ms) ? ms / 1000 : null
+      }
+      return null
+    }
+
+    const baseTsSec = toEpochSeconds(rows[0]?.sample_timestamp)
+
     let timeS = 0
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i]
+
       // Prefer explicit time fields when available
       const t =
         r.time_seconds ??
@@ -424,7 +441,13 @@ Deno.serve(async (req) => {
       if (typeof t === 'number' && isFinite(t)) {
         timeS = t
       } else {
-        timeS = i // fallback to index as seconds
+        // For GPX-like sources, use real timestamps when present (prevents inflated speeds)
+        const tsSec = toEpochSeconds(r.sample_timestamp)
+        if (tsSec != null && baseTsSec != null) {
+          timeS = Math.max(0, tsSec - baseTsSec)
+        } else {
+          timeS = i // fallback to index as seconds
+        }
       }
 
       const speed = r.speed_meters_per_second ?? r.velocity_smooth ?? null
