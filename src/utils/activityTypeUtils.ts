@@ -12,12 +12,34 @@ const CYCLING_ACTIVITY_TYPES = [
   'velomobile'
 ];
 
+// Max realistic speed: 60 km/h for cycling, which is pace ~1.0 min/km
+// Min realistic speed: 3 km/h (slow walk), which is pace ~20 min/km
+const MIN_REALISTIC_PACE = 1.0; // min/km (60 km/h)
+const MAX_REALISTIC_PACE = 20.0; // min/km (3 km/h)
+const MAX_REALISTIC_SPEED_MS = 16.7; // m/s (60 km/h)
+
 /**
  * Checks if the given activity type is a cycling activity
  */
 export const isCyclingActivity = (activityType: string | null | undefined): boolean => {
   if (!activityType) return false;
   return CYCLING_ACTIVITY_TYPES.includes(activityType.toLowerCase());
+};
+
+/**
+ * Validates if pace is within realistic limits
+ */
+export const isRealisticPace = (paceMinPerKm: number | null | undefined): boolean => {
+  if (!paceMinPerKm || paceMinPerKm <= 0) return false;
+  return paceMinPerKm >= MIN_REALISTIC_PACE && paceMinPerKm <= MAX_REALISTIC_PACE;
+};
+
+/**
+ * Validates if speed in m/s is within realistic limits
+ */
+export const isRealisticSpeedMs = (speedMs: number | null | undefined): boolean => {
+  if (!speedMs || speedMs <= 0) return false;
+  return speedMs <= MAX_REALISTIC_SPEED_MS;
 };
 
 /**
@@ -29,11 +51,27 @@ export const paceToSpeed = (paceMinPerKm: number): number => {
 };
 
 /**
+ * Converts pace to speed only if pace is realistic
+ */
+export const paceToSpeedSafe = (paceMinPerKm: number | null | undefined): number | null => {
+  if (!isRealisticPace(paceMinPerKm)) return null;
+  return 60 / paceMinPerKm!;
+};
+
+/**
+ * Converts speed in m/s to km/h safely
+ */
+export const speedMsToKmhSafe = (speedMs: number | null | undefined): number | null => {
+  if (!isRealisticSpeedMs(speedMs)) return null;
+  return speedMs! * 3.6;
+};
+
+/**
  * Formats speed in km/h
  */
 export const formatSpeed = (paceMinPerKm: number | null | undefined): string => {
-  if (!paceMinPerKm || paceMinPerKm <= 0) return '--';
-  const speed = paceToSpeed(paceMinPerKm);
+  if (!isRealisticPace(paceMinPerKm)) return '--';
+  const speed = paceToSpeed(paceMinPerKm!);
   return `${speed.toFixed(1)} km/h`;
 };
 

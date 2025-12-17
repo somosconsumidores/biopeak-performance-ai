@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Heart, TrendingUp, BarChart3, Info } from 'lucide-react';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { isCyclingActivity, paceToSpeed } from '@/utils/activityTypeUtils';
+import { isCyclingActivity, paceToSpeed, isRealisticPace } from '@/utils/activityTypeUtils';
 
 interface HistogramChartProps {
   activityId: string;
@@ -96,8 +96,9 @@ export const HistogramChart = ({ activityId, refreshTrigger, activitySource, act
         }
       };
     } else {
+      // Filter paces to realistic values only (1.0 - 20.0 min/km = 3-60 km/h)
       const paces = chartData
-        .filter(d => d.pace_min_per_km && d.pace_min_per_km > 0 && d.pace_min_per_km < 20) // Filter out unrealistic paces
+        .filter(d => d.pace_min_per_km && isRealisticPace(d.pace_min_per_km))
         .map(d => d.pace_min_per_km!);
 
       if (paces.length === 0) return { data: [], stats: null };
