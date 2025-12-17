@@ -22,13 +22,13 @@ import {
   Sparkles,
   Activity,
   Crown,
-  Lock
+  Lock,
+  RotateCcw
 } from 'lucide-react';
-import { useWorkoutComparison, type ActivityComparison } from '@/hooks/useWorkoutComparison';
+import { useWorkoutComparison } from '@/hooks/useWorkoutComparison';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAnalysisPurchases } from '@/hooks/useAnalysisPurchases';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface WorkoutAIAnalysisDialogProps {
@@ -44,7 +44,7 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
   activityId,
   activitySource
 }) => {
-  const { comparison, loading, error, analyzeWorkout } = useWorkoutComparison();
+  const { comparison, loading, error, analyzeWorkout, clearComparison } = useWorkoutComparison();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
   const { hasPurchased, loading: purchaseCheckLoading } = useAnalysisPurchases(activityId);
   const navigate = useNavigate();
@@ -56,6 +56,23 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
       analyzeWorkout(activityId);
     }
   }, [open, activityId, comparison, loading, subscriptionLoading, purchaseCheckLoading, canAccessAnalysis, analyzeWorkout]);
+
+  const handleReanalyze = async () => {
+    if (!activityId) return;
+    clearComparison();
+    toast({
+      title: 'Reanalisando...',
+      description: 'Gerando uma nova análise com IA.'
+    });
+    await analyzeWorkout(activityId);
+  };
+
+  const isCycling = comparison?.currentActivity.classifiedType === 'Cycling';
+
+  const formatSpeed = (speedKmh: number | null) => {
+    if (speedKmh === null || speedKmh === undefined || speedKmh <= 0) return '--';
+    return `${speedKmh.toFixed(1)} km/h`;
+  };
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return '--';
@@ -242,6 +259,13 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
 
         {!subscriptionLoading && !purchaseCheckLoading && canAccessAnalysis && comparison && (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={handleReanalyze} disabled={loading}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reanalisar
+              </Button>
+            </div>
+
             {/* Activity Overview */}
             <Card className="glass-card border-glass-border">
               <CardHeader>
@@ -286,12 +310,12 @@ export const WorkoutAIAnalysisDialog: React.FC<WorkoutAIAnalysisDialogProps> = (
 
                   <ComparisonMetric
                     icon={TrendingUp}
-                    label="Pace Médio"
+                    label={isCycling ? 'Velocidade Média' : 'Pace Médio'}
                     current={comparison.comparisons.pace.current}
                     historical={comparison.comparisons.pace.historical}
                     percentChange={comparison.comparisons.pace.percentChange}
                     isImprovement={comparison.comparisons.pace.isImprovement}
-                    formatter={formatPace}
+                    formatter={isCycling ? formatSpeed : formatPace}
                   />
 
                   <ComparisonMetric
