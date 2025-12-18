@@ -168,12 +168,13 @@ Deno.serve(async (req) => {
           try {
             console.log(`[garmin-activities-webhook] Processing activity for Garmin user: ${garminUserId}, activity: ${summaryId}`);
 
-            // Find user tokens
+            // Find user tokens - ORDER BY updated_at DESC to get the most recent active token
             const { data: tokens, error: tokenError } = await supabaseClient
               .from('garmin_tokens')
-              .select('user_id, access_token, is_active')
+              .select('user_id, access_token, is_active, updated_at')
               .eq('garmin_user_id', garminUserId)
-              .eq('is_active', true);
+              .eq('is_active', true)
+              .order('updated_at', { ascending: false });
 
             if (tokenError) {
               console.error('[garmin-activities-webhook] Token lookup error:', tokenError);
@@ -184,9 +185,14 @@ Deno.serve(async (req) => {
             let accessToken = null;
 
             if (tokens && tokens.length > 0) {
-              // We have active tokens
+              // Use the most recent active token
               finalUserId = tokens[0].user_id;
               accessToken = tokens[0].access_token;
+              
+              // Log warning if multiple active tokens exist
+              if (tokens.length > 1) {
+                console.warn(`[garmin-activities-webhook] Multiple active tokens (${tokens.length}) found for Garmin user ${garminUserId}, using most recent from user ${finalUserId}`);
+              }
               
               // Process the active token
               try {
