@@ -5555,10 +5555,12 @@ export type Database = {
     }
     Functions: {
       bytea_to_text: { Args: { data: string }; Returns: string }
-      calculate_affiliate_daily_stats: {
-        Args: { affiliate_login_param: string; days_back?: number }
-        Returns: undefined
-      }
+      calculate_affiliate_daily_stats:
+        | {
+            Args: { affiliate_login_param: string; days_back?: number }
+            Returns: undefined
+          }
+        | { Args: { p_affiliate_login: string }; Returns: undefined }
       calculate_affiliate_stats: {
         Args: { affiliate_login_param: string }
         Returns: undefined
