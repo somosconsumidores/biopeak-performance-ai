@@ -3,6 +3,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 
+/**
+ * Formats phone number to international format: 55 + DDD + number
+ * Input: "(11) 99999-1234" or "11999991234"
+ * Output: "5511999991234"
+ */
+const formatPhoneToInternational = (phone: string | undefined): string | undefined => {
+  if (!phone) return undefined;
+  
+  // Remove all non-digit characters
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // If empty after removing non-digits, return undefined
+  if (!digitsOnly) return undefined;
+  
+  // If already starts with 55 and has correct length (13 digits), return as-is
+  if (digitsOnly.startsWith('55') && digitsOnly.length === 13) {
+    return digitsOnly;
+  }
+  
+  // If it has 10 or 11 digits (DDD + number), prepend 55
+  if (digitsOnly.length >= 10 && digitsOnly.length <= 11) {
+    return `55${digitsOnly}`;
+  }
+  
+  // Return as-is if format is unexpected (let validation handle it elsewhere)
+  return digitsOnly;
+};
+
 export interface OnboardingData {
   goal: string;
   goal_other?: string;
@@ -102,6 +130,10 @@ export const useOnboarding = () => {
 
       console.log('🔍 ONBOARDING: Onboarding data saved, updating profile...');
 
+      // Format phone to international format (55 + DDD + number)
+      const formattedPhone = formatPhoneToInternational(data.phone);
+      console.log('📱 Phone formatting:', { original: data.phone, formatted: formattedPhone });
+
       // Update profile to mark onboarding as completed
       const { error: profileError } = await supabase
         .from('profiles')
@@ -109,7 +141,7 @@ export const useOnboarding = () => {
           onboarding_completed: true,
           birth_date: data.birth_date,
           weight_kg: data.weight_kg,
-          phone: data.phone,
+          phone: formattedPhone,
         })
         .eq('user_id', user.id);
 
@@ -146,7 +178,7 @@ export const useOnboarding = () => {
         const notificationPayload = {
           user_id: user.id,
           name: user.user_metadata?.display_name || null,
-          phone: data.phone || null,
+          phone: formattedPhone || null,
         };
         
         console.log('📞 Calling N8N webhook with:', notificationPayload);
