@@ -16,6 +16,27 @@ interface CreateUserRequest {
   };
 }
 
+// Normaliza para o formato: 55 + DDD + número (apenas dígitos)
+// Exemplos:
+//  - "(11) 99999-1234" -> "5511999991234"
+//  - "11999991234" -> "5511999991234"
+//  - "+55 11 99999-1234" -> "5511999991234"
+const normalizePhoneBR55 = (phone?: string): string | null => {
+  if (!phone) return null;
+
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return null;
+
+  // Já está com 55 (Brasil)
+  if (digits.startsWith('55')) return digits;
+
+  // DDD + número (10 ou 11 dígitos)
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+
+  // Qualquer outro formato inesperado: salva apenas dígitos (melhor que quebrar o cadastro)
+  return digits;
+};
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,6 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const { email, password, name, phone, metadata }: CreateUserRequest = await req.json();
+    const normalizedPhone = normalizePhoneBR55(phone);
 
     // Validações básicas
     if (!email || !password) {
@@ -64,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
       email_confirm: true, // Auto-confirma email
       user_metadata: {
         display_name: name,
-        phone,
+        phone: normalizedPhone,
         ...metadata
       }
     });
@@ -88,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
       .upsert({
         user_id: data.user.id,
         display_name: name,
-        phone: phone,
+        phone: normalizedPhone,
         utm_source: metadata?.utm_source || null
       }, {
         onConflict: 'user_id'
