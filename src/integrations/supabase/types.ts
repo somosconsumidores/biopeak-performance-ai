@@ -4946,6 +4946,30 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_buffer: {
+        Row: {
+          created_at: string
+          id: number
+          message_content: string
+          phone: string
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          message_content: string
+          phone: string
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          message_content?: string
+          phone?: string
+          processed?: boolean | null
+        }
+        Relationships: []
+      }
       workout_classification: {
         Row: {
           activity_id: string
