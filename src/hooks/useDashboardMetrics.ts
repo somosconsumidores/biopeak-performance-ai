@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useFitnessScore } from '@/hooks/useFitnessScore';
 import { useOvertrainingRisk, OvertrainingRisk } from '@/hooks/useOvertrainingRisk';
+
+// Cache configuration
+const DASHBOARD_CACHE_KEY = 'dashboard_metrics_cache';
+const DASHBOARD_CACHE_DURATION = 5 * 60 * 1000; // 5 minutos em milliseconds
 
 interface DashboardMetrics {
   vo2Max: {
@@ -86,6 +90,18 @@ interface SleepAnalytics {
   totalSleepMinutes: number;
 }
 
+interface CachedDashboardData {
+  metrics: DashboardMetrics | null;
+  activityDistribution: ActivityDistribution[];
+  alerts: Alert[];
+  recentActivities: RecentActivity[];
+  peakPerformance: PeakPerformance | null;
+  sleepAnalytics: SleepAnalytics | null;
+  activities: any[];
+  timestamp: number;
+  userId: string;
+}
+
 export function useDashboardMetrics() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activityDistribution, setActivityDistribution] = useState<ActivityDistribution[]>([]);
@@ -103,32 +119,110 @@ export function useDashboardMetrics() {
   // Use unified overtraining risk calculation
   const calculatedOvertrainingRisk = useOvertrainingRisk(activities);
 
+  // Cache functions
+  const getCachedData = useCallback((): CachedDashboardData | null => {
+    try {
+      const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
+      if (!cached) return null;
+      
+      const data: CachedDashboardData = JSON.parse(cached);
+      const isExpired = Date.now() - data.timestamp > DASHBOARD_CACHE_DURATION;
+      const isSameUser = data.userId === user?.id;
+      
+      if (isExpired || !isSameUser) {
+        localStorage.removeItem(DASHBOARD_CACHE_KEY);
+        return null;
+      }
+      
+      return data;
+    } catch {
+      localStorage.removeItem(DASHBOARD_CACHE_KEY);
+      return null;
+    }
+  }, [user?.id]);
+
+  const setCachedData = useCallback((data: Omit<CachedDashboardData, 'timestamp' | 'userId'>) => {
+    if (!user) return;
+    
+    const cacheData: CachedDashboardData = {
+      ...data,
+      timestamp: Date.now(),
+      userId: user.id,
+    };
+    
+    try {
+      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(cacheData));
+      console.log('✅ Dashboard data cached successfully');
+    } catch (e) {
+      console.error('Failed to cache dashboard data:', e);
+    }
+  }, [user]);
+
+  const clearCache = useCallback(() => {
+    localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    console.log('🗑️ Dashboard cache cleared');
+  }, []);
+
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
 
-    fetchDashboardData();
+    fetchDashboardData(false);
   }, [user]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (forceRefresh = false) => {
     if (!user) return;
 
     try {
+      // 1. Tentar usar cache primeiro (se não for refresh forçado)
+      if (!forceRefresh) {
+        const cached = getCachedData();
+        if (cached) {
+          const expiresIn = Math.round((DASHBOARD_CACHE_DURATION - (Date.now() - cached.timestamp)) / 1000);
+          console.log('📦 Using cached dashboard data (expires in', expiresIn, 'seconds)');
+          
+          setMetrics(cached.metrics);
+          setActivityDistribution(cached.activityDistribution);
+          setAlerts(cached.alerts);
+          setRecentActivities(cached.recentActivities);
+          setPeakPerformance(cached.peakPerformance);
+          setSleepAnalytics(cached.sleepAnalytics);
+          setActivities(cached.activities);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Buscar dados novos do Supabase
       setLoading(true);
       setError(null);
+      console.log('🔄 Fetching fresh dashboard data from Supabase...');
 
       // Usar a tabela unificada all_activities para máxima performance
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const sinceDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-      // Limit to 100 most recent activities for better performance
+      // Otimizar query: selecionar apenas campos necessários
       const [allActivitiesRes, garminVo2MaxRes] = await Promise.all([
         supabase
           .from('all_activities')
-          .select('*')
+          .select(`
+            id,
+            activity_date,
+            activity_type,
+            total_distance_meters,
+            total_time_minutes,
+            average_heart_rate,
+            max_heart_rate,
+            pace_min_per_km,
+            active_kilocalories,
+            total_elevation_gain_in_meters,
+            total_elevation_loss_in_meters,
+            activity_source
+          `)
           .eq('user_id', user.id)
           .gte('activity_date', sinceDateStr)
           .order('activity_date', { ascending: false })
@@ -138,45 +232,66 @@ export function useDashboardMetrics() {
 
       if (allActivitiesRes.error) throw allActivitiesRes.error;
 
-      const activities = allActivitiesRes.data ?? [];
+      const fetchedActivities = allActivitiesRes.data ?? [];
       const garminVo2MaxData = garminVo2MaxRes || [];
 
-      if (!activities || activities.length === 0) {
+      if (!fetchedActivities || fetchedActivities.length === 0) {
         setMetrics(null);
         setActivityDistribution([]);
         setAlerts([]);
         setRecentActivities([]);
         setPeakPerformance(null);
         setOvertrainingRisk(null);
+        setLoading(false);
         return;
       }
 
       // Set activities for overtraining risk calculation
-      setActivities(activities);
+      setActivities(fetchedActivities);
       
       // Calcular métricas principais
-      const calculatedMetrics = calculateMetrics(activities, garminVo2MaxData);
+      const calculatedMetrics = calculateMetrics(fetchedActivities, garminVo2MaxData);
       setMetrics(calculatedMetrics);
 
       // Calcular distribuição de atividades
-      const distribution = calculateActivityDistribution(activities);
+      const distribution = calculateActivityDistribution(fetchedActivities);
       setActivityDistribution(distribution);
 
       // Gerar alertas inteligentes
-      const intelligentAlerts = generateAlerts(activities);
+      const intelligentAlerts = generateAlerts(fetchedActivities);
       setAlerts(intelligentAlerts);
 
       // Buscar atividades recentes
-      const recentActs = formatRecentActivities(activities.slice(0, 5));
+      const recentActs = formatRecentActivities(fetchedActivities.slice(0, 5));
       setRecentActivities(recentActs);
 
       // Calcular pico de performance
-      const peak = calculatePeakPerformance(activities);
+      const peak = calculatePeakPerformance(fetchedActivities);
       setPeakPerformance(peak);
+
+      // 3. Salvar no cache (sem sleep data ainda)
+      setCachedData({
+        metrics: calculatedMetrics,
+        activityDistribution: distribution,
+        alerts: intelligentAlerts,
+        recentActivities: recentActs,
+        peakPerformance: peak,
+        sleepAnalytics: null,
+        activities: fetchedActivities,
+      });
 
       // Buscar dados de sono de forma assíncrona sem bloquear o resto
       fetchSleepData().then(sleepData => {
         setSleepAnalytics(sleepData);
+        
+        // Atualizar cache com dados de sono
+        const existingCache = getCachedData();
+        if (existingCache) {
+          setCachedData({
+            ...existingCache,
+            sleepAnalytics: sleepData,
+          });
+        }
       }).catch(err => {
         console.error('Error fetching sleep data:', err);
         setSleepAnalytics({
@@ -930,6 +1045,7 @@ export function useDashboardMetrics() {
     sleepAnalytics,
     loading,
     error,
-    refetch: fetchDashboardData
+    refetch: () => fetchDashboardData(true),
+    clearCache,
   };
 }
