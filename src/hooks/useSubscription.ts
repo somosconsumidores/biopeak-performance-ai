@@ -1,13 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { debugLog, debugError, debugWarn } from '@/lib/debug';
-import { cacheSubscription, getCachedSubscription, clearSubscriptionCache } from '@/lib/subscription/cache-ios';
-import { getValidToken } from '@/lib/subscription/token';
-import { checkRevenueCatLight } from '@/lib/subscription/revenuecat-ios';
-import { detectSubscriptionSource, type SubscriptionSource } from '@/lib/subscription/detect-subscription-source';
-import { checkSupabaseSubscription } from '@/lib/subscription/supabase-check';
 
 interface SubscriptionData {
   subscribed: boolean;
@@ -15,269 +8,124 @@ interface SubscriptionData {
   subscription_end?: string | null;
 }
 
+interface CachedData {
+  data: SubscriptionData;
+  timestamp: number;
+}
+
+const CACHE_KEY = 'subscription_cache_v2';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Simple cache functions
+const getCached = (): SubscriptionData | null => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    
+    const { data, timestamp }: CachedData = JSON.parse(raw);
+    const isExpired = Date.now() - timestamp > CACHE_DURATION;
+    const isSubscriptionExpired = data.subscription_end && new Date(data.subscription_end) < new Date();
+    
+    if (isExpired || isSubscriptionExpired) return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const setCache = (data: SubscriptionData): void => {
+  try {
+    const payload: CachedData = { data, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore cache errors
+  }
+};
+
+const clearCache = (): void => {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem('subscription_session_ios_v1');
+    localStorage.removeItem('subscription_cache_ios_v1');
+  } catch {
+    // Ignore
+  }
+};
+
 export const useSubscription = () => {
-  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
+  const [data, setData] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
   
-  const initializingRef = useRef(false);
   const checkingRef = useRef(false);
   const isMountedRef = useRef(true);
-  
-  // Get platform info directly without extra hook to avoid React queue issues
-  const isIOSNative = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
 
-  // Sync subscription status to Supabase in background
-  const syncToSupabase = useCallback(async (data: SubscriptionData) => {
-    try {
-      const token = await getValidToken(supabase);
-      if (!token) return;
-
-      debugLog('📤 Syncing subscription to Supabase...');
-      
-      await supabase.functions.invoke('sync-subscription-status', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          user_id: user?.id,
-          platform: 'ios',
-          subscribed: data.subscribed,
-          expiration_date: data.subscription_end
-        }
-      });
-      
-      debugLog('✅ Subscription synced to Supabase');
-    } catch (error) {
-      debugError('❌ Failed to sync to Supabase:', error);
-    }
-  }, [user?.id]);
-
-  // Função helper para validação completa via edge function
-  const checkFullSubscriptionStatus = useCallback(async () => {
-    try {
-      debugLog('📡 Calling check-subscription edge function...');
-      const token = await getValidToken(supabase);
-      if (!token) {
-        debugWarn('⚠️ No valid token for full check');
-        return;
-      }
-      
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (error) {
-        debugError('❌ Full check failed:', error);
-        return;
-      }
-      
-      if (data?.subscribed && isMountedRef.current) {
-        debugLog('✅ Full check returned subscribed, updating state and cache');
-        const fullData: SubscriptionData = {
-          subscribed: data.subscribed,
-          subscription_tier: data.subscription_tier,
-          subscription_end: data.subscription_end
-        };
-        setSubscriptionData(fullData);
-        cacheSubscription(fullData, 'stripe');
-      }
-    } catch (error) {
-      debugError('❌ Full check exception:', error);
-    }
-  }, []);
-
-  const checkSubscription = useCallback(async (isManualRefresh = false) => {
+  const checkSubscription = useCallback(async (forceRefresh = false) => {
     if (!user) {
-      debugLog('👤 No user, setting subscribed to false');
-      setSubscriptionData({ subscribed: false });
+      setData({ subscribed: false });
       setLoading(false);
       return;
     }
 
-    if (checkingRef.current) {
-      debugWarn('⚠️ Check already in progress, skipping');
-      return;
+    if (checkingRef.current) return;
+    checkingRef.current = true;
+
+    if (!forceRefresh) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
     }
 
-    checkingRef.current = true;
-    if (!isManualRefresh) setLoading(true);
-    else setRefreshing(true);
-
     try {
-      debugLog('🔍 Starting subscription check for user:', user.id);
-
-      // Step 0: Detect subscription source (Stripe vs RevenueCat)
-      const source: SubscriptionSource = await detectSubscriptionSource(user.id);
-      debugLog('📍 Detected subscription source:', source);
-
-      // Step 1: Check cache first (instant response) - validate source match
-      const cached = getCachedSubscription(source === 'stripe' ? 'stripe' : source === 'revenuecat' ? 'revenuecat' : undefined);
-      if (cached && !isManualRefresh) {
-        debugLog('✅ Using valid cache:', cached);
-        if (isMountedRef.current) {
-          setSubscriptionData(cached);
-          setLoading(false);
-        }
-        checkingRef.current = false;
-        
-        // Fire-and-forget background refresh (simple version)
-        (async () => {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          if (!checkingRef.current && isMountedRef.current) {
-            checkingRef.current = true;
-            try {
-              if (source === 'stripe') {
-                debugLog('🔄 Background refresh: checking Supabase for Stripe subscriber...');
-                const supabaseData = await checkSupabaseSubscription(user.id);
-                if (isMountedRef.current && supabaseData.subscribed) {
-                  setSubscriptionData(supabaseData);
-                  cacheSubscription(supabaseData, 'stripe');
-                }
-              } else if (source === 'revenuecat' && isIOSNative) {
-                debugLog('🔄 Background refresh: checking RevenueCat...');
-                const rcData = await Promise.race([
-                  checkRevenueCatLight(user.id),
-                  new Promise<SubscriptionData>((_, reject) => 
-                    setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
-                  )
-                ]);
-                if (isMountedRef.current) {
-                  setSubscriptionData(rcData);
-                  cacheSubscription(rcData, 'revenuecat');
-                  syncToSupabase(rcData).catch(err => 
-                    debugError('Background sync failed:', err)
-                  );
-                }
-              }
-            } catch (error) {
-              debugWarn('⚠️ Background refresh failed:', error);
-            } finally {
-              checkingRef.current = false;
-            }
-          }
-        })();
-        return;
-      }
-
-      // Step 2: SMART CHECK - Skip RevenueCat if user is Stripe subscriber  
-      if (source === 'stripe') {
-        debugLog('💳 User is Stripe subscriber, using direct Supabase check');
-        
-        try {
-          const supabaseData = await checkSupabaseSubscription(user.id);
-          debugLog('✅ Supabase result for Stripe subscriber:', supabaseData);
-          
+      // 1. Check cache (unless forced refresh)
+      if (!forceRefresh) {
+        const cached = getCached();
+        if (cached) {
           if (isMountedRef.current) {
-            setSubscriptionData(supabaseData);
-            cacheSubscription(supabaseData, 'stripe');
+            setData(cached);
+            setLoading(false);
           }
+          checkingRef.current = false;
           return;
-        } catch (error) {
-          debugError('❌ Supabase check failed for Stripe subscriber:', error);
-          // Continue to fallback logic below
         }
       }
 
-      // Step 3: Check RevenueCat (iOS native only, and only if NOT a Stripe subscriber)
-      if (isIOSNative && source === 'revenuecat') {
-        try {
-          debugLog('📱 Checking RevenueCat for RevenueCat subscriber...');
-          const rcData = await Promise.race([
-            checkRevenueCatLight(user.id),
-            new Promise<SubscriptionData>((_, reject) => 
-              setTimeout(() => reject(new Error('RevenueCat timeout')), 3000)
-            )
-          ]);
-          
-          debugLog('✅ RevenueCat result:', rcData);
-          if (isMountedRef.current) {
-            setSubscriptionData(rcData);
-            cacheSubscription(rcData, 'revenuecat');
-          }
-          
-          // Sync to Supabase in background (non-blocking)
-          syncToSupabase(rcData).catch(err => 
-            debugError('Background sync failed:', err)
-          );
-          
-          return;
-        } catch (error) {
-          debugWarn('⚠️ RevenueCat failed, falling back to Supabase:', error);
-        }
-      }
+      // 2. Direct Supabase query (no edge function)
+      const { data: sub, error } = await supabase
+        .from('subscribers')
+        .select('subscribed, subscription_tier, subscription_end')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      // Step 4: Fallback to Supabase direct query (for all cases)
-      debugLog('🔑 Checking Supabase subscription (fallback)...');
-      
-      try {
-        const { data: subData, error: subError } = await supabase
-          .from('subscribers')
-          .select('subscription_type, subscription_tier, subscription_end, subscribed')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      if (error) throw error;
 
-        if (subError) {
-          debugWarn('⚠️ Supabase query error:', subError);
-          throw subError;
-        }
+      // 3. Validate expiration
+      const now = new Date();
+      const isActive = sub?.subscribed && 
+        (!sub.subscription_end || new Date(sub.subscription_end) > now);
 
-        const now = new Date();
-        const isActive = subData?.subscribed && 
-          (!subData.subscription_end || new Date(subData.subscription_end) > now);
+      const result: SubscriptionData = {
+        subscribed: isActive || false,
+        subscription_tier: sub?.subscription_tier,
+        subscription_end: sub?.subscription_end
+      };
 
-        const finalData: SubscriptionData = {
-          subscribed: isActive || false,
-          subscription_tier: subData?.subscription_tier,
-          subscription_end: subData?.subscription_end
-        };
-
-        debugLog('✅ Supabase fallback result:', finalData);
-        
-        if (isMountedRef.current) {
-          setSubscriptionData(finalData);
-          // Cache with appropriate source
-          const cacheSource = source === 'revenuecat' ? 'revenuecat' : 'stripe';
-          cacheSubscription(finalData, cacheSource);
-        }
-      } catch (supabaseError) {
-        debugError('❌ Supabase check failed:', supabaseError);
-        
-        // CRITICAL: Use old cache even if expired (offline mode) - maintain UX
-        const oldCache = getCachedSubscription();
-        if (oldCache && oldCache.subscribed) {
-          debugWarn('⚠️ Using expired cache to maintain UX (offline mode)');
-          if (isMountedRef.current) {
-            setSubscriptionData(oldCache);
-          }
-        } else {
-          debugWarn('⚠️ No valid cache available, setting to not subscribed');
-          if (isMountedRef.current) {
-            setSubscriptionData({ subscribed: false });
-          }
-        }
+      // 4. Cache and update state
+      setCache(result);
+      if (isMountedRef.current) {
+        setData(result);
       }
 
     } catch (error) {
-      debugError('❌ Subscription check failed:', error);
+      console.error('Subscription check failed:', error);
       
-      // CRITICAL: Use cached data if available (offline mode) - maintain UX
-      const fallbackCache = getCachedSubscription();
-      if (fallbackCache && fallbackCache.subscribed) {
-        debugWarn('⚠️ Using cached data to maintain UX during error');
-        if (isMountedRef.current) {
-          setSubscriptionData(fallbackCache);
-        }
-      } else {
-        debugWarn('⚠️ Error with no valid cache available');
-        if (isMountedRef.current) {
-          setSubscriptionData({ subscribed: false });
-        }
+      // Fallback: use expired cache if available (offline mode)
+      const fallback = getCached();
+      if (fallback?.subscribed && isMountedRef.current) {
+        setData(fallback);
+      } else if (isMountedRef.current) {
+        setData({ subscribed: false });
       }
     } finally {
       if (isMountedRef.current) {
@@ -285,53 +133,16 @@ export const useSubscription = () => {
         setRefreshing(false);
       }
       checkingRef.current = false;
-      debugLog('✅ Subscription check complete');
     }
-  }, [user, isIOSNative, syncToSupabase]);
-
-  // Forçar refresh completo após login (todas as plataformas)
-  useEffect(() => {
-    if (user) {
-      debugLog('🔄 Login detected, scheduling full subscription check...');
-      const timeoutId = setTimeout(() => {
-        checkFullSubscriptionStatus();
-      }, 2000);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user?.id, checkFullSubscriptionStatus]);
+  }, [user]);
 
   // Initialize on mount and user change
   useEffect(() => {
     isMountedRef.current = true;
+    checkSubscription(false);
     
-    if (initializingRef.current) return;
-    
-    const initialize = async () => {
-      initializingRef.current = true;
-      debugLog('🚀 Initializing subscription...');
-      
-      if (!user) {
-        debugLog('👤 No user found');
-        if (isMountedRef.current) {
-          setSubscriptionData({ subscribed: false });
-          setLoading(false);
-        }
-        initializingRef.current = false;
-        return;
-      }
-
-      await checkSubscription(false);
-      initializingRef.current = false;
-    };
-
-    initialize();
-
-    // Cleanup function
     return () => {
       isMountedRef.current = false;
-      initializingRef.current = false;
-      checkingRef.current = false;
     };
   }, [user?.id, checkSubscription]);
 
@@ -339,63 +150,48 @@ export const useSubscription = () => {
   useEffect(() => {
     if (!user?.id) return;
     
-    debugLog('🔔 Setting up Realtime listener for subscription updates');
-    
     const channel = supabase
       .channel('subscription-changes')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
-          table: 'subscription_updates',
+          table: 'subscribers',
           filter: `user_id=eq.${user.id}`
         },
-        (payload) => {
-          debugLog('🔔 Subscription update received via Realtime:', payload);
-          clearSubscriptionCache();
+        () => {
+          clearCache();
           checkSubscription(true);
         }
       )
-      .subscribe((status) => {
-        debugLog('📡 Realtime subscription status:', status);
-      });
+      .subscribe();
     
     return () => {
-      debugLog('🔕 Unsubscribing from Realtime channel');
       channel.unsubscribe();
     };
   }, [user?.id, checkSubscription]);
 
-  // Listen for auth changes to clear cache on logout
+  // Clear cache on logout
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        debugLog('👋 User signed out, clearing cache');
-        clearSubscriptionCache();
+        clearCache();
         if (isMountedRef.current) {
-          setSubscriptionData({ subscribed: false });
+          setData({ subscribed: false });
         }
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Manual refresh function
-  const refreshSubscription = useCallback(async () => {
-    debugLog('🔄 Manual refresh requested');
-    await checkSubscription(true);
-  }, [checkSubscription]);
-
   return {
-    isSubscribed: subscriptionData?.subscribed || false,
-    subscriptionTier: subscriptionData?.subscription_tier,
-    subscriptionEnd: subscriptionData?.subscription_end,
+    isSubscribed: data?.subscribed || false,
+    subscriptionTier: data?.subscription_tier,
+    subscriptionEnd: data?.subscription_end,
     loading,
     refreshing,
-    refreshSubscription,
+    refreshSubscription: () => checkSubscription(true),
   };
 };
