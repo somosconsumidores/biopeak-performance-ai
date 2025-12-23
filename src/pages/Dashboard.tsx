@@ -10,6 +10,7 @@ import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
 import { RaceCalendar } from '@/components/RaceCalendar';
 import { TodayTrainingAlert } from '@/components/TodayTrainingAlert';
 import { CoachInsightsCarousel } from '@/components/CoachInsightsCarousel';
+import { CoachAdviceCard } from '@/components/CoachAdviceCard';
 import { useRaceStrategies } from '@/hooks/useRaceStrategies';
 import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
@@ -279,6 +280,13 @@ export const Dashboard = () => {
           <ScrollReveal delay={10}>
             <div className="mb-6 md:mb-8">
               <TodayTrainingAlert />
+            </div>
+          </ScrollReveal>
+
+          {/* Coach Advice Card */}
+          <ScrollReveal delay={12}>
+            <div className="mb-4 md:mb-6">
+              <CoachAdviceCard />
             </div>
           </ScrollReveal>
 
