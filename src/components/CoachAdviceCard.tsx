@@ -60,7 +60,7 @@ export const CoachAdviceCard = () => {
                 Análises personalizadas do Coach IA disponíveis no plano Pro
               </p>
             </div>
-            <Link to="/pricing">
+            <Link to="/paywall2">
               <Button size="sm" className="bg-gradient-to-r from-primary to-primary/80">
                 Upgrade
               </Button>
