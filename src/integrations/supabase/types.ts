@@ -5395,6 +5395,29 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_all_activities_30_days: {
+        Row: {
+          active_kilocalories: number | null
+          activity_date: string | null
+          activity_id: string | null
+          activity_source: string | null
+          activity_type: string | null
+          average_heart_rate: number | null
+          created_at: string | null
+          detected_workout_type: string | null
+          device_name: string | null
+          id: string | null
+          max_heart_rate: number | null
+          pace_min_per_km: number | null
+          total_distance_meters: number | null
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          total_time_minutes: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       mv_biopeak_acwr_run: {
         Row: {
           acute_km: number | null
