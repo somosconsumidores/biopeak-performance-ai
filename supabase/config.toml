@@ -266,3 +266,6 @@ verify_jwt = false
 
 [functions.reschedule-workout]
 verify_jwt = true
+
+[functions.refresh-materialized-views]
+verify_jwt = false
