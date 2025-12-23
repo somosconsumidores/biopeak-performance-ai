@@ -18,16 +18,28 @@ export interface CoachInsight {
   created_at: string;
 }
 
-export const useCoachInsights = () => {
+export const useCoachInsights = (isSubscribed: boolean | undefined) => {
   const { user } = useAuth();
   const [insights, setInsights] = useState<CoachInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Skip fetch if not subscribed
+    if (isSubscribed === false) {
+      setLoading(false);
+      setInsights([]);
+      return;
+    }
+
     const fetchInsights = async () => {
       if (!user) {
         setLoading(false);
+        return;
+      }
+
+      // Wait for subscription status to be determined
+      if (isSubscribed === undefined) {
         return;
       }
 
@@ -112,7 +124,7 @@ export const useCoachInsights = () => {
     };
 
     fetchInsights();
-  }, [user]);
+  }, [user, isSubscribed]);
 
   return { insights, loading, error };
 };

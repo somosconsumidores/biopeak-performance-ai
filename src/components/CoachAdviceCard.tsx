@@ -14,31 +14,13 @@ import { Link } from 'react-router-dom';
 const MAX_PREVIEW_LENGTH = 280;
 
 export const CoachAdviceCard = () => {
-  const { advice, loading, error } = useCoachAdvice();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const { advice, loading, error } = useCoachAdvice(isSubscribed);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFullDialog, setShowFullDialog] = useState(false);
 
-  // Loading state
-  if (loading || subscriptionLoading) {
-    return (
-      <Card className="glass-card border-glass-border overflow-hidden">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-start gap-4">
-            <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
-            <div className="flex-1 space-y-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Not subscribed - show premium prompt
-  if (!isSubscribed) {
+  // Show upgrade prompt immediately for non-subscribers (don't wait for data loading)
+  if (!subscriptionLoading && isSubscribed === false) {
     return (
       <Card className="glass-card border-glass-border overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
@@ -65,6 +47,24 @@ export const CoachAdviceCard = () => {
                 Upgrade
               </Button>
             </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Loading state - only for subscribers checking their data
+  if (loading || subscriptionLoading) {
+    return (
+      <Card className="glass-card border-glass-border overflow-hidden">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start gap-4">
+            <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
           </div>
         </CardContent>
       </Card>
