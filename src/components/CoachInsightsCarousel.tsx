@@ -183,33 +183,13 @@ const EfficiencyMeter = ({ value, color }: { value: number; color: string }) => 
 };
 
 export const CoachInsightsCarousel = () => {
-  const { insights, loading, error } = useCoachInsights();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
+  const { insights, loading, error } = useCoachInsights(isSubscribed);
   const navigate = useNavigate();
 
   const carouselItems = useMemo(() => {
-    // Show skeleton while loading subscription status
-    if (loading || subscriptionLoading) {
-      return Array.from({ length: 2 }).map((_, i) => (
-        <CarouselItem key={`skeleton-${i}`} className="basis-[85%] sm:basis-[320px] pl-4">
-          <Card className="glass-card border-glass-border h-full overflow-hidden">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-start justify-between">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-5 w-20 rounded-full" />
-              </div>
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-2 w-full rounded-full" />
-              <Skeleton className="h-3 w-32" />
-            </CardContent>
-          </Card>
-        </CarouselItem>
-      ));
-    }
-
-    // Show Pro-only card for non-subscribers
-    if (!isSubscribed) {
+    // Show Pro-only card immediately for non-subscribers (don't wait for data loading)
+    if (!subscriptionLoading && isSubscribed === false) {
       return [
         <CarouselItem key="pro-only" className="basis-[85%] sm:basis-[320px] pl-4">
           <Card className="glass-card border-primary/30 h-full overflow-hidden relative bg-gradient-to-br from-primary/5 via-transparent to-primary/10">
@@ -240,7 +220,7 @@ export const CoachInsightsCarousel = () => {
               
               <Button 
                 size="sm" 
-                onClick={() => navigate('/paywall')}
+                onClick={() => navigate('/paywall2')}
                 className="bg-primary hover:bg-primary/90"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
@@ -250,6 +230,26 @@ export const CoachInsightsCarousel = () => {
           </Card>
         </CarouselItem>,
       ];
+    }
+
+    // Show skeleton while loading subscription status or data for subscribers
+    if (loading || subscriptionLoading) {
+      return Array.from({ length: 2 }).map((_, i) => (
+        <CarouselItem key={`skeleton-${i}`} className="basis-[85%] sm:basis-[320px] pl-4">
+          <Card className="glass-card border-glass-border h-full overflow-hidden">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-start justify-between">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-3 w-32" />
+            </CardContent>
+          </Card>
+        </CarouselItem>
+      ));
     }
 
     if (error || insights.length === 0) {

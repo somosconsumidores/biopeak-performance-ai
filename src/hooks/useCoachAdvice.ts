@@ -35,16 +35,28 @@ const formatCoachText = (text: string): string => {
     .trim();
 };
 
-export const useCoachAdvice = () => {
+export const useCoachAdvice = (isSubscribed: boolean | undefined) => {
   const { user } = useAuth();
   const [advice, setAdvice] = useState<CoachAdvice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Skip fetch if not subscribed or subscription status unknown yet
+    if (isSubscribed === false) {
+      setLoading(false);
+      setAdvice(null);
+      return;
+    }
+
     const fetchAdvice = async () => {
       if (!user) {
         setLoading(false);
+        return;
+      }
+
+      // Wait for subscription status to be determined
+      if (isSubscribed === undefined) {
         return;
       }
 
@@ -99,7 +111,7 @@ export const useCoachAdvice = () => {
     };
 
     fetchAdvice();
-  }, [user]);
+  }, [user, isSubscribed]);
 
   return { advice, loading, error };
 };
