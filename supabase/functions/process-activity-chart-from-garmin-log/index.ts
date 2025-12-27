@@ -317,14 +317,15 @@ Deno.serve(async (req) => {
     let srcActivityId: string | null = null;
 
     if (webhook_log_id) {
-      const { data: logRow, error: logErr } = await supabase
+      // Primeiro busca metadados (leve) para validar o tipo
+      const { data: logMeta, error: metaErr } = await supabase
         .from("garmin_webhook_logs")
-        .select("id, user_id, webhook_type, payload")
+        .select("id, user_id, webhook_type")
         .eq("id", webhook_log_id)
         .single();
-      if (logErr || !logRow) throw new Error(`Log not found: ${logErr?.message}`);
+      if (metaErr || !logMeta) throw new Error(`Log not found: ${metaErr?.message}`);
 
-      const type = (logRow.webhook_type || '').toLowerCase();
+      const type = (logMeta.webhook_type || '').toLowerCase();
       if (!type.includes("activity") || !type.includes("detail")) {
         return new Response(
           JSON.stringify({ success: false, message: "Not an activity details log" }),
@@ -332,10 +333,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      payload = logRow.payload;
-      logUserId = logRow.user_id;
+      // Usa RPC com statement_timeout=60s para buscar payload grande
+      const { data: payloadData, error: payloadErr } = await supabase
+        .rpc("get_garmin_webhook_log_payload", { p_log_id: webhook_log_id });
+      if (payloadErr) throw new Error(`Failed to fetch payload: ${payloadErr.message}`);
+      
+      payload = payloadData;
+      logUserId = logMeta.user_id;
       // Try to get activity id from payload common fields
       srcActivityId = payload?.activityId?.toString() || payload?.summaryId?.toString() || payload?.activity_id?.toString() || null;
+      console.info(`[process-activity-chart] Payload loaded via RPC, size: ${JSON.stringify(payload).length} bytes`);
     } else if (activity_id && user_id) {
       // Fallback path: query the latest matching log by activity id
       const { data: logs, error } = await supabase
