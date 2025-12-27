@@ -5709,6 +5709,10 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_garmin_webhook_log_payload: {
+        Args: { p_log_id: string }
+        Returns: Json
+      }
       get_polar_activities_without_details: {
         Args: never
         Returns: {
