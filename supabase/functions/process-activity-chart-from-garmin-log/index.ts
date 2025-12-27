@@ -300,7 +300,17 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Timeout de 60 segundos para processar payloads grandes (>1MB)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: {
+        fetch: (url, options = {}) => {
+          return fetch(url, {
+            ...options,
+            signal: AbortSignal.timeout(60000), // 60 segundos
+          });
+        },
+      },
+    });
 
     let payload: any = null;
     let logUserId: string | null = null;
