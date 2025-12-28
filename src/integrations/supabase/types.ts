@@ -5978,40 +5978,37 @@ export type Database = {
             }
             Returns: Json
           }
-      upsert_activity_chart_data:
+      upsert_activity_chart_data: {
+        Args: {
+          p_activity_id: string
+          p_activity_source: string
+          p_avg_heart_rate: number
+          p_avg_pace_min_km: number
+          p_avg_speed_ms: number
+          p_data_points_count: number
+          p_duration_seconds: number
+          p_max_heart_rate: number
+          p_series_data: Json
+          p_total_distance_meters: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      upsert_activity_coordinates:
         | {
             Args: {
               p_activity_id: string
               p_activity_source: string
-              p_avg_heart_rate?: number
-              p_avg_pace_min_km?: number
-              p_avg_speed_ms?: number
-              p_data_points_count: number
-              p_duration_seconds?: number
-              p_max_heart_rate?: number
-              p_series_data: Json
-              p_total_distance_meters?: number
+              p_bounding_box: Json
+              p_coordinates: Json
+              p_sampled_points: number
+              p_starting_latitude: number
+              p_starting_longitude: number
+              p_total_points: number
               p_user_id: string
             }
             Returns: undefined
           }
-        | {
-            Args: {
-              p_activity_id: string
-              p_activity_source: string
-              p_avg_heart_rate: number
-              p_avg_pace_min_km: number
-              p_avg_speed_ms: number
-              p_data_points_count: number
-              p_duration_seconds: number
-              p_max_heart_rate: number
-              p_series_data: Json
-              p_total_distance_meters: number
-              p_user_id: string
-            }
-            Returns: Json
-          }
-      upsert_activity_coordinates:
         | {
             Args: {
               p_activity_id: string
