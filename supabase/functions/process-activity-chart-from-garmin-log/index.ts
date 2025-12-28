@@ -447,30 +447,25 @@ Deno.serve(async (req) => {
     const avgHr = safeAvg(sampled.map(p => p.heart_rate ?? null));
     const maxHr = safeMax(sampled.map(p => p.heart_rate ?? null));
 
-    // Clean previous entries
-    await supabase
-      .from("activity_chart_data")
-      .delete()
-      .eq("user_id", userId)
-      .eq("activity_source", "garmin")
-      .eq("activity_id", activityId);
-
-    const insertPayload = {
-      user_id: userId,
-      activity_id: activityId,
-      activity_source: "garmin",
-      series_data: sampled,
-      data_points_count: sampled.length,
-      duration_seconds: durationSeconds,
-      total_distance_meters: totalDistance,
-      avg_speed_ms: avgSpeed,
-      avg_pace_min_km: avgPace,
-      avg_heart_rate: avgHr ? Math.round(avgHr) : null,
-      max_heart_rate: maxHr ? Math.round(maxHr) : null,
-    } as any;
-
-const { error: insErr } = await supabase.from("activity_chart_data").insert(insertPayload);
-if (insErr) throw insErr;
+    // Use RPC with extended timeout (60s) for heavy upsert operation
+    console.info("[process-activity-chart] Starting upsert_activity_chart_data RPC...");
+    const { data: chartResult, error: chartErr } = await supabase.rpc("upsert_activity_chart_data", {
+      p_user_id: userId,
+      p_activity_id: activityId,
+      p_activity_source: "garmin",
+      p_series_data: sampled,
+      p_data_points_count: sampled.length,
+      p_duration_seconds: durationSeconds ?? null,
+      p_total_distance_meters: totalDistance,
+      p_avg_speed_ms: avgSpeed,
+      p_avg_pace_min_km: avgPace,
+      p_avg_heart_rate: avgHr ? Math.round(avgHr) : null,
+      p_max_heart_rate: maxHr ? Math.round(maxHr) : null,
+    });
+    
+    if (chartErr) throw new Error(`upsert_activity_chart_data failed: ${chartErr.message}`);
+    if (chartResult && !chartResult.success) throw new Error(`upsert_activity_chart_data error: ${chartResult.error}`);
+    console.info("[process-activity-chart] upsert_activity_chart_data completed successfully");
 
 // Build and upsert GPS coordinates prioritizing payload (since garmin_activity_details is deprecated)
 const extractCoordsFromPayload = (p: any): [number, number][] => {
@@ -563,26 +558,23 @@ if (coords && coords.length > 0) {
     [Math.max(...lats), Math.max(...lons)]
   ];
 
-  // Upsert into activity_coordinates
-  await supabase
-    .from('activity_coordinates')
-    .delete()
-    .eq('user_id', userId)
-    .eq('activity_source', 'garmin')
-    .eq('activity_id', activityId);
-
-  const { error: coordInsErr } = await supabase.from('activity_coordinates').insert({
-    user_id: userId,
-    activity_id: activityId,
-    activity_source: 'garmin',
-    coordinates: coordsSampled,
-    total_points,
-    sampled_points: coordsSampled.length,
-    starting_latitude: coordsSampled[0]?.[0] ?? null,
-    starting_longitude: coordsSampled[0]?.[1] ?? null,
-    bounding_box: bounds,
+  // Use RPC with extended timeout (60s) for heavy upsert operation
+  console.info("[process-activity-chart] Starting upsert_activity_coordinates RPC...");
+  const { data: coordResult, error: coordRpcErr } = await supabase.rpc("upsert_activity_coordinates", {
+    p_user_id: userId,
+    p_activity_id: activityId,
+    p_activity_source: "garmin",
+    p_coordinates: coordsSampled,
+    p_total_points: total_points,
+    p_sampled_points: coordsSampled.length,
+    p_starting_latitude: coordsSampled[0]?.[0] ?? null,
+    p_starting_longitude: coordsSampled[0]?.[1] ?? null,
+    p_bounding_box: bounds,
   });
-  if (coordInsErr) console.warn('[process-activity-chart] coord insert error', coordInsErr.message);
+  
+  if (coordRpcErr) console.warn('[process-activity-chart] coord RPC error', coordRpcErr.message);
+  else if (coordResult && !coordResult.success) console.warn('[process-activity-chart] coord upsert error', coordResult.error);
+  else console.info("[process-activity-chart] upsert_activity_coordinates completed successfully");
 }
 
 console.info("[process-activity-chart] inserted", { rows: 1, points: sampled.length, userId, activityId });
