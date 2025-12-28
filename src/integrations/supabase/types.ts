@@ -5994,49 +5994,20 @@ export type Database = {
         }
         Returns: undefined
       }
-      upsert_activity_coordinates:
-        | {
-            Args: {
-              p_activity_id: string
-              p_activity_source: string
-              p_bounding_box: Json
-              p_coordinates: Json
-              p_sampled_points: number
-              p_starting_latitude: number
-              p_starting_longitude: number
-              p_total_points: number
-              p_user_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_activity_id: string
-              p_activity_source: string
-              p_bounding_box?: Json
-              p_coordinates: Json
-              p_sampled_points: number
-              p_starting_latitude?: number
-              p_starting_longitude?: number
-              p_total_points: number
-              p_user_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_activity_id: string
-              p_activity_source: string
-              p_bounding_box: Json
-              p_coordinates: Json
-              p_sampled_points: number
-              p_starting_latitude: number
-              p_starting_longitude: number
-              p_total_points: number
-              p_user_id: string
-            }
-            Returns: Json
-          }
+      upsert_activity_coordinates: {
+        Args: {
+          p_activity_id: string
+          p_activity_source: string
+          p_bounding_box: Json
+          p_coordinates: Json
+          p_sampled_points: number
+          p_starting_latitude: number
+          p_starting_longitude: number
+          p_total_points: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       urlencode:
         | { Args: { data: Json }; Returns: string }
         | {
