@@ -202,7 +202,7 @@ export const SalesLandingPage = () => {
               <span className="bg-gradient-primary bg-clip-text text-transparent"> próximo nível</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Análises inteligentes, coaching personalizado e insights profissionais para transformar sua performance na corrida.
+              Coaching personalizado com planos de treino de Corrida, Ciclismo, Natação e Força (complementar), além de Plano Nutricional e insights profissionais para transformar sua performance como atleta.
             </p>
             <div className="flex justify-center my-4">
               <img 
