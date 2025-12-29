@@ -460,38 +460,15 @@ export const SalesLandingPage = () => {
                   {/* Phone frame effect */}
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-accent/20 rounded-[3rem] blur-2xl animate-pulse" />
                   
-                  {/* Screenshot carousel */}
+                  {/* Single image */}
                   <div className="relative bg-background/10 backdrop-blur-sm rounded-[2.5rem] p-3 border-2 border-primary/30 shadow-2xl">
                     <div className="relative overflow-hidden rounded-[2rem] aspect-[9/19.5] bg-background">
-                      {whyBiopeakScreenshots.map((screenshot, index) => (
-                        <img
-                          key={index}
-                          src={screenshot}
-                          alt={`BioPeak app demonstration ${index + 1}`}
-                          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
-                            index === currentScreenshot 
-                              ? 'opacity-100 scale-100' 
-                              : 'opacity-0 scale-95'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Dot indicators */}
-                  <div className="flex justify-center gap-2 mt-6">
-                    {whyBiopeakScreenshots.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setCurrentScreenshot(index)}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          index === currentScreenshot 
-                            ? 'bg-primary w-8' 
-                            : 'bg-primary/30 hover:bg-primary/50'
-                        }`}
-                        aria-label={`View screenshot ${index + 1}`}
+                      <img
+                        src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/12.png"
+                        alt="BioPeak app demonstration"
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
-                    ))}
+                    </div>
                   </div>
                 </div>
 
