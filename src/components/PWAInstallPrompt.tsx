@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, X } from 'lucide-react';
@@ -11,9 +12,13 @@ interface BeforeInstallPromptEvent extends Event {
 
 export const PWAInstallPrompt = () => {
   const { isNative } = usePlatform();
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  // Don't show on landing page
+  const isLandingPage = location.pathname === '/landingpage';
 
   useEffect(() => {
     // Check if device is iOS
@@ -84,7 +89,7 @@ export const PWAInstallPrompt = () => {
   }, [isIOS]);
 
   // Don't show on native platforms or if prompt was dismissed
-  if (isNative || !showPrompt) return null;
+  if (isNative || !showPrompt || isLandingPage) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500">
