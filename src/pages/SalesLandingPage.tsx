@@ -455,21 +455,16 @@ export const SalesLandingPage = () => {
             
             <ScrollReveal delay={300}>
               <div className="relative">
-                {/* Main display area with phone mockup effect */}
-                <div className="relative mx-auto max-w-sm">
-                  {/* Phone frame effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-accent/20 rounded-[3rem] blur-2xl animate-pulse" />
-                  
-                  {/* Single image */}
-                  <div className="relative bg-background/10 backdrop-blur-sm rounded-[2.5rem] p-3 border-2 border-primary/30 shadow-2xl">
-                    <div className="relative overflow-hidden rounded-[2rem] aspect-[9/19.5] bg-background">
-                      <img
-                        src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/12.png"
-                        alt="BioPeak app demonstration"
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
+                {/* Glow effect behind image */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/10 to-accent/20 rounded-3xl blur-3xl scale-110" />
+                
+                {/* Image container */}
+                <div className="relative">
+                  <img
+                    src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/app-screenshots/12.png"
+                    alt="BioPeak app - Planos de treino personalizados para Corrida, Ciclismo, Natação e Força"
+                    className="relative w-full h-auto max-w-lg mx-auto rounded-2xl shadow-2xl"
+                  />
                 </div>
 
                 {/* Floating elements for visual interest */}
