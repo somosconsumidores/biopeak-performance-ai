@@ -369,9 +369,9 @@ export const SalesLandingPage = () => {
               <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
                 Comece hoje mesmo e descubra como a IA pode transformar seus treinos
               </p>
-              <Link to="/auth">
+              <Link to="/auth?plan=pro">
                 <Button size="lg" className="group">
-                  Começar Gratuitamente
+                  Assinar o Plano Pro
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
