@@ -1,0 +1,2 @@
+INSERT INTO subscribers (user_id, email, subscribed, subscription_tier, subscription_type, subscription_end, updated_at) 
+VALUES ('334f7ebe-690e-4694-8e95-592816af9aed', 'rogeribraso@gmail.com', true, 'pro', 'recurring', '2026-01-27 18:42:28+00', now())
