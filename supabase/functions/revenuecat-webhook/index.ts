@@ -124,12 +124,31 @@ serve(async (req) => {
       data = result.data;
       error = result.error;
     } else {
-      // Criar novo subscriber
+      // Criar novo subscriber - buscar email do usuário primeiro
       console.log('➕ Creating new subscriber');
+      
+      // Buscar email do usuário na tabela auth.users
+      const { data: userData, error: userError } = await supabase
+        .auth.admin.getUserById(app_user_id);
+      
+      if (userError) {
+        console.error('❌ Error fetching user data:', userError);
+        throw new Error(`Could not fetch user data for user_id: ${app_user_id}`);
+      }
+      
+      const userEmail = userData?.user?.email;
+      if (!userEmail) {
+        console.error('❌ User email not found for user_id:', app_user_id);
+        throw new Error(`User email not found for user_id: ${app_user_id}`);
+      }
+      
+      console.log('📧 Found user email:', userEmail);
+      
       const result = await supabase
         .from('subscribers')
         .insert({
           user_id: app_user_id,
+          email: userEmail,
           subscribed,
           subscription_tier,
           subscription_end,
