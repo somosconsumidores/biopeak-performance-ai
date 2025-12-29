@@ -195,7 +195,7 @@ export const LandingPage = () => {
               {t('heroDescription')}
             </p>
             <div className="flex justify-center mb-8">
-              <img src={heroSectionImage} alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
+              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/HeroSection.png" alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
             </div>
             <div className="flex justify-center mb-8">
               <img 
