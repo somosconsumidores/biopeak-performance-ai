@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import { usePlatform } from "./hooks/usePlatform";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
@@ -12,18 +11,12 @@ import { PlatformDebugger } from "./components/PlatformDebugger";
 import { PermissionOnboarding } from "./components/PermissionOnboarding";
 import { SurveyPopup } from "./components/SurveyPopup";
 import { useSurveyPopup } from "./hooks/useSurveyPopup";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-
-// Blog pages (lazy loaded for performance)
-const BlogIndex = lazy(() => import("./pages/blog/BlogIndex"));
-const BlogPost = lazy(() => import("./pages/blog/BlogPost"));
-const AdminBlogDashboard = lazy(() => import("./pages/admin/blog/AdminBlogDashboard"));
-const AdminBlogEditor = lazy(() => import("./pages/admin/blog/AdminBlogEditor"));
 
 import { LandingPage } from "./pages/LandingPage";
 import { SalesLandingPage } from "./pages/SalesLandingPage";
@@ -76,19 +69,17 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <RootErrorBoundary>
-        <HelmetProvider>
-          <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AuthProvider>
-                <AppRoutes />
-                {import.meta.env.DEV && <PlatformDebugger />}
-                <PWAInstallPrompt />
-              </AuthProvider>
-            </TooltipProvider>
-          </ThemeProvider>
-        </HelmetProvider>
+        <ThemeProvider defaultTheme="dark" storageKey="biopeak-ui-theme">
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AuthProvider>
+              <AppRoutes />
+              {import.meta.env.DEV && <PlatformDebugger />}
+              <PWAInstallPrompt />
+            </AuthProvider>
+          </TooltipProvider>
+        </ThemeProvider>
       </RootErrorBoundary>
     </QueryClientProvider>
   );
@@ -343,42 +334,6 @@ function AppRoutes() {
             <Nutrition />
           </ProtectedRoute>
         } />
-        
-        {/* Blog Routes - Public */}
-        <Route path="/blog" element={
-          <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Carregando...</div></div>}>
-            <BlogIndex />
-          </Suspense>
-        } />
-        <Route path="/blog/:slug" element={
-          <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Carregando...</div></div>}>
-            <BlogPost />
-          </Suspense>
-        } />
-        
-        {/* Blog Admin Routes */}
-        <Route path="/admin/blog" element={
-          <ProtectedRoute>
-            <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Carregando...</div></div>}>
-              <AdminBlogDashboard />
-            </Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/blog/new" element={
-          <ProtectedRoute>
-            <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Carregando...</div></div>}>
-              <AdminBlogEditor />
-            </Suspense>
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/blog/edit/:id" element={
-          <ProtectedRoute>
-            <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Carregando...</div></div>}>
-              <AdminBlogEditor />
-            </Suspense>
-          </ProtectedRoute>
-        } />
-        
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
