@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCache, setCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,6 +38,11 @@ interface NutritionalPlanData {
   shopping_list: string[];
 }
 
+interface CachedWeeklyPlanData {
+  planData: NutritionalPlanData | null;
+  activeDay: string;
+}
+
 const mealConfig = [
   { key: 'breakfast', label: 'Café da Manhã', icon: Coffee, gradient: 'from-amber-500 to-orange-500' },
   { key: 'lunch', label: 'Almoço', icon: Sun, gradient: 'from-yellow-500 to-amber-500' },
@@ -44,24 +50,27 @@ const mealConfig = [
   { key: 'dinner', label: 'Jantar', icon: Moon, gradient: 'from-indigo-500 to-purple-500' }
 ] as const;
 
+const CACHE_DURATION = CACHE_DURATIONS.PROFILE; // 30 minutes
+
 export function NutritionWeeklyPlan() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [planData, setPlanData] = useState<NutritionalPlanData | null>(null);
+  
+  // Initialize state with cache
+  const cached = user?.id 
+    ? getCache<CachedWeeklyPlanData>(CACHE_KEYS.NUTRITION_WEEKLY_PLAN, user.id, CACHE_DURATION)
+    : null;
+  
+  const [loading, setLoading] = useState(!cached?.planData);
+  const [planData, setPlanData] = useState<NutritionalPlanData | null>(cached?.planData || null);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-  const [activeDay, setActiveDay] = useState<string>('');
+  const [activeDay, setActiveDay] = useState<string>(cached?.activeDay || '');
 
-  useEffect(() => {
-    if (user) {
-      fetchNutritionalPlan();
-    }
-  }, [user]);
-
-  const fetchNutritionalPlan = async () => {
+  const fetchNutritionalPlan = useCallback(async (showLoading = true) => {
     if (!user) return;
     
-    setLoading(true);
+    if (showLoading) setLoading(true);
+    
     try {
       const { data, error } = await supabase
         .from('ai_coach_insights_history')
@@ -77,16 +86,43 @@ export function NutritionWeeklyPlan() {
       if (data?.insight_data) {
         const parsed = data.insight_data as NutritionalPlanData;
         setPlanData(parsed);
-        if (parsed.weekly_menu?.length > 0) {
-          setActiveDay(parsed.weekly_menu[0].day);
+        
+        const newActiveDay = parsed.weekly_menu?.length > 0 ? parsed.weekly_menu[0].day : '';
+        if (!activeDay) {
+          setActiveDay(newActiveDay);
         }
+        
+        // Save to cache
+        const cacheData: CachedWeeklyPlanData = {
+          planData: parsed,
+          activeDay: newActiveDay,
+        };
+        setCache(CACHE_KEYS.NUTRITION_WEEKLY_PLAN, cacheData, user.id);
       }
     } catch (err) {
       console.error('Error fetching nutritional plan:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, activeDay]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const cachedData = getCache<CachedWeeklyPlanData>(CACHE_KEYS.NUTRITION_WEEKLY_PLAN, user.id, CACHE_DURATION);
+    
+    if (cachedData?.planData) {
+      // Use cached data immediately
+      setPlanData(cachedData.planData);
+      setActiveDay(cachedData.activeDay || cachedData.planData.weekly_menu?.[0]?.day || '');
+      setLoading(false);
+      
+      // Background refresh
+      fetchNutritionalPlan(false);
+    } else {
+      fetchNutritionalPlan(true);
+    }
+  }, [user?.id, fetchNutritionalPlan]);
 
   const handleGoToTrainingPlan = () => {
     navigate('/training-plan');
