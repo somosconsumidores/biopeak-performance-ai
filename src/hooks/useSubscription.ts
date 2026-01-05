@@ -15,6 +15,7 @@ interface CachedData {
 
 const CACHE_KEY = 'subscription_cache_v2';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const MAX_LOADING_TIME = 8000; // 8 seconds failsafe
 
 // Simple cache functions
 const getCached = (): SubscriptionData | null => {
@@ -53,45 +54,83 @@ const clearCache = (): void => {
 };
 
 export const useSubscription = () => {
-  const [data, setData] = useState<SubscriptionData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<SubscriptionData | null>(() => {
+    // Initialize with cache immediately to avoid flash
+    const cached = getCached();
+    return cached || null;
+  });
+  const [loading, setLoading] = useState(() => {
+    // If we have valid cache, don't show loading
+    return !getCached();
+  });
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
   
   const checkingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const checkSubscription = useCallback(async (forceRefresh = false) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     if (!user) {
+      console.log('[Subscription] No user, setting subscribed=false');
       setData({ subscribed: false });
       setLoading(false);
+      checkingRef.current = false;
       return;
     }
 
-    if (checkingRef.current) return;
+    // If already checking, don't start another check but don't block forever
+    if (checkingRef.current) {
+      console.log('[Subscription] Check already in progress, skipping duplicate');
+      return;
+    }
+    
     checkingRef.current = true;
 
     if (!forceRefresh) {
+      // Check cache first - if valid, use it immediately
+      const cached = getCached();
+      if (cached) {
+        console.log('[Subscription] Using cached data:', cached.subscribed);
+        if (isMountedRef.current) {
+          setData(cached);
+          setLoading(false);
+        }
+        checkingRef.current = false;
+        return;
+      }
       setLoading(true);
     } else {
       setRefreshing(true);
     }
 
-    try {
-      // 1. Check cache (unless forced refresh)
-      if (!forceRefresh) {
-        const cached = getCached();
-        if (cached) {
-          if (isMountedRef.current) {
-            setData(cached);
-            setLoading(false);
-          }
-          checkingRef.current = false;
-          return;
+    // Set failsafe timeout to prevent infinite loading
+    timeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current && checkingRef.current) {
+        console.warn('[Subscription] Timeout reached, forcing completion');
+        // Try to use any cached data as fallback
+        const fallback = getCached();
+        if (fallback) {
+          setData(fallback);
+        } else {
+          setData({ subscribed: false });
         }
+        setLoading(false);
+        setRefreshing(false);
+        checkingRef.current = false;
       }
+    }, MAX_LOADING_TIME);
 
-      // 2. Direct Supabase query (no edge function)
+    try {
+      console.log('[Subscription] Querying database for user:', user.id);
+      
+      // Direct Supabase query (no edge function)
       const { data: sub, error } = await supabase
         .from('subscribers')
         .select('subscribed, subscription_tier, subscription_end')
@@ -100,7 +139,7 @@ export const useSubscription = () => {
 
       if (error) throw error;
 
-      // 3. Validate expiration
+      // Validate expiration
       const now = new Date();
       const isActive = sub?.subscribed && 
         (!sub.subscription_end || new Date(sub.subscription_end) > now);
@@ -111,23 +150,32 @@ export const useSubscription = () => {
         subscription_end: sub?.subscription_end
       };
 
-      // 4. Cache and update state
+      console.log('[Subscription] Query result:', result.subscribed);
+
+      // Cache and update state
       setCache(result);
       if (isMountedRef.current) {
         setData(result);
       }
 
     } catch (error) {
-      console.error('Subscription check failed:', error);
+      console.error('[Subscription] Check failed:', error);
       
       // Fallback: use expired cache if available (offline mode)
       const fallback = getCached();
       if (fallback?.subscribed && isMountedRef.current) {
+        console.log('[Subscription] Using fallback cache');
         setData(fallback);
       } else if (isMountedRef.current) {
         setData({ subscribed: false });
       }
     } finally {
+      // Clear timeout since we completed
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
       if (isMountedRef.current) {
         setLoading(false);
         setRefreshing(false);
@@ -136,15 +184,23 @@ export const useSubscription = () => {
     }
   }, [user]);
 
-  // Initialize on mount and user change
+  // Initialize on mount and user change - simplified dependencies
   useEffect(() => {
     isMountedRef.current = true;
-    checkSubscription(false);
+    
+    // Only check if we don't have valid cache or user changed
+    const cached = getCached();
+    if (!cached || !user) {
+      checkSubscription(false);
+    }
     
     return () => {
       isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [user?.id, checkSubscription]);
+  }, [user?.id]); // Removed checkSubscription from deps to avoid loops
 
   // Listen for subscription updates via Realtime
   useEffect(() => {

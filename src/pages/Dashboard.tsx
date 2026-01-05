@@ -184,8 +184,24 @@ export const Dashboard = () => {
     return { sleepData, overtrainingData: overtrainingAnalysisData };
   };
 
-  // Show loading only for subscription check, not for metrics
-  if (subscriptionLoading) {
+  // Timeout fallback for subscription loading (prevent infinite loading on native apps)
+  const [subscriptionTimeout, setSubscriptionTimeout] = useState(false);
+  
+  useEffect(() => {
+    if (subscriptionLoading && !subscriptionTimeout) {
+      const timeout = setTimeout(() => {
+        console.warn('[Dashboard] Subscription loading timeout reached');
+        setSubscriptionTimeout(true);
+      }, 10000); // 10 seconds max wait
+      return () => clearTimeout(timeout);
+    }
+    if (!subscriptionLoading) {
+      setSubscriptionTimeout(false);
+    }
+  }, [subscriptionLoading, subscriptionTimeout]);
+
+  // Show loading only for subscription check, with timeout fallback
+  if (subscriptionLoading && !subscriptionTimeout) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
