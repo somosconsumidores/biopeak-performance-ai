@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useActiveTrainingPlans } from '@/hooks/useActiveTrainingPlans';
 import { useSubscription } from '@/hooks/useSubscription';
 import { WorkoutDetailDialog } from './WorkoutDetailDialog';
 import { Calendar, MapPin, Clock, ChevronRight, PlayCircle } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export function TrainingAgendaWidget() {
-  const { plan, workouts, loading } = useActiveTrainingPlan();
+  const { mainPlan, workouts, loading } = useActiveTrainingPlans();
   const { isSubscribed } = useSubscription();
   const navigate = useNavigate();
   const [selectedWorkout, setSelectedWorkout] = useState(null);
@@ -42,7 +42,7 @@ export function TrainingAgendaWidget() {
     );
   }
 
-  if (!plan) {
+  if (!mainPlan) {
     return (
       <Card className="glass-card border-glass-border">
         <CardHeader>
@@ -174,7 +174,7 @@ export function TrainingAgendaWidget() {
         workout={selectedWorkout}
         open={!!selectedWorkout}
         onClose={() => setSelectedWorkout(null)}
-        sportType={plan?.sport_type}
+        sportType={mainPlan?.sport_type}
       />
     </>
   );

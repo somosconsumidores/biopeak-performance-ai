@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use useActiveTrainingPlans instead - it has local caching for instant loading.
+ * This hook is kept for backwards compatibility but should not be used in new code.
+ */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';

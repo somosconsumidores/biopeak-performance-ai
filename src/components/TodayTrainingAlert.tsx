@@ -1,14 +1,14 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useActiveTrainingPlans } from '@/hooks/useActiveTrainingPlans';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Calendar, ArrowRight, Dumbbell } from 'lucide-react';
 
 export const TodayTrainingAlert = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workouts, loading } = useActiveTrainingPlan();
+  const { workouts, loading } = useActiveTrainingPlans();
 
   if (loading) return null;
 

@@ -19,7 +19,7 @@ import { useEnhancedGPS } from '@/hooks/useEnhancedGPS';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
-import { useActiveTrainingPlan, TrainingWorkout } from '@/hooks/useActiveTrainingPlan';
+import { useActiveTrainingPlans, TrainingWorkout } from '@/hooks/useActiveTrainingPlans';
 import { useDailyBriefing } from '@/hooks/useDailyBriefing';
 import { isSameDay, parseISO } from 'date-fns';
 import { 
@@ -75,7 +75,7 @@ const TrainingSession: React.FC = () => {
   const enhancedGPS = useEnhancedGPS();
 
   // Training plan & briefing
-  const { plan, workouts, markWorkoutCompleted } = useActiveTrainingPlan();
+  const { mainPlan: plan, workouts, markWorkoutCompleted } = useActiveTrainingPlans();
   const { briefing } = useDailyBriefing();
 
   // Find today's workout

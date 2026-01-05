@@ -76,14 +76,14 @@ import { Badge } from '@/components/ui/badge';
 import { useTrainingRecommendations } from '@/hooks/useTrainingRecommendations';
 import { useDailyBriefing } from '@/hooks/useDailyBriefing';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
-import { useActiveTrainingPlan } from '@/hooks/useActiveTrainingPlan';
+import { useActiveTrainingPlans } from '@/hooks/useActiveTrainingPlans';
 import { Loader2, RefreshCw, Play, Pause, Calendar } from 'lucide-react';
 
 export default function WeeklyAIPlanCard() {
   const { recommendations, loading: recLoading, error: recError, refreshRecommendations } = useTrainingRecommendations();
   const { briefing, loading: briefLoading, error: briefError, refresh } = useDailyBriefing();
   const { speak, stop, isSpeaking } = useEnhancedTTS();
-  const { plan, workouts, loading: planLoading } = useActiveTrainingPlan();
+  const { mainPlan: plan, workouts, loading: planLoading } = useActiveTrainingPlans();
 
   // Se houver plano ativo, usar workouts do plano; caso contrário, usar recomendações
   const hasActivePlan = !!plan && workouts.length > 0;
