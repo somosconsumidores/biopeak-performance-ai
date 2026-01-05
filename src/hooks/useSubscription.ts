@@ -54,17 +54,14 @@ const clearCache = (): void => {
 };
 
 export const useSubscription = () => {
-  const [data, setData] = useState<SubscriptionData | null>(() => {
-    // Initialize with cache immediately to avoid flash
-    const cached = getCached();
-    return cached || null;
-  });
-  const [loading, setLoading] = useState(() => {
-    // If we have valid cache, don't show loading
-    return !getCached();
-  });
-  const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  
+  // Get initial values synchronously (safe, no hooks involved)
+  const initialCache = getCached();
+  
+  const [data, setData] = useState<SubscriptionData | null>(initialCache);
+  const [loading, setLoading] = useState(!initialCache);
+  const [refreshing, setRefreshing] = useState(false);
   
   const checkingRef = useRef(false);
   const isMountedRef = useRef(true);
