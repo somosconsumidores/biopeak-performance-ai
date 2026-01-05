@@ -80,7 +80,7 @@ const TrainingPlan = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {loading && !mainPlan ? (
                 <div className="text-center py-8">
                   <div className="animate-pulse">
                     <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
