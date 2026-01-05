@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -14,6 +14,13 @@ export const useGarminTokenManager = (user: User | null) => {
   const [tokens, setTokens] = useState<GarminTokenStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Use refs to break dependency cycles
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
+  
+  const isRefreshingRef = useRef(isRefreshing);
+  isRefreshingRef.current = isRefreshing;
 
   const loadTokens = useCallback(async () => {
     if (!user) return;
@@ -51,7 +58,7 @@ export const useGarminTokenManager = (user: User | null) => {
   }, [user]);
 
   const refreshTokenSafely = useCallback(async () => {
-    if (!user || !tokens || isRefreshing) {
+    if (!user || !tokensRef.current || isRefreshingRef.current) {
       return false;
     }
 
@@ -90,22 +97,23 @@ export const useGarminTokenManager = (user: User | null) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [user, tokens, isRefreshing, loadTokens, toast]);
+  }, [user, loadTokens, toast]);
 
   const checkTokenExpiration = useCallback(() => {
-    if (!tokens) return;
+    const currentTokens = tokensRef.current;
+    if (!currentTokens) return;
 
     const now = new Date();
-    if (!tokens.expires_at) return;
-    const expiresAt = new Date(tokens.expires_at);
+    if (!currentTokens.expires_at) return;
+    const expiresAt = new Date(currentTokens.expires_at);
     const minutesUntilExpiry = (expiresAt.getTime() - now.getTime()) / 60000;
 
     if (minutesUntilExpiry < 10) {
       refreshTokenSafely();
     }
 
-    if (!tokens.refresh_token_expires_at) return;
-    const refreshExpiresAt = new Date(tokens.refresh_token_expires_at);
+    if (!currentTokens.refresh_token_expires_at) return;
+    const refreshExpiresAt = new Date(currentTokens.refresh_token_expires_at);
     const daysUntilRefreshExpiry = (refreshExpiresAt.getTime() - now.getTime()) / 86400000;
 
     if (daysUntilRefreshExpiry <= 7 && daysUntilRefreshExpiry > 0) {
@@ -115,23 +123,30 @@ export const useGarminTokenManager = (user: User | null) => {
         variant: 'destructive',
       });
     }
-  }, [tokens, refreshTokenSafely, toast]);
+  }, [refreshTokenSafely, toast]);
 
-  // Initial load and periodic checks
+  // Initial load - only when user changes
   useEffect(() => {
     if (user) {
       loadTokens();
-
-      const interval = setInterval(() => {
-        checkTokenExpiration();
-      }, 2 * 60 * 1000); // Check every 2 minutes
-
-      return () => clearInterval(interval);
     } else {
       setTokens(null);
       setIsConnected(false);
     }
-  }, [user, loadTokens, checkTokenExpiration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Periodic token expiration checks - separate effect with stable ref
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      checkTokenExpiration();
+    }, 2 * 60 * 1000); // Check every 2 minutes
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   return {
     tokens,
