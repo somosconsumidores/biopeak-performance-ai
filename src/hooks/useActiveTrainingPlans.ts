@@ -1,6 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+
+// Cache constants
+const PLANS_CACHE_KEY = 'training_plans_cache_v1';
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
+interface CachedPlansData {
+  mainPlan: TrainingPlan | null;
+  strengthPlan: TrainingPlan | null;
+  workouts: TrainingWorkout[];
+  timestamp: number;
+  userId: string;
+}
+
+// Cache functions
+const getCachedPlans = (userId: string): Omit<CachedPlansData, 'timestamp' | 'userId'> | null => {
+  try {
+    const raw = localStorage.getItem(PLANS_CACHE_KEY);
+    if (!raw) return null;
+    const cached: CachedPlansData = JSON.parse(raw);
+    
+    // Check user match and expiration
+    if (cached.userId !== userId) return null;
+    if (Date.now() - cached.timestamp > CACHE_DURATION) return null;
+    
+    return {
+      mainPlan: cached.mainPlan,
+      strengthPlan: cached.strengthPlan,
+      workouts: cached.workouts,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const setCachedPlans = (data: Omit<CachedPlansData, 'timestamp'>) => {
+  try {
+    const payload: CachedPlansData = {
+      ...data,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(PLANS_CACHE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.error('Failed to cache plans:', err);
+  }
+};
+
+export const clearPlansCache = () => {
+  try {
+    localStorage.removeItem(PLANS_CACHE_KEY);
+  } catch {}
+};
 
 export interface TrainingPlan {
   id: string;
@@ -58,16 +109,33 @@ interface UseActiveTrainingPlansReturn {
 
 export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
   const { user } = useAuth();
-  const [mainPlan, setMainPlan] = useState<TrainingPlan | null>(null);
-  const [strengthPlan, setStrengthPlan] = useState<TrainingPlan | null>(null);
-  const [workouts, setWorkouts] = useState<TrainingWorkout[]>([]);
-  const [loading, setLoading] = useState(false);
+  const initializedRef = useRef(false);
+  
+  // Initialize state from cache if available
+  const getInitialState = () => {
+    if (!user?.id) return { mainPlan: null, strengthPlan: null, workouts: [] };
+    const cached = getCachedPlans(user.id);
+    return cached || { mainPlan: null, strengthPlan: null, workouts: [] };
+  };
+  
+  const [mainPlan, setMainPlan] = useState<TrainingPlan | null>(() => getInitialState().mainPlan);
+  const [strengthPlan, setStrengthPlan] = useState<TrainingPlan | null>(() => getInitialState().strengthPlan);
+  const [workouts, setWorkouts] = useState<TrainingWorkout[]>(() => getInitialState().workouts);
+  const [loading, setLoading] = useState(() => {
+    // Only show loading if no cache
+    if (!user?.id) return false;
+    return !getCachedPlans(user.id);
+  });
   const [error, setError] = useState<string | null>(null);
 
-  const fetchActivePlans = async () => {
+  const fetchActivePlans = async (showLoading = true) => {
     if (!user) return;
 
-    setLoading(true);
+    // Only show loading spinner if no cached data
+    const cached = getCachedPlans(user.id);
+    if (showLoading && !cached) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -97,6 +165,7 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
       setStrengthPlan(strength);
 
       // Fetch workouts for all active plans
+      let fetchedWorkouts: TrainingWorkout[] = [];
       if (plans.length > 0) {
         const planIds = plans.map(p => p.id);
         const { data: workoutsData, error: workoutsError } = await supabase
@@ -106,10 +175,19 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
           .order('workout_date', { ascending: true });
 
         if (workoutsError) throw workoutsError;
-        setWorkouts(workoutsData || []);
+        fetchedWorkouts = workoutsData || [];
+        setWorkouts(fetchedWorkouts);
       } else {
         setWorkouts([]);
       }
+
+      // Update cache
+      setCachedPlans({
+        mainPlan: main,
+        strengthPlan: strength,
+        workouts: fetchedWorkouts,
+        userId: user.id,
+      });
     } catch (err) {
       console.error('Error fetching active training plans:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch training plans');
@@ -131,11 +209,18 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
 
       if (error) throw error;
 
-      setWorkouts(prev => prev.map(w => 
-        w.id === workoutId 
-          ? { ...w, status: 'completed', completed_activity_id: activityId, completed_activity_source: activitySource }
-          : w
-      ));
+      setWorkouts(prev => {
+        const updated = prev.map(w => 
+          w.id === workoutId 
+            ? { ...w, status: 'completed', completed_activity_id: activityId, completed_activity_source: activitySource }
+            : w
+        );
+        // Update cache with new workouts
+        if (user) {
+          setCachedPlans({ mainPlan, strengthPlan, workouts: updated, userId: user.id });
+        }
+        return updated;
+      });
 
       const todayKey = new Date().toISOString().slice(0, 10);
       localStorage.removeItem(`daily_briefing_${todayKey}`);
@@ -158,11 +243,18 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
 
       if (error) throw error;
 
-      setWorkouts(prev => prev.map(w => 
-        w.id === workoutId 
-          ? { ...w, status: 'planned', completed_activity_id: null, completed_activity_source: null }
-          : w
-      ));
+      setWorkouts(prev => {
+        const updated = prev.map(w => 
+          w.id === workoutId 
+            ? { ...w, status: 'planned', completed_activity_id: null, completed_activity_source: null }
+            : w
+        );
+        // Update cache with new workouts
+        if (user) {
+          setCachedPlans({ mainPlan, strengthPlan, workouts: updated, userId: user.id });
+        }
+        return updated;
+      });
 
       const todayKey = new Date().toISOString().slice(0, 10);
       localStorage.removeItem(`daily_briefing_${todayKey}`);
@@ -184,7 +276,9 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
       const todayKey = new Date().toISOString().slice(0, 10);
       localStorage.removeItem(`daily_briefing_${todayKey}`);
 
-      // Update local state
+      // Update local state and clear cache
+      clearPlansCache();
+      
       if (mainPlan?.id === planId) {
         setMainPlan(null);
         setWorkouts(prev => prev.filter(w => w.plan_id !== planId));
@@ -228,7 +322,8 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
         throw new Error(result.error || 'Failed to reschedule workout');
       }
 
-      // Refresh plans to get updated workout data
+      // Clear cache and refresh
+      clearPlansCache();
       await fetchActivePlans();
 
       // Notify other parts of the app (other hook instances/pages) to refresh immediately
@@ -246,11 +341,32 @@ export const useActiveTrainingPlans = (): UseActiveTrainingPlansReturn => {
   };
 
   const refreshPlans = async () => {
+    clearPlansCache();
     await fetchActivePlans();
   };
 
+  // Initialize from cache when user changes
   useEffect(() => {
-    fetchActivePlans();
+    if (!user?.id) {
+      setMainPlan(null);
+      setStrengthPlan(null);
+      setWorkouts([]);
+      setLoading(false);
+      return;
+    }
+    
+    // Try to load from cache first
+    const cached = getCachedPlans(user.id);
+    if (cached) {
+      setMainPlan(cached.mainPlan);
+      setStrengthPlan(cached.strengthPlan);
+      setWorkouts(cached.workouts);
+      setLoading(false);
+      // Background refresh
+      fetchActivePlans(false);
+    } else {
+      fetchActivePlans(true);
+    }
   }, [user?.id]);
 
   // Local event bus: ensure other screens/widgets refresh immediately after reschedule
