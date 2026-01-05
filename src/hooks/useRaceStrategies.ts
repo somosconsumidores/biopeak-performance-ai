@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +22,7 @@ export function useRaceStrategies() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const saveStrategy = async (
+  const saveStrategy = useCallback(async (
     strategyName: string,
     distanceKm: number,
     objectiveType: 'time' | 'pace',
@@ -84,9 +84,9 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const loadStrategies = async (): Promise<SavedRaceStrategy[]> => {
+  const loadStrategies = useCallback(async (): Promise<SavedRaceStrategy[]> => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -115,9 +115,9 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const deleteStrategy = async (id: string) => {
+  const deleteStrategy = useCallback(async (id: string) => {
     setIsLoading(true);
     try {
       const { error } = await supabase
@@ -144,9 +144,9 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const updateStrategy = async (
+  const updateStrategy = useCallback(async (
     id: string,
     strategyName: string,
     distanceKm: number,
@@ -199,9 +199,9 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const loadStrategy = async (id: string): Promise<SavedRaceStrategy | null> => {
+  const loadStrategy = useCallback(async (id: string): Promise<SavedRaceStrategy | null> => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -224,7 +224,7 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   return {
     saveStrategy,
