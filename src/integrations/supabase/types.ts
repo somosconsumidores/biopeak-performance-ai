@@ -5626,6 +5626,13 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_strava_orphan_tokens: {
+        Row: {
+          access_token: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       mv_whatsapp_dispatch_queue: {
         Row: {
           acwr_score: string | null
@@ -6097,6 +6104,7 @@ export type Database = {
       recover_stuck_strava_syncs: { Args: never; Returns: undefined }
       refresh_mv_active_subscribers: { Args: never; Returns: undefined }
       refresh_mv_all_activities_30_days: { Args: never; Returns: undefined }
+      refresh_mv_strava_orphan_tokens: { Args: never; Returns: undefined }
       reprocess_all_user_metrics_vo2max: {
         Args: never
         Returns: {
