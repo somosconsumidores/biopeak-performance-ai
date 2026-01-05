@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getCache, setCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
 export interface UnifiedActivity {
   id: string;
@@ -24,21 +24,34 @@ export interface UnifiedActivity {
   max_speed_in_meters_per_second: number | null;
   steps: number | null;
   synced_at: string;
-  // Campos específicos do Strava
   strava_activity_id?: number;
   name?: string;
-  // Campos específicos do Polar  
   polar_user?: string;
   detailed_sport_info?: string;
-  // Novo campo classificado
   detected_workout_type?: string | null;
 }
 
+interface CachedActivitiesData {
+  activities: UnifiedActivity[];
+  limit: number;
+}
+
 export function useUnifiedActivityHistory(limit: number = 20) {
-  const [activities, setActivities] = useState<UnifiedActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  
+  // Initialize with cache for instant loading
+  const cacheKey = `${CACHE_KEYS.ACTIVITIES}_${limit}`;
+  const cached = getCache<CachedActivitiesData>(
+    cacheKey,
+    user?.id,
+    CACHE_DURATIONS.MEDIUM
+  );
+  
+  const [activities, setActivities] = useState<UnifiedActivity[]>(
+    cached?.limit === limit ? cached.activities : []
+  );
+  const [loading, setLoading] = useState(!cached || cached.limit !== limit);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -47,35 +60,39 @@ export function useUnifiedActivityHistory(limit: number = 20) {
       return;
     }
 
-    fetchUnifiedActivities();
-  }, [user, limit]);
+    // If we have cache with same limit, show it immediately and refresh in background
+    if (cached && cached.limit === limit) {
+      setActivities(cached.activities);
+      setLoading(false);
+      fetchUnifiedActivities(false);
+    } else {
+      fetchUnifiedActivities(true);
+    }
+  }, [user?.id, limit]);
 
-  const fetchUnifiedActivities = async () => {
+  const fetchUnifiedActivities = async (showLoading = true) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError(null);
 
-      // Usar a tabela unificada all_activities para máxima performance
-      const query = supabase
+      const { data: activitiesData, error } = await supabase
         .from('all_activities')
         .select('*')
         .eq('user_id', user.id)
         .order('activity_date', { ascending: false })
         .limit(limit);
 
-      const { data: activities, error } = await query;
-
       if (error) throw error;
 
-      if (!activities || activities.length === 0) {
+      if (!activitiesData || activitiesData.length === 0) {
         setActivities([]);
+        setCache(cacheKey, { activities: [], limit }, user.id);
         return;
       }
 
-      // Mapear para o formato UnifiedActivity
-      const unifiedActivities: UnifiedActivity[] = activities.map((activity: any) => ({
+      const unifiedActivities: UnifiedActivity[] = activitiesData.map((activity: any) => ({
         id: activity.id,
         activity_id: activity.activity_id,
         source: mapActivitySource(activity.activity_source),
@@ -90,7 +107,7 @@ export function useUnifiedActivityHistory(limit: number = 20) {
         total_elevation_gain_in_meters: activity.total_elevation_gain_in_meters,
         total_elevation_loss_in_meters: activity.total_elevation_loss_in_meters,
         device_name: activity.device_name || mapActivitySource(activity.activity_source),
-        start_time_in_seconds: null, // Não disponível na all_activities
+        start_time_in_seconds: null,
         start_time_offset_in_seconds: null,
         average_speed_in_meters_per_second: null,
         max_speed_in_meters_per_second: null,
@@ -100,11 +117,11 @@ export function useUnifiedActivityHistory(limit: number = 20) {
       }));
 
       setActivities(unifiedActivities);
+      setCache(cacheKey, { activities: unifiedActivities, limit }, user.id);
     } catch (err) {
       console.error('Error fetching unified activity history:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar histórico';
       
-      // Evitar loop infinito de requisições em caso de erro de rede
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
         console.warn('Network error detected, setting empty activities to prevent loop');
         setActivities([]);
@@ -112,7 +129,7 @@ export function useUnifiedActivityHistory(limit: number = 20) {
       
       setError(errorMessage);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -134,7 +151,6 @@ export function useUnifiedActivityHistory(limit: number = 20) {
       : activity.source === 'HEALTHKIT'
       ? 'Apple Watch'
       : (activity.source === 'BIOPEAK' ? 'BioPeak AI Coach' : activity.source);
-    // Mantém o display como antes
     return `${date} - ${type} ${distance} ${duration} [${sourceLabel}]`.trim();
   };
 
@@ -169,7 +185,6 @@ export function useUnifiedActivityHistory(limit: number = 20) {
     return `${minutes}m`;
   };
 
-  // Helper function para mapear fonte da atividade
   const mapActivitySource = (source: string): 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT' => {
     const sourceMap: Record<string, 'GARMIN' | 'STRAVA' | 'POLAR' | 'BIOPEAK' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT'> = {
       'garmin': 'GARMIN',
@@ -191,6 +206,6 @@ export function useUnifiedActivityHistory(limit: number = 20) {
     getActivityById,
     formatActivityDisplay,
     getActivityTypeLabel,
-    refetch: fetchUnifiedActivities
+    refetch: () => fetchUnifiedActivities(true)
   };
 }

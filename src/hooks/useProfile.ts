@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { getCache, setCache, clearCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
 interface Profile {
   id: string;
@@ -27,11 +28,19 @@ interface ProfileData {
 }
 
 export function useProfile() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Initialize with cache for instant loading
+  const cached = getCache<Profile>(
+    CACHE_KEYS.PROFILE,
+    user?.id,
+    CACHE_DURATIONS.PROFILE
+  );
+  
+  const [profile, setProfile] = useState<Profile | null>(cached);
+  const [loading, setLoading] = useState(!cached);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -40,20 +49,36 @@ export function useProfile() {
       return;
     }
 
-    fetchProfile();
-  }, [user]);
+    // If we have cache, show it immediately and refresh in background
+    if (cached) {
+      setProfile(cached);
+      setLoading(false);
+      fetchProfile(false); // Background refresh
+    } else {
+      fetchProfile(true);
+    }
+  }, [user?.id]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (showLoading = true) => {
+    if (!user) return;
+    
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) throw error;
+      
       setProfile(data);
+      
+      // Update cache
+      if (data) {
+        setCache(CACHE_KEYS.PROFILE, data, user.id);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
@@ -62,7 +87,7 @@ export function useProfile() {
         variant: 'destructive'
       });
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -81,7 +106,12 @@ export function useProfile() {
 
       if (error) throw error;
 
-      setProfile(prev => prev ? { ...prev, ...data } : null);
+      const updatedProfile = { ...profile, ...data };
+      setProfile(updatedProfile);
+      
+      // Update cache immediately
+      setCache(CACHE_KEYS.PROFILE, updatedProfile, user.id);
+      
       toast({
         title: 'Sucesso',
         description: 'Perfil atualizado com sucesso'
@@ -102,9 +132,8 @@ export function useProfile() {
     if (!user) return null;
 
     try {
-      // Security: Validate file type and size
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 5 * 1024 * 1024;
 
       if (!allowedTypes.includes(file.type)) {
         toast({
@@ -176,7 +205,10 @@ export function useProfile() {
 
       if (error) throw error;
 
-      setProfile(prev => prev ? { ...prev, flag_training_plan: true } : null);
+      const updatedProfile = { ...profile, flag_training_plan: true };
+      setProfile(updatedProfile);
+      setCache(CACHE_KEYS.PROFILE, updatedProfile, user.id);
+      
       toast({
         title: 'Confirmado!',
         description: 'Você será notificado quando a ferramenta estiver pronta'
@@ -205,7 +237,11 @@ export function useProfile() {
 
       if (error) throw error;
 
-      setProfile(prev => prev ? { ...prev, training_plan_accepted: accepted } : null);
+      const updatedProfile = profile ? { ...profile, training_plan_accepted: accepted } : null;
+      setProfile(updatedProfile);
+      if (updatedProfile) {
+        setCache(CACHE_KEYS.PROFILE, updatedProfile, user.id);
+      }
     } catch (error) {
       console.error('Error updating training plan acceptance:', error);
       toast({
@@ -232,7 +268,9 @@ export function useProfile() {
 
       if (error) throw error;
       
-      await fetchProfile();
+      // Clear cache and refetch
+      clearCache(CACHE_KEYS.PROFILE);
+      await fetchProfile(false);
       return true;
     } catch (error) {
       console.error('Error updating phone:', error);
@@ -251,7 +289,7 @@ export function useProfile() {
     flagTrainingPlanInterest,
     updateTrainingPlanAcceptance,
     updatePhone,
-    refetch: fetchProfile,
+    refetch: () => fetchProfile(true),
     age: calculateAge(profile?.birth_date || null)
   };
 }

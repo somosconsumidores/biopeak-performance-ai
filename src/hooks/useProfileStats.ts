@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
+import { getCache, setCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
 interface ProfileStats {
   totalActivities: number;
-  totalDistance: number; // em metros
-  avgDistance: number; // distância média em metros (apenas corridas)
-  totalDuration: number; // em segundos
+  totalDistance: number;
+  avgDistance: number;
+  totalDuration: number;
   avgHeartRate: number;
   maxHeartRate: number;
-  avgPace: number; // em min/km
-  bestPace: number; // em min/km
+  avgPace: number;
+  bestPace: number;
   totalCalories: number;
   avgWeeklyActivities: number;
   memberSince: string | null;
@@ -28,12 +28,25 @@ interface PersonalBest {
   activityType: string;
 }
 
+interface CachedStatsData {
+  stats: ProfileStats;
+  personalBests: PersonalBest[];
+}
+
 export function useProfileStats() {
-  const [stats, setStats] = useState<ProfileStats | null>(null);
-  const [personalBests, setPersonalBests] = useState<PersonalBest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  
+  // Initialize with cache for instant loading
+  const cached = getCache<CachedStatsData>(
+    CACHE_KEYS.PROFILE_STATS,
+    user?.id,
+    CACHE_DURATIONS.LONG
+  );
+  
+  const [stats, setStats] = useState<ProfileStats | null>(cached?.stats || null);
+  const [personalBests, setPersonalBests] = useState<PersonalBest[]>(cached?.personalBests || []);
+  const [loading, setLoading] = useState(!cached);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -43,27 +56,36 @@ export function useProfileStats() {
       return;
     }
 
-    fetchStats();
-  }, [user]);
+    // If we have cache, show it immediately and refresh in background
+    if (cached) {
+      setStats(cached.stats);
+      setPersonalBests(cached.personalBests);
+      setLoading(false);
+      fetchStats(false); // Background refresh
+    } else {
+      fetchStats(true);
+    }
+  }, [user?.id]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (showLoading = true) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError(null);
 
-      // Usar a tabela unificada all_activities para máxima performance
+      // OPTIMIZATION: Select only needed fields and limit to 200 activities
       const { data: activities, error } = await supabase
         .from('all_activities')
-        .select('*')
+        .select('id, activity_date, activity_type, total_distance_meters, total_time_minutes, average_heart_rate, max_heart_rate, pace_min_per_km, active_kilocalories')
         .eq('user_id', user.id)
-        .order('activity_date', { ascending: false });
+        .order('activity_date', { ascending: false })
+        .limit(200);
 
       if (error) throw error;
 
       if (!activities || activities.length === 0) {
-        setStats({
+        const emptyStats: ProfileStats = {
           totalActivities: 0,
           totalDistance: 0,
           avgDistance: 0,
@@ -79,100 +101,99 @@ export function useProfileStats() {
           currentStreak: 0,
           vo2Max: null,
           restingHeartRate: null
-        });
+        };
+        setStats(emptyStats);
         setPersonalBests([]);
+        setCache(CACHE_KEYS.PROFILE_STATS, { stats: emptyStats, personalBests: [] }, user.id);
         return;
       }
 
-      // Calcular estatísticas
-      const totalActivities = activities.length;
-      const totalDistance = activities.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0);
-      const runningActivitiesForAvg = activities.filter(act => 
-        (act.activity_type?.toLowerCase().includes('running') || 
-         act.activity_type?.toLowerCase().includes('corrida')) &&
-        act.total_distance_meters
-      );
-      const avgDistance = runningActivitiesForAvg.length > 0
-        ? runningActivitiesForAvg.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0) / runningActivitiesForAvg.length
-        : 0;
-      
-      const totalDuration = activities.reduce((sum, act) => sum + ((act.total_time_minutes || 0) * 60), 0);
-      const totalCalories = activities.reduce((sum, act) => sum + (act.active_kilocalories || 0), 0);
-
-      // Média de FC (apenas atividades com FC registrada)
-      const activitiesWithHR = activities.filter(act => act.average_heart_rate);
-      const avgHeartRate = activitiesWithHR.length > 0 
-        ? activitiesWithHR.reduce((sum, act) => sum + (act.average_heart_rate || 0), 0) / activitiesWithHR.length
-        : 0;
-
-      // FC máxima
-      const maxHeartRate = Math.max(...activities.map(act => act.max_heart_rate || 0));
-
-      // Pace médio e melhor (apenas atividades de corrida)
-      const runningActivities = activities.filter(act => 
-        act.activity_type?.toLowerCase().includes('running') || 
-        act.activity_type?.toLowerCase().includes('corrida')
-      );
-      
-      // Calcular pace médio baseado na distância total e tempo total das corridas
-      const runningActivitiesWithData = runningActivities.filter(act => 
-        act.total_distance_meters && act.total_time_minutes && act.total_distance_meters > 0
-      );
-      const totalRunningDistance = runningActivitiesWithData.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0);
-      const totalRunningTime = runningActivitiesWithData.reduce((sum, act) => sum + (act.total_time_minutes || 0), 0);
-      const avgPace = totalRunningDistance > 0 && totalRunningTime > 0
-        ? totalRunningTime / (totalRunningDistance / 1000) // min/km
-        : 0;
-      
-      const activitiesWithPace = runningActivities.filter(act => act.pace_min_per_km);
-
-      const bestPace = activitiesWithPace.length > 0
-        ? Math.min(...activitiesWithPace.map(act => act.pace_min_per_km || Infinity))
-        : 0;
-
-      // Data de membro (primeira atividade)
-      const memberSince = activities[activities.length - 1]?.activity_date || null;
-      const lastActivity = activities[0]?.activity_date || null;
-
-      // Calcular média semanal
-      const firstActivityDate = new Date(memberSince || new Date());
-      const now = new Date();
-      const weeksDiff = Math.max(1, (now.getTime() - firstActivityDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
-      const avgWeeklyActivities = totalActivities / weeksDiff;
-
-      // Calcular sequência atual (atividades nos últimos dias consecutivos)
-      const currentStreak = calculateCurrentStreak(activities);
-
-      const calculatedStats: ProfileStats = {
-        totalActivities,
-        totalDistance,
-        avgDistance,
-        totalDuration,
-        avgHeartRate: Math.round(avgHeartRate),
-        maxHeartRate,
-        avgPace,
-        bestPace,
-        totalCalories,
-        avgWeeklyActivities: Math.round(avgWeeklyActivities * 10) / 10,
-        memberSince,
-        lastActivity,
-        currentStreak,
-        vo2Max: null, // Pode ser calculado posteriormente com base em dados mais específicos
-        restingHeartRate: null // Requereria dados de repouso
-      };
+      const calculatedStats = calculateStats(activities);
+      const bests = calculatePersonalBests(activities);
 
       setStats(calculatedStats);
-
-      // Calcular recordes pessoais
-      const bests = calculatePersonalBests(activities);
       setPersonalBests(bests);
+      
+      // Update cache
+      setCache(CACHE_KEYS.PROFILE_STATS, { stats: calculatedStats, personalBests: bests }, user.id);
 
     } catch (error) {
       console.error('Error fetching profile stats:', error);
       setError(error instanceof Error ? error.message : 'Erro ao carregar estatísticas');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
+  };
+
+  const calculateStats = (activities: any[]): ProfileStats => {
+    const totalActivities = activities.length;
+    const totalDistance = activities.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0);
+    
+    const runningActivitiesForAvg = activities.filter(act => 
+      (act.activity_type?.toLowerCase().includes('running') || 
+       act.activity_type?.toLowerCase().includes('corrida')) &&
+      act.total_distance_meters
+    );
+    const avgDistance = runningActivitiesForAvg.length > 0
+      ? runningActivitiesForAvg.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0) / runningActivitiesForAvg.length
+      : 0;
+    
+    const totalDuration = activities.reduce((sum, act) => sum + ((act.total_time_minutes || 0) * 60), 0);
+    const totalCalories = activities.reduce((sum, act) => sum + (act.active_kilocalories || 0), 0);
+
+    const activitiesWithHR = activities.filter(act => act.average_heart_rate);
+    const avgHeartRate = activitiesWithHR.length > 0 
+      ? activitiesWithHR.reduce((sum, act) => sum + (act.average_heart_rate || 0), 0) / activitiesWithHR.length
+      : 0;
+
+    const maxHeartRate = Math.max(...activities.map(act => act.max_heart_rate || 0));
+
+    const runningActivities = activities.filter(act => 
+      act.activity_type?.toLowerCase().includes('running') || 
+      act.activity_type?.toLowerCase().includes('corrida')
+    );
+    
+    const runningActivitiesWithData = runningActivities.filter(act => 
+      act.total_distance_meters && act.total_time_minutes && act.total_distance_meters > 0
+    );
+    const totalRunningDistance = runningActivitiesWithData.reduce((sum, act) => sum + (act.total_distance_meters || 0), 0);
+    const totalRunningTime = runningActivitiesWithData.reduce((sum, act) => sum + (act.total_time_minutes || 0), 0);
+    const avgPace = totalRunningDistance > 0 && totalRunningTime > 0
+      ? totalRunningTime / (totalRunningDistance / 1000)
+      : 0;
+    
+    const activitiesWithPace = runningActivities.filter(act => act.pace_min_per_km);
+    const bestPace = activitiesWithPace.length > 0
+      ? Math.min(...activitiesWithPace.map(act => act.pace_min_per_km || Infinity))
+      : 0;
+
+    const memberSince = activities[activities.length - 1]?.activity_date || null;
+    const lastActivity = activities[0]?.activity_date || null;
+
+    const firstActivityDate = new Date(memberSince || new Date());
+    const now = new Date();
+    const weeksDiff = Math.max(1, (now.getTime() - firstActivityDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
+    const avgWeeklyActivities = totalActivities / weeksDiff;
+
+    const currentStreak = calculateCurrentStreak(activities);
+
+    return {
+      totalActivities,
+      totalDistance,
+      avgDistance,
+      totalDuration,
+      avgHeartRate: Math.round(avgHeartRate),
+      maxHeartRate,
+      avgPace,
+      bestPace,
+      totalCalories,
+      avgWeeklyActivities: Math.round(avgWeeklyActivities * 10) / 10,
+      memberSince,
+      lastActivity,
+      currentStreak,
+      vo2Max: null,
+      restingHeartRate: null
+    };
   };
 
   const calculateCurrentStreak = (activities: any[]) => {
@@ -184,7 +205,6 @@ export function useProfileStats() {
     let streak = 0;
     let currentDate = new Date(today);
 
-    // Verificar se há atividade hoje ou ontem para começar a contar
     const hasRecentActivity = activities.some(act => {
       const actDate = new Date(act.activity_date);
       actDate.setHours(0, 0, 0, 0);
@@ -194,7 +214,6 @@ export function useProfileStats() {
 
     if (!hasRecentActivity) return 0;
 
-    // Contar dias consecutivos com atividades
     while (true) {
       const hasActivity = activities.some(act => {
         const actDate = new Date(act.activity_date);
@@ -213,11 +232,9 @@ export function useProfileStats() {
     return streak;
   };
 
-
   const calculatePersonalBests = (activities: any[]): PersonalBest[] => {
     const bests: PersonalBest[] = [];
 
-    // Melhor distância
     const longestActivity = activities.reduce((max, act) => 
       (act.total_distance_meters || 0) > (max.total_distance_meters || 0) ? act : max
     );
@@ -230,7 +247,6 @@ export function useProfileStats() {
       });
     }
 
-    // Melhor pace (corridas)
     const runningActivities = activities.filter(act => 
       (act.activity_type?.toLowerCase().includes('running') || 
        act.activity_type?.toLowerCase().includes('corrida')) &&
@@ -250,7 +266,6 @@ export function useProfileStats() {
       });
     }
 
-    // Maior FC
     const maxHRActivity = activities.reduce((max, act) => 
       (act.max_heart_rate || 0) > (max.max_heart_rate || 0) ? act : max
     );
@@ -263,7 +278,6 @@ export function useProfileStats() {
       });
     }
 
-    // Mais calorias
     const maxCaloriesActivity = activities.reduce((max, act) => 
       (act.active_kilocalories || 0) > (max.active_kilocalories || 0) ? act : max
     );
@@ -276,7 +290,7 @@ export function useProfileStats() {
       });
     }
 
-    return bests.slice(0, 4); // Retornar apenas os 4 melhores
+    return bests.slice(0, 4);
   };
 
   const formatDistance = (meters: number) => {
@@ -308,7 +322,7 @@ export function useProfileStats() {
     personalBests,
     loading,
     error,
-    refetch: fetchStats,
+    refetch: () => fetchStats(true),
     formatDistance,
     formatDuration,
     formatPace
