@@ -142,7 +142,8 @@ export const Dashboard = () => {
     if (user) {
       checkStrategies();
     }
-  }, [user, loadStrategies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Handle successful subscription
   useEffect(() => {
