@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getCache, setCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
 interface Profile {
   id: string;
@@ -44,43 +45,28 @@ interface NutritionPlan {
   created_at: string;
 }
 
+interface CachedNutritionalData {
+  profile: Profile | null;
+  avgDailyCalories: number;
+  nutritionPlan: NutritionPlan | null;
+  tomorrowWorkout: any;
+}
+
+const CACHE_DURATION = CACHE_DURATIONS.LONG; // 15 minutes
+
 export function useNutritionalProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [avgDailyCalories, setAvgDailyCalories] = useState<number>(0);
-  const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
-  const [tomorrowWorkout, setTomorrowWorkout] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch profile data
-  const fetchProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null);
-      setProfileLoading(false);
-      return;
-    }
-
-    try {
-      setProfileLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  
+  // Initialize state with cache
+  const cached = user?.id 
+    ? getCache<CachedNutritionalData>(CACHE_KEYS.NUTRITIONAL_PROFILE, user.id, CACHE_DURATION) 
+    : null;
+  
+  const [profile, setProfile] = useState<Profile | null>(cached?.profile || null);
+  const [avgDailyCalories, setAvgDailyCalories] = useState<number>(cached?.avgDailyCalories || 0);
+  const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(cached?.nutritionPlan || null);
+  const [tomorrowWorkout, setTomorrowWorkout] = useState<any>(cached?.tomorrowWorkout || null);
+  const [loading, setLoading] = useState(!cached);
 
   // Check if user has required metabolic data
   const hasMetabolicData = useMemo(() => {
@@ -112,93 +98,113 @@ export function useNutritionalProfile() {
     return 10 * weight + 6.25 * height - 5 * age - 161;
   };
 
-  // Fetch average daily training calories from last 30 days
-  useEffect(() => {
-    const fetchActivityData = async () => {
-      if (!user) return;
+  // Fetch all data combined
+  const fetchAllData = useCallback(async (showLoading = true) => {
+    if (!user) return;
 
-      try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (showLoading) setLoading(true);
 
-        const { data, error } = await supabase
-          .from('all_activities')
-          .select('active_kilocalories, activity_date')
-          .eq('user_id', user.id)
-          .gte('activity_date', thirtyDaysAgo.toISOString().split('T')[0]);
+    try {
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-        if (error) throw error;
+      // Fetch activity data (optimized: limit to 60 activities, select only needed columns)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: activityData } = await supabase
+        .from('all_activities')
+        .select('active_kilocalories, activity_date')
+        .eq('user_id', user.id)
+        .gte('activity_date', thirtyDaysAgo.toISOString().split('T')[0])
+        .limit(60);
 
-        if (data && data.length > 0) {
-          const totalCalories = data.reduce((sum, activity) => {
-            return sum + (activity.active_kilocalories || 0);
-          }, 0);
-          setAvgDailyCalories(Math.round(totalCalories / 30));
-        }
-      } catch (error) {
-        console.error('Error fetching activity data:', error);
+      // Fetch nutrition plan
+      const { data: nutritionPlanData } = await supabase
+        .from('ai_coach_insights_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('insight_type', 'nutrition_plan')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Fetch tomorrow's workout
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      const { data: workoutData } = await supabase
+        .from('training_plan_workouts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('workout_date', tomorrowStr)
+        .maybeSingle();
+
+      // Calculate avg daily calories
+      let avgCalories = 0;
+      if (activityData && activityData.length > 0) {
+        const totalCalories = activityData.reduce((sum, activity) => {
+          return sum + (activity.active_kilocalories || 0);
+        }, 0);
+        avgCalories = Math.round(totalCalories / 30);
       }
-    };
 
-    fetchActivityData();
+      // Update state
+      setProfile(profileData);
+      setAvgDailyCalories(avgCalories);
+      setNutritionPlan(nutritionPlanData as NutritionPlan | null);
+      setTomorrowWorkout(workoutData);
+
+      // Save to cache
+      const cacheData: CachedNutritionalData = {
+        profile: profileData,
+        avgDailyCalories: avgCalories,
+        nutritionPlan: nutritionPlanData as NutritionPlan | null,
+        tomorrowWorkout: workoutData,
+      };
+      setCache(CACHE_KEYS.NUTRITIONAL_PROFILE, cacheData, user.id);
+
+    } catch (error) {
+      console.error('Error fetching nutritional data:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
-  // Fetch nutrition plan from ai_coach_insights_history
+  // Refetch profile (clears cache)
+  const refetchProfile = useCallback(async () => {
+    await fetchAllData(true);
+  }, [fetchAllData]);
+
+  // Initial fetch with cache check
   useEffect(() => {
-    const fetchNutritionPlan = async () => {
-      if (!user) return;
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const { data, error } = await supabase
-          .from('ai_coach_insights_history')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('insight_type', 'nutrition_plan')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) throw error;
-        
-        if (data) {
-          setNutritionPlan(data as NutritionPlan);
-        }
-      } catch (error) {
-        console.error('Error fetching nutrition plan:', error);
-      }
-    };
-
-    fetchNutritionPlan();
-  }, [user]);
-
-  // Fetch tomorrow's workout for tactical suggestions
-  useEffect(() => {
-    const fetchTomorrowWorkout = async () => {
-      if (!user) return;
-
-      try {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-        const { data, error } = await supabase
-          .from('training_plan_workouts')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('workout_date', tomorrowStr)
-          .maybeSingle();
-
-        if (error) throw error;
-        setTomorrowWorkout(data);
-      } catch (error) {
-        console.error('Error fetching tomorrow workout:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTomorrowWorkout();
-  }, [user]);
+    const cachedData = getCache<CachedNutritionalData>(CACHE_KEYS.NUTRITIONAL_PROFILE, user.id, CACHE_DURATION);
+    
+    if (cachedData) {
+      // Use cached data immediately
+      setProfile(cachedData.profile);
+      setAvgDailyCalories(cachedData.avgDailyCalories);
+      setNutritionPlan(cachedData.nutritionPlan);
+      setTomorrowWorkout(cachedData.tomorrowWorkout);
+      setLoading(false);
+      
+      // Background refresh
+      fetchAllData(false);
+    } else {
+      fetchAllData(true);
+    }
+  }, [user?.id, fetchAllData]);
 
   // Calculate complete nutritional profile
   const nutritionalProfile = useMemo((): NutritionalProfile | null => {
@@ -257,7 +263,7 @@ export function useNutritionalProfile() {
     nutritionPlan,
     tomorrowWorkout,
     hasMetabolicData,
-    loading: loading || profileLoading,
-    refetchProfile: fetchProfile,
+    loading,
+    refetchProfile,
   };
 }

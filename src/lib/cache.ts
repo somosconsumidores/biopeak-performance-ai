@@ -10,6 +10,8 @@ export const CACHE_KEYS = {
   COACH_ADVICE: 'biopeak_coach_advice_cache_v1',
   COACH_INSIGHTS: 'biopeak_coach_insights_cache_v1',
   TRAINING_PLANS: 'training_plans_cache_v1',
+  NUTRITIONAL_PROFILE: 'biopeak_nutritional_profile_cache_v1',
+  NUTRITION_WEEKLY_PLAN: 'biopeak_nutrition_weekly_plan_cache_v1',
 } as const;
 
 export const CACHE_DURATIONS = {
