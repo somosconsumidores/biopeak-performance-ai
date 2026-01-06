@@ -61,16 +61,16 @@ export function AppSidebar() {
   };
 
   const mainNavItems = [
-    { title: t('dashboard'), path: '/dashboard', icon: Home },
-    { title: t('workouts'), path: '/workouts', icon: Dumbbell },
-    { title: t('trainingPlan'), path: '/training-plan', icon: Calendar },
-    { title: t('nutrition'), path: '/nutrition', icon: Utensils },
-    { title: t('insights'), path: '/insights', icon: Lightbulb },
+    { title: 'Dashboard', path: '/dashboard', icon: Home },
+    { title: 'Treinos', path: '/workouts', icon: Dumbbell },
+    { title: 'Planos de Treino', path: '/training-plan', icon: Calendar },
+    { title: 'Plano de Nutrição', path: '/nutrition', icon: Utensils },
+    { title: 'Insights', path: '/insights', icon: Lightbulb },
   ];
 
   const resourceNavItems = [
-    { title: t('premiumStats'), path: '/premium-stats', icon: BarChart3 },
-    { title: t('profile'), path: '/profile', icon: User },
+    { title: 'Painel Estatístico', path: '/premium-stats', icon: BarChart3 },
+    { title: 'Perfil', path: '/profile', icon: User },
   ];
 
   return (
@@ -123,7 +123,7 @@ export function AppSidebar() {
                   )}
                 >
                   <TrendingUp className="h-5 w-5 mr-3 text-primary" />
-                  <span className="font-semibold text-primary">{t('myEvolution')}</span>
+                  <span className="font-semibold text-primary">Minha Evolução</span>
                   {!isSubscribed && (
                     <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                       PRO
