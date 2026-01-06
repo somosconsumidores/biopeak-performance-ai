@@ -246,19 +246,18 @@ export const Profile = () => {
                         {profile?.display_name || 'Usuário'}
                       </h1>
                       <p className="text-muted-foreground">{profile?.email}</p>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm text-muted-foreground">
                         {age && <span>{age} anos</span>}
                         {age && profile?.weight_kg && <span>•</span>}
                         {profile?.weight_kg && <span>{profile.weight_kg}kg</span>}
                         {profile?.weight_kg && profile?.height_cm && <span>•</span>}
                         {profile?.height_cm && <span>{profile.height_cm}cm</span>}
-                        {stats?.memberSince && (
-                          <>
-                            <span>•</span>
-                            <span>Membro desde {new Date(stats.memberSince).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
-                          </>
-                        )}
                       </div>
+                      {stats?.memberSince && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Membro desde {new Date(stats.memberSince).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </p>
+                      )}
                     </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
