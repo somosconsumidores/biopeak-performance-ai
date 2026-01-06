@@ -336,7 +336,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/evolution" element={
-          <ProtectedRoute>
+          <ProtectedRoute skipOnboardingCheck={false}>
             <Evolution />
           </ProtectedRoute>
         } />
