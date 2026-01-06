@@ -2,10 +2,12 @@ import { Header } from '@/components/Header';
 import { MetabolicCalibrationCard } from '@/components/nutrition/MetabolicCalibrationCard';
 import { NutritionDashboard } from '@/components/nutrition/NutritionDashboard';
 import { useNutritionalProfile } from '@/hooks/useNutritionalProfile';
+import { usePlatform } from '@/hooks/usePlatform';
 import { Utensils } from 'lucide-react';
 
 export default function Nutrition() {
   const { hasMetabolicData, loading, refetchProfile } = useNutritionalProfile();
+  const { isNative } = usePlatform();
 
   const handleCalibrationComplete = () => {
     // Refetch profile to update hasMetabolicData
@@ -14,9 +16,9 @@ export default function Nutrition() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {isNative && <Header />}
       
-      <main className="container max-w-lg mx-auto px-4 pt-20 pb-8">
+      <main className={`container max-w-lg mx-auto px-4 pb-8 ${isNative ? 'pt-20' : 'pt-6'}`}>
         {/* Page Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500/20 to-amber-500/20">

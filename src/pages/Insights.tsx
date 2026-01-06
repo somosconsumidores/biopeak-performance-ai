@@ -1,6 +1,5 @@
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
-import { useEffect } from 'react';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useSubscription } from '@/hooks/useSubscription';
+import { usePlatform } from '@/hooks/usePlatform';
 import { useNavigate } from 'react-router-dom';
 import TrainingRecommendationsCard from '@/components/TrainingRecommendationsCard';
 import { 
@@ -38,6 +38,7 @@ export const Insights = () => {
   const { insights, loading, error, refreshInsights } = useInsights();
   const { applyRecommendation } = useCommitments();
   const { overtrainingRisk, loading: dashboardLoading } = useDashboardMetrics();
+  const { isNative } = usePlatform();
 
   console.log('🔍 INSIGHTS PAGE DEBUG:', { insights, loading, error });
 
@@ -45,8 +46,8 @@ export const Insights = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex flex-col items-center justify-center py-32">
               <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -65,8 +66,8 @@ export const Insights = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex flex-col items-center justify-center py-32">
               <AlertCircle className="h-12 w-12 text-destructive mb-4" />
@@ -91,9 +92,9 @@ export const Insights = () => {
     <ProtectedRoute>
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
+        {isNative && <Header />}
         
-        <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className={`pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isNative ? 'safe-pt-20 sm:safe-pt-24' : 'pt-6'}`}>
         <div className="container mx-auto">
           {/* Header */}
           <ScrollReveal>
