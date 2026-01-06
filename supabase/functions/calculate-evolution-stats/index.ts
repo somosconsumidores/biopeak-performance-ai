@@ -88,12 +88,6 @@ Deno.serve(async (req) => {
       // No body or invalid JSON - process all users
     }
 
-    if (targetUserId) {
-      console.log(`[calculate-evolution-stats] Processing single user: ${targetUserId}`);
-    } else {
-      console.log("[calculate-evolution-stats] Starting calculation for all users...");
-    }
-
     // Generate all 8 weeks using UTC (from oldest to newest)
     const allWeeks: string[] = [];
     const todayKey = toDateKeyUTC(new Date());
@@ -109,105 +103,95 @@ Deno.serve(async (req) => {
     // Use the oldest week as filter start date
     const oldestWeekKey = allWeeks[0];
 
+    // Determine which users to process
+    let userIdsToProcess: string[] = [];
+
     if (targetUserId) {
+      // Individual mode: process only this user
+      console.log(`[calculate-evolution-stats] Processing single user: ${targetUserId}`);
       console.log(`[calculate-evolution-stats] Generated weeks: ${JSON.stringify(allWeeks)}`);
       console.log(`[calculate-evolution-stats] Filter start date: ${oldestWeekKey}`);
-    }
-
-    // Build query for activities from all_activities table
-    let activitiesQuery = supabase
-      .from('all_activities')
-      .select('user_id, activity_date, activity_source, activity_type, total_distance_meters, total_time_minutes, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
-      .gte('activity_date', oldestWeekKey)
-      .order('activity_date', { ascending: true });
-
-    if (targetUserId) {
-      activitiesQuery = activitiesQuery.eq('user_id', targetUserId);
-    }
-
-    const { data: activities, error: activitiesError } = await activitiesQuery;
-
-    if (activitiesError) {
-      console.error("[calculate-evolution-stats] Error fetching activities:", activitiesError);
-      throw activitiesError;
-    }
-
-    console.log(`[calculate-evolution-stats] Fetched ${activities?.length || 0} activities from all_activities`);
-
-    // Build query for fitness scores
-    let fitnessQuery = supabase
-      .from('fitness_scores_daily')
-      .select('user_id, calendar_date, fitness_score')
-      .gte('calendar_date', oldestWeekKey)
-      .order('calendar_date', { ascending: true });
-
-    if (targetUserId) {
-      fitnessQuery = fitnessQuery.eq('user_id', targetUserId);
-    }
-
-    const { data: fitnessScores, error: fitnessError } = await fitnessQuery;
-
-    if (fitnessError) {
-      console.error("[calculate-evolution-stats] Error fetching fitness scores:", fitnessError);
-      // Don't throw - continue without fitness scores
-    }
-
-    console.log(`[calculate-evolution-stats] Fetched ${fitnessScores?.length || 0} fitness scores`);
-
-    if ((!activities || activities.length === 0) && (!fitnessScores || fitnessScores.length === 0)) {
-      // If processing single user with no data, still save empty stats
-      if (targetUserId) {
-        const emptyStats = generateEmptyStats(allWeeks);
-        await supabase.from('user_evolution_stats').upsert({
-          user_id: targetUserId,
-          stats_data: emptyStats,
-          calculated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-        console.log(`[calculate-evolution-stats] Empty stats saved for user ${targetUserId}`);
+      userIdsToProcess = [targetUserId];
+    } else {
+      // Batch mode: use RPC to get only active subscribers with activities
+      console.log("[calculate-evolution-stats] Starting calculation for active subscribers...");
+      
+      const { data: activeUsers, error: usersError } = await supabase
+        .rpc('active_users_with_activities', { 
+          p_start: oldestWeekKey, 
+          p_end: todayKey 
+        });
+      
+      if (usersError) {
+        console.error("[calculate-evolution-stats] Error fetching active users:", usersError);
+        throw usersError;
       }
-      return new Response(JSON.stringify({ success: true, message: "No data found" }), {
+      
+      userIdsToProcess = (activeUsers ?? []).map((r: { user_id: string }) => r.user_id);
+      console.log(`[calculate-evolution-stats] Active subscribers with activities: ${userIdsToProcess.length}`);
+    }
+
+    if (userIdsToProcess.length === 0) {
+      console.log("[calculate-evolution-stats] No users to process");
+      return new Response(JSON.stringify({ success: true, message: "No users to process", usersProcessed: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Log sample activities for debugging when targeting specific user
-    if (targetUserId && activities && activities.length > 0) {
-      const sampleActs = activities.slice(0, 5).map(a => ({
-        activity_date: a.activity_date,
-        activity_type: a.activity_type,
-        distance: a.total_distance_meters,
-      }));
-      console.log(`[calculate-evolution-stats] Sample activities: ${JSON.stringify(sampleActs)}`);
-    }
-
-    // Get all unique user IDs from both activities and fitness scores
-    const userIdsFromActivities = new Set((activities || []).map(a => a.user_id));
-    const userIdsFromFitness = new Set((fitnessScores || []).map(f => f.user_id));
-    const allUserIds = new Set([...userIdsFromActivities, ...userIdsFromFitness]);
-
-    // Group activities by user
+    // Group data by user for processing
     const userActivities: Record<string, Activity[]> = {};
-    for (const activity of (activities || [])) {
-      if (!userActivities[activity.user_id]) {
-        userActivities[activity.user_id] = [];
-      }
-      userActivities[activity.user_id].push(activity as Activity);
-    }
-
-    // Group fitness scores by user
     const userFitnessScores: Record<string, FitnessScore[]> = {};
-    for (const score of (fitnessScores || [])) {
-      if (!userFitnessScores[score.user_id]) {
-        userFitnessScores[score.user_id] = [];
+
+    // Fetch data for each user
+    for (const userId of userIdsToProcess) {
+      // Fetch activities for this user
+      const { data: activities, error: activitiesError } = await supabase
+        .from('all_activities')
+        .select('user_id, activity_date, activity_source, activity_type, total_distance_meters, total_time_minutes, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
+        .eq('user_id', userId)
+        .gte('activity_date', oldestWeekKey)
+        .order('activity_date', { ascending: true });
+
+      if (activitiesError) {
+        console.error(`[calculate-evolution-stats] Error fetching activities for ${userId}:`, activitiesError);
+      } else {
+        userActivities[userId] = (activities || []) as Activity[];
       }
-      userFitnessScores[score.user_id].push(score as FitnessScore);
+
+      // Fetch fitness scores for this user
+      const { data: fitnessScores, error: fitnessError } = await supabase
+        .from('fitness_scores_daily')
+        .select('user_id, calendar_date, fitness_score')
+        .eq('user_id', userId)
+        .gte('calendar_date', oldestWeekKey)
+        .order('calendar_date', { ascending: true });
+
+      if (fitnessError) {
+        console.error(`[calculate-evolution-stats] Error fetching fitness scores for ${userId}:`, fitnessError);
+      } else {
+        userFitnessScores[userId] = (fitnessScores || []) as FitnessScore[];
+      }
     }
 
-    console.log(`[calculate-evolution-stats] Processing ${allUserIds.size} users`);
+    // Handle empty data for single user mode
+    if (targetUserId && (!userActivities[targetUserId]?.length) && (!userFitnessScores[targetUserId]?.length)) {
+      const emptyStats = generateEmptyStats(allWeeks);
+      await supabase.from('user_evolution_stats').upsert({
+        user_id: targetUserId,
+        stats_data: emptyStats,
+        calculated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      console.log(`[calculate-evolution-stats] Empty stats saved for user ${targetUserId}`);
+      return new Response(JSON.stringify({ success: true, message: "No data found", usersProcessed: 1 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[calculate-evolution-stats] Processing ${userIdsToProcess.length} users`);
 
     // Process each user
-    for (const userId of allUserIds) {
+    for (const userId of userIdsToProcess) {
       try {
         const userActs = userActivities[userId] || [];
         const userFitness = userFitnessScores[userId] || [];
@@ -387,7 +371,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        usersProcessed: allUserIds.size,
+        usersProcessed: userIdsToProcess.length,
         message: "Evolution stats calculated successfully" 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
