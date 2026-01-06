@@ -38,7 +38,7 @@ interface Activity {
   activity_date: string;
   activity_source: string;
   activity_type: string;
-  vo2max_daniels: number | null;
+  vo2_max_daniels: number | null;
   total_distance_meters: number | null;
   pace_min_per_km: number | null;
   average_heart_rate: number | null;
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     // Fetch all activities from the view
     const { data: activities, error: activitiesError } = await supabase
       .from('v_all_activities_with_vo2_daniels')
-      .select('user_id, activity_date, activity_source, activity_type, vo2max_daniels, total_distance_meters, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
+      .select('user_id, activity_date, activity_source, activity_type, vo2_max_daniels, total_distance_meters, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
       .gte('activity_date', startDateStr)
       .order('activity_date', { ascending: true });
 
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
 
           // VO2 Max - average of week
           const vo2Values = weekActivities
-            .map(a => a.vo2max_daniels)
+            .map(a => a.vo2_max_daniels)
             .filter((v): v is number => v !== null && v > 0);
           const avgVo2 = vo2Values.length > 0 
             ? vo2Values.reduce((a, b) => a + b, 0) / vo2Values.length 
