@@ -269,3 +269,6 @@ verify_jwt = true
 
 [functions.refresh-materialized-views]
 verify_jwt = false
+
+[functions.calculate-evolution-stats]
+verify_jwt = false
