@@ -41,7 +41,7 @@ serve(async (req) => {
     
     const startDate = params.startDate || '2025-11-17';
     const endDate = params.endDate || new Date().toISOString().split('T')[0];
-    const batchSize = params.batchSize || 50;
+    const batchSize = params.batchSize || 10; // Reduced to avoid CPU timeout
     const offset = params.offset || 0;
 
     console.log(`🚀 Starting backfill: ${startDate} to ${endDate}, batch ${batchSize}, offset ${offset}`);
@@ -90,41 +90,52 @@ serve(async (req) => {
     let usersProcessed = 0;
     const errors: string[] = [];
 
-    for (const userId of usersToProcess) {
-      try {
-        // Get all dates with activities for this user in the period
-        const { data: userActivities, error: activitiesError } = await supabase
-          .from('all_activities')
-          .select('activity_date')
-          .eq('user_id', userId)
-          .gte('activity_date', startDate)
-          .lte('activity_date', endDate);
+    // Process users in parallel chunks of 5 for better performance
+    const chunkSize = 5;
+    for (let i = 0; i < usersToProcess.length; i += chunkSize) {
+      const chunk = usersToProcess.slice(i, i + chunkSize);
+      
+      const results = await Promise.allSettled(
+        chunk.map(async (userId) => {
+          // Get all dates with activities for this user in the period
+          const { data: userActivities, error: activitiesError } = await supabase
+            .from('all_activities')
+            .select('activity_date')
+            .eq('user_id', userId)
+            .gte('activity_date', startDate)
+            .lte('activity_date', endDate);
 
-        if (activitiesError) {
-          console.error(`❌ Error fetching activities for user ${userId}:`, activitiesError);
-          errors.push(`User ${userId}: ${activitiesError.message}`);
-          continue;
-        }
-
-        // Get unique dates
-        const uniqueDates = [...new Set(userActivities?.map(a => a.activity_date).filter(Boolean) || [])];
-        
-        console.log(`👤 User ${userId}: ${uniqueDates.length} unique dates to process`);
-
-        for (const targetDate of uniqueDates) {
-          try {
-            await calculateAndSaveFitnessScore(supabase, userId, targetDate);
-            totalScoresCreated++;
-          } catch (scoreError) {
-            console.error(`❌ Error calculating score for ${userId} on ${targetDate}:`, scoreError);
+          if (activitiesError) {
+            throw new Error(`Error fetching activities: ${activitiesError.message}`);
           }
-        }
 
-        usersProcessed++;
-      } catch (userError) {
-        console.error(`❌ Error processing user ${userId}:`, userError);
-        errors.push(`User ${userId}: ${userError.message}`);
-      }
+          // Get unique dates
+          const uniqueDates = [...new Set(userActivities?.map(a => a.activity_date).filter(Boolean) || [])];
+          
+          console.log(`👤 User ${userId}: ${uniqueDates.length} unique dates to process`);
+
+          let scoresCreated = 0;
+          for (const targetDate of uniqueDates) {
+            try {
+              await calculateAndSaveFitnessScore(supabase, userId, targetDate);
+              scoresCreated++;
+            } catch (scoreError) {
+              console.error(`❌ Error calculating score for ${userId} on ${targetDate}:`, scoreError);
+            }
+          }
+          
+          return scoresCreated;
+        })
+      );
+      
+      results.forEach((result, idx) => {
+        if (result.status === 'fulfilled') {
+          usersProcessed++;
+          totalScoresCreated += result.value;
+        } else {
+          errors.push(`User ${chunk[idx]}: ${result.reason?.message || 'Unknown error'}`);
+        }
+      });
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
