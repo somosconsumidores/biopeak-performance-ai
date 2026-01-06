@@ -80,7 +80,7 @@ export function AppSidebar() {
           onClick={() => navigate('/dashboard')}
         >
           <img 
-            src={theme === 'dark' ? '/lovable-uploads/03c41b69-dbdc-4b95-871e-a0814a741f31.png' : '/lovable-uploads/0fa95839-e370-408a-864d-7cc0748674d7.png'} 
+            src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124-fundo%20branco.png" 
             alt="BioPeak" 
             className="h-8 w-auto"
           />
