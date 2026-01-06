@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
@@ -15,6 +15,8 @@ import { format, addMonths, subMonths, setYear, setMonth, startOfMonth } from 'd
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
+import { HeartRateZonesSettings } from '@/components/HeartRateZonesSettings';
+import { HRZonesConfig } from '@/types/heartRateZones';
 import { toast } from 'sonner';
 
 export const ProfileEdit = () => {
@@ -28,8 +30,29 @@ export const ProfileEdit = () => {
     display_name: profile?.display_name || '',
     birth_date: profile?.birth_date ? new Date(profile.birth_date) : undefined,
     weight_kg: profile?.weight_kg || '',
-    height_cm: profile?.height_cm || ''
+    height_cm: profile?.height_cm || '',
+    max_heart_rate: profile?.max_heart_rate || null,
+    hr_zones: profile?.hr_zones || null,
   });
+
+  // Sync formData when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        display_name: profile.display_name || '',
+        birth_date: profile.birth_date ? new Date(profile.birth_date) : undefined,
+        weight_kg: profile.weight_kg || '',
+        height_cm: profile.height_cm || '',
+        max_heart_rate: profile.max_heart_rate || null,
+        hr_zones: profile.hr_zones || null,
+      });
+    }
+  }, [profile]);
+
+  // Calculate theoretical max HR based on birth date
+  const theoreticalMaxHR = formData.birth_date
+    ? 220 - (new Date().getFullYear() - formData.birth_date.getFullYear())
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +61,9 @@ export const ProfileEdit = () => {
       display_name: formData.display_name || null,
       birth_date: formData.birth_date ? formData.birth_date.toISOString().split('T')[0] : null,
       weight_kg: formData.weight_kg ? Number(formData.weight_kg) : null,
-      height_cm: formData.height_cm ? Number(formData.height_cm) : null
+      height_cm: formData.height_cm ? Number(formData.height_cm) : null,
+      max_heart_rate: formData.max_heart_rate,
+      hr_zones: formData.hr_zones,
     };
 
     await updateProfile(updateData);
@@ -285,6 +310,15 @@ export const ProfileEdit = () => {
                     />
                   </div>
                 </div>
+
+                {/* Heart Rate Zones Settings */}
+                <HeartRateZonesSettings
+                  maxHeartRate={formData.max_heart_rate}
+                  hrZones={formData.hr_zones}
+                  theoreticalMaxHR={theoreticalMaxHR}
+                  onMaxHeartRateChange={(value) => setFormData(prev => ({ ...prev, max_heart_rate: value }))}
+                  onHrZonesChange={(zones) => setFormData(prev => ({ ...prev, hr_zones: zones }))}
+                />
 
                 {/* Botões */}
                 <div className="flex justify-end space-x-3 pt-4">
