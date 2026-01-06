@@ -20,17 +20,34 @@ function getActivityGroup(activityType: string): string {
   return 'other';
 }
 
-function getWeekLabel(date: Date): string {
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  return `${day}/${month}`;
+// UTC Helper: Convert Date to YYYY-MM-DD string in UTC
+function toDateKeyUTC(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
-function getISOWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.setDate(diff));
+// UTC Helper: Parse YYYY-MM-DD string to Date at UTC noon (avoids DST issues)
+function parseDateKeyToUTCNoon(dateKey: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+// UTC version: Get the Monday (ISO week start) for a given date, all in UTC
+function getISOWeekStartUTC(date: Date): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay();
+  // day: 0=Sunday, 1=Monday, ..., 6=Saturday
+  // diff: how many days to subtract to get to Monday
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+// Get week label from date key string (no timezone involved)
+function getWeekLabelFromKey(dateKey: string): string {
+  // dateKey is YYYY-MM-DD, return DD/MM
+  const parts = dateKey.split('-');
+  return `${parts[2]}/${parts[1]}`;
 }
 
 interface Activity {
@@ -71,16 +88,31 @@ Deno.serve(async (req) => {
       console.log("[calculate-evolution-stats] Starting calculation for all users...");
     }
 
-    // Get date 56 days ago (8 weeks)
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 56);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    // Generate all 8 weeks using UTC (from oldest to newest)
+    const allWeeks: string[] = [];
+    const todayKey = toDateKeyUTC(new Date());
+    const todayUTCNoon = parseDateKeyToUTCNoon(todayKey);
+    const currentWeekStart = getISOWeekStartUTC(todayUTCNoon);
+    
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setUTCDate(weekStart.getUTCDate() - (i * 7));
+      allWeeks.push(toDateKeyUTC(weekStart));
+    }
+
+    // Use the oldest week as filter start date
+    const oldestWeekKey = allWeeks[0];
+
+    if (targetUserId) {
+      console.log(`[calculate-evolution-stats] Generated weeks: ${JSON.stringify(allWeeks)}`);
+      console.log(`[calculate-evolution-stats] Filter start date: ${oldestWeekKey}`);
+    }
 
     // Build query with optional user filter
     let query = supabase
       .from('v_all_activities_with_vo2_daniels')
       .select('user_id, activity_date, activity_source, activity_type, vo2_max_daniels, total_distance_meters, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
-      .gte('activity_date', startDateStr)
+      .gte('activity_date', oldestWeekKey)
       .order('activity_date', { ascending: true });
 
     if (targetUserId) {
@@ -97,9 +129,30 @@ Deno.serve(async (req) => {
     console.log(`[calculate-evolution-stats] Fetched ${activities?.length || 0} activities`);
 
     if (!activities || activities.length === 0) {
+      // If processing single user with no activities, still save empty stats
+      if (targetUserId) {
+        const emptyStats = generateEmptyStats(allWeeks);
+        await supabase.from('user_evolution_stats').upsert({
+          user_id: targetUserId,
+          stats_data: emptyStats,
+          calculated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        console.log(`[calculate-evolution-stats] Empty stats saved for user ${targetUserId}`);
+      }
       return new Response(JSON.stringify({ success: true, message: "No activities found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Log sample activities for debugging when targeting specific user
+    if (targetUserId && activities.length > 0) {
+      const sampleActs = activities.slice(0, 3).map(a => ({
+        activity_date: a.activity_date,
+        activity_type: a.activity_type,
+        distance: a.total_distance_meters,
+      }));
+      console.log(`[calculate-evolution-stats] Sample activities: ${JSON.stringify(sampleActs)}`);
     }
 
     // Group activities by user
@@ -119,41 +172,41 @@ Deno.serve(async (req) => {
         // Deduplicate: prioritize Garmin over Strava for same date
         const deduplicatedByDate: Record<string, Activity> = {};
         for (const act of userActs) {
-          const date = act.activity_date;
-          if (!deduplicatedByDate[date]) {
-            deduplicatedByDate[date] = act;
-          } else if (act.activity_source === 'garmin' && deduplicatedByDate[date].activity_source !== 'garmin') {
-            deduplicatedByDate[date] = act;
+          // Normalize date key (handle both DATE and TIMESTAMP formats)
+          const actDayKey = (act.activity_date || '').slice(0, 10);
+          if (!deduplicatedByDate[actDayKey]) {
+            deduplicatedByDate[actDayKey] = act;
+          } else if (act.activity_source === 'garmin' && deduplicatedByDate[actDayKey].activity_source !== 'garmin') {
+            deduplicatedByDate[actDayKey] = act;
           }
         }
         const dedupedActivities = Object.values(deduplicatedByDate);
 
-        // Generate all 8 weeks (from oldest to newest)
-        const allWeeks: string[] = [];
-        const today = new Date();
-        for (let i = 7; i >= 0; i--) {
-          const weekDate = new Date(today);
-          weekDate.setDate(weekDate.getDate() - (i * 7));
-          const weekStart = getISOWeekStart(weekDate);
-          allWeeks.push(weekStart.toISOString().split('T')[0]);
-        }
-
-        // Group activities by week
+        // Group activities by week using UTC-consistent logic
         const weeklyData: Record<string, Activity[]> = {};
         for (const weekKey of allWeeks) {
           weeklyData[weekKey] = [];
         }
+
         for (const act of dedupedActivities) {
-          const actDate = new Date(act.activity_date);
-          const weekStart = getISOWeekStart(actDate);
-          const weekKey = weekStart.toISOString().split('T')[0];
+          const actDayKey = (act.activity_date || '').slice(0, 10);
+          const actDateUTCNoon = parseDateKeyToUTCNoon(actDayKey);
+          const weekStart = getISOWeekStartUTC(actDateUTCNoon);
+          const weekKey = toDateKeyUTC(weekStart);
+          
           if (weeklyData[weekKey]) {
             weeklyData[weekKey].push(act);
           }
         }
 
-        // Use all 8 weeks in order
-        const sortedWeeks = allWeeks;
+        // Debug logging for targeted user
+        if (targetUserId === userId) {
+          const weekCounts: Record<string, number> = {};
+          for (const [wk, acts] of Object.entries(weeklyData)) {
+            weekCounts[wk] = acts.length;
+          }
+          console.log(`[calculate-evolution-stats] Week activity counts: ${JSON.stringify(weekCounts)}`);
+        }
 
         // Calculate stats for each metric
         const vo2Evolution: { week: string; vo2Max: number | null }[] = [];
@@ -169,9 +222,9 @@ Deno.serve(async (req) => {
         };
         const activityCounts: Record<string, number> = {};
 
-        for (const weekKey of sortedWeeks) {
+        for (const weekKey of allWeeks) {
           const weekActivities = weeklyData[weekKey];
-          const weekLabel = getWeekLabel(new Date(weekKey));
+          const weekLabel = getWeekLabelFromKey(weekKey);
 
           // VO2 Max - average of week
           const vo2Values = weekActivities
@@ -294,3 +347,24 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// Helper to generate empty stats structure
+function generateEmptyStats(allWeeks: string[]) {
+  const emptyWeekData = (weekKey: string) => getWeekLabelFromKey(weekKey);
+  
+  return {
+    calculatedAt: new Date().toISOString(),
+    vo2Evolution: allWeeks.map(w => ({ week: emptyWeekData(w), vo2Max: null })),
+    distanceEvolution: allWeeks.map(w => ({ week: emptyWeekData(w), totalKm: 0 })),
+    paceEvolution: {
+      cycling: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),
+      running: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),
+      swimming: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),
+      walking: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),
+      other: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),
+    },
+    heartRateEvolution: allWeeks.map(w => ({ week: emptyWeekData(w), avgHR: null, maxHR: null })),
+    caloriesEvolution: allWeeks.map(w => ({ week: emptyWeekData(w), totalCalories: 0 })),
+    activityDistribution: [],
+  };
+}
