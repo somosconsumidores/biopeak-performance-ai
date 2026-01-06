@@ -109,20 +109,32 @@ Deno.serve(async (req) => {
         }
         const dedupedActivities = Object.values(deduplicatedByDate);
 
-        // Group by week
+        // Generate all 8 weeks (from oldest to newest)
+        const allWeeks: string[] = [];
+        const today = new Date();
+        for (let i = 7; i >= 0; i--) {
+          const weekDate = new Date(today);
+          weekDate.setDate(weekDate.getDate() - (i * 7));
+          const weekStart = getISOWeekStart(weekDate);
+          allWeeks.push(weekStart.toISOString().split('T')[0]);
+        }
+
+        // Group activities by week
         const weeklyData: Record<string, Activity[]> = {};
+        for (const weekKey of allWeeks) {
+          weeklyData[weekKey] = [];
+        }
         for (const act of dedupedActivities) {
           const actDate = new Date(act.activity_date);
           const weekStart = getISOWeekStart(actDate);
           const weekKey = weekStart.toISOString().split('T')[0];
-          if (!weeklyData[weekKey]) {
-            weeklyData[weekKey] = [];
+          if (weeklyData[weekKey]) {
+            weeklyData[weekKey].push(act);
           }
-          weeklyData[weekKey].push(act);
         }
 
-        // Sort weeks and get last 8
-        const sortedWeeks = Object.keys(weeklyData).sort().slice(-8);
+        // Use all 8 weeks in order
+        const sortedWeeks = allWeeks;
 
         // Calculate stats for each metric
         const vo2Evolution: { week: string; vo2Max: number | null }[] = [];
