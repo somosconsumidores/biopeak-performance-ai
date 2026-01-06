@@ -55,10 +55,12 @@ import { useStravaAnalysisRecovery } from '@/hooks/useStravaAnalysisRecovery';
 import { useActivityRecalculate } from '@/hooks/useActivityRecalculate';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 import { isCyclingActivity, formatSpeed, formatSpeedOrPace, getSpeedOrPaceLabel } from '@/utils/activityTypeUtils';
+import { usePlatform } from '@/hooks/usePlatform';
 
 
 export const WorkoutSession = () => {
   const { user } = useAuth();
+  const { isNative } = usePlatform();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     searchParams.get('activityId')
@@ -186,8 +188,8 @@ export const WorkoutSession = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-6'}`}>
           <div className="container mx-auto flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -203,8 +205,8 @@ export const WorkoutSession = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-6'}`}>
           <div className="container mx-auto">
             <div className="flex items-center space-x-4 mb-8">
               <Link to="/dashboard">
@@ -237,9 +239,9 @@ export const WorkoutSession = () => {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />
-      <Header />
+      {isNative && <Header />}
       
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-6'}`}>
         <div className="container mx-auto">
           {/* Activity Selector */}
           <ScrollReveal>
