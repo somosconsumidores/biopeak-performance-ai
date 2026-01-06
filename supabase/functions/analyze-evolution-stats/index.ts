@@ -82,13 +82,49 @@ serve(async (req) => {
       return data.map(d => `${d.week}: ${d.totalKm?.toFixed(1) ?? '0'} km`).join(' | ');
     };
 
-    const formatPaceForSport = (data: any, sport: string) => {
+    // Helper to format pace as min:sec/km (e.g., 5.5 → "5:30/km")
+    const formatPaceMinSec = (paceDecimal: number): string => {
+      const minutes = Math.floor(paceDecimal);
+      const seconds = Math.round((paceDecimal - minutes) * 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+    };
+
+    // Format all available pace data by sport
+    const formatAllPaces = (data: any) => {
       if (!data) return 'Sem dados';
-      // Try to find pace data for the primary sport
-      const sportKey = sport.toLowerCase();
-      const sportData = data[sportKey] || data['running'] || data['corrida'] || Object.values(data)[0];
-      if (!Array.isArray(sportData) || sportData.length === 0) return 'Sem dados';
-      return sportData.map((w: any) => `${w.week}: ${w.avgPace?.toFixed(2) ?? '-'} min/km`).join(' | ');
+      const results: string[] = [];
+
+      // Running - format as min:sec/km
+      const runningData = data['running'] || data['corrida'] || [];
+      if (Array.isArray(runningData) && runningData.some((w: any) => w.avgPace != null)) {
+        const runPaces = runningData
+          .filter((w: any) => w.avgPace != null)
+          .map((w: any) => `${w.week}: ${formatPaceMinSec(w.avgPace)}`)
+          .join(' | ');
+        results.push(`Corrida: ${runPaces}`);
+      }
+
+      // Cycling - format as km/h
+      const cyclingData = data['cycling'] || data['ciclismo'] || [];
+      if (Array.isArray(cyclingData) && cyclingData.some((w: any) => w.avgPace != null)) {
+        const cyclePaces = cyclingData
+          .filter((w: any) => w.avgPace != null)
+          .map((w: any) => `${w.week}: ${w.avgPace.toFixed(1)} km/h`)
+          .join(' | ');
+        results.push(`Ciclismo: ${cyclePaces}`);
+      }
+
+      // Walking
+      const walkingData = data['walking'] || data['caminhada'] || [];
+      if (Array.isArray(walkingData) && walkingData.some((w: any) => w.avgPace != null)) {
+        const walkPaces = walkingData
+          .filter((w: any) => w.avgPace != null)
+          .map((w: any) => `${w.week}: ${formatPaceMinSec(w.avgPace)}`)
+          .join(' | ');
+        results.push(`Caminhada: ${walkPaces}`);
+      }
+
+      return results.length > 0 ? results.join('\n• ') : 'Sem dados';
     };
 
     const formatHeartRate = (data: any[]) => {
@@ -114,7 +150,8 @@ OBJETIVO: ${goalType}
 DADOS DAS ÚLTIMAS 8 SEMANAS:
 • Fitness Score: ${formatFitnessScore(stats?.fitnessScoreEvolution)}
 • Km/semana: ${formatDistance(stats?.distanceEvolution)}
-• Pace (${primarySport}): ${formatPaceForSport(stats?.paceEvolution, primarySport)}
+• Pace por esporte:
+  ${formatAllPaces(stats?.paceEvolution)}
 • FC média/máx: ${formatHeartRate(stats?.heartRateEvolution)}
 • Calorias: ${formatCalories(stats?.caloriesEvolution)}
 • Distribuição: ${formatDistribution(stats?.activityDistribution)}
