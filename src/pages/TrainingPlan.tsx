@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, Plus, Target, Dumbbell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { useActiveTrainingPlans, TrainingWorkout } from '@/hooks/useActiveTraini
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { useTrainingPlanAnalysis } from '@/hooks/useTrainingPlanAnalysis';
+import { usePlatform } from '@/hooks/usePlatform';
 
 const TrainingPlan = () => {
   const { mainPlan, strengthPlan, workouts, loading, refreshPlans, deletePlan, canAddStrengthPlan, hasStrengthPlan } = useActiveTrainingPlans();
@@ -27,6 +27,7 @@ const TrainingPlan = () => {
   const [selectedWorkout, setSelectedWorkout] = useState<TrainingWorkout | null>(null);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const { result: analysisResult, loading: analysisLoading, error: analysisError, analyzePlan, clearAnalysis } = useTrainingPlanAnalysis();
+  const { isNative } = usePlatform();
 
   const handleWizardComplete = () => {
     setWizardOpen(false);
@@ -60,8 +61,8 @@ const TrainingPlan = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-      <div className="safe-pt-16 pb-20 md:pb-4">
+      {isNative && <Header />}
+      <div className={`pb-20 md:pb-4 ${isNative ? 'safe-pt-16' : 'pt-4'}`}>
         <div className="container mx-auto px-4 py-4 md:py-6 space-y-6">
           {/* Header */}
           <div className="text-center md:text-left">
