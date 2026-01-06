@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useEvolutionStats } from '@/hooks/useEvolutionStats';
 import { useSubscription } from '@/hooks/useSubscription';
-import { usePlatform } from '@/hooks/usePlatform';
-import { Header } from '@/components/Header';
 import { FitnessScoreEvolutionChart } from '@/components/evolution/FitnessScoreEvolutionChart';
 import { WeeklyDistanceChart } from '@/components/evolution/WeeklyDistanceChart';
 import { PaceEvolutionChart } from '@/components/evolution/PaceEvolutionChart';
@@ -20,7 +18,6 @@ export default function Evolution() {
   const navigate = useNavigate();
   const { stats, loading, error, refresh, hasData } = useEvolutionStats();
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
-  const { isNative } = usePlatform();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   // Show paywall for non-subscribers
@@ -46,7 +43,6 @@ export default function Evolution() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {isNative && <Header />}
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -178,7 +174,6 @@ function EmptyState({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefr
 
 function EvolutionPaywall({ onSubscribe }: { onSubscribe: () => void }) {
   const navigate = useNavigate();
-  const { isNative } = usePlatform();
 
   const benefits = [
     "Feedback personalizado do Coach IA semanal",
@@ -190,7 +185,6 @@ function EvolutionPaywall({ onSubscribe }: { onSubscribe: () => void }) {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {isNative && <Header />}
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-4">
