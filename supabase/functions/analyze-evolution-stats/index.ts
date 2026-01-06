@@ -71,101 +71,72 @@ serve(async (req) => {
 
     const stats = evolutionStats.stats_data;
 
-    // Format data for the prompt
+    // Format data for the prompt - using correct field names from stats_data
     const formatFitnessScore = (data: any[]) => {
-      if (!data?.length) return 'Sem dados disponíveis';
-      return data.map(d => `Semana ${d.week}: ${d.fitnessScore ?? 'N/A'} pontos`).join('\n');
+      if (!data?.length) return 'Sem dados';
+      return data.map(d => `${d.week}: ${d.fitnessScore ?? '-'}`).join(' | ');
     };
 
     const formatDistance = (data: any[]) => {
-      if (!data?.length) return 'Sem dados disponíveis';
-      return data.map(d => `Semana ${d.week}: ${((d.totalDistance || 0) / 1000).toFixed(1)} km (${d.activitiesCount || 0} atividades)`).join('\n');
+      if (!data?.length) return 'Sem dados';
+      return data.map(d => `${d.week}: ${d.totalKm?.toFixed(1) ?? '0'} km`).join(' | ');
     };
 
-    const formatPace = (data: any) => {
-      if (!data || Object.keys(data).length === 0) return 'Sem dados disponíveis';
-      const result: string[] = [];
-      for (const [sport, weeks] of Object.entries(data)) {
-        if (Array.isArray(weeks) && weeks.length > 0) {
-          const sportData = weeks.map((w: any) => `  Semana ${w.week}: ${w.avgPace?.toFixed(2) || 'N/A'} min/km`).join('\n');
-          result.push(`${sport}:\n${sportData}`);
-        }
-      }
-      return result.length > 0 ? result.join('\n') : 'Sem dados disponíveis';
+    const formatPaceForSport = (data: any, sport: string) => {
+      if (!data) return 'Sem dados';
+      // Try to find pace data for the primary sport
+      const sportKey = sport.toLowerCase();
+      const sportData = data[sportKey] || data['running'] || data['corrida'] || Object.values(data)[0];
+      if (!Array.isArray(sportData) || sportData.length === 0) return 'Sem dados';
+      return sportData.map((w: any) => `${w.week}: ${w.avgPace?.toFixed(2) ?? '-'} min/km`).join(' | ');
     };
 
     const formatHeartRate = (data: any[]) => {
-      if (!data?.length) return 'Sem dados disponíveis';
-      return data.map(d => `Semana ${d.week}: Média ${d.avgHeartRate || 'N/A'} bpm, Máx ${d.maxHeartRate || 'N/A'} bpm`).join('\n');
+      if (!data?.length) return 'Sem dados';
+      return data.map(d => `${d.week}: ${d.avgHeartRate ?? '-'}/${d.maxHeartRate ?? '-'} bpm`).join(' | ');
     };
 
     const formatCalories = (data: any[]) => {
-      if (!data?.length) return 'Sem dados disponíveis';
-      return data.map(d => `Semana ${d.week}: ${d.totalCalories || 0} kcal`).join('\n');
+      if (!data?.length) return 'Sem dados';
+      return data.map(d => `${d.week}: ${d.totalCalories ?? 0} kcal`).join(' | ');
     };
 
     const formatDistribution = (data: any[]) => {
-      if (!data?.length) return 'Sem dados disponíveis';
-      return data.map(d => `${d.activityType}: ${d.count} atividades (${d.percentage?.toFixed(1) || 0}%)`).join('\n');
+      if (!data?.length) return 'Sem dados';
+      return data.map(d => `${d.activityType}: ${d.count} (${d.percentage?.toFixed(0)}%)`).join(', ');
     };
 
-    const prompt = `Você é um coach esportivo profissional e experiente, especializado em análise de performance para atletas amadores e profissionais. Sua função é analisar os dados de evolução das últimas 8 semanas deste atleta e fornecer uma análise detalhada, personalizada e motivadora.
+    const prompt = `Você é um coach esportivo. Analise os dados de evolução deste atleta e forneça uma análise CONCISA e OBJETIVA.
 
-PERFIL DO ATLETA:
-- Nome: ${userName}
-${userAge ? `- Idade: ${userAge} anos` : ''}
-- Esporte principal: ${primarySport}
-- Objetivo: ${goalType}
+ATLETA: ${userName}${userAge ? `, ${userAge} anos` : ''}, foco em ${primarySport}
+OBJETIVO: ${goalType}
 
-═══════════════════════════════════════════════════════════════
+DADOS DAS ÚLTIMAS 8 SEMANAS:
+• Fitness Score: ${formatFitnessScore(stats?.fitnessScoreEvolution)}
+• Km/semana: ${formatDistance(stats?.distanceEvolution)}
+• Pace (${primarySport}): ${formatPaceForSport(stats?.paceEvolution, primarySport)}
+• FC média/máx: ${formatHeartRate(stats?.heartRateEvolution)}
+• Calorias: ${formatCalories(stats?.caloriesEvolution)}
+• Distribuição: ${formatDistribution(stats?.activityDistribution)}
 
-📊 EVOLUÇÃO DO FITNESS SCORE (últimas 8 semanas):
-${formatFitnessScore(stats?.fitnessScoreEvolution)}
+⚠️ REGRAS OBRIGATÓRIAS:
+- NÃO sugira comprar equipamentos (monitor de FC, relógio, etc) - os dados JÁ estão sendo coletados automaticamente
+- NÃO comente sobre forma de registro das atividades - isso é responsabilidade do aplicativo
+- NÃO mencione "ausência de dados" quando os números existem acima
+- NÃO dê dicas sobre como sincronizar ou registrar treinos
+- Foque APENAS em análise de performance baseada nos números reais apresentados
 
-📏 EVOLUÇÃO DE DISTÂNCIA SEMANAL:
-${formatDistance(stats?.distanceEvolution)}
+FORMATO DA RESPOSTA (máximo 300 palavras):
 
-⏱️ EVOLUÇÃO DE PACE POR MODALIDADE:
-${formatPace(stats?.paceEvolution)}
+**Resumo**: 2-3 frases diretas sobre a performance geral, citando números específicos.
 
-❤️ EVOLUÇÃO DE FREQUÊNCIA CARDÍACA:
-${formatHeartRate(stats?.heartRateEvolution)}
+**Pontos fortes**: 2-3 bullet points específicos baseados nos dados.
 
-🔥 EVOLUÇÃO DE CALORIAS GASTAS:
-${formatCalories(stats?.caloriesEvolution)}
+**Oportunidades**: 2-3 bullet points de melhoria prática de treino.
 
-📈 DISTRIBUIÇÃO DE ATIVIDADES:
-${formatDistribution(stats?.activityDistribution)}
+**Próximas semanas**: UMA recomendação principal, objetiva e acionável.
 
-═══════════════════════════════════════════════════════════════
-
-Com base nesses dados, forneça uma análise COMPLETA e ESTRUTURADA incluindo:
-
-## 📋 Resumo Geral
-Uma visão geral concisa da performance do atleta nas últimas semanas (2-3 frases impactantes).
-
-## 💪 Pontos Fortes
-Liste 3-4 aspectos positivos identificados nos dados, sendo específico com números quando possível.
-
-## 🎯 Áreas de Melhoria
-Identifique 3-4 oportunidades de melhoria baseadas nos dados, com sugestões práticas.
-
-## 📈 Tendências Identificadas
-Descreva os padrões e tendências observados (progressão, estagnação, variações) com base nos números.
-
-## 🚀 Recomendações Personalizadas
-Forneça 4-5 ações específicas e práticas para as próximas semanas, considerando o esporte principal e objetivo do atleta.
-
-## 🔮 Projeção
-Baseado nas tendências atuais, o que o atleta pode esperar se mantiver o ritmo? Inclua uma estimativa realista.
-
-DIRETRIZES:
-- Use linguagem motivadora mas realista
-- Seja específico com os números dos dados
-- Evite generalidades - personalize para este atleta
-- Mantenha um tom profissional e encorajador
-- Responda em português do Brasil
-- Use emojis moderadamente para melhor legibilidade`;
+Responda em português brasileiro. Tom motivador mas direto, sem rodeios.`;
 
     console.log('[analyze-evolution-stats] Calling Lovable AI...');
 
