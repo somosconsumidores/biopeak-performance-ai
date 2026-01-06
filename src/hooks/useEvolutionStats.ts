@@ -143,9 +143,9 @@ export function useEvolutionStats() {
     error,
     refresh,
     hasData: !!stats && (
-      stats.fitnessScoreEvolution.length > 0 ||
-      stats.distanceEvolution.length > 0 ||
-      stats.activityDistribution.length > 0
+      (stats.fitnessScoreEvolution?.length || 0) > 0 ||
+      (stats.distanceEvolution?.length || 0) > 0 ||
+      (stats.activityDistribution?.length || 0) > 0
     ),
   };
 }
