@@ -12,6 +12,7 @@ export const CACHE_KEYS = {
   TRAINING_PLANS: 'training_plans_cache_v1',
   NUTRITIONAL_PROFILE: 'biopeak_nutritional_profile_cache_v1',
   NUTRITION_WEEKLY_PLAN: 'biopeak_nutrition_weekly_plan_cache_v1',
+  EVOLUTION_STATS: 'biopeak_evolution_stats_cache_v1',
 } as const;
 
 export const CACHE_DURATIONS = {
@@ -20,6 +21,7 @@ export const CACHE_DURATIONS = {
   LONG: 10 * 60 * 1000,       // 10 minutes
   PROFILE: 30 * 60 * 1000,    // 30 minutes
   COACH: 4 * 60 * 60 * 1000,  // 4 hours
+  DAILY: 24 * 60 * 60 * 1000, // 24 hours
 } as const;
 
 interface CachedData<T> {

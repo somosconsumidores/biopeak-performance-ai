@@ -4910,6 +4910,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_evolution_stats: {
+        Row: {
+          calculated_at: string | null
+          created_at: string | null
+          id: string
+          stats_data: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          calculated_at?: string | null
+          created_at?: string | null
+          id?: string
+          stats_data?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          calculated_at?: string | null
+          created_at?: string | null
+          id?: string
+          stats_data?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_onboarding: {
         Row: {
           aplicativo: string | null

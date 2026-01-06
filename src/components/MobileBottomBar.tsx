@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Brain, Home, Calendar, Utensils, Dumbbell } from 'lucide-react';
+import { TrendingUp, Home, Calendar, Utensils, Dumbbell } from 'lucide-react';
 import { usePlatform } from '@/hooks/usePlatform';
 
 const MobileBottomBar: React.FC = () => {
@@ -21,7 +21,7 @@ const MobileBottomBar: React.FC = () => {
     { path: '/workouts', icon: Dumbbell, label: 'Treinos' },
     { path: '/training-plan', icon: Calendar, label: 'Plano' },
     { path: '/dashboard?section=nutrition-plan', icon: Utensils, label: 'Nutrição' },
-    { path: '/insights', icon: Brain, label: 'Insights' }
+    { path: '/evolution', icon: TrendingUp, label: 'Evolução' }
   ];
 
   const isActive = (itemPath: string) => {

@@ -55,6 +55,7 @@ import RacePlanning from "./pages/RacePlanning";
 import SavedStrategies from "./pages/SavedStrategies";
 import { AICoach } from "./pages/AICoach";
 import Nutrition from "./pages/Nutrition";
+import Evolution from "./pages/Evolution";
 import MobileBottomBar from "./components/MobileBottomBar";
 import { useOnboarding } from "./hooks/useOnboarding";
 import { useAppOnboarding } from "./hooks/useAppOnboarding";
@@ -332,6 +333,11 @@ function AppRoutes() {
         <Route path="/nutrition" element={
           <ProtectedRoute>
             <Nutrition />
+          </ProtectedRoute>
+        } />
+        <Route path="/evolution" element={
+          <ProtectedRoute>
+            <Evolution />
           </ProtectedRoute>
         } />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
