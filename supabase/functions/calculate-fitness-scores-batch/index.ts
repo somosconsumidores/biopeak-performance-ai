@@ -49,11 +49,13 @@ serve(async (req) => {
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const startDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
+    // Note: Using limit 50000 to avoid Supabase's default 1000 row limit
     const { data: usersWithActivities, error: usersError } = await supabase
       .from('all_activities')
       .select('user_id')
       .gte('activity_date', startDateStr)
-      .lte('activity_date', targetDate);
+      .lte('activity_date', targetDate)
+      .limit(50000);
 
     if (usersError) {
       console.error('❌ Error fetching users:', usersError);
