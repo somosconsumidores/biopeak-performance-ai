@@ -57,6 +57,7 @@ import { AICoach } from "./pages/AICoach";
 import Nutrition from "./pages/Nutrition";
 import Evolution from "./pages/Evolution";
 import MobileBottomBar from "./components/MobileBottomBar";
+import { AppLayout } from "./components/AppLayout";
 import { useOnboarding } from "./hooks/useOnboarding";
 import { useAppOnboarding } from "./hooks/useAppOnboarding";
 import { AppOnboarding } from "./components/AppOnboarding";
@@ -216,20 +217,20 @@ function AppRoutes() {
         } />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/onboarding" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
+          <ProtectedRoute skipOnboardingCheck={true} skipLayout={true}>
             <Onboarding />
           </ProtectedRoute>
         } />
         <Route path="/garmin-callback" element={<GarminCallback />} />
         <Route path="/polar-callback" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
+          <ProtectedRoute skipOnboardingCheck={true} skipLayout={true}>
             <PolarCallback />
           </ProtectedRoute>
         } />
         <Route path="/strava-callback" element={<StravaCallback />} />
         <Route path="/strava-connect" element={<StravaConnect />} />
         <Route path="/garmin-sync" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
+          <ProtectedRoute skipOnboardingCheck={true} skipLayout={true}>
             <GarminSync />
           </ProtectedRoute>
         } />
@@ -254,7 +255,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/sync" element={
-          <ProtectedRoute skipOnboardingCheck={true}>
+          <ProtectedRoute skipOnboardingCheck={true} skipLayout={true}>
             <GarminSync />
           </ProtectedRoute>
         } />
@@ -364,10 +365,12 @@ function AppRoutes() {
 // Protected Route Component - now inside AuthProvider context
 function ProtectedRoute({ 
   children, 
-  skipOnboardingCheck = false 
+  skipOnboardingCheck = false,
+  skipLayout = false
 }: { 
   children: React.ReactNode;
   skipOnboardingCheck?: boolean;
+  skipLayout?: boolean;
 }) {
   const { user, loading } = useAuth();
   const { checkOnboardingStatus, isOnboardingCompleted } = useOnboarding();
@@ -427,7 +430,12 @@ function ProtectedRoute({
     pathname: window.location.pathname 
   });
   
-  return <>{children}</>;
+  // Wrap with AppLayout for PWA/desktop, skip for specific routes
+  if (skipLayout) {
+    return <>{children}</>;
+  }
+  
+  return <AppLayout>{children}</AppLayout>;
 }
 
 // Public Route Component - now inside AuthProvider context
