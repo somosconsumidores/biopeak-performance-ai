@@ -1,27 +1,27 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "./useAuth";
 
 export const useRecalculateMetrics = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ activityId }: { activityId: string }) => {
-      // Get current user
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !userData.user) {
-        throw new Error(`Erro de autenticação: ${userError?.message || 'Usuário não encontrado'}`);
+      // Use user from context instead of API call
+      if (!user) {
+        throw new Error('Erro de autenticação: Usuário não encontrado');
       }
 
-      console.log(`🔄 Recalculando métricas para atividade ${activityId}, usuário ${userData.user.id}`);
+      console.log(`🔄 Recalculando métricas para atividade ${activityId}, usuário ${user.id}`);
 
       // First delete the existing performance metrics
       const { error: deleteError } = await supabase
         .from('performance_metrics')
         .delete()
         .eq('activity_id', activityId)
-        .eq('user_id', userData.user.id);
+        .eq('user_id', user.id);
 
       if (deleteError) {
         console.error('❌ Erro ao deletar métricas existentes:', deleteError);
@@ -58,7 +58,7 @@ export const useRecalculateMetrics = () => {
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { 
           activity_id: activityIdToUse,
-          user_id: userData.user.id
+          user_id: user.id
         }
       });
 

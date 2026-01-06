@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "./useAuth";
 
 export const useExportActivityCSV = () => {
+  const { session } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -10,8 +12,7 @@ export const useExportActivityCSV = () => {
     setIsExporting(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Use session from context instead of API call
       if (!session) {
         toast({
           title: "Erro de autenticação",

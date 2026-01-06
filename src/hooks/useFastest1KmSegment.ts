@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 interface Fastest1KmSegment {
   start_distance_m: number;
@@ -20,6 +21,7 @@ export function useFastest1KmSegment(
   activityId: string | null,
   activitySource: string = 'garmin'
 ): UseFastest1KmSegmentReturn {
+  const { user } = useAuth();
   const [segment, setSegment] = useState<Fastest1KmSegment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +36,13 @@ export function useFastest1KmSegment(
     setError(null);
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) {
+      // Use user from context instead of API call
+      if (!user) {
         throw new Error('User not authenticated');
       }
 
       const { data, error: rpcError } = await supabase.rpc('find_fastest_1km_segment', {
-        p_user_id: userData.user.id,
+        p_user_id: user.id,
         p_activity_id: activityId,
         p_activity_source: activitySource
       });
@@ -60,8 +62,10 @@ export function useFastest1KmSegment(
   };
 
   useEffect(() => {
-    fetchFastest1KmSegment();
-  }, [activityId, activitySource]);
+    if (user) {
+      fetchFastest1KmSegment();
+    }
+  }, [activityId, activitySource, user]);
 
   return {
     segment,

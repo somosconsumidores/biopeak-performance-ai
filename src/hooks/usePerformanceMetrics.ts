@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 import { formatMetricsFromChartData } from './usePerformanceMetricsFromChartData';
 
 interface PerformanceMetrics {
@@ -38,6 +39,7 @@ interface UsePerformanceMetricsReturn {
 }
 
 export const usePerformanceMetrics = (activityId: string): UsePerformanceMetricsReturn => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +60,7 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
         console.log('🔄 Fetching performance metrics for activity:', activityId);
         const startTime = Date.now();
         
-        // Get the current user
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use user from context instead of API call
         if (!user) {
           throw new Error('User not authenticated');
         }
@@ -108,8 +109,10 @@ export const usePerformanceMetrics = (activityId: string): UsePerformanceMetrics
       }
     };
 
-    fetchMetrics();
-  }, [activityId]);
+    if (user) {
+      fetchMetrics();
+    }
+  }, [activityId, user]);
 
   return { metrics, loading, error };
 };

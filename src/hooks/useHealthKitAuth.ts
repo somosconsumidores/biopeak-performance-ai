@@ -4,6 +4,7 @@ import { Device } from '@capacitor/device';
 import { HealthKit } from '../lib/healthkit';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './useAuth';
 
 interface HealthKitPermission {
   read: boolean;
@@ -19,6 +20,7 @@ interface HealthKitPermissions {
 }
 
 export const useHealthKitAuth = () => {
+  const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
   const [permissions, setPermissions] = useState<HealthKitPermissions | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +30,7 @@ export const useHealthKitAuth = () => {
   useEffect(() => {
     checkHealthKitSupport();
     checkConnectionStatus();
-  }, []);
+  }, [user]);
 
   const checkHealthKitSupport = async () => {
     try {
@@ -44,13 +46,13 @@ export const useHealthKitAuth = () => {
 
   const checkConnectionStatus = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      // Use user from context instead of API call
+      if (!user) return;
 
       const { data } = await supabase
         .from('healthkit_sync_status')
         .select('permissions_granted')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .single();
 
       setHasConnectedDevice(data?.permissions_granted || false);
@@ -104,13 +106,12 @@ export const useHealthKitAuth = () => {
 
       setPermissions(healthPermissions);
 
-      // Update sync status in database
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      // Update sync status in database - use user from context
+      if (user) {
         await supabase
           .from('healthkit_sync_status')
           .upsert({
-            user_id: session.user.id,
+            user_id: user.id,
             permissions_granted: true,
             sync_status: 'ready'
           });
@@ -141,8 +142,8 @@ export const useHealthKitAuth = () => {
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return false;
+      // Use user from context instead of API call
+      if (!user) return false;
 
       // Update sync status to disconnected
       await supabase
@@ -151,7 +152,7 @@ export const useHealthKitAuth = () => {
           permissions_granted: false,
           sync_status: 'disconnected'
         })
-        .eq('user_id', session.user.id);
+        .eq('user_id', user.id);
 
       setPermissions(null);
       setHasConnectedDevice(false);

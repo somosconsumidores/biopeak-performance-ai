@@ -1,7 +1,7 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './useAuth';
 
 interface BackfillResult {
   success: boolean;
@@ -33,6 +33,7 @@ interface BackfillRequest {
 }
 
 export const useBackfillActivities = () => {
+  const { session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [lastBackfillResult, setLastBackfillResult] = useState<BackfillResult | null>(null);
   const { toast } = useToast();
@@ -42,8 +43,7 @@ export const useBackfillActivities = () => {
     setLastBackfillResult(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Use session from context instead of API call
       if (!session) {
         toast({
           title: "Erro de autenticação",
@@ -134,8 +134,7 @@ export const useBackfillActivities = () => {
   // Silent backfill function for automatic processes (no toast notifications)
   const backfillActivitiesSilent = async (request: BackfillRequest): Promise<boolean> => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Use session from context instead of API call
       if (!session) {
         console.error('[useBackfillActivities] No session for silent backfill');
         return false;

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './useAuth';
 
 export interface SavedRaceStrategy {
   id: string;
@@ -19,6 +20,7 @@ export interface SavedRaceStrategy {
 }
 
 export function useRaceStrategies() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,8 +38,7 @@ export function useRaceStrategies() {
   ) => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      // Use user from context instead of API call
       if (!user) {
         toast({
           title: "Erro",
@@ -84,13 +85,12 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const loadStrategies = useCallback(async (): Promise<SavedRaceStrategy[]> => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      // Use user from context instead of API call
       if (!user) {
         return [];
       }
@@ -115,7 +115,7 @@ export function useRaceStrategies() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const deleteStrategy = useCallback(async (id: string) => {
     setIsLoading(true);
