@@ -87,24 +87,17 @@ export function NutritionWeeklyPlan() {
         const parsed = data.insight_data as NutritionalPlanData;
         setPlanData(parsed);
         
-        const newActiveDay = parsed.weekly_menu?.length > 0 ? parsed.weekly_menu[0].day : '';
+        const firstDay = parsed.weekly_menu?.length > 0 ? parsed.weekly_menu[0].day : '';
         if (!activeDay) {
-          setActiveDay(newActiveDay);
+          setActiveDay(firstDay);
         }
-        
-        // Save to cache
-        const cacheData: CachedWeeklyPlanData = {
-          planData: parsed,
-          activeDay: newActiveDay,
-        };
-        setCache(CACHE_KEYS.NUTRITION_WEEKLY_PLAN, cacheData, user.id);
       }
     } catch (err) {
       console.error('Error fetching nutritional plan:', err);
     } finally {
       setLoading(false);
     }
-  }, [user, activeDay]);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -123,6 +116,17 @@ export function NutritionWeeklyPlan() {
       fetchNutritionalPlan(true);
     }
   }, [user?.id, fetchNutritionalPlan]);
+
+  // Update cache when user changes the active day
+  useEffect(() => {
+    if (user?.id && planData && activeDay) {
+      const cacheData: CachedWeeklyPlanData = {
+        planData,
+        activeDay,
+      };
+      setCache(CACHE_KEYS.NUTRITION_WEEKLY_PLAN, cacheData, user.id);
+    }
+  }, [activeDay, planData, user?.id]);
 
   const handleGoToTrainingPlan = () => {
     navigate('/training-plan');
