@@ -17,11 +17,11 @@ const MobileBottomBar: React.FC = () => {
   if (hideOnRoutes.includes(location.pathname)) return null;
 
   const navItems = [
-    { path: '/dashboard', icon: Home, label: 'Início' },
-    { path: '/workouts', icon: Dumbbell, label: 'Treinos' },
-    { path: '/training-plan', icon: Calendar, label: 'Plano' },
-    { path: '/dashboard?section=nutrition-plan', icon: Utensils, label: 'Nutrição' },
-    { path: '/evolution', icon: TrendingUp, label: 'Evolução' }
+    { path: '/dashboard', icon: Home, label: 'Início', isCenter: false },
+    { path: '/workouts', icon: Dumbbell, label: 'Treinos', isCenter: false },
+    { path: '/evolution', icon: TrendingUp, label: 'Evolução', isCenter: true },
+    { path: '/training-plan', icon: Calendar, label: 'Plano', isCenter: false },
+    { path: '/dashboard?section=nutrition-plan', icon: Utensils, label: 'Nutrição', isCenter: false },
   ];
 
   const isActive = (itemPath: string) => {
@@ -34,11 +34,36 @@ const MobileBottomBar: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-50">
-      <div className="flex justify-around items-center py-3 px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+      <div 
+        className="flex justify-around items-end py-2 px-4" 
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
         {navItems.map((item) => {
           const active = isActive(item.path);
           const Icon = item.icon;
           
+          // Central item with special highlight
+          if (item.isCenter) {
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className="relative -mt-5 flex items-center justify-center focus:outline-none"
+              >
+                <div className={`
+                  w-14 h-14 rounded-full flex items-center justify-center
+                  bg-gradient-to-br from-primary to-primary/80
+                  shadow-lg shadow-primary/30
+                  transition-all duration-200
+                  ${active ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-card' : ''}
+                `}>
+                  <Icon className="h-6 w-6 text-primary-foreground" />
+                </div>
+              </button>
+            );
+          }
+          
+          // Regular items
           return (
             <Button
               key={item.path}
@@ -51,8 +76,8 @@ const MobileBottomBar: React.FC = () => {
                   : 'text-muted-foreground'
               }`}
             >
-              <Icon className="h-4 w-4" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{item.label}</span>
             </Button>
           );
         })}
