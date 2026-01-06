@@ -37,6 +37,7 @@ import { OvertrainingRiskMeter } from '@/components/OvertrainingRiskMeter';
 import { PremiumAIInsights } from '@/components/PremiumAIInsights';
 import { SimpleAchievementBadge } from '@/components/SimpleAchievementBadge';
 import { GPSHeatmap } from '@/components/GPSHeatmap';
+import { usePlatform } from '@/hooks/usePlatform';
 
 const PREMIUM_ALLOWED_EMAILS = [
   'admin@biopeak.com',
@@ -60,6 +61,7 @@ export const PremiumStats = () => {
     error, 
     refreshInsights 
   } = usePremiumStats();
+  const { isNative } = usePlatform();
 
   if (subscriptionLoading) {
     return (
@@ -101,9 +103,9 @@ export const PremiumStats = () => {
     <ProtectedRoute>
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
+        {isNative && <Header />}
         
-        <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className={`pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isNative ? 'safe-pt-20 sm:safe-pt-24' : 'pt-6'}`}>
           <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <ScrollReveal>

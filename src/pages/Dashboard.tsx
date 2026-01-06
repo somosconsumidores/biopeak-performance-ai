@@ -32,6 +32,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { PremiumBlur } from '@/components/PremiumBlur';
 import { PremiumButton } from '@/components/PremiumButton';
+import { usePlatform } from '@/hooks/usePlatform';
 
 import { 
   Activity, 
@@ -124,6 +125,7 @@ export const Dashboard = () => {
   const { isSubscribed, loading: subscriptionLoading } = useSubscription();
   const { insights, loading: insightsLoading, error: insightsError, refreshInsights } = useInsights();
   const { applyRecommendation } = useCommitments();
+  const { isNative } = usePlatform();
 
   // Verificar conquistas quando o dashboard carrega
   useEffect(() => {
@@ -206,8 +208,8 @@ export const Dashboard = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
@@ -225,8 +227,8 @@ export const Dashboard = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
@@ -277,9 +279,9 @@ export const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />
-      <Header />
+      {isNative && <Header />}
       
-      <div className="safe-pt-20 sm:safe-pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8">
+      <div className={`pb-8 sm:pb-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isNative ? 'safe-pt-20 sm:safe-pt-24' : 'pt-6'}`}>
         <div className="container mx-auto">
           {/* Header */}
           <ScrollReveal>

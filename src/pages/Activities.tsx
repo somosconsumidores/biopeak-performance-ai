@@ -6,10 +6,12 @@ import { ActivitySourceFilter } from "@/components/ActivitySourceFilter";
 import { Header } from "@/components/Header";
 import { ParticleBackground } from "@/components/ParticleBackground";
 import { ScrollReveal } from "@/components/ScrollReveal";
+import { usePlatform } from '@/hooks/usePlatform';
 
 export default function Activities() {
   const { activities, loading, error } = useUnifiedActivityHistory();
   const [selectedSource, setSelectedSource] = useState<'ALL' | 'GARMIN' | 'STRAVA' | 'POLAR' | 'ZEPP' | 'ZEPP_GPX' | 'HEALTHKIT' | 'BIOPEAK'>('ALL');
+  const { isNative } = usePlatform();
 
   const filteredActivities = selectedSource === 'ALL' 
     ? activities 
@@ -27,8 +29,8 @@ export default function Activities() {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
@@ -46,8 +48,8 @@ export default function Activities() {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        {isNative && <Header />}
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="text-center">
               <p className="text-red-500">Erro ao carregar atividades: {error}</p>
@@ -61,9 +63,9 @@ export default function Activities() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />
-      <Header />
+      {isNative && <Header />}
       
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
         <div className="container mx-auto">
           <ScrollReveal>
             <div className="mb-8">

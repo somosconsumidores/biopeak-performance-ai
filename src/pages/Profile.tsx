@@ -21,6 +21,7 @@ import { GarminConnectionStatus } from '@/components/GarminConnectionStatus';
 import { StravaConnectionStatus } from '@/components/StravaConnectionStatus';
 import { PolarConnectionStatus } from '@/components/PolarConnectionStatus';
 import { HealthKitConnectionStatus } from '@/components/HealthKitConnectionStatus';
+import { usePlatform } from '@/hooks/usePlatform';
 import { 
   Settings, 
   Target,
@@ -55,6 +56,7 @@ export const Profile = () => {
     formatDuration, 
     formatPace 
   } = useProfileStats();
+  const { isNative } = usePlatform();
 
   const isLoading = profileLoading || statsLoading || subscriptionLoading;
 
@@ -178,9 +180,9 @@ export const Profile = () => {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
-        <Header />
+        {isNative && <Header />}
         
-        <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
           <div className="container mx-auto">
             <div className="flex items-center justify-center h-64">
               <Loader className="h-8 w-8 animate-spin text-primary" />
@@ -194,9 +196,9 @@ export const Profile = () => {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <ParticleBackground />
-      <Header />
+      {isNative && <Header />}
       
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className={`pb-12 px-4 sm:px-6 lg:px-8 ${isNative ? 'pt-24' : 'pt-8'}`}>
         <div className="container mx-auto">
           {/* Subscription Status */}
           {isSubscribed && (
