@@ -56,19 +56,38 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("[calculate-evolution-stats] Starting calculation...");
+    // Parse request body for optional userId filter
+    let targetUserId: string | null = null;
+    try {
+      const body = await req.json();
+      targetUserId = body.userId || null;
+    } catch {
+      // No body or invalid JSON - process all users
+    }
+
+    if (targetUserId) {
+      console.log(`[calculate-evolution-stats] Processing single user: ${targetUserId}`);
+    } else {
+      console.log("[calculate-evolution-stats] Starting calculation for all users...");
+    }
 
     // Get date 56 days ago (8 weeks)
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 56);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    // Fetch all activities from the view
-    const { data: activities, error: activitiesError } = await supabase
+    // Build query with optional user filter
+    let query = supabase
       .from('v_all_activities_with_vo2_daniels')
       .select('user_id, activity_date, activity_source, activity_type, vo2_max_daniels, total_distance_meters, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
       .gte('activity_date', startDateStr)
       .order('activity_date', { ascending: true });
+
+    if (targetUserId) {
+      query = query.eq('user_id', targetUserId);
+    }
+
+    const { data: activities, error: activitiesError } = await query;
 
     if (activitiesError) {
       console.error("[calculate-evolution-stats] Error fetching activities:", activitiesError);
