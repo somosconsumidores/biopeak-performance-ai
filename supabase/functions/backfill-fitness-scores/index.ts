@@ -35,7 +35,21 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // IMPORTANT: pass the service key as a Bearer JWT too (not only apikey),
+    // so RLS helpers like auth.jwt()/auth.role() evaluate as service_role.
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
 
     const params: BackfillParams = await req.json().catch(() => ({}));
     
