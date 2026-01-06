@@ -10,6 +10,7 @@ import { PaceEvolutionChart } from '@/components/evolution/PaceEvolutionChart';
 import { HeartRateEvolutionChart } from '@/components/evolution/HeartRateEvolutionChart';
 import { WeeklyCaloriesChart } from '@/components/evolution/WeeklyCaloriesChart';
 import { ActivityDistributionChart } from '@/components/evolution/ActivityDistributionChart';
+import { CoachAnalysisCard } from '@/components/evolution/CoachAnalysisCard';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Evolution() {
@@ -97,6 +98,9 @@ export default function Evolution() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
+            {/* Coach Analysis Card */}
+            <CoachAnalysisCard hasData={hasData} />
+
             {/* Row 1: Fitness Score and Distance */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FitnessScoreEvolutionChart data={stats?.fitnessScoreEvolution || []} />

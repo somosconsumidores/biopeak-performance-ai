@@ -278,3 +278,6 @@ verify_jwt = false
 
 [functions.calculate-fitness-scores-batch]
 verify_jwt = false
+
+[functions.analyze-evolution-stats]
+verify_jwt = true
