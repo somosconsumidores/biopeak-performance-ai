@@ -64,7 +64,6 @@ export function AppSidebar() {
     { title: 'Dashboard', path: '/dashboard', icon: Home },
     { title: 'Treinos', path: '/workouts', icon: Dumbbell },
     { title: 'Planos de Treino', path: '/training-plan', icon: Calendar },
-    { title: 'Plano de Nutrição', path: '/nutrition', icon: Utensils },
     { title: 'Insights', path: '/insights', icon: Lightbulb },
   ];
 
