@@ -4,7 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { getCache, setCache, clearCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
-interface Profile {
+import { HRZonesConfig } from '@/types/heartRateZones';
+
+export interface Profile {
   id: string;
   user_id: string;
   display_name: string | null;
@@ -15,16 +17,20 @@ interface Profile {
   weight_kg: number | null;
   height_cm: number | null;
   flag_training_plan: boolean | null;
+  max_heart_rate: number | null;
+  hr_zones: HRZonesConfig | null;
   created_at: string;
   updated_at: string;
 }
 
-interface ProfileData {
+export interface ProfileData {
   display_name?: string;
   birth_date?: string;
   weight_kg?: number;
   height_cm?: number;
   avatar_url?: string;
+  max_heart_rate?: number | null;
+  hr_zones?: HRZonesConfig | null;
 }
 
 export function useProfile() {

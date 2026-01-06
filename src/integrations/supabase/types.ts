@@ -3487,8 +3487,10 @@ export type Database = {
           flag_training_plan: boolean | null
           gender: string | null
           height_cm: number | null
+          hr_zones: Json | null
           id: string
           last_login_at: string | null
+          max_heart_rate: number | null
           onboarding_completed: boolean | null
           phone: string | null
           training_plan_accepted: boolean | null
@@ -3507,8 +3509,10 @@ export type Database = {
           flag_training_plan?: boolean | null
           gender?: string | null
           height_cm?: number | null
+          hr_zones?: Json | null
           id?: string
           last_login_at?: string | null
+          max_heart_rate?: number | null
           onboarding_completed?: boolean | null
           phone?: string | null
           training_plan_accepted?: boolean | null
@@ -3527,8 +3531,10 @@ export type Database = {
           flag_training_plan?: boolean | null
           gender?: string | null
           height_cm?: number | null
+          hr_zones?: Json | null
           id?: string
           last_login_at?: string | null
+          max_heart_rate?: number | null
           onboarding_completed?: boolean | null
           phone?: string | null
           training_plan_accepted?: boolean | null

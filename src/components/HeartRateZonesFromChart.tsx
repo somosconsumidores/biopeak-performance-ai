@@ -6,6 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Heart, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useProfile } from '@/hooks/useProfile';
+import { HRZonesConfig, DEFAULT_HR_ZONES, ZONE_COLORS } from '@/types/heartRateZones';
 
 interface HeartRateZone {
   zone: string;
@@ -27,6 +29,23 @@ export const HeartRateZonesFromChart = ({ className, activityId }: HeartRateZone
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { profile, age } = useProfile();
+
+  type ZoneKey = 'zone1' | 'zone2' | 'zone3' | 'zone4' | 'zone5';
+  const ZONE_KEYS: ZoneKey[] = ['zone1', 'zone2', 'zone3', 'zone4', 'zone5'];
+
+  // Get zone definitions from profile or use defaults
+  const getZoneDefinitions = () => {
+    const customZones = profile?.hr_zones as HRZonesConfig | null;
+    const zones = customZones || DEFAULT_HR_ZONES;
+    return ZONE_KEYS.map((key, index) => ({
+      zone: `Zona ${index + 1}`,
+      label: zones[key].label,
+      minPercent: zones[key].minPercent,
+      maxPercent: zones[key].maxPercent,
+      color: ZONE_COLORS[key],
+    }));
+  };
 
   const fetchData = async (id: string) => {
     if (!id?.trim()) {
@@ -105,23 +124,26 @@ export const HeartRateZonesFromChart = ({ className, activityId }: HeartRateZone
       return [];
     }
 
-    // Calcular FCmax
+    // Calculate FCmax with priority:
+    // 1. Override from input
+    // 2. Profile's custom max_heart_rate
+    // 3. Theoretical (220 - age)
+    // 4. Max from data
     const dataMaxHR = Math.max(...heartRateData.map(d => d.hr));
-    let maxHR = dataMaxHR;
+    const theoreticalMaxHR = age ? 220 - age : null;
+    const profileMaxHR = profile?.max_heart_rate;
     
-    // Usar override se fornecido
+    let maxHR = dataMaxHR;
     if (maxHROverride && !isNaN(Number(maxHROverride))) {
       maxHR = Number(maxHROverride);
+    } else if (profileMaxHR) {
+      maxHR = profileMaxHR;
+    } else if (theoreticalMaxHR) {
+      maxHR = theoreticalMaxHR;
     }
 
-    // Definir zonas baseadas no useHeartRateZones
-    const zoneDefinitions = [
-      { zone: 'Zona 1', label: 'Recuperação', minPercent: 0,  maxPercent: 60,  color: 'bg-blue-500' },
-      { zone: 'Zona 2', label: 'Aeróbica',    minPercent: 60, maxPercent: 70,  color: 'bg-green-500' },
-      { zone: 'Zona 3', label: 'Limiar',      minPercent: 70, maxPercent: 80,  color: 'bg-yellow-500' },
-      { zone: 'Zona 4', label: 'Anaeróbica',  minPercent: 80, maxPercent: 90,  color: 'bg-orange-500' },
-      { zone: 'Zona 5', label: 'Máxima',      minPercent: 90, maxPercent: 150, color: 'bg-red-500' },
-    ];
+    // Get zone definitions from profile or use defaults
+    const zoneDefinitions = getZoneDefinitions();
 
     return zoneDefinitions.map((zoneDef, index) => {
       const minHR = Math.round((zoneDef.minPercent / 100) * maxHR);
@@ -147,7 +169,7 @@ export const HeartRateZonesFromChart = ({ className, activityId }: HeartRateZone
         color: zoneDef.color,
       };
     });
-  }, [chartData, maxHROverride]);
+  }, [chartData, maxHROverride, profile]);
 
   const stats = useMemo(() => {
     if (!chartData?.series_data) return null;

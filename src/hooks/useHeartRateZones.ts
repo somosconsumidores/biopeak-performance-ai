@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { HRZonesConfig, DEFAULT_HR_ZONES, ZONE_COLORS } from '@/types/heartRateZones';
 
 export interface HeartRateZone {
   zone: string;
@@ -11,6 +12,9 @@ export interface HeartRateZone {
   timeInZone: number;
   color: string;
 }
+
+type ZoneKey = 'zone1' | 'zone2' | 'zone3' | 'zone4' | 'zone5';
+const ZONE_KEYS: ZoneKey[] = ['zone1', 'zone2', 'zone3', 'zone4', 'zone5'];
 
 export const useHeartRateZones = (activityId: string | null, userMaxHR?: number) => {
   const [zones, setZones] = useState<HeartRateZone[]>([]);
@@ -56,17 +60,32 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
     }
   };
 
+  // Helper function to get zone definitions from profile or defaults
+  const getZoneDefinitions = (profileZones: HRZonesConfig | null) => {
+    const zones = profileZones || DEFAULT_HR_ZONES;
+    return ZONE_KEYS.map((key, index) => ({
+      zone: `Zona ${index + 1}`,
+      label: zones[key].label,
+      minPercent: zones[key].minPercent,
+      maxPercent: zones[key].maxPercent,
+      color: ZONE_COLORS[key],
+    }));
+  };
+
   // Helper function to calculate zones from heart rate array
   const calculateZonesFromHeartRateData = async (heartRateData: number[]) => {
-    // Get user's profile to calculate theoretical max HR
+    // Get user's profile including custom HR settings
     const { data: profile } = await supabase
       .from('profiles')
-      .select('birth_date')
+      .select('birth_date, max_heart_rate, hr_zones')
       .eq('user_id', user.id)
       .single();
 
-    // Calculate theoretical max HR based on age
-    let theoreticalMaxHR = 190; // Default fallback
+    // Priority 1: Profile's custom max_heart_rate
+    // Priority 2: userMaxHR parameter
+    // Priority 3: Theoretical (220 - age)
+    // Priority 4: Max from data
+    let theoreticalMaxHR = 190;
     if (profile?.birth_date) {
       const birthDate = new Date(profile.birth_date);
       const today = new Date();
@@ -77,19 +96,25 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       console.log('🔍 ZONES: User age:', age, 'Theoretical Max HR:', theoreticalMaxHR);
     }
 
-    // Determine max HR basis
     const dataMaxHR = Math.max(...heartRateData);
-    const maxHR = userMaxHR || theoreticalMaxHR || dataMaxHR;
-    console.log('🔍 ZONES: Max HR used for zones:', maxHR, '(data max:', dataMaxHR, ')');
+    const profileMaxHR = profile?.max_heart_rate;
+    const maxHR = profileMaxHR || userMaxHR || theoreticalMaxHR || dataMaxHR;
+    
+    console.log('🔍 ZONES: Max HR sources:', {
+      profileMaxHR,
+      userMaxHR,
+      theoreticalMaxHR,
+      dataMaxHR,
+      using: maxHR
+    });
 
-    // Define heart rate zones based on % of max HR
-    const zoneDefinitions = [
-      { zone: 'Zona 1', label: 'Recuperação', minPercent: 0,  maxPercent: 60,  color: 'bg-blue-500' },
-      { zone: 'Zona 2', label: 'Aeróbica',    minPercent: 60, maxPercent: 70,  color: 'bg-green-500' },
-      { zone: 'Zona 3', label: 'Limiar',      minPercent: 70, maxPercent: 80,  color: 'bg-yellow-500' },
-      { zone: 'Zona 4', label: 'Anaeróbica',  minPercent: 80, maxPercent: 90,  color: 'bg-orange-500' },
-      { zone: 'Zona 5', label: 'Máxima',      minPercent: 90, maxPercent: 150, color: 'bg-red-500' },
-    ];
+    // Get zone definitions from profile or use defaults
+    const customZones = profile?.hr_zones as HRZonesConfig | null;
+    const zoneDefinitions = getZoneDefinitions(customZones);
+    
+    if (customZones) {
+      console.log('🔍 ZONES: Using custom zone configuration from profile');
+    }
 
     const totalSamples = heartRateData.length;
     
@@ -106,7 +131,7 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
       }
 
       const percentage = totalSamples > 0 ? Math.round((samplesInZone / totalSamples) * 100) : 0;
-      const timeInZone = samplesInZone; // Using sample count as approximation
+      const timeInZone = samplesInZone;
 
       return {
         zone: zoneDef.zone,
@@ -257,15 +282,15 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         return;
       }
 
-      // Get user's profile to calculate theoretical max HR
+      // Get user's profile including custom HR settings
       const { data: profile } = await supabase
         .from('profiles')
-        .select('birth_date')
+        .select('birth_date, max_heart_rate, hr_zones')
         .eq('user_id', user.id)
         .single();
 
       // Calculate theoretical max HR based on age
-      let theoreticalMaxHR = 190; // Default fallback
+      let theoreticalMaxHR = 190;
       if (profile?.birth_date) {
         const birthDate = new Date(profile.birth_date);
         const today = new Date();
@@ -276,19 +301,26 @@ export const useHeartRateZones = (activityId: string | null, userMaxHR?: number)
         console.log('🔍 ZONES: User age:', age, 'Theoretical Max HR:', theoreticalMaxHR);
       }
 
-      // Determine max HR basis
+      // Priority: profile max_heart_rate > userMaxHR > theoretical > data max
       const dataMaxHR = Math.max(...samples.map(s => s.hr));
-      const maxHR = userMaxHR || theoreticalMaxHR || dataMaxHR;
-      console.log('🔍 ZONES: Max HR used for zones:', maxHR, '(data max:', dataMaxHR, ')');
+      const profileMaxHR = profile?.max_heart_rate;
+      const maxHR = profileMaxHR || userMaxHR || theoreticalMaxHR || dataMaxHR;
+      
+      console.log('🔍 ZONES: Max HR sources:', {
+        profileMaxHR,
+        userMaxHR,
+        theoreticalMaxHR,
+        dataMaxHR,
+        using: maxHR
+      });
 
-      // Define heart rate zones based on % of max HR
-      const zoneDefinitions = [
-        { zone: 'Zona 1', label: 'Recuperação', minPercent: 0,  maxPercent: 60,  color: 'bg-blue-500' },
-        { zone: 'Zona 2', label: 'Aeróbica',    minPercent: 60, maxPercent: 70,  color: 'bg-green-500' },
-        { zone: 'Zona 3', label: 'Limiar',      minPercent: 70, maxPercent: 80,  color: 'bg-yellow-500' },
-        { zone: 'Zona 4', label: 'Anaeróbica',  minPercent: 80, maxPercent: 90,  color: 'bg-orange-500' },
-        { zone: 'Zona 5', label: 'Máxima',      minPercent: 90, maxPercent: 150, color: 'bg-red-500' },
-      ];
+      // Get zone definitions from profile or use defaults
+      const customZones = profile?.hr_zones as HRZonesConfig | null;
+      const zoneDefinitions = getZoneDefinitions(customZones);
+      
+      if (customZones) {
+        console.log('🔍 ZONES: Using custom zone configuration from profile');
+      }
 
       // Compute per-sample durations (dt)
       let totalSeconds = 0;
