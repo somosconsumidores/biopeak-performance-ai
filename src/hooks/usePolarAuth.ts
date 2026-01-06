@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 import { v4 as uuidv4 } from 'uuid';
 
 export const usePolarAuth = () => {
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -12,13 +14,12 @@ export const usePolarAuth = () => {
 
   useEffect(() => {
     checkPolarConnection();
-  }, []);
+  }, [user]);
 
   const checkPolarConnection = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      // Use user from context instead of API call
+      if (!user) {
         setIsLoading(false);
         return;
       }
@@ -26,7 +27,7 @@ export const usePolarAuth = () => {
       const { data: tokens, error } = await supabase
         .from('polar_tokens')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -69,9 +70,8 @@ export const usePolarAuth = () => {
   };
 
   const startPolarOAuth = async () => {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Use user from context instead of API call
+    if (!user) {
       throw new Error('Usuário não autenticado');
     }
 
@@ -164,9 +164,8 @@ export const usePolarAuth = () => {
 
   const disconnect = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      // Use user from context instead of API call
+      if (!user) {
         toast({
           title: "Erro de autenticação",
           description: "Você precisa estar logado.",
@@ -178,7 +177,7 @@ export const usePolarAuth = () => {
       const { error } = await supabase
         .from('polar_tokens')
         .update({ is_active: false })
-        .eq('user_id', session.user.id);
+        .eq('user_id', user.id);
 
       if (error) {
         throw new Error(error.message);

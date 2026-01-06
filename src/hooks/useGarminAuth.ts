@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 import { 
   generatePKCE, 
   generateState, 
@@ -20,6 +21,7 @@ const REDIRECT_URI = typeof window !== 'undefined' && window.location.origin.inc
   : `${window.location.origin}/garmin-callback`;
 
 export const useGarminAuth = () => {
+  const { user, session } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [tokens, setTokens] = useState<GarminTokens | null>(null);
@@ -33,8 +35,7 @@ export const useGarminAuth = () => {
       try {
         console.log('[useGarminAuth] Checking for existing tokens...');
         
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use user from context instead of API call
         console.log('[useGarminAuth] Current user:', user ? `ID: ${user.id}` : 'No user');
         if (!user) {
           console.log('[useGarminAuth] No authenticated user');
@@ -107,15 +108,14 @@ export const useGarminAuth = () => {
       }
       window.removeEventListener('garmin-force-recheck', handleForceRecheck);
     };
-  }, []);
+  }, [user]);
 
   const startOAuthFlow = useCallback(async () => {
     try {
       setIsConnecting(true);
       console.log('[useGarminAuth] Starting OAuth flow...');
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use user from context instead of API call
       console.log('[useGarminAuth] OAuth flow - Current user:', user ? `ID: ${user.id}` : 'No user');
       if (!user) {
         throw new Error('User not authenticated');
@@ -157,13 +157,13 @@ export const useGarminAuth = () => {
       });
       setIsConnecting(false);
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const triggerAutoBackfill = useCallback(async () => {
     try {
       console.log('[useGarminAuth] Starting automatic 30-day backfill...');
       
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use session from context instead of API call
       if (!session) {
         console.error('[useGarminAuth] No session for backfill');
         return;
@@ -229,14 +229,13 @@ export const useGarminAuth = () => {
     } catch (error) {
       console.error('[useGarminAuth] Auto backfill unexpected error:', error);
     }
-  }, [toast]);
+  }, [session, toast]);
 
   const handleOAuthCallback = useCallback(async (code: string, state: string) => {
     try {
       console.log('[useGarminAuth] Handling OAuth callback...');
       
-      // Get current user and session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use user and session from context instead of API call
       if (!session?.user) {
         throw new Error('User not authenticated');
       }
@@ -404,12 +403,11 @@ export const useGarminAuth = () => {
       // Clear URL parameters even on error
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast, triggerAutoBackfill]);
+  }, [session, toast, triggerAutoBackfill]);
 
   const disconnect = useCallback(async () => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use user from context instead of API call
       if (user) {
         // Remove tokens from database
         await supabase
@@ -437,14 +435,13 @@ export const useGarminAuth = () => {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [user, toast]);
 
   const refreshToken = useCallback(async (refreshTokenValue: string) => {
     try {
       console.log('[useGarminAuth] Refreshing token...');
       
-      // Get current user and session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use session from context instead of API call
       if (!session?.user) {
         throw new Error('User not authenticated');
       }
@@ -485,7 +482,7 @@ export const useGarminAuth = () => {
       await disconnect();
       throw error;
     }
-  }, [disconnect]);
+  }, [session, disconnect]);
 
   const getValidAccessToken = useCallback(async (): Promise<string | null> => {
     if (!tokens || Date.now() >= tokens.expires_at) {

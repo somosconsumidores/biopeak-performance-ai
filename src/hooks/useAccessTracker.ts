@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useHibernationDetection } from './useHibernationDetection';
+import { useAuth } from './useAuth';
 
 type AccessType = 'login' | 'session_resume' | 'app_resume';
 
@@ -10,6 +11,7 @@ interface TrackAccessOptions {
 }
 
 export const useAccessTracker = () => {
+  const { user } = useAuth();
   const hasTrackedSession = useRef(false);
   const { isHibernated } = useHibernationDetection({
     onRecovery: () => {
@@ -20,8 +22,8 @@ export const useAccessTracker = () => {
 
   const trackAccess = async (options: TrackAccessOptions) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      // Use user from context instead of API call
+      if (!user) return;
 
       const response = await supabase.functions.invoke('track-user-access', {
         body: {
@@ -52,17 +54,12 @@ export const useAccessTracker = () => {
     trackAccess({ accessType: 'login', minIntervalHours: 0 }); // Always track explicit logins
   };
 
-  // Track existing session on mount
+  // Track existing session on mount - use user from context
   useEffect(() => {
-    const checkExistingSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && !hasTrackedSession.current) {
-        trackSessionResume();
-      }
-    };
-
-    checkExistingSession();
-  }, []);
+    if (user && !hasTrackedSession.current) {
+      trackSessionResume();
+    }
+  }, [user]);
 
   return {
     trackLogin,

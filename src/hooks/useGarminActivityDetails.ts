@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "./useAuth";
 
 interface ActivityDetailsSyncResult {
   message: string;
@@ -15,6 +16,7 @@ interface ActivityDetailsSyncError {
 }
 
 export const useGarminActivityDetails = () => {
+  const { session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<ActivityDetailsSyncResult | null>(null);
   const { toast } = useToast();
@@ -27,8 +29,7 @@ export const useGarminActivityDetails = () => {
     setLastSyncResult(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Use session from context instead of API call
       if (!session) {
         toast({
           title: "Erro de autenticação",

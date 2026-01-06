@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './useAuth';
 import type { Tables } from '@/integrations/supabase/types';
 
 export type Commitment = Tables<'user_commitments'>;
 
 export const useCommitments = () => {
+  const { user } = useAuth();
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,9 +16,9 @@ export const useCommitments = () => {
   const fetchCommitments = async () => {
     try {
       setLoading(true);
-      const { data: session } = await supabase.auth.getSession();
       
-      if (!session.session?.user?.id) {
+      // Use user from context instead of API call
+      if (!user) {
         setError('Usuário não autenticado');
         return;
       }
@@ -48,9 +50,8 @@ export const useCommitments = () => {
     category?: string;
   }) => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session.session?.user?.id) {
+      // Use user from context instead of API call
+      if (!user) {
         toast({
           title: 'Erro',
           description: 'Você precisa estar logado para aplicar recomendações',
@@ -62,7 +63,7 @@ export const useCommitments = () => {
       const { data, error: insertError } = await supabase
         .from('user_commitments')
         .insert({
-          user_id: session.session.user.id,
+          user_id: user.id,
           title: recommendation.title,
           description: recommendation.description,
           priority: recommendation.priority,
@@ -130,8 +131,10 @@ export const useCommitments = () => {
   };
 
   useEffect(() => {
-    fetchCommitments();
-  }, []);
+    if (user) {
+      fetchCommitments();
+    }
+  }, [user]);
 
   return {
     commitments,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 interface PolarStats {
   activitiesCount: number;
@@ -9,6 +10,7 @@ interface PolarStats {
 }
 
 export const usePolarStats = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState<PolarStats>({
     activitiesCount: 0,
     lastSyncAt: null,
@@ -20,16 +22,15 @@ export const usePolarStats = () => {
 
   useEffect(() => {
     fetchPolarStats();
-  }, []);
+  }, [user]);
 
   const fetchPolarStats = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      // Use user from context instead of API call
+      if (!user) {
         setIsLoading(false);
         return;
       }
@@ -38,7 +39,7 @@ export const usePolarStats = () => {
       const { count: activitiesCount, error: activitiesError } = await supabase
         .from('polar_activities')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id);
+        .eq('user_id', user.id);
 
       if (activitiesError) {
         throw new Error(`Error fetching activities: ${activitiesError.message}`);
@@ -48,7 +49,7 @@ export const usePolarStats = () => {
       const { data: tokenData, error: tokenError } = await supabase
         .from('polar_tokens')
         .select('polar_user_id, created_at')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -62,7 +63,7 @@ export const usePolarStats = () => {
       const { data: latestActivity, error: latestActivityError } = await supabase
         .from('polar_activities')
         .select('synced_at')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('synced_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -75,7 +76,7 @@ export const usePolarStats = () => {
       const { data: syncControl, error: syncError } = await supabase
         .from('polar_sync_control')
         .select('last_sync_at')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('last_sync_at', { ascending: false })
         .limit(1)
         .maybeSingle();
