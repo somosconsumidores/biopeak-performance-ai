@@ -47,12 +47,14 @@ serve(async (req) => {
     console.log(`🚀 Starting backfill: ${startDate} to ${endDate}, batch ${batchSize}, offset ${offset}`);
 
     // Get distinct users with activities in the period
+    // Note: Using limit 50000 to avoid Supabase's default 1000 row limit
     const { data: usersWithActivities, error: usersError } = await supabase
       .from('all_activities')
       .select('user_id')
       .gte('activity_date', startDate)
       .lte('activity_date', endDate)
-      .order('user_id');
+      .order('user_id')
+      .limit(50000);
 
     if (usersError) {
       console.error('❌ Error fetching users:', usersError);
