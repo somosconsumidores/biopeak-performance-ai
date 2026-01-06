@@ -58,41 +58,21 @@ serve(async (req) => {
 
     console.log(`🚀 Batch fitness score calculation for ${targetDate}`);
 
-    // Fetch active subscribers first
-    const { data: activeSubscribers, error: subsError } = await supabase
-      .from('subscribers')
-      .select('user_id')
-      .eq('subscribed', true);
-
-    if (subsError) {
-      console.error('❌ Error fetching subscribers:', subsError);
-      throw subsError;
-    }
-
-    const activeUserIds = new Set(activeSubscribers?.map(s => s.user_id) || []);
-    console.log(`🔑 Found ${activeUserIds.size} active subscribers`);
-
-    // Get all users with recent activities (last 60 days from target date)
+    // Get range for activity lookup (last 60 days from target date)
     const sixtyDaysAgo = new Date(targetDate);
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const startDateStr = sixtyDaysAgo.toISOString().split('T')[0];
 
-    // Note: Using limit 50000 to avoid Supabase's default 1000 row limit
-    const { data: usersWithActivities, error: usersError } = await supabase
-      .from('all_activities')
-      .select('user_id')
-      .gte('activity_date', startDateStr)
-      .lte('activity_date', targetDate)
-      .limit(50000);
+    // Use RPC to get distinct active subscribers with activities (efficient DB-level query)
+    const { data: usersData, error: usersError } = await supabase
+      .rpc('active_users_with_activities', { p_start: startDateStr, p_end: targetDate });
 
     if (usersError) {
-      console.error('❌ Error fetching users:', usersError);
+      console.error('❌ Error fetching users via RPC:', usersError);
       throw usersError;
     }
 
-    // Filter only active subscribers with activities
-    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])]
-      .filter(userId => activeUserIds.has(userId));
+    const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
     
     console.log(`📊 Processing ${uniqueUserIds.length} active subscribers with activities for ${targetDate}`);
 
