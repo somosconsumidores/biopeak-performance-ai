@@ -108,8 +108,10 @@ export function useEvolutionStats() {
     if (!user?.id) return;
 
     try {
-      console.log('[useEvolutionStats] Triggering stats calculation...');
-      const { error: calcError } = await supabase.functions.invoke('calculate-evolution-stats');
+      console.log('[useEvolutionStats] Triggering stats calculation for user:', user.id);
+      const { error: calcError } = await supabase.functions.invoke('calculate-evolution-stats', {
+        body: { userId: user.id }
+      });
       
       if (calcError) {
         console.error('[useEvolutionStats] Calculation error:', calcError);
