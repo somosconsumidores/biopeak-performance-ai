@@ -4,7 +4,7 @@ import { ArrowLeft, RefreshCw, TrendingUp, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useEvolutionStats } from '@/hooks/useEvolutionStats';
-import { VO2EvolutionChart } from '@/components/evolution/VO2EvolutionChart';
+import { FitnessScoreEvolutionChart } from '@/components/evolution/FitnessScoreEvolutionChart';
 import { WeeklyDistanceChart } from '@/components/evolution/WeeklyDistanceChart';
 import { PaceEvolutionChart } from '@/components/evolution/PaceEvolutionChart';
 import { HeartRateEvolutionChart } from '@/components/evolution/HeartRateEvolutionChart';
@@ -97,9 +97,9 @@ export default function Evolution() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            {/* Row 1: VO2 and Distance */}
+            {/* Row 1: Fitness Score and Distance */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <VO2EvolutionChart data={stats?.vo2Evolution || []} />
+              <FitnessScoreEvolutionChart data={stats?.fitnessScoreEvolution || []} />
               <WeeklyDistanceChart data={stats?.distanceEvolution || []} />
             </div>
 

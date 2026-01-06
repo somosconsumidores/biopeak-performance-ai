@@ -1,32 +1,31 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity } from 'lucide-react';
-import type { WeeklyVO2 } from '@/hooks/useEvolutionStats';
+import type { WeeklyFitnessScore } from '@/hooks/useEvolutionStats';
 
-interface VO2EvolutionChartProps {
-  data: WeeklyVO2[];
+interface FitnessScoreEvolutionChartProps {
+  data: WeeklyFitnessScore[];
 }
 
-export function VO2EvolutionChart({ data }: VO2EvolutionChartProps) {
-  const chartData = data.filter(d => d.vo2Max !== null);
+export function FitnessScoreEvolutionChart({ data }: FitnessScoreEvolutionChartProps) {
+  const chartData = data.filter(d => d.fitnessScore !== null);
   
   if (chartData.length === 0) {
     return (
       <div className="bg-card border border-border rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Activity className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-semibold">Evolução do VO2max</h3>
+          <Activity className="h-5 w-5 text-purple-500" />
+          <h3 className="font-semibold">BioPeak Fitness Score</h3>
         </div>
         <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-          Sem dados de VO2max disponíveis
+          Sem dados de Fitness Score disponíveis
         </div>
       </div>
     );
   }
 
-  // Calculate trend
-  const firstValue = chartData[0]?.vo2Max || 0;
-  const lastValue = chartData[chartData.length - 1]?.vo2Max || 0;
+  const firstValue = chartData[0]?.fitnessScore || 0;
+  const lastValue = chartData[chartData.length - 1]?.fitnessScore || 0;
   const trend = lastValue - firstValue;
   const trendPercent = firstValue > 0 ? ((trend / firstValue) * 100).toFixed(1) : '0';
 
@@ -34,8 +33,8 @@ export function VO2EvolutionChart({ data }: VO2EvolutionChartProps) {
     <div className="bg-card border border-border rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-semibold">Evolução do VO2max</h3>
+          <Activity className="h-5 w-5 text-purple-500" />
+          <h3 className="font-semibold">BioPeak Fitness Score</h3>
         </div>
         <div className={`text-sm font-medium ${trend >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
           {trend >= 0 ? '+' : ''}{trendPercent}%
@@ -43,7 +42,13 @@ export function VO2EvolutionChart({ data }: VO2EvolutionChartProps) {
       </div>
       
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <defs>
+            <linearGradient id="fitnessGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis 
             dataKey="week" 
@@ -52,10 +57,10 @@ export function VO2EvolutionChart({ data }: VO2EvolutionChartProps) {
             tickLine={false}
           />
           <YAxis 
+            domain={[0, 100]} 
             tick={{ fontSize: 11 }} 
             className="fill-muted-foreground"
             tickLine={false}
-            domain={['dataMin - 2', 'dataMax + 2']}
           />
           <Tooltip
             contentStyle={{
@@ -64,21 +69,20 @@ export function VO2EvolutionChart({ data }: VO2EvolutionChartProps) {
               borderRadius: '8px',
             }}
             labelStyle={{ color: 'hsl(var(--foreground))' }}
-            formatter={(value: number) => [`${value.toFixed(1)} ml/kg/min`, 'VO2max']}
+            formatter={(value: number) => [`${value.toFixed(1)}`, 'Fitness Score']}
           />
-          <Bar dataKey="vo2Max" radius={[4, 4, 0, 0]}>
-            {chartData.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={index === chartData.length - 1 ? 'hsl(var(--primary))' : 'hsl(160, 84%, 39%)'} 
-              />
-            ))}
-          </Bar>
-        </BarChart>
+          <Area 
+            type="monotone" 
+            dataKey="fitnessScore" 
+            stroke="hsl(var(--primary))" 
+            strokeWidth={2}
+            fill="url(#fitnessGradient)" 
+          />
+        </AreaChart>
       </ResponsiveContainer>
       
       <p className="text-xs text-muted-foreground mt-3 text-center">
-        Últimas 8 semanas • Média semanal
+        Últimas 8 semanas • Média semanal do BioPeak Fitness Score
       </p>
     </div>
   );

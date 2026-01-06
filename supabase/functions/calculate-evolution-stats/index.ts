@@ -55,12 +55,18 @@ interface Activity {
   activity_date: string;
   activity_source: string;
   activity_type: string;
-  vo2_max_daniels: number | null;
   total_distance_meters: number | null;
+  total_time_minutes: number | null;
   pace_min_per_km: number | null;
   average_heart_rate: number | null;
   max_heart_rate: number | null;
   active_kilocalories: number | null;
+}
+
+interface FitnessScore {
+  user_id: string;
+  calendar_date: string;
+  fitness_score: number;
 }
 
 Deno.serve(async (req) => {
@@ -108,28 +114,48 @@ Deno.serve(async (req) => {
       console.log(`[calculate-evolution-stats] Filter start date: ${oldestWeekKey}`);
     }
 
-    // Build query with optional user filter
-    let query = supabase
-      .from('v_all_activities_with_vo2_daniels')
-      .select('user_id, activity_date, activity_source, activity_type, vo2_max_daniels, total_distance_meters, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
+    // Build query for activities from all_activities table
+    let activitiesQuery = supabase
+      .from('all_activities')
+      .select('user_id, activity_date, activity_source, activity_type, total_distance_meters, total_time_minutes, pace_min_per_km, average_heart_rate, max_heart_rate, active_kilocalories')
       .gte('activity_date', oldestWeekKey)
       .order('activity_date', { ascending: true });
 
     if (targetUserId) {
-      query = query.eq('user_id', targetUserId);
+      activitiesQuery = activitiesQuery.eq('user_id', targetUserId);
     }
 
-    const { data: activities, error: activitiesError } = await query;
+    const { data: activities, error: activitiesError } = await activitiesQuery;
 
     if (activitiesError) {
       console.error("[calculate-evolution-stats] Error fetching activities:", activitiesError);
       throw activitiesError;
     }
 
-    console.log(`[calculate-evolution-stats] Fetched ${activities?.length || 0} activities`);
+    console.log(`[calculate-evolution-stats] Fetched ${activities?.length || 0} activities from all_activities`);
 
-    if (!activities || activities.length === 0) {
-      // If processing single user with no activities, still save empty stats
+    // Build query for fitness scores
+    let fitnessQuery = supabase
+      .from('fitness_scores_daily')
+      .select('user_id, calendar_date, fitness_score')
+      .gte('calendar_date', oldestWeekKey)
+      .order('calendar_date', { ascending: true });
+
+    if (targetUserId) {
+      fitnessQuery = fitnessQuery.eq('user_id', targetUserId);
+    }
+
+    const { data: fitnessScores, error: fitnessError } = await fitnessQuery;
+
+    if (fitnessError) {
+      console.error("[calculate-evolution-stats] Error fetching fitness scores:", fitnessError);
+      // Don't throw - continue without fitness scores
+    }
+
+    console.log(`[calculate-evolution-stats] Fetched ${fitnessScores?.length || 0} fitness scores`);
+
+    if ((!activities || activities.length === 0) && (!fitnessScores || fitnessScores.length === 0)) {
+      // If processing single user with no data, still save empty stats
       if (targetUserId) {
         const emptyStats = generateEmptyStats(allWeeks);
         await supabase.from('user_evolution_stats').upsert({
@@ -140,14 +166,14 @@ Deno.serve(async (req) => {
         }, { onConflict: 'user_id' });
         console.log(`[calculate-evolution-stats] Empty stats saved for user ${targetUserId}`);
       }
-      return new Response(JSON.stringify({ success: true, message: "No activities found" }), {
+      return new Response(JSON.stringify({ success: true, message: "No data found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Log sample activities for debugging when targeting specific user
-    if (targetUserId && activities.length > 0) {
-      const sampleActs = activities.slice(0, 3).map(a => ({
+    if (targetUserId && activities && activities.length > 0) {
+      const sampleActs = activities.slice(0, 5).map(a => ({
         activity_date: a.activity_date,
         activity_type: a.activity_type,
         distance: a.total_distance_meters,
@@ -155,21 +181,38 @@ Deno.serve(async (req) => {
       console.log(`[calculate-evolution-stats] Sample activities: ${JSON.stringify(sampleActs)}`);
     }
 
+    // Get all unique user IDs from both activities and fitness scores
+    const userIdsFromActivities = new Set((activities || []).map(a => a.user_id));
+    const userIdsFromFitness = new Set((fitnessScores || []).map(f => f.user_id));
+    const allUserIds = new Set([...userIdsFromActivities, ...userIdsFromFitness]);
+
     // Group activities by user
     const userActivities: Record<string, Activity[]> = {};
-    for (const activity of activities) {
+    for (const activity of (activities || [])) {
       if (!userActivities[activity.user_id]) {
         userActivities[activity.user_id] = [];
       }
       userActivities[activity.user_id].push(activity as Activity);
     }
 
-    console.log(`[calculate-evolution-stats] Processing ${Object.keys(userActivities).length} users`);
+    // Group fitness scores by user
+    const userFitnessScores: Record<string, FitnessScore[]> = {};
+    for (const score of (fitnessScores || [])) {
+      if (!userFitnessScores[score.user_id]) {
+        userFitnessScores[score.user_id] = [];
+      }
+      userFitnessScores[score.user_id].push(score as FitnessScore);
+    }
+
+    console.log(`[calculate-evolution-stats] Processing ${allUserIds.size} users`);
 
     // Process each user
-    for (const [userId, userActs] of Object.entries(userActivities)) {
+    for (const userId of allUserIds) {
       try {
-        // Deduplicate: prioritize Garmin over Strava for same date
+        const userActs = userActivities[userId] || [];
+        const userFitness = userFitnessScores[userId] || [];
+
+        // Deduplicate activities: prioritize Garmin over Strava for same date
         const deduplicatedByDate: Record<string, Activity> = {};
         for (const act of userActs) {
           // Normalize date key (handle both DATE and TIMESTAMP formats)
@@ -209,7 +252,7 @@ Deno.serve(async (req) => {
         }
 
         // Calculate stats for each metric
-        const vo2Evolution: { week: string; vo2Max: number | null }[] = [];
+        const fitnessScoreEvolution: { week: string; fitnessScore: number | null }[] = [];
         const distanceEvolution: { week: string; totalKm: number }[] = [];
         const heartRateEvolution: { week: string; avgHR: number | null; maxHR: number | null }[] = [];
         const caloriesEvolution: { week: string; totalCalories: number }[] = [];
@@ -226,14 +269,24 @@ Deno.serve(async (req) => {
           const weekActivities = weeklyData[weekKey];
           const weekLabel = getWeekLabelFromKey(weekKey);
 
-          // VO2 Max - average of week
-          const vo2Values = weekActivities
-            .map(a => a.vo2_max_daniels)
+          // Fitness Score - average of week (from fitness_scores_daily)
+          const weekFitnessScores = userFitness
+            .filter(f => {
+              const fDateKey = (f.calendar_date || '').slice(0, 10);
+              const fDateUTCNoon = parseDateKeyToUTCNoon(fDateKey);
+              const fWeekStart = getISOWeekStartUTC(fDateUTCNoon);
+              return toDateKeyUTC(fWeekStart) === weekKey;
+            })
+            .map(f => f.fitness_score)
             .filter((v): v is number => v !== null && v > 0);
-          const avgVo2 = vo2Values.length > 0 
-            ? vo2Values.reduce((a, b) => a + b, 0) / vo2Values.length 
+          
+          const avgFitnessScore = weekFitnessScores.length > 0
+            ? weekFitnessScores.reduce((a, b) => a + b, 0) / weekFitnessScores.length
             : null;
-          vo2Evolution.push({ week: weekLabel, vo2Max: avgVo2 ? Math.round(avgVo2 * 10) / 10 : null });
+          fitnessScoreEvolution.push({ 
+            week: weekLabel, 
+            fitnessScore: avgFitnessScore ? Math.round(avgFitnessScore * 10) / 10 : null 
+          });
 
           // Distance - sum of week
           const totalDistance = weekActivities
@@ -299,7 +352,7 @@ Deno.serve(async (req) => {
 
         const statsData = {
           calculatedAt: new Date().toISOString(),
-          vo2Evolution,
+          fitnessScoreEvolution,
           distanceEvolution,
           paceEvolution,
           heartRateEvolution,
@@ -334,7 +387,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        usersProcessed: Object.keys(userActivities).length,
+        usersProcessed: allUserIds.size,
         message: "Evolution stats calculated successfully" 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -354,7 +407,7 @@ function generateEmptyStats(allWeeks: string[]) {
   
   return {
     calculatedAt: new Date().toISOString(),
-    vo2Evolution: allWeeks.map(w => ({ week: emptyWeekData(w), vo2Max: null })),
+    fitnessScoreEvolution: allWeeks.map(w => ({ week: emptyWeekData(w), fitnessScore: null })),
     distanceEvolution: allWeeks.map(w => ({ week: emptyWeekData(w), totalKm: 0 })),
     paceEvolution: {
       cycling: allWeeks.map(w => ({ week: emptyWeekData(w), avgPace: null })),

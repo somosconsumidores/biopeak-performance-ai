@@ -5,9 +5,9 @@ import { getCache, setCache, CACHE_KEYS, CACHE_DURATIONS } from '@/lib/cache';
 
 const CACHE_DURATION = CACHE_DURATIONS.DAILY;
 
-export interface WeeklyVO2 {
+export interface WeeklyFitnessScore {
   week: string;
-  vo2Max: number | null;
+  fitnessScore: number | null;
 }
 
 export interface WeeklyDistance {
@@ -39,7 +39,7 @@ export interface ActivityDistribution {
 
 export interface EvolutionStats {
   calculatedAt: string;
-  vo2Evolution: WeeklyVO2[];
+  fitnessScoreEvolution: WeeklyFitnessScore[];
   distanceEvolution: WeeklyDistance[];
   paceEvolution: Record<string, WeeklyPace[]>;
   heartRateEvolution: WeeklyHeartRate[];
@@ -143,7 +143,7 @@ export function useEvolutionStats() {
     error,
     refresh,
     hasData: !!stats && (
-      stats.vo2Evolution.length > 0 ||
+      stats.fitnessScoreEvolution.length > 0 ||
       stats.distanceEvolution.length > 0 ||
       stats.activityDistribution.length > 0
     ),
