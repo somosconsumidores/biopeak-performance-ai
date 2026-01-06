@@ -46,6 +46,20 @@ serve(async (req) => {
 
     console.log(`🚀 Starting backfill: ${startDate} to ${endDate}, batch ${batchSize}, offset ${offset}`);
 
+    // Fetch active subscribers first
+    const { data: activeSubscribers, error: subsError } = await supabase
+      .from('subscribers')
+      .select('user_id')
+      .eq('subscribed', true);
+
+    if (subsError) {
+      console.error('❌ Error fetching subscribers:', subsError);
+      throw subsError;
+    }
+
+    const activeUserIds = new Set(activeSubscribers?.map(s => s.user_id) || []);
+    console.log(`🔑 Found ${activeUserIds.size} active subscribers`);
+
     // Get distinct users with activities in the period
     // Note: Using limit 50000 to avoid Supabase's default 1000 row limit
     const { data: usersWithActivities, error: usersError } = await supabase
@@ -61,11 +75,12 @@ serve(async (req) => {
       throw usersError;
     }
 
-    // Get unique users
-    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])];
+    // Filter only active subscribers with activities
+    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])]
+      .filter(userId => activeUserIds.has(userId));
     const totalUsers = uniqueUserIds.length;
     
-    console.log(`📊 Total unique users with activities: ${totalUsers}`);
+    console.log(`📊 Total active subscribers with activities: ${totalUsers}`);
 
     // Apply batch limits
     const usersToProcess = uniqueUserIds.slice(offset, offset + batchSize);

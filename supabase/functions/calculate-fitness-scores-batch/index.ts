@@ -44,6 +44,20 @@ serve(async (req) => {
 
     console.log(`🚀 Batch fitness score calculation for ${targetDate}`);
 
+    // Fetch active subscribers first
+    const { data: activeSubscribers, error: subsError } = await supabase
+      .from('subscribers')
+      .select('user_id')
+      .eq('subscribed', true);
+
+    if (subsError) {
+      console.error('❌ Error fetching subscribers:', subsError);
+      throw subsError;
+    }
+
+    const activeUserIds = new Set(activeSubscribers?.map(s => s.user_id) || []);
+    console.log(`🔑 Found ${activeUserIds.size} active subscribers`);
+
     // Get all users with recent activities (last 60 days from target date)
     const sixtyDaysAgo = new Date(targetDate);
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
@@ -62,10 +76,11 @@ serve(async (req) => {
       throw usersError;
     }
 
-    // Get unique users
-    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])];
+    // Filter only active subscribers with activities
+    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])]
+      .filter(userId => activeUserIds.has(userId));
     
-    console.log(`📊 Processing ${uniqueUserIds.length} users for ${targetDate}`);
+    console.log(`📊 Processing ${uniqueUserIds.length} active subscribers with activities for ${targetDate}`);
 
     let successCount = 0;
     let errorCount = 0;
