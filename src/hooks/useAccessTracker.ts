@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useHibernationDetection } from './useHibernationDetection';
-import { useAuth } from './useAuth';
+import type { User } from '@supabase/supabase-js';
 
 type AccessType = 'login' | 'session_resume' | 'app_resume';
 
@@ -10,8 +10,8 @@ interface TrackAccessOptions {
   minIntervalHours?: number;
 }
 
-export const useAccessTracker = () => {
-  const { user } = useAuth();
+// Accept user as parameter since this hook is used inside AuthProvider
+export const useAccessTracker = (user: User | null) => {
   const hasTrackedSession = useRef(false);
   const { isHibernated } = useHibernationDetection({
     onRecovery: () => {
