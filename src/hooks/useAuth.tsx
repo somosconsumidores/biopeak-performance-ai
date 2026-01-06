@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { trackLogin } = useAccessTracker();
+  const { trackLogin } = useAccessTracker(user);
 
   useGarminTokenManager(user);
 
