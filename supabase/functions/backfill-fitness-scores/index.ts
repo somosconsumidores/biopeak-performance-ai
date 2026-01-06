@@ -60,41 +60,22 @@ serve(async (req) => {
 
     console.log(`🚀 Starting backfill: ${startDate} to ${endDate}, batch ${batchSize}, offset ${offset}`);
 
-    // Fetch active subscribers first
-    const { data: activeSubscribers, error: subsError } = await supabase
-      .from('subscribers')
-      .select('user_id')
-      .eq('subscribed', true);
-
-    if (subsError) {
-      console.error('❌ Error fetching subscribers:', subsError);
-      throw subsError;
-    }
-
-    const activeUserIds = new Set(activeSubscribers?.map(s => s.user_id) || []);
-    console.log(`🔑 Found ${activeUserIds.size} active subscribers`);
-
-    // Get distinct users with activities in the period
-    // Note: Using limit 50000 to avoid Supabase's default 1000 row limit
-    const { data: usersWithActivities, error: usersError } = await supabase
-      .from('all_activities')
-      .select('user_id')
-      .gte('activity_date', startDate)
-      .lte('activity_date', endDate)
-      .order('user_id')
-      .limit(50000);
+    // Use RPC to get distinct active subscribers with activities (efficient DB-level query)
+    const { data: usersData, error: usersError } = await supabase
+      .rpc('active_users_with_activities', { p_start: startDate, p_end: endDate });
 
     if (usersError) {
-      console.error('❌ Error fetching users:', usersError);
+      console.error('❌ Error fetching users via RPC:', usersError);
       throw usersError;
     }
 
-    // Filter only active subscribers with activities
-    const uniqueUserIds = [...new Set(usersWithActivities?.map(u => u.user_id) || [])]
-      .filter(userId => activeUserIds.has(userId));
+    const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
     const totalUsers = uniqueUserIds.length;
     
     console.log(`📊 Total active subscribers with activities: ${totalUsers}`);
+    if (totalUsers > 0) {
+      console.log(`🔍 First 5 user IDs: ${uniqueUserIds.slice(0, 5).join(', ')}`);
+    }
 
     // Apply batch limits
     const usersToProcess = uniqueUserIds.slice(offset, offset + batchSize);
@@ -126,20 +107,15 @@ serve(async (req) => {
       
       const results = await Promise.allSettled(
         chunk.map(async (userId) => {
-          // Get all dates with activities for this user in the period
-          const { data: userActivities, error: activitiesError } = await supabase
-            .from('all_activities')
-            .select('activity_date')
-            .eq('user_id', userId)
-            .gte('activity_date', startDate)
-            .lte('activity_date', endDate);
+          // Use RPC to get distinct activity dates for this user (efficient DB-level query)
+          const { data: datesData, error: datesError } = await supabase
+            .rpc('user_activity_dates', { p_user: userId, p_start: startDate, p_end: endDate });
 
-          if (activitiesError) {
-            throw new Error(`Error fetching activities: ${activitiesError.message}`);
+          if (datesError) {
+            throw new Error(`Error fetching activity dates: ${datesError.message}`);
           }
 
-          // Get unique dates
-          const uniqueDates = [...new Set(userActivities?.map(a => a.activity_date).filter(Boolean) || [])];
+          const uniqueDates = (datesData ?? []).map((d: { activity_date: string }) => d.activity_date);
           
           console.log(`👤 User ${userId}: ${uniqueDates.length} unique dates to process`);
 

@@ -5794,6 +5794,12 @@ export type Database = {
       }
     }
     Functions: {
+      active_users_with_activities: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       bytea_to_text: { Args: { data: string }; Returns: string }
       calculate_affiliate_daily_stats:
         | {
@@ -6216,6 +6222,12 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      user_activity_dates: {
+        Args: { p_end: string; p_start: string; p_user: string }
+        Returns: {
+          activity_date: string
+        }[]
+      }
       weekly_summary_stats: {
         Args: { end_date: string; start_date: string }
         Returns: {
