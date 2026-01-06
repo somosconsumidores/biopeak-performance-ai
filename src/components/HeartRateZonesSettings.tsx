@@ -140,7 +140,7 @@ export const HeartRateZonesSettings = ({
         <div className="space-y-4">
           <Label>Configuração das Zonas</Label>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {ZONE_KEYS.map((zoneKey, index) => {
               const zone = localZones[zoneKey];
               const colorClass = ZONE_COLORS[zoneKey];
@@ -148,42 +148,48 @@ export const HeartRateZonesSettings = ({
               const maxBPM = calculateBPM(zone.maxPercent);
               
               return (
-                <div key={zoneKey} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <div className={`w-3 h-3 rounded-full ${colorClass} shrink-0`} />
-                  <span className="text-sm font-medium w-16 shrink-0">Zona {index + 1}</span>
-                  
-                  <Input
-                    type="text"
-                    value={zone.label}
-                    onChange={(e) => handleZoneChange(zoneKey, 'label', e.target.value)}
-                    className="flex-1 min-w-0"
-                    placeholder="Nome da zona"
-                  />
-                  
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={zone.minPercent}
-                      onChange={(e) => handleZoneChange(zoneKey, 'minPercent', e.target.value)}
-                      className="w-16 text-center"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={150}
-                      value={zone.maxPercent}
-                      onChange={(e) => handleZoneChange(zoneKey, 'maxPercent', e.target.value)}
-                      className="w-16 text-center"
-                    />
-                    <span className="text-xs text-muted-foreground">%</span>
+                <div key={zoneKey} className="p-3 rounded-lg bg-muted/30 space-y-2">
+                  {/* Zone header row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${colorClass} shrink-0`} />
+                      <span className="text-sm font-medium">Zona {index + 1}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {minBPM}-{maxBPM} bpm
+                    </span>
                   </div>
                   
-                  <span className="text-xs text-muted-foreground w-24 text-right shrink-0">
-                    {minBPM}-{maxBPM} bpm
-                  </span>
+                  {/* Zone config row */}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      value={zone.label}
+                      onChange={(e) => handleZoneChange(zoneKey, 'label', e.target.value)}
+                      className="flex-1 min-w-0 h-9 text-sm"
+                      placeholder="Nome"
+                    />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={zone.minPercent}
+                        onChange={(e) => handleZoneChange(zoneKey, 'minPercent', e.target.value)}
+                        className="w-14 text-center h-9 text-sm px-1"
+                      />
+                      <span className="text-muted-foreground text-sm">-</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={150}
+                        value={zone.maxPercent}
+                        onChange={(e) => handleZoneChange(zoneKey, 'maxPercent', e.target.value)}
+                        className="w-14 text-center h-9 text-sm px-1"
+                      />
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
