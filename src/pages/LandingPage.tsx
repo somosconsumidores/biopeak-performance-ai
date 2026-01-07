@@ -183,7 +183,7 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="flex justify-center mb-8">
               <video 
-                src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124.mp4"
+                src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124%20(1).mp4"
                 autoPlay
                 loop
                 muted
