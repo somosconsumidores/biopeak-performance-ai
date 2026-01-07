@@ -105,13 +105,15 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`[create-user] Usuário criado com sucesso: ${data.user.id}`);
 
     // Inserir ou atualizar o perfil na tabela profiles (upsert)
+    // Usuários criados pelo site externo já vêm com onboarding completo
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
         user_id: data.user.id,
         display_name: name,
         phone: normalizedPhone,
-        utm_source: metadata?.utm_source || null
+        utm_source: metadata?.utm_source || null,
+        onboarding_completed: true
       }, {
         onConflict: 'user_id'
       });
