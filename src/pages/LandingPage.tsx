@@ -183,12 +183,16 @@ export const LandingPage = () => {
           <ScrollReveal>
             <div className="flex justify-center mb-8">
               <video 
-                src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124%20(1).mp4"
+                src={theme === 'dark' 
+                  ? "https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124%20(2).mp4"
+                  : "https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124%20(1).mp4"
+                }
                 autoPlay
                 loop
                 muted
                 playsInline
                 className="h-32 sm:h-40 md:h-48 lg:h-52 w-auto"
+                key={theme}
               />
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
