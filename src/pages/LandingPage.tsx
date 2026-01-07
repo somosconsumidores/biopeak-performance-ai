@@ -182,7 +182,14 @@ export const LandingPage = () => {
         <div className="container mx-auto text-center">
           <ScrollReveal>
             <div className="flex justify-center mb-8">
-              <img src={currentTheme === 'dark' ? 'https://static.wixstatic.com/media/a025ad_c1e0c16bd0ba45ab9f029a916605e9cd~mv2.png' : 'https://static.wixstatic.com/media/a025ad_ee60ef288f514496a4a23562f1ad4c03~mv2.png'} alt="BioPeak" className={`${currentTheme === 'dark' ? 'h-32 sm:h-40 md:h-48 lg:h-52' : 'h-40 sm:h-52 md:h-60 lg:h-64'} w-auto data-glow`} />
+              <video 
+                src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/BioPeak%2010124.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="h-32 sm:h-40 md:h-48 lg:h-52 w-auto"
+              />
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
