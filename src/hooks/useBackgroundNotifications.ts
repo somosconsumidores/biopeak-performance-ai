@@ -12,6 +12,11 @@ interface NotificationState {
   error: string | null;
 }
 
+/**
+ * Hook for local notifications during background sessions.
+ * This is used for immediate in-session notifications (pace alerts, etc.)
+ * For push notifications from server, use usePushNotifications instead.
+ */
 export const useBackgroundNotifications = ({ enabled }: NotificationOptions) => {
   const [state, setState] = useState<NotificationState>({
     isSupported: false,
