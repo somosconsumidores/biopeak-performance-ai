@@ -11,30 +11,16 @@ interface PushNotificationState {
   isSupported: boolean;
 }
 
-interface OneSignalUser {
-  getOnesignalId: () => Promise<string | null>;
-  addTags: (tags: Record<string, string>) => void;
-}
-
-interface OneSignalNotifications {
-  requestPermission: (fallbackToSettings: boolean) => Promise<boolean>;
-  addEventListener: (event: string, callback: (event: any) => void) => void;
-  removeEventListener: (event: string, callback: (event: any) => void) => void;
-}
-
-interface OneSignalType {
-  initialize: (appId: string) => void;
-  login: (externalId: string) => void;
-  logout: () => void;
-  User: OneSignalUser;
-  Notifications: OneSignalNotifications;
-}
-
-// OneSignal is loaded globally via the Cordova plugin
-declare global {
-  interface Window {
-    OneSignalPlugin?: OneSignalType;
-  }
+// Interface for our custom BioPeakOneSignal plugin
+interface BioPeakOneSignalPlugin {
+  initialize: () => Promise<{ success: boolean }>;
+  login: (options: { userId: string }) => Promise<{ success: boolean }>;
+  logout: () => Promise<{ success: boolean }>;
+  getPlayerId: () => Promise<{ playerId: string | null; token: string | null; optedIn: boolean }>;
+  requestPermission: () => Promise<{ granted: boolean }>;
+  addTags: (options: { tags: Record<string, string> }) => Promise<{ success: boolean }>;
+  getPermissionStatus: () => Promise<{ granted: boolean }>;
+  addListener: (event: string, callback: (data: any) => void) => Promise<{ remove: () => void }>;
 }
 
 export const usePushNotifications = () => {
@@ -48,17 +34,19 @@ export const usePushNotifications = () => {
 
   const isNative = Capacitor.isNativePlatform();
 
-  const getOneSignal = useCallback((): OneSignalType | null => {
-    if (typeof window !== 'undefined' && window.OneSignalPlugin) {
-      return window.OneSignalPlugin;
-    }
-    // Try accessing via Capacitor plugins
-    const capacitorPlugins = (Capacitor as any).Plugins;
-    if (capacitorPlugins?.OneSignal) {
-      return capacitorPlugins.OneSignal;
+  const getOneSignalPlugin = useCallback((): BioPeakOneSignalPlugin | null => {
+    if (!isNative) return null;
+    
+    try {
+      const plugins = (Capacitor as any).Plugins;
+      if (plugins?.BioPeakOneSignal) {
+        return plugins.BioPeakOneSignal as BioPeakOneSignalPlugin;
+      }
+    } catch (e) {
+      console.error('[PushNotifications] Error accessing BioPeakOneSignal plugin:', e);
     }
     return null;
-  }, []);
+  }, [isNative]);
 
   const savePlayerIdToSupabase = useCallback(async (playerId: string) => {
     try {
@@ -93,78 +81,69 @@ export const usePushNotifications = () => {
     }
   }, []);
 
-  const handleNotificationClick = useCallback((event: any) => {
-    console.log('[PushNotifications] Notification clicked:', event);
-    // Handle navigation based on notification data
-    const data = event?.notification?.additionalData || event?.additionalData || {};
-    
-    if (data.route) {
-      // Navigate to specific route
-      window.location.href = data.route;
-    }
-  }, []);
-
-  const handleForegroundNotification = useCallback((event: any) => {
-    console.log('[PushNotifications] Foreground notification received:', event);
-    // Display notification even when app is in foreground
-    if (event?.notification?.display) {
-      event.notification.display();
-    }
-  }, []);
-
   const initializeOneSignal = useCallback(async () => {
     if (!isNative) {
       console.log('[PushNotifications] Not a native platform, skipping initialization');
       return;
     }
 
-    const OneSignal = getOneSignal();
-    if (!OneSignal) {
-      console.warn('[PushNotifications] OneSignal not available');
-      setState(prev => ({ ...prev, error: 'OneSignal not available' }));
+    const plugin = getOneSignalPlugin();
+    if (!plugin) {
+      console.warn('[PushNotifications] BioPeakOneSignal plugin not available');
+      setState(prev => ({ ...prev, error: 'OneSignal plugin not available' }));
       return;
     }
 
     try {
-      // Get OneSignal App ID from environment or use the one configured in native
-      // The App ID should be configured in the native project
-      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID || '';
+      console.log('[PushNotifications] Initializing OneSignal via native plugin...');
       
-      if (appId) {
-        OneSignal.initialize(appId);
-        console.log('[PushNotifications] OneSignal initialized with app ID');
-      }
+      // Initialize the plugin (it auto-initializes on load, but we call it anyway)
+      const initResult = await plugin.initialize();
+      console.log('[PushNotifications] Initialize result:', initResult);
 
-      // Set up event listeners
-      OneSignal.Notifications.addEventListener('click', handleNotificationClick);
-      OneSignal.Notifications.addEventListener('foregroundWillDisplay', handleForegroundNotification);
+      // Set up notification click listener
+      plugin.addListener('notificationClicked', (data) => {
+        console.log('[PushNotifications] Notification clicked:', data);
+        if (data.additionalData) {
+          try {
+            const additionalData = JSON.parse(data.additionalData);
+            if (additionalData.route) {
+              window.location.href = additionalData.route;
+            }
+          } catch (e) {
+            console.error('[PushNotifications] Error parsing additional data:', e);
+          }
+        }
+      });
 
-      // Get Player ID
-      const playerId = await OneSignal.User.getOnesignalId();
+      // Get current player ID
+      const playerInfo = await plugin.getPlayerId();
+      console.log('[PushNotifications] Player info:', playerInfo);
       
-      if (playerId) {
-        await savePlayerIdToSupabase(playerId);
+      if (playerInfo.playerId) {
+        await savePlayerIdToSupabase(playerInfo.playerId);
         setState(prev => ({
           ...prev,
           isInitialized: true,
-          playerId,
-          isSubscribed: true,
+          playerId: playerInfo.playerId,
+          isSubscribed: playerInfo.optedIn,
           isSupported: true,
         }));
-        console.log('[PushNotifications] Player ID obtained:', playerId);
+        console.log('[PushNotifications] ✅ Initialized with player ID:', playerInfo.playerId);
       } else {
         setState(prev => ({
           ...prev,
           isInitialized: true,
           isSupported: true,
         }));
+        console.log('[PushNotifications] ✅ Initialized (no player ID yet)');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to initialize OneSignal';
       console.error('[PushNotifications] Initialization error:', error);
       setState(prev => ({ ...prev, error: errorMessage }));
     }
-  }, [isNative, getOneSignal, handleNotificationClick, handleForegroundNotification, savePlayerIdToSupabase]);
+  }, [isNative, getOneSignalPlugin, savePlayerIdToSupabase]);
 
   useEffect(() => {
     if (isNative) {
@@ -178,86 +157,91 @@ export const usePushNotifications = () => {
   }, [isNative, initializeOneSignal]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    const OneSignal = getOneSignal();
-    if (!OneSignal) {
-      console.warn('[PushNotifications] OneSignal not available for permission request');
+    const plugin = getOneSignalPlugin();
+    if (!plugin) {
+      console.warn('[PushNotifications] Plugin not available for permission request');
       return false;
     }
 
     try {
-      const granted = await OneSignal.Notifications.requestPermission(true);
+      console.log('[PushNotifications] Requesting permission...');
+      const result = await plugin.requestPermission();
+      console.log('[PushNotifications] Permission result:', result);
       
-      if (granted) {
+      if (result.granted) {
         // Re-fetch player ID after permission granted
-        const playerId = await OneSignal.User.getOnesignalId();
-        if (playerId) {
-          await savePlayerIdToSupabase(playerId);
+        const playerInfo = await plugin.getPlayerId();
+        if (playerInfo.playerId) {
+          await savePlayerIdToSupabase(playerInfo.playerId);
           setState(prev => ({
             ...prev,
             isSubscribed: true,
-            playerId,
+            playerId: playerInfo.playerId,
           }));
         }
       }
 
-      setState(prev => ({ ...prev, isSubscribed: granted }));
-      return granted;
+      setState(prev => ({ ...prev, isSubscribed: result.granted }));
+      return result.granted;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to request permission';
       console.error('[PushNotifications] Permission request error:', error);
       setState(prev => ({ ...prev, error: errorMessage }));
       return false;
     }
-  }, [getOneSignal, savePlayerIdToSupabase]);
+  }, [getOneSignalPlugin, savePlayerIdToSupabase]);
 
   const setExternalUserId = useCallback(async (userId: string) => {
-    const OneSignal = getOneSignal();
-    if (!OneSignal) {
-      console.warn('[PushNotifications] OneSignal not available for external user ID');
+    const plugin = getOneSignalPlugin();
+    if (!plugin) {
+      console.warn('[PushNotifications] Plugin not available for external user ID');
       return;
     }
 
     try {
-      OneSignal.login(userId);
-      console.log('[PushNotifications] External user ID set:', userId);
+      console.log('[PushNotifications] Setting external user ID:', userId);
+      await plugin.login({ userId });
+      console.log('[PushNotifications] ✅ External user ID set successfully');
 
       // Update player ID after login
-      const playerId = await OneSignal.User.getOnesignalId();
-      if (playerId) {
-        await savePlayerIdToSupabase(playerId);
-        setState(prev => ({ ...prev, playerId }));
+      const playerInfo = await plugin.getPlayerId();
+      if (playerInfo.playerId) {
+        await savePlayerIdToSupabase(playerInfo.playerId);
+        setState(prev => ({ ...prev, playerId: playerInfo.playerId }));
       }
     } catch (error) {
       console.error('[PushNotifications] Error setting external user ID:', error);
     }
-  }, [getOneSignal, savePlayerIdToSupabase]);
+  }, [getOneSignalPlugin, savePlayerIdToSupabase]);
 
   const clearExternalUserId = useCallback(async () => {
-    const OneSignal = getOneSignal();
-    if (!OneSignal) return;
+    const plugin = getOneSignalPlugin();
+    if (!plugin) return;
 
     try {
-      OneSignal.logout();
-      console.log('[PushNotifications] External user ID cleared');
+      console.log('[PushNotifications] Clearing external user ID (logout)');
+      await plugin.logout();
+      console.log('[PushNotifications] ✅ External user ID cleared');
     } catch (error) {
       console.error('[PushNotifications] Error clearing external user ID:', error);
     }
-  }, [getOneSignal]);
+  }, [getOneSignalPlugin]);
 
   const setUserTags = useCallback(async (tags: Record<string, string>) => {
-    const OneSignal = getOneSignal();
-    if (!OneSignal) {
-      console.warn('[PushNotifications] OneSignal not available for tags');
+    const plugin = getOneSignalPlugin();
+    if (!plugin) {
+      console.warn('[PushNotifications] Plugin not available for tags');
       return;
     }
 
     try {
-      OneSignal.User.addTags(tags);
-      console.log('[PushNotifications] User tags set:', tags);
+      console.log('[PushNotifications] Setting user tags:', tags);
+      await plugin.addTags({ tags });
+      console.log('[PushNotifications] ✅ User tags set successfully');
     } catch (error) {
       console.error('[PushNotifications] Error setting user tags:', error);
     }
-  }, [getOneSignal]);
+  }, [getOneSignalPlugin]);
 
   const deactivateToken = useCallback(async () => {
     try {
