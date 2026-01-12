@@ -1,5 +1,4 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
 
 // Load keystore properties
 def keystorePropertiesFile = rootProject.file("app/key.properties")
@@ -68,9 +67,6 @@ dependencies {
     
     // Material Components (updated for Android 15+ edge-to-edge compatibility)
     implementation 'com.google.android.material:material:1.12.0'
-    
-    // OneSignal SDK for Push Notifications
-    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
 }
 
 apply from: 'capacitor.build.gradle'

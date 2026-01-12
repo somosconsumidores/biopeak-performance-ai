@@ -7,7 +7,6 @@ import androidx.core.view.WindowCompat;
 
 import com.biopeakai.performance.BioPeakAudioSession;
 import com.biopeakai.performance.BioPeakLocationTracker;
-import com.biopeakai.performance.BioPeakOneSignal;
 
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "BP/MainActivity";
@@ -36,13 +35,6 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception e) {
             Log.e(TAG, "❌ LocationTracker register FAIL", e);
             e.printStackTrace();
-        }
-
-        try {
-            registerPlugin(BioPeakOneSignal.class);
-            Log.e(TAG, "✅ BioPeakOneSignal registered");
-        } catch (Exception e) {
-            Log.e(TAG, "❌ BioPeakOneSignal register FAIL", e);
         }
 
         Log.e(TAG, "🔄 Now calling super.onCreate() to initialize Capacitor bridge...");

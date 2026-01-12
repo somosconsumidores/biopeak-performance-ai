@@ -6,7 +6,6 @@ import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router
 import { usePlatform } from "./hooks/usePlatform";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/providers/ThemeProvider";
-import { PushNotificationProvider } from "./components/providers/PushNotificationProvider";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PlatformDebugger } from "./components/PlatformDebugger";
 import { PermissionOnboarding } from "./components/PermissionOnboarding";
@@ -77,11 +76,9 @@ const App = () => {
             <Toaster />
             <Sonner />
             <AuthProvider>
-              <PushNotificationProvider>
-                <AppRoutes />
-                {import.meta.env.DEV && <PlatformDebugger />}
-                {/* <PWAInstallPrompt /> */}
-              </PushNotificationProvider>
+              <AppRoutes />
+              {import.meta.env.DEV && <PlatformDebugger />}
+              {/* <PWAInstallPrompt /> */}
             </AuthProvider>
           </TooltipProvider>
         </ThemeProvider>
