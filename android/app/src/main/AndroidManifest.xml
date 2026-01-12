@@ -10,6 +10,14 @@
         android:theme="@style/AppTheme"
         android:networkSecurityConfig="@xml/network_security_config">
 
+        <!-- OneSignal Configuration -->
+        <meta-data android:name="com.onesignal.NotificationServiceExtension"
+            android:value="com.onesignal.NotificationServiceExtension" />
+        
+        <!-- OneSignal Notification Accent Color (optional - uses primary color) -->
+        <meta-data android:name="com.onesignal.NotificationAccentColor.DEFAULT"
+            android:value="FF6366F1" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
