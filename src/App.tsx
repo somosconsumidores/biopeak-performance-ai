@@ -78,7 +78,7 @@ const App = () => {
             <AuthProvider>
               <AppRoutes />
               {import.meta.env.DEV && <PlatformDebugger />}
-              <PWAInstallPrompt />
+              {/* <PWAInstallPrompt /> */}
             </AuthProvider>
           </TooltipProvider>
         </ThemeProvider>
