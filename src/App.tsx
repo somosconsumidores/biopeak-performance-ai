@@ -11,6 +11,7 @@ import { PlatformDebugger } from "./components/PlatformDebugger";
 import { PermissionOnboarding } from "./components/PermissionOnboarding";
 import { SurveyPopup } from "./components/SurveyPopup";
 import { useSurveyPopup } from "./hooks/useSurveyPopup";
+import { PushNotificationProvider } from "./providers/PushNotificationProvider";
 import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
@@ -76,9 +77,11 @@ const App = () => {
             <Toaster />
             <Sonner />
             <AuthProvider>
-              <AppRoutes />
-              {import.meta.env.DEV && <PlatformDebugger />}
-              {/* <PWAInstallPrompt /> */}
+              <PushNotificationProvider>
+                <AppRoutes />
+                {import.meta.env.DEV && <PlatformDebugger />}
+                {/* <PWAInstallPrompt /> */}
+              </PushNotificationProvider>
             </AuthProvider>
           </TooltipProvider>
         </ThemeProvider>
