@@ -47,6 +47,11 @@
             android:exported="false"
             android:foregroundServiceType="location">
         </service>
+
+        <!-- OneSignal Configuration -->
+        <meta-data
+            android:name="com.onesignal.appId"
+            android:value="YOUR_ONESIGNAL_APP_ID" />
     </application>
 
     <!-- Hardware Features -->
