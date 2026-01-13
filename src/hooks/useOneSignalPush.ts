@@ -20,6 +20,7 @@ interface UseOneSignalPushResult {
   hasPermission: boolean;
   isLoggedIn: boolean;
   subscriptionId: string | null;
+  isOptedIn: boolean;
   initialize: () => Promise<boolean>;
   login: (userId: string) => Promise<boolean>;
   logout: () => Promise<boolean>;
@@ -44,6 +45,7 @@ export function useOneSignalPush(): UseOneSignalPushResult {
   const [hasPermission, setHasPermission] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [isOptedIn, setIsOptedIn] = useState(false);
 
   const isSupported = isAndroid;
 
@@ -181,6 +183,7 @@ export function useOneSignalPush(): UseOneSignalPushResult {
         subscriptionListener = await plugin.addListener('subscriptionChange', (data) => {
           console.log('[OneSignal] Subscription changed:', data);
           setSubscriptionId(data.subscriptionId);
+          setIsOptedIn(data.optedIn);
         });
       } catch (error) {
         console.error('[OneSignal] Failed to setup listeners:', error);
@@ -201,6 +204,7 @@ export function useOneSignalPush(): UseOneSignalPushResult {
     hasPermission,
     isLoggedIn,
     subscriptionId,
+    isOptedIn,
     initialize,
     login,
     logout,

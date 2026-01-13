@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOneSignalPush } from '@/hooks/useOneSignalPush';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,7 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     hasPermission,
     isLoggedIn,
     subscriptionId,
+    isOptedIn,
     initialize,
     login,
     logout,
@@ -35,6 +36,8 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
 
   const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
   const [hasSavedToken, setHasSavedToken] = useState(false);
+  const [hasRequestedPermission, setHasRequestedPermission] = useState(false);
+  const loginAttemptedRef = useRef(false);
 
   // Save token to database
   const saveTokenToDatabase = useCallback(async (userId: string, playerId: string) => {
@@ -100,27 +103,41 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     return () => clearTimeout(timer);
   }, [isSupported, hasAutoInitialized, initialize]);
 
-  // Auto-login when user authenticates
+  // NOVO FLUXO: Permission/Subscription ANTES do Login
+  // Efeito 1: Pedir permissão quando user autentica (mas ANTES de fazer login no OneSignal)
   useEffect(() => {
-    if (!isSupported || !isInitialized) return;
+    if (!isSupported || !isInitialized || !user || hasRequestedPermission) return;
+    
+    console.log('[PushNotificationProvider] User authenticated, requesting permission FIRST...');
+    requestPermission().then((granted) => {
+      setHasRequestedPermission(true);
+      console.log('[PushNotificationProvider] Permission result:', granted);
+    });
+  }, [user, isSupported, isInitialized, hasRequestedPermission, requestPermission]);
 
-    if (user && !isLoggedIn) {
-      console.log('[PushNotificationProvider] User authenticated, logging in to OneSignal...');
-      login(user.id).then(async (success) => {
-        if (success) {
-          // Wait for OneSignal to sync the login with their server before requesting permission
-          console.log('[PushNotificationProvider] Waiting for OneSignal sync...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          console.log('[PushNotificationProvider] Requesting notification permission...');
-          await requestPermission();
-        }
-      });
-    } else if (!user && isLoggedIn) {
+  // Efeito 2: Fazer login SOMENTE quando subscriptionId existir (subscription está pronta)
+  useEffect(() => {
+    if (!isSupported || !isInitialized || !user || isLoggedIn) return;
+    if (!subscriptionId) {
+      console.log('[PushNotificationProvider] Waiting for subscriptionId before login...');
+      return; // CRÍTICO: só prossegue quando subscription existe
+    }
+    if (loginAttemptedRef.current) return; // Evita múltiplas tentativas
+    
+    loginAttemptedRef.current = true;
+    console.log('[PushNotificationProvider] Subscription ready (ID: ' + subscriptionId.substring(0, 8) + '...), NOW logging in with external ID...');
+    login(user.id);
+  }, [user, isSupported, isInitialized, isLoggedIn, subscriptionId, login]);
+
+  // Efeito 3: Logout quando user desautentica
+  useEffect(() => {
+    if (!user && isLoggedIn) {
       console.log('[PushNotificationProvider] User logged out, logging out of OneSignal...');
       logout();
+      setHasRequestedPermission(false);
+      loginAttemptedRef.current = false;
     }
-  }, [user, isSupported, isInitialized, isLoggedIn, login, logout, requestPermission]);
+  }, [user, isLoggedIn, logout]);
 
   // Save token when we have user, subscriptionId and permission
   useEffect(() => {
