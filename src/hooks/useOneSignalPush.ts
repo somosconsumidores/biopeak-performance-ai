@@ -10,8 +10,18 @@ interface BioPeakOneSignalPlugin {
   getPermissionStatus(): Promise<{ granted: boolean; initialized: boolean }>;
   getSubscriptionId(): Promise<{ subscriptionId: string | null; initialized: boolean }>;
   getExternalId(): Promise<{ externalId: string | null; initialized: boolean }>;
+  getFullStatus(): Promise<{ 
+    initialized: boolean; 
+    currentExternalId: string | null;
+    permission?: boolean;
+    subscriptionId?: string | null;
+    optedIn?: boolean;
+    token?: string | null;
+    hasToken?: boolean;
+    error?: string;
+  }>;
   addListener(eventName: 'permissionChange', callback: (data: { granted: boolean }) => void): Promise<{ remove: () => void }>;
-  addListener(eventName: 'subscriptionChange', callback: (data: { subscriptionId: string; optedIn: boolean }) => void): Promise<{ remove: () => void }>;
+  addListener(eventName: 'subscriptionChange', callback: (data: { subscriptionId: string; optedIn: boolean; token?: string; hasToken?: boolean }) => void): Promise<{ remove: () => void }>;
 }
 
 interface UseOneSignalPushResult {
@@ -21,10 +31,12 @@ interface UseOneSignalPushResult {
   isLoggedIn: boolean;
   subscriptionId: string | null;
   isOptedIn: boolean;
+  pushToken: string | null;
   initialize: () => Promise<boolean>;
   login: (userId: string) => Promise<boolean>;
   logout: () => Promise<boolean>;
   requestPermission: () => Promise<boolean>;
+  getFullStatus: () => Promise<any>;
 }
 
 function getOneSignalPlugin(): BioPeakOneSignalPlugin | null {
@@ -46,8 +58,26 @@ export function useOneSignalPush(): UseOneSignalPushResult {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [isOptedIn, setIsOptedIn] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   const isSupported = isAndroid;
+  
+  // Get full status for debugging
+  const getFullStatus = useCallback(async (): Promise<any> => {
+    if (!isSupported) return null;
+    
+    const plugin = getOneSignalPlugin();
+    if (!plugin) return null;
+    
+    try {
+      const status = await plugin.getFullStatus();
+      console.log('[OneSignal] Full status:', status);
+      return status;
+    } catch (error) {
+      console.error('[OneSignal] getFullStatus error:', error);
+      return null;
+    }
+  }, [isSupported]);
 
   // Initialize OneSignal
   const initialize = useCallback(async (): Promise<boolean> => {
@@ -184,6 +214,9 @@ export function useOneSignalPush(): UseOneSignalPushResult {
           console.log('[OneSignal] Subscription changed:', data);
           setSubscriptionId(data.subscriptionId);
           setIsOptedIn(data.optedIn);
+          if (data.token) {
+            setPushToken(data.token);
+          }
         });
       } catch (error) {
         console.error('[OneSignal] Failed to setup listeners:', error);
@@ -205,9 +238,11 @@ export function useOneSignalPush(): UseOneSignalPushResult {
     isLoggedIn,
     subscriptionId,
     isOptedIn,
+    pushToken,
     initialize,
     login,
     logout,
     requestPermission,
+    getFullStatus,
   };
 }
