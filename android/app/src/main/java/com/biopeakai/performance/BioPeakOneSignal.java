@@ -189,6 +189,16 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
                     boolean isGranted = granted != null && granted;
                     Log.d(TAG, "📱 Permission result: " + isGranted);
                     
+                    // Explicitly opt-in to push subscription after permission is granted
+                    if (isGranted) {
+                        try {
+                            OneSignal.getUser().getPushSubscription().optIn();
+                            Log.d(TAG, "✅ Push subscription opted in");
+                        } catch (Exception e) {
+                            Log.e(TAG, "⚠️ Failed to opt-in to push subscription", e);
+                        }
+                    }
+                    
                     JSObject result = new JSObject();
                     result.put("success", true);
                     result.put("granted", isGranted);
