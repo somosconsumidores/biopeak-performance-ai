@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOneSignalPush } from '@/hooks/useOneSignalPush';
+import { supabase } from '@/integrations/supabase/client';
+import { Device } from '@capacitor/device';
 
 interface PushNotificationContextType {
   isSupported: boolean;
@@ -32,6 +34,53 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
   } = useOneSignalPush();
 
   const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
+  const [hasSavedToken, setHasSavedToken] = useState(false);
+
+  // Save token to database
+  const saveTokenToDatabase = useCallback(async (userId: string, playerId: string) => {
+    try {
+      console.log('[PushNotificationProvider] Saving token to database...');
+      
+      // Get device info
+      const deviceInfo = await Device.getInfo();
+      
+      // Upsert: update if exists, insert if not
+      const { error } = await supabase
+        .from('push_notification_tokens')
+        .upsert({
+          user_id: userId,
+          player_id: playerId,
+          platform: 'android',
+          device_model: deviceInfo.model || 'unknown',
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,platform',
+        });
+
+      if (error) {
+        console.error('[PushNotificationProvider] Failed to save token:', error);
+      } else {
+        console.log('[PushNotificationProvider] Token saved successfully');
+        setHasSavedToken(true);
+      }
+    } catch (error) {
+      console.error('[PushNotificationProvider] Error saving token:', error);
+    }
+  }, []);
+
+  // Deactivate token on logout
+  const deactivateToken = useCallback(async (userId: string) => {
+    try {
+      console.log('[PushNotificationProvider] Deactivating token...');
+      await supabase
+        .from('push_notification_tokens')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+    } catch (error) {
+      console.error('[PushNotificationProvider] Error deactivating token:', error);
+    }
+  }, []);
 
   // Auto-initialize OneSignal on mount (Android only)
   useEffect(() => {
@@ -57,11 +106,10 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
 
     if (user && !isLoggedIn) {
       console.log('[PushNotificationProvider] User authenticated, logging in to OneSignal...');
-      login(user.id).then((success) => {
+      login(user.id).then(async (success) => {
         if (success) {
-          // Request permission after successful login
           console.log('[PushNotificationProvider] Requesting notification permission...');
-          requestPermission();
+          await requestPermission();
         }
       });
     } else if (!user && isLoggedIn) {
@@ -69,6 +117,20 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
       logout();
     }
   }, [user, isSupported, isInitialized, isLoggedIn, login, logout, requestPermission]);
+
+  // Save token when we have user, subscriptionId and permission
+  useEffect(() => {
+    if (user && subscriptionId && hasPermission && !hasSavedToken) {
+      saveTokenToDatabase(user.id, subscriptionId);
+    }
+  }, [user, subscriptionId, hasPermission, hasSavedToken, saveTokenToDatabase]);
+
+  // Reset saved token flag and deactivate on logout
+  useEffect(() => {
+    if (!user && hasSavedToken) {
+      setHasSavedToken(false);
+    }
+  }, [user, hasSavedToken, deactivateToken]);
 
   const contextValue: PushNotificationContextType = {
     isSupported,
