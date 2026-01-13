@@ -11,6 +11,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import com.onesignal.Continue;
 import com.onesignal.OneSignal;
 import com.onesignal.debug.LogLevel;
 import com.onesignal.notifications.IPermissionObserver;
@@ -181,18 +182,29 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
                 return;
             }
             
-            // Request permission - this triggers the system dialog
-            // The result will be notified via IPermissionObserver.onNotificationPermissionChange
-            OneSignal.getNotifications().requestPermission(true);
-            
-            // Return immediately - the actual result comes through the observer
-            JSObject result = new JSObject();
-            result.put("success", true);
-            result.put("granted", false);
-            result.put("message", "Permission dialog shown. Listen for 'permissionChange' event for result.");
-            call.resolve(result);
-            
-            Log.d(TAG, "📱 Permission request initiated");
+            // Request permission using Continue.with() for Java compatibility with Kotlin suspend functions
+            OneSignal.getNotifications().requestPermission(true, Continue.with(r -> {
+                if (r.isSuccess()) {
+                    Boolean granted = r.getData();
+                    boolean isGranted = granted != null && granted;
+                    Log.d(TAG, "📱 Permission result: " + isGranted);
+                    
+                    JSObject result = new JSObject();
+                    result.put("success", true);
+                    result.put("granted", isGranted);
+                    result.put("message", isGranted ? "Permission granted" : "Permission denied");
+                    call.resolve(result);
+                } else {
+                    Throwable error = r.getThrowable();
+                    Log.e(TAG, "❌ Permission request failed", error);
+                    
+                    JSObject result = new JSObject();
+                    result.put("success", false);
+                    result.put("granted", false);
+                    result.put("message", error != null ? error.getMessage() : "Permission request failed");
+                    call.resolve(result);
+                }
+            }));
             
         } catch (Exception e) {
             Log.e(TAG, "❌ Failed to request permission", e);
