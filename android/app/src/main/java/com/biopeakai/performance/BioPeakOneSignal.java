@@ -287,6 +287,31 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
         call.resolve(result);
     }
 
+    @PluginMethod
+    public void getFullStatus(PluginCall call) {
+        Log.d(TAG, "📱 getFullStatus() called");
+        
+        JSObject result = new JSObject();
+        result.put("initialized", isInitialized);
+        result.put("currentExternalId", currentExternalId);
+        
+        if (isInitialized) {
+            try {
+                result.put("permission", OneSignal.getNotifications().getPermission());
+                result.put("subscriptionId", OneSignal.getUser().getPushSubscription().getId());
+                result.put("optedIn", OneSignal.getUser().getPushSubscription().getOptedIn());
+                String token = OneSignal.getUser().getPushSubscription().getToken();
+                result.put("token", token);
+                result.put("hasToken", token != null && !token.isEmpty());
+            } catch (Exception e) {
+                result.put("error", e.getMessage());
+            }
+        }
+        
+        Log.d(TAG, "📱 Full status: " + result.toString());
+        call.resolve(result);
+    }
+
     // IPermissionObserver implementation
     @Override
     public void onNotificationPermissionChange(boolean permission) {
@@ -302,8 +327,9 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
     public void onPushSubscriptionChange(PushSubscriptionChangedState state) {
         String subscriptionId = state.getCurrent().getId();
         boolean optedIn = state.getCurrent().getOptedIn();
+        String token = state.getCurrent().getToken();
         
-        Log.d(TAG, "🔔 Subscription changed - ID: " + subscriptionId + ", OptedIn: " + optedIn);
+        Log.d(TAG, "🔔 Subscription changed - ID: " + subscriptionId + ", OptedIn: " + optedIn + ", Token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
         
         // AUTO-HEAL: Se temos subscriptionId mas não está opted-in, e permission existe, forçar opt-in
         if (subscriptionId != null && !optedIn) {
@@ -318,10 +344,10 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
             }
         }
         
-        // AUTO-HEAL: Se temos subscriptionId, optedIn é true, e há external_id pendente, re-fazer login
-        // Isso garante que o external_id seja associado corretamente à subscription ativa
-        if (subscriptionId != null && optedIn && currentExternalId != null) {
-            Log.d(TAG, "🔧 Auto-healing: re-associating external_id after subscription is opted-in...");
+        // AUTO-HEAL: Se temos subscriptionId, optedIn é true, token existe, e há external_id pendente, re-fazer login
+        // Isso garante que o external_id seja associado corretamente à subscription ativa COM token
+        if (subscriptionId != null && optedIn && token != null && !token.isEmpty() && currentExternalId != null) {
+            Log.d(TAG, "🔧 Auto-healing: re-associating external_id after subscription is fully ready (has token)...");
             try {
                 OneSignal.login(currentExternalId);
                 Log.d(TAG, "✅ Re-login with external_id successful");
@@ -333,6 +359,8 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
         JSObject data = new JSObject();
         data.put("subscriptionId", subscriptionId);
         data.put("optedIn", optedIn);
+        data.put("token", token);
+        data.put("hasToken", token != null && !token.isEmpty());
         notifyListeners("subscriptionChange", data);
     }
 }

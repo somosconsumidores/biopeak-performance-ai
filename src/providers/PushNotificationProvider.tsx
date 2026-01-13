@@ -123,19 +123,38 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     });
   }, [user, isSupported, isInitialized, hasRequestedPermission, requestPermission]);
 
-  // Efeito 2: Fazer login SOMENTE quando subscriptionId existir (subscription está pronta)
+  // Efeito para resetar loginAttemptedRef quando isOptedIn muda para true
+  // Isso permite retry se o primeiro login aconteceu antes do optedIn
+  useEffect(() => {
+    if (isOptedIn && subscriptionId && user && !isLoggedIn && loginAttemptedRef.current) {
+      console.log('[PushNotificationProvider] isOptedIn became true after previous attempt, allowing retry...');
+      loginAttemptedRef.current = false;
+    }
+  }, [isOptedIn, subscriptionId, user, isLoggedIn]);
+
+  // Efeito 2: Fazer login SOMENTE quando subscription está COMPLETAMENTE pronta
+  // CRÍTICO: Aguardar TODOS os requisitos:
+  // - subscriptionId existe (subscription criada)
+  // - isOptedIn === true (subscription opted-in, token FCM sincronizado)
+  // - hasPermission === true (permissão concedida)
   useEffect(() => {
     if (!isSupported || !isInitialized || !user || isLoggedIn) return;
-    if (!subscriptionId) {
-      console.log('[PushNotificationProvider] Waiting for subscriptionId before login...');
-      return; // CRÍTICO: só prossegue quando subscription existe
+    
+    if (!subscriptionId || !isOptedIn || !hasPermission) {
+      console.log('[PushNotificationProvider] Subscription not fully ready:', {
+        subscriptionId: !!subscriptionId,
+        isOptedIn,
+        hasPermission
+      });
+      return;
     }
-    if (loginAttemptedRef.current) return; // Evita múltiplas tentativas
+    
+    if (loginAttemptedRef.current) return;
     
     loginAttemptedRef.current = true;
-    console.log('[PushNotificationProvider] Subscription ready (ID: ' + subscriptionId.substring(0, 8) + '...), NOW logging in with external ID...');
+    console.log('[PushNotificationProvider] Subscription FULLY ready (ID: ' + subscriptionId.substring(0, 8) + '..., optedIn: true), NOW logging in with external ID...');
     login(user.id);
-  }, [user, isSupported, isInitialized, isLoggedIn, subscriptionId, login]);
+  }, [user, isSupported, isInitialized, isLoggedIn, subscriptionId, isOptedIn, hasPermission, login]);
 
   // Efeito 3: Logout quando user desautentica
   useEffect(() => {
