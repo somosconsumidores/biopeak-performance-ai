@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useCa
 import { useAuth } from '@/hooks/useAuth';
 import { useOneSignalPush } from '@/hooks/useOneSignalPush';
 import { supabase } from '@/integrations/supabase/client';
-import { Device } from '@capacitor/device';
+import { Device, DeviceInfo } from '@capacitor/device';
 
 interface PushNotificationContextType {
   isSupported: boolean;
@@ -37,15 +37,23 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
   const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
   const [hasSavedToken, setHasSavedToken] = useState(false);
   const [hasRequestedPermission, setHasRequestedPermission] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const loginAttemptedRef = useRef(false);
 
-  // Save token to database
+  // Pre-load device info on mount (before any OneSignal operations)
+  useEffect(() => {
+    Device.getInfo().then(info => {
+      console.log('[PushNotificationProvider] Device info pre-loaded:', info.model);
+      setDeviceInfo(info);
+    }).catch(err => {
+      console.error('[PushNotificationProvider] Failed to get device info:', err);
+    });
+  }, []);
+
+  // Save token to database - uses pre-loaded deviceInfo
   const saveTokenToDatabase = useCallback(async (userId: string, playerId: string) => {
     try {
       console.log('[PushNotificationProvider] Saving token to database...');
-      
-      // Get device info
-      const deviceInfo = await Device.getInfo();
       
       // Upsert: update if exists, insert if not
       const { error } = await supabase
@@ -54,7 +62,7 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
           user_id: userId,
           player_id: playerId,
           platform: 'android',
-          device_model: deviceInfo.model || 'unknown',
+          device_model: deviceInfo?.model || 'unknown',
           is_active: true,
           updated_at: new Date().toISOString(),
         }, {
@@ -70,7 +78,7 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     } catch (error) {
       console.error('[PushNotificationProvider] Error saving token:', error);
     }
-  }, []);
+  }, [deviceInfo]);
 
   // Deactivate token on logout
   const deactivateToken = useCallback(async (userId: string) => {
@@ -139,12 +147,16 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     }
   }, [user, isLoggedIn, logout]);
 
-  // Save token when we have user, subscriptionId and permission
+  // Save token ONLY AFTER OneSignal login is confirmed (with delay to ensure sync)
   useEffect(() => {
-    if (user && subscriptionId && hasPermission && !hasSavedToken) {
-      saveTokenToDatabase(user.id, subscriptionId);
+    if (user && subscriptionId && hasPermission && isLoggedIn && isOptedIn && !hasSavedToken) {
+      console.log('[PushNotificationProvider] OneSignal login confirmed, waiting 2s before saving token...');
+      const timer = setTimeout(() => {
+        saveTokenToDatabase(user.id, subscriptionId);
+      }, 2000);
+      return () => clearTimeout(timer);
     }
-  }, [user, subscriptionId, hasPermission, hasSavedToken, saveTokenToDatabase]);
+  }, [user, subscriptionId, hasPermission, isLoggedIn, isOptedIn, hasSavedToken, saveTokenToDatabase]);
 
   // Reset saved token flag and deactivate on logout
   useEffect(() => {
