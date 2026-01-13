@@ -116,6 +116,18 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
             OneSignal.login(externalId);
             currentExternalId = externalId;
             
+            // Ensure user is opted-in immediately after login if permission already exists
+            try {
+                boolean hasPermission = OneSignal.getNotifications().getPermission();
+                if (hasPermission) {
+                    Log.d(TAG, "📱 Permission already granted, opting in after login...");
+                    OneSignal.getUser().getPushSubscription().optIn();
+                    Log.d(TAG, "✅ Push subscription opted in after login");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "⚠️ Failed to opt-in after login", e);
+            }
+            
             JSObject result = new JSObject();
             result.put("success", true);
             result.put("message", "Logged in with external ID");
