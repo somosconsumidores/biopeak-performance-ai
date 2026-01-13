@@ -168,19 +168,32 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
         }
 
         try {
-            // Request permission (Android 13+)
-            OneSignal.getNotifications().requestPermission(true, continuation -> {
-                boolean granted = OneSignal.getNotifications().getPermission();
-                Log.d(TAG, "📱 Permission result: " + granted);
-                
+            // Check current permission status first
+            boolean alreadyGranted = OneSignal.getNotifications().getPermission();
+            
+            if (alreadyGranted) {
+                Log.d(TAG, "📱 Permission already granted");
                 JSObject result = new JSObject();
                 result.put("success", true);
-                result.put("granted", granted);
-                result.put("message", granted ? "Permission granted" : "Permission denied");
+                result.put("granted", true);
+                result.put("message", "Permission already granted");
                 call.resolve(result);
-                
-                return null;
-            });
+                return;
+            }
+            
+            // Request permission - this triggers the system dialog
+            // The result will be notified via IPermissionObserver.onNotificationPermissionChange
+            OneSignal.getNotifications().requestPermission(true);
+            
+            // Return immediately - the actual result comes through the observer
+            JSObject result = new JSObject();
+            result.put("success", true);
+            result.put("granted", false);
+            result.put("message", "Permission dialog shown. Listen for 'permissionChange' event for result.");
+            call.resolve(result);
+            
+            Log.d(TAG, "📱 Permission request initiated");
+            
         } catch (Exception e) {
             Log.e(TAG, "❌ Failed to request permission", e);
             JSObject result = new JSObject();
