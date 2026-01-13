@@ -108,6 +108,10 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
       console.log('[PushNotificationProvider] User authenticated, logging in to OneSignal...');
       login(user.id).then(async (success) => {
         if (success) {
+          // Wait for OneSignal to sync the login with their server before requesting permission
+          console.log('[PushNotificationProvider] Waiting for OneSignal sync...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
           console.log('[PushNotificationProvider] Requesting notification permission...');
           await requestPermission();
         }
