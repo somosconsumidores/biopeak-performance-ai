@@ -305,6 +305,31 @@ public class BioPeakOneSignal extends Plugin implements IPermissionObserver, IPu
         
         Log.d(TAG, "🔔 Subscription changed - ID: " + subscriptionId + ", OptedIn: " + optedIn);
         
+        // AUTO-HEAL: Se temos subscriptionId mas não está opted-in, e permission existe, forçar opt-in
+        if (subscriptionId != null && !optedIn) {
+            try {
+                boolean hasPermission = OneSignal.getNotifications().getPermission();
+                if (hasPermission) {
+                    Log.d(TAG, "🔧 Auto-healing: permission exists but not opted-in, calling optIn()...");
+                    OneSignal.getUser().getPushSubscription().optIn();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "⚠️ Auto-heal optIn failed", e);
+            }
+        }
+        
+        // AUTO-HEAL: Se temos subscriptionId, optedIn é true, e há external_id pendente, re-fazer login
+        // Isso garante que o external_id seja associado corretamente à subscription ativa
+        if (subscriptionId != null && optedIn && currentExternalId != null) {
+            Log.d(TAG, "🔧 Auto-healing: re-associating external_id after subscription is opted-in...");
+            try {
+                OneSignal.login(currentExternalId);
+                Log.d(TAG, "✅ Re-login with external_id successful");
+            } catch (Exception e) {
+                Log.e(TAG, "⚠️ Auto-heal login failed", e);
+            }
+        }
+        
         JSObject data = new JSObject();
         data.put("subscriptionId", subscriptionId);
         data.put("optedIn", optedIn);
