@@ -47,9 +47,6 @@ serve(async (req) => {
     console.log(`📱 Message: ${message}`);
     console.log(`📱 Category: ${category}`);
 
-    // Map category to Android notification channel
-    const androidChannelId = getAndroidChannelId(category);
-
     // Build OneSignal API request
     const oneSignalPayload = {
       app_id: ONESIGNAL_APP_ID,
@@ -60,8 +57,6 @@ serve(async (req) => {
         ...data,
         category,
       },
-      // Android-specific settings
-      android_channel_id: androidChannelId,
       // iOS-specific settings
       ios_sound: 'default',
       // TTL: 24 hours
@@ -112,15 +107,3 @@ serve(async (req) => {
   }
 });
 
-function getAndroidChannelId(category: string): string {
-  switch (category) {
-    case 'training':
-      return 'training_notifications';
-    case 'achievement':
-      return 'achievement_notifications';
-    case 'engagement':
-      return 'engagement_notifications';
-    default:
-      return 'general_notifications';
-  }
-}
