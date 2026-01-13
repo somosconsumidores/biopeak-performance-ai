@@ -51,7 +51,7 @@
         <!-- OneSignal Configuration -->
         <meta-data
             android:name="com.onesignal.appId"
-            android:value="YOUR_ONESIGNAL_APP_ID" />
+            android:value="0b2d8fc7-218e-4f5d-a8c2-8aec54b51f38" />
     </application>
 
     <!-- Hardware Features -->
