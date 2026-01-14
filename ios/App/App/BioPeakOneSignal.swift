@@ -3,7 +3,7 @@ import Capacitor
 import OneSignalFramework
 
 @objc(BioPeakOneSignal)
-public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermissionObserver, OSPushSubscriptionObserver {
+public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     
     public let identifier = "BioPeakOneSignal"
     public let jsName = "BioPeakOneSignal"
@@ -25,6 +25,12 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
     private var isInitialized = false
     private var currentExternalId: String? = nil
     private var pendingExternalId: String? = nil
+    
+    // Polling control
+    private var pollingTimer: Timer?
+    private var pollingAttempts = 0
+    private let maxPollingAttempts = 33  // ~10 seconds (33 * 300ms)
+    private let pollingInterval: TimeInterval = 0.3  // 300ms
     
     override public func load() {
         super.load()
@@ -48,15 +54,11 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // Initialize OneSignal
+            // Initialize OneSignal (no observers - using polling instead for SDK 5.x compatibility)
             OneSignal.initialize(self.ONESIGNAL_APP_ID, withLaunchOptions: nil)
             
-            // Add observers
-            OneSignal.Notifications.addPermissionObserver(self)
-            OneSignal.User.pushSubscription.addObserver(self)
-            
             self.isInitialized = true
-            print("📱 [\(self.TAG)] ✅ OneSignal initialized successfully")
+            print("📱 [\(self.TAG)] ✅ OneSignal initialized successfully (polling mode)")
             
             call.resolve([
                 "success": true,
@@ -93,11 +95,17 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
         print("📱 [\(TAG)] Subscription status before login: id=\(subscriptionId ?? "nil"), optedIn=\(optedIn), token=\(token != nil ? "exists" : "nil")")
         
         if !optedIn || token == nil {
-            print("📱 [\(TAG)] ⚠️ Subscription not ready yet, storing pending externalId")
+            print("📱 [\(TAG)] ⚠️ Subscription not ready yet, storing pending externalId and starting polling")
             pendingExternalId = externalId
+            
+            // Start polling to wait for subscription
+            DispatchQueue.main.async { [weak self] in
+                self?.startPollingForSubscription()
+            }
+            
             call.resolve([
                 "success": true,
-                "message": "Stored pending external ID - subscription not ready"
+                "message": "Stored pending external ID - subscription not ready, polling started"
             ])
             return
         }
@@ -120,6 +128,8 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
     
     @objc func logout(_ call: CAPPluginCall) {
         print("📱 [\(TAG)] logout() called")
+        
+        stopPolling()
         
         if !isInitialized {
             call.resolve([
@@ -161,6 +171,11 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
                     // OptIn to ensure subscription is created
                     OneSignal.User.pushSubscription.optIn()
                     print("📱 [\(self.TAG)] ✅ Called optIn() after permission granted")
+                    
+                    // Start polling to detect when subscription is ready
+                    DispatchQueue.main.async {
+                        self.startPollingForSubscription()
+                    }
                 }
                 
                 call.resolve([
@@ -231,53 +246,69 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermis
         call.resolve(result)
     }
     
-    // MARK: - Permission Observer (OneSignal SDK v5)
+    // MARK: - Subscription Polling (SDK 5.x compatible approach)
     
-    public func onOSNotificationPermissionChanged(_ stateChanges: OSNotificationPermissionStateChanges) {
-        let granted = stateChanges.to
-        print("📱 [\(TAG)] 🔔 Permission changed: \(granted)")
+    private func startPollingForSubscription() {
+        stopPolling()
+        pollingAttempts = 0
         
-        notifyListeners("permissionChange", data: [
-            "granted": granted
-        ])
+        print("📱 [\(TAG)] 🔄 Starting subscription polling...")
         
-        // Auto-heal: if permission granted but not opted in, opt in
-        if granted && isInitialized {
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+            
+            self.pollingAttempts += 1
+            
+            let subscriptionId = OneSignal.User.pushSubscription.id
             let optedIn = OneSignal.User.pushSubscription.optedIn
-            if !optedIn {
-                print("📱 [\(TAG)] 🔧 Auto-healing: permission granted but not opted in, calling optIn()")
-                OneSignal.User.pushSubscription.optIn()
+            let token = OneSignal.User.pushSubscription.token
+            
+            print("📱 [\(self.TAG)] 🔄 Polling attempt \(self.pollingAttempts)/\(self.maxPollingAttempts) - id: \(subscriptionId ?? "nil"), optedIn: \(optedIn), token: \(token != nil ? "exists" : "nil")")
+            
+            // Subscription is ready when we have an ID and optedIn is true
+            if let subId = subscriptionId, !subId.isEmpty, optedIn {
+                self.stopPolling()
+                self.onSubscriptionReady(subscriptionId: subId, optedIn: optedIn, token: token)
+                return
+            }
+            
+            // Timeout
+            if self.pollingAttempts >= self.maxPollingAttempts {
+                self.stopPolling()
+                print("📱 [\(self.TAG)] ⚠️ Polling timeout - subscription not ready after \(self.maxPollingAttempts) attempts")
+                self.notifyListeners("subscriptionTimeout", data: [:])
             }
         }
     }
     
-    // MARK: - Push Subscription Observer (OneSignal SDK v5)
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+    }
     
-    public func onOSPushSubscriptionChanged(_ stateChanges: OSPushSubscriptionStateChanges) {
-        let subscriptionId = stateChanges.to.id
-        let optedIn = stateChanges.to.optedIn
-        let token = stateChanges.to.token
+    private func onSubscriptionReady(subscriptionId: String, optedIn: Bool, token: String?) {
+        print("📱 [\(TAG)] ✅ Subscription ready: id=\(subscriptionId), optedIn=\(optedIn), hasToken=\(token != nil)")
         
-        print("📱 [\(TAG)] 🔔 Subscription changed - id: \(subscriptionId ?? "nil"), optedIn: \(optedIn), token: \(token != nil ? "exists" : "nil")")
-        
-        // Notify listeners
+        // Notify JS
         notifyListeners("subscriptionChange", data: [
-            "subscriptionId": subscriptionId as Any,
+            "subscriptionId": subscriptionId,
             "optedIn": optedIn,
             "token": token as Any,
             "hasToken": token != nil
         ])
         
-        // Auto-heal: if subscription is ready and we have a pending external ID, login
-        if optedIn && token != nil && pendingExternalId != nil {
-            let externalId = pendingExternalId!
-            print("📱 [\(TAG)] 🔧 Auto-healing: subscription ready with pending externalId, logging in...")
+        // If we have a pending external ID and subscription is ready, login now
+        if let externalId = pendingExternalId, optedIn {
+            print("📱 [\(TAG)] 🔧 Subscription ready with pending externalId, logging in...")
             
             OneSignal.login(externalId)
             currentExternalId = externalId
             pendingExternalId = nil
             
-            print("📱 [\(TAG)] ✅ Auto-heal login completed for: \(externalId.prefix(8))...")
+            print("📱 [\(TAG)] ✅ Login completed for: \(externalId.prefix(8))...")
         }
     }
 }
