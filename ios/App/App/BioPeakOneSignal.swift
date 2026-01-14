@@ -1,6 +1,6 @@
 import Foundation
 import Capacitor
-import OneSignalFramework
+import OneSignal
 
 @objc(BioPeakOneSignal)
 public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificationPermissionObserver, OneSignalPushSubscriptionObserver {
@@ -252,7 +252,7 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificatio
     
     // MARK: - Push Subscription Observer
     
-    public func onPushSubscriptionDidChange(state: OneSignalFramework.OSPushSubscriptionChangedState) {
+    public func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
         let subscriptionId = state.current.id
         let optedIn = state.current.optedIn
         let token = state.current.token
