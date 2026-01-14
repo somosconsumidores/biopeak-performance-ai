@@ -1,16 +1,9 @@
 import Foundation
 import Capacitor
-
-#if canImport(OneSignalFramework)
 import OneSignalFramework
-#elseif canImport(OneSignal)
-import OneSignal
-#else
-#error("OneSignal SDK not found. Run 'pod install' and open App.xcworkspace (not App.xcodeproj).")
-#endif
 
 @objc(BioPeakOneSignal)
-public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificationPermissionObserver, OneSignalPushSubscriptionObserver {
+public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OSNotificationPermissionObserver, OSPushSubscriptionObserver {
     
     public let identifier = "BioPeakOneSignal"
     public let jsName = "BioPeakOneSignal"
@@ -238,17 +231,18 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificatio
         call.resolve(result)
     }
     
-    // MARK: - Permission Observer
+    // MARK: - Permission Observer (OneSignal SDK v5)
     
-    public func onNotificationPermissionDidChange(_ permission: Bool) {
-        print("📱 [\(TAG)] 🔔 Permission changed: \(permission)")
+    public func onOSNotificationPermissionChanged(_ stateChanges: OSNotificationPermissionStateChanges) {
+        let granted = stateChanges.to
+        print("📱 [\(TAG)] 🔔 Permission changed: \(granted)")
         
         notifyListeners("permissionChange", data: [
-            "granted": permission
+            "granted": granted
         ])
         
         // Auto-heal: if permission granted but not opted in, opt in
-        if permission && isInitialized {
+        if granted && isInitialized {
             let optedIn = OneSignal.User.pushSubscription.optedIn
             if !optedIn {
                 print("📱 [\(TAG)] 🔧 Auto-healing: permission granted but not opted in, calling optIn()")
@@ -257,12 +251,12 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificatio
         }
     }
     
-    // MARK: - Push Subscription Observer
+    // MARK: - Push Subscription Observer (OneSignal SDK v5)
     
-    public func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
-        let subscriptionId = state.current.id
-        let optedIn = state.current.optedIn
-        let token = state.current.token
+    public func onOSPushSubscriptionChanged(_ stateChanges: OSPushSubscriptionStateChanges) {
+        let subscriptionId = stateChanges.to.id
+        let optedIn = stateChanges.to.optedIn
+        let token = stateChanges.to.token
         
         print("📱 [\(TAG)] 🔔 Subscription changed - id: \(subscriptionId ?? "nil"), optedIn: \(optedIn), token: \(token != nil ? "exists" : "nil")")
         
