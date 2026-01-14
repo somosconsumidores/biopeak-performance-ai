@@ -20,7 +20,7 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     ]
     
     private let TAG = "BioPeakOneSignal"
-    private let ONESIGNAL_APP_ID = "6ded5fe9-1b2e-42cb-9e0b-30f28a02f413"
+    private let ONESIGNAL_APP_ID = "0b2d8fc7-218e-4f5d-a8c2-8aec54b51f38"
     
     private var isInitialized = false
     private var currentExternalId: String? = nil
