@@ -1,6 +1,13 @@
 import Foundation
 import Capacitor
+
+#if canImport(OneSignalFramework)
+import OneSignalFramework
+#elseif canImport(OneSignal)
 import OneSignal
+#else
+#error("OneSignal SDK not found. Run 'pod install' and open App.xcworkspace (not App.xcodeproj).")
+#endif
 
 @objc(BioPeakOneSignal)
 public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin, OneSignalNotificationPermissionObserver, OneSignalPushSubscriptionObserver {
