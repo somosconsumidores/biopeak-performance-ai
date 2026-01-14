@@ -47,10 +47,13 @@ serve(async (req) => {
     console.log(`📱 Message: ${message}`);
     console.log(`📱 Category: ${category}`);
 
-    // Build OneSignal API request
+    // Build OneSignal API request - Using SDK 5.x format with include_aliases
     const oneSignalPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_external_user_ids: [user_id],
+      include_aliases: {
+        external_id: [user_id]
+      },
+      target_channel: "push",
       headings: { en: title },
       contents: { en: message },
       data: {

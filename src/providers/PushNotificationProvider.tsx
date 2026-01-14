@@ -53,7 +53,9 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
   // Save token to database - uses pre-loaded deviceInfo
   const saveTokenToDatabase = useCallback(async (userId: string, playerId: string) => {
     try {
-      console.log('[PushNotificationProvider] Saving token to database...');
+      // Detect platform correctly from deviceInfo
+      const platform = deviceInfo?.platform || 'unknown';
+      console.log('[PushNotificationProvider] Saving token to database...', { platform, model: deviceInfo?.model });
       
       // Upsert: update if exists, insert if not
       const { error } = await supabase
@@ -61,7 +63,7 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
         .upsert({
           user_id: userId,
           player_id: playerId,
-          platform: 'android',
+          platform: platform,
           device_model: deviceInfo?.model || 'unknown',
           is_active: true,
           updated_at: new Date().toISOString(),
