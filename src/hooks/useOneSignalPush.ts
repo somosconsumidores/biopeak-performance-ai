@@ -52,7 +52,7 @@ function getOneSignalPlugin(): BioPeakOneSignalPlugin | null {
 }
 
 export function useOneSignalPush(): UseOneSignalPushResult {
-  const { isAndroid } = usePlatform();
+  const { isAndroid, isIOS, isNative } = usePlatform();
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -60,7 +60,8 @@ export function useOneSignalPush(): UseOneSignalPushResult {
   const [isOptedIn, setIsOptedIn] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
 
-  const isSupported = isAndroid;
+  // OneSignal is supported on both Android and iOS native platforms
+  const isSupported = isAndroid || (isIOS && isNative);
   
   // Get full status for debugging
   const getFullStatus = useCallback(async (): Promise<any> => {

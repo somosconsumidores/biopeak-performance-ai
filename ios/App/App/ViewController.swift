@@ -7,6 +7,7 @@ class ViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(BioPeakHealthKit())
         bridge?.registerPluginInstance(BioPeakAudioSession())
         bridge?.registerPluginInstance(BioPeakLocationTracker())
+        bridge?.registerPluginInstance(BioPeakOneSignal())
         
         super.capacitorDidLoad()
         
