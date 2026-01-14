@@ -23,6 +23,8 @@ serve(async (req) => {
   try {
     const ONESIGNAL_APP_ID = Deno.env.get('ONESIGNAL_APP_ID');
     const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       console.error('❌ OneSignal credentials not configured');
@@ -79,7 +81,86 @@ serve(async (req) => {
 
     const oneSignalResult = await oneSignalResponse.json();
 
-    if (!oneSignalResponse.ok) {
+    // Check for "All included players are not subscribed" error
+    const hasNotSubscribedError = oneSignalResult.errors?.some(
+      (err: string) => err.includes('not subscribed') || err.includes('All included players')
+    );
+
+    if (hasNotSubscribedError && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      console.log('⚠️ External ID not linked, attempting fallback via subscription_id...');
+      
+      // Create Supabase client with service role
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      // Fetch active subscription IDs for this user
+      const { data: tokens, error: tokensError } = await supabase
+        .from('push_notification_tokens')
+        .select('player_id, platform')
+        .eq('user_id', user_id)
+        .eq('is_active', true);
+      
+      if (tokensError) {
+        console.error('❌ Failed to fetch tokens from database:', tokensError);
+      } else if (tokens && tokens.length > 0) {
+        const subscriptionIds = tokens.map(t => t.player_id);
+        console.log(`📱 Found ${subscriptionIds.length} active subscription(s), retrying with include_subscription_ids...`);
+        
+        // Retry with subscription IDs directly
+        const fallbackPayload = {
+          app_id: ONESIGNAL_APP_ID,
+          include_subscription_ids: subscriptionIds,
+          headings: { en: title },
+          contents: { en: message },
+          data: {
+            ...data,
+            category,
+          },
+          ios_sound: 'default',
+          ttl: 86400,
+        };
+        
+        console.log('📱 Fallback payload:', JSON.stringify(fallbackPayload, null, 2));
+        
+        const fallbackResponse = await fetch('https://onesignal.com/api/v1/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
+          },
+          body: JSON.stringify(fallbackPayload),
+        });
+        
+        const fallbackResult = await fallbackResponse.json();
+        
+        if (!fallbackResponse.ok || fallbackResult.errors?.length > 0) {
+          console.error('❌ Fallback also failed:', fallbackResult);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to send notification (both methods)', 
+              primary_error: oneSignalResult,
+              fallback_error: fallbackResult
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log('✅ Notification sent successfully via fallback (subscription_id):', fallbackResult);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            notification_id: fallbackResult.id,
+            recipients: fallbackResult.recipients,
+            method: 'fallback_subscription_id'
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        console.log('⚠️ No active tokens found in database for fallback');
+      }
+    }
+
+    if (!oneSignalResponse.ok || oneSignalResult.errors?.length > 0) {
       console.error('❌ OneSignal API error:', oneSignalResult);
       return new Response(
         JSON.stringify({ 
@@ -97,6 +178,7 @@ serve(async (req) => {
         success: true, 
         notification_id: oneSignalResult.id,
         recipients: oneSignalResult.recipients,
+        method: 'external_id'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -109,4 +191,3 @@ serve(async (req) => {
     );
   }
 });
-

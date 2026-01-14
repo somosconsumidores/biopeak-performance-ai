@@ -32,6 +32,7 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     login,
     logout,
     requestPermission,
+    getFullStatus,
   } = useOneSignalPush();
 
   const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
@@ -39,6 +40,9 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
   const [hasRequestedPermission, setHasRequestedPermission] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const loginAttemptedRef = useRef(false);
+  const loginVerificationRef = useRef<NodeJS.Timeout | null>(null);
+  const loginRetryCountRef = useRef(0);
+  const maxLoginRetries = 2;
 
   // Pre-load device info on mount (before any OneSignal operations)
   useEffect(() => {
@@ -93,6 +97,60 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     } catch (error) {
       console.error('[PushNotificationProvider] Error deactivating token:', error);
     }
+  }, []);
+
+  // Verify login and retry if needed (iOS fix for external_id linking)
+  const verifyLoginAndRetryIfNeeded = useCallback(async (userId: string) => {
+    console.log('[PushNotificationProvider] Verifying login status after 3s...');
+    
+    try {
+      const status = await getFullStatus();
+      console.log('[PushNotificationProvider] Full status after login:', status);
+      
+      // Check if external ID was applied
+      // On iOS, we check if currentExternalId matches our userId
+      if (status?.currentExternalId === userId) {
+        console.log('[PushNotificationProvider] ✅ External ID verified successfully');
+        loginRetryCountRef.current = 0;
+        return;
+      }
+      
+      // If not applied and we haven't exceeded retries, try again
+      if (loginRetryCountRef.current < maxLoginRetries) {
+        loginRetryCountRef.current += 1;
+        console.log(`[PushNotificationProvider] ⚠️ External ID not verified, retry ${loginRetryCountRef.current}/${maxLoginRetries}...`);
+        
+        // Reset attempted flag to allow retry
+        loginAttemptedRef.current = false;
+        
+        // Small delay before retry
+        setTimeout(() => {
+          if (user?.id) {
+            loginAttemptedRef.current = true;
+            login(user.id);
+            
+            // Schedule another verification
+            loginVerificationRef.current = setTimeout(() => {
+              verifyLoginAndRetryIfNeeded(user.id);
+            }, 3000);
+          }
+        }, 500);
+      } else {
+        console.log('[PushNotificationProvider] ⚠️ Max login retries reached, proceeding anyway');
+        loginRetryCountRef.current = 0;
+      }
+    } catch (error) {
+      console.error('[PushNotificationProvider] Error verifying login:', error);
+    }
+  }, [getFullStatus, login, user?.id]);
+
+  // Cleanup verification timer on unmount
+  useEffect(() => {
+    return () => {
+      if (loginVerificationRef.current) {
+        clearTimeout(loginVerificationRef.current);
+      }
+    };
   }, []);
 
   // Auto-initialize OneSignal on mount (Android only)
@@ -154,9 +212,15 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
     if (loginAttemptedRef.current) return;
     
     loginAttemptedRef.current = true;
+    loginRetryCountRef.current = 0;
     console.log('[PushNotificationProvider] Subscription FULLY ready (ID: ' + subscriptionId.substring(0, 8) + '..., optedIn: true), NOW logging in with external ID...');
     login(user.id);
-  }, [user, isSupported, isInitialized, isLoggedIn, subscriptionId, isOptedIn, hasPermission, login]);
+    
+    // Schedule verification after login (iOS fix for external_id linking)
+    loginVerificationRef.current = setTimeout(() => {
+      verifyLoginAndRetryIfNeeded(user.id);
+    }, 3000);
+  }, [user, isSupported, isInitialized, isLoggedIn, subscriptionId, isOptedIn, hasPermission, login, verifyLoginAndRetryIfNeeded]);
 
   // Efeito 3: Logout quando user desautentica
   useEffect(() => {
@@ -165,6 +229,13 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
       logout();
       setHasRequestedPermission(false);
       loginAttemptedRef.current = false;
+      loginRetryCountRef.current = 0;
+      
+      // Clear any pending verification
+      if (loginVerificationRef.current) {
+        clearTimeout(loginVerificationRef.current);
+        loginVerificationRef.current = null;
+      }
     }
   }, [user, isLoggedIn, logout]);
 

@@ -32,6 +32,10 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     private let maxPollingAttempts = 33  // ~10 seconds (33 * 300ms)
     private let pollingInterval: TimeInterval = 0.3  // 300ms
     
+    // Login retry control
+    private var loginRetryCount = 0
+    private let maxLoginRetries = 3
+    
     override public func load() {
         super.load()
         print("📱 [\(TAG)] Plugin loaded")
@@ -51,6 +55,7 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
             return
         }
         
+        // CRITICAL: Execute ALL OneSignal calls on Main Thread
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
@@ -67,7 +72,7 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
         }
     }
     
-    // MARK: - Login
+    // MARK: - Login (with Main Thread + Retry Logic)
     
     @objc func login(_ call: CAPPluginCall) {
         guard let externalId = call.getString("externalId") else {
@@ -77,51 +82,118 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
         
         print("📱 [\(TAG)] login() called with externalId: \(externalId.prefix(8))...")
         
-        if !isInitialized {
-            print("📱 [\(TAG)] ⚠️ Not initialized yet, storing pending externalId")
-            pendingExternalId = externalId
-            call.resolve([
-                "success": true,
-                "message": "Stored pending external ID"
-            ])
-            return
-        }
-        
-        // Check if subscription is ready
-        let subscriptionId = OneSignal.User.pushSubscription.id
-        let optedIn = OneSignal.User.pushSubscription.optedIn
-        let token = OneSignal.User.pushSubscription.token
-        
-        print("📱 [\(TAG)] Subscription status before login: id=\(subscriptionId ?? "nil"), optedIn=\(optedIn), token=\(token != nil ? "exists" : "nil")")
-        
-        if !optedIn || token == nil {
-            print("📱 [\(TAG)] ⚠️ Subscription not ready yet, storing pending externalId and starting polling")
-            pendingExternalId = externalId
+        // CRITICAL: Execute on Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             
-            // Start polling to wait for subscription
-            DispatchQueue.main.async { [weak self] in
-                self?.startPollingForSubscription()
+            if !self.isInitialized {
+                print("📱 [\(self.TAG)] ⚠️ Not initialized yet, storing pending externalId")
+                self.pendingExternalId = externalId
+                call.resolve([
+                    "success": true,
+                    "message": "Stored pending external ID"
+                ])
+                return
             }
             
-            call.resolve([
-                "success": true,
-                "message": "Stored pending external ID - subscription not ready, polling started"
-            ])
-            return
+            // Check if subscription is ready
+            let subscriptionId = OneSignal.User.pushSubscription.id
+            let optedIn = OneSignal.User.pushSubscription.optedIn
+            let token = OneSignal.User.pushSubscription.token
+            
+            print("📱 [\(self.TAG)] Subscription status before login: id=\(subscriptionId ?? "nil"), optedIn=\(optedIn), token=\(token != nil ? "exists" : "nil")")
+            
+            if !optedIn || token == nil {
+                print("📱 [\(self.TAG)] ⚠️ Subscription not ready yet, storing pending externalId and starting polling")
+                self.pendingExternalId = externalId
+                self.startPollingForSubscription()
+                
+                call.resolve([
+                    "success": true,
+                    "message": "Stored pending external ID - subscription not ready, polling started"
+                ])
+                return
+            }
+            
+            // Reset retry count for new login attempt
+            self.loginRetryCount = 0
+            
+            // Execute login with retry mechanism
+            self.performLoginWithRetry(externalId: externalId) { success in
+                if success {
+                    call.resolve([
+                        "success": true,
+                        "message": "Logged in successfully",
+                        "externalId": externalId
+                    ])
+                } else {
+                    call.resolve([
+                        "success": false,
+                        "message": "Login attempted but verification failed after retries",
+                        "externalId": externalId
+                    ])
+                }
+            }
         }
+    }
+    
+    // MARK: - Login with Retry Mechanism
+    
+    private func performLoginWithRetry(externalId: String, completion: @escaping (Bool) -> Void) {
+        loginRetryCount += 1
         
-        // Login with OneSignal
+        print("📱 [\(TAG)] 🔄 Login attempt \(loginRetryCount)/\(maxLoginRetries) for: \(externalId.prefix(8))...")
+        
+        // Log current state before login
+        let preLoginSubId = OneSignal.User.pushSubscription.id ?? "nil"
+        let preLoginOptedIn = OneSignal.User.pushSubscription.optedIn
+        print("📱 [\(TAG)] Pre-login state: subscriptionId=\(preLoginSubId), optedIn=\(preLoginOptedIn)")
+        
+        // Call OneSignal.login on Main Thread
         OneSignal.login(externalId)
         currentExternalId = externalId
         pendingExternalId = nil
         
-        print("📱 [\(TAG)] ✅ Logged in with external ID: \(externalId.prefix(8))...")
+        print("📱 [\(TAG)] ✅ OneSignal.login() called for: \(externalId.prefix(8))...")
         
-        call.resolve([
-            "success": true,
-            "message": "Logged in successfully",
-            "externalId": externalId
-        ])
+        // Wait 1 second then verify the login was successful
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self else {
+                completion(false)
+                return
+            }
+            
+            // Check current state after login
+            let postLoginSubId = OneSignal.User.pushSubscription.id ?? "nil"
+            let postLoginOptedIn = OneSignal.User.pushSubscription.optedIn
+            let postLoginToken = OneSignal.User.pushSubscription.token
+            
+            print("📱 [\(self.TAG)] Post-login state (attempt \(self.loginRetryCount)): subscriptionId=\(postLoginSubId), optedIn=\(postLoginOptedIn), hasToken=\(postLoginToken != nil)")
+            
+            // Consider login successful if we still have subscription after login
+            // The external_id linking happens server-side, we can't directly verify it
+            if postLoginOptedIn && postLoginToken != nil {
+                print("📱 [\(self.TAG)] ✅ Login appears successful (subscription active)")
+                
+                // Notify JS about successful login
+                self.notifyListeners("loginComplete", data: [
+                    "externalId": externalId,
+                    "subscriptionId": postLoginSubId,
+                    "attempt": self.loginRetryCount
+                ])
+                
+                completion(true)
+            } else if self.loginRetryCount < self.maxLoginRetries {
+                // Retry after another delay
+                print("📱 [\(self.TAG)] ⚠️ Subscription not fully ready, retrying in 1s...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.performLoginWithRetry(externalId: externalId, completion: completion)
+                }
+            } else {
+                print("📱 [\(self.TAG)] ❌ Login verification failed after \(self.maxLoginRetries) attempts")
+                completion(false)
+            }
+        }
     }
     
     // MARK: - Logout
@@ -129,26 +201,32 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     @objc func logout(_ call: CAPPluginCall) {
         print("📱 [\(TAG)] logout() called")
         
-        stopPolling()
-        
-        if !isInitialized {
+        // CRITICAL: Execute on Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.stopPolling()
+            self.loginRetryCount = 0
+            
+            if !self.isInitialized {
+                call.resolve([
+                    "success": true,
+                    "message": "Not initialized"
+                ])
+                return
+            }
+            
+            OneSignal.logout()
+            self.currentExternalId = nil
+            self.pendingExternalId = nil
+            
+            print("📱 [\(self.TAG)] ✅ Logged out")
+            
             call.resolve([
                 "success": true,
-                "message": "Not initialized"
+                "message": "Logged out successfully"
             ])
-            return
         }
-        
-        OneSignal.logout()
-        currentExternalId = nil
-        pendingExternalId = nil
-        
-        print("📱 [\(TAG)] ✅ Logged out")
-        
-        call.resolve([
-            "success": true,
-            "message": "Logged out successfully"
-        ])
     }
     
     // MARK: - Request Permission
@@ -161,6 +239,7 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
             return
         }
         
+        // CRITICAL: Execute on Main Thread
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
@@ -168,12 +247,12 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
                 print("📱 [\(self.TAG)] Permission result: \(accepted)")
                 
                 if accepted {
-                    // OptIn to ensure subscription is created
-                    OneSignal.User.pushSubscription.optIn()
-                    print("📱 [\(self.TAG)] ✅ Called optIn() after permission granted")
-                    
-                    // Start polling to detect when subscription is ready
+                    // OptIn to ensure subscription is created - on Main Thread
                     DispatchQueue.main.async {
+                        OneSignal.User.pushSubscription.optIn()
+                        print("📱 [\(self.TAG)] ✅ Called optIn() after permission granted")
+                        
+                        // Start polling to detect when subscription is ready
                         self.startPollingForSubscription()
                     }
                 }
@@ -190,23 +269,33 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Get Permission Status
     
     @objc func getPermissionStatus(_ call: CAPPluginCall) {
-        let granted = OneSignal.Notifications.permission
-        
-        call.resolve([
-            "granted": granted,
-            "initialized": isInitialized
-        ])
+        // CRITICAL: Execute on Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let granted = OneSignal.Notifications.permission
+            
+            call.resolve([
+                "granted": granted,
+                "initialized": self.isInitialized
+            ])
+        }
     }
     
     // MARK: - Get Subscription ID
     
     @objc func getSubscriptionId(_ call: CAPPluginCall) {
-        let subscriptionId = isInitialized ? OneSignal.User.pushSubscription.id : nil
-        
-        call.resolve([
-            "subscriptionId": subscriptionId as Any,
-            "initialized": isInitialized
-        ])
+        // CRITICAL: Execute on Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let subscriptionId = self.isInitialized ? OneSignal.User.pushSubscription.id : nil
+            
+            call.resolve([
+                "subscriptionId": subscriptionId as Any,
+                "initialized": self.isInitialized
+            ])
+        }
     }
     
     // MARK: - Get External ID
@@ -223,63 +312,74 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
     @objc func getFullStatus(_ call: CAPPluginCall) {
         print("📱 [\(TAG)] getFullStatus() called")
         
-        var result: [String: Any] = [
-            "initialized": isInitialized,
-            "currentExternalId": currentExternalId as Any,
-            "pendingExternalId": pendingExternalId as Any
-        ]
-        
-        if isInitialized {
-            let permission = OneSignal.Notifications.permission
-            let subscriptionId = OneSignal.User.pushSubscription.id
-            let optedIn = OneSignal.User.pushSubscription.optedIn
-            let token = OneSignal.User.pushSubscription.token
+        // CRITICAL: Execute on Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             
-            result["permission"] = permission
-            result["subscriptionId"] = subscriptionId as Any
-            result["optedIn"] = optedIn
-            result["token"] = token as Any
-            result["hasToken"] = token != nil
+            var result: [String: Any] = [
+                "initialized": self.isInitialized,
+                "currentExternalId": self.currentExternalId as Any,
+                "pendingExternalId": self.pendingExternalId as Any,
+                "loginRetryCount": self.loginRetryCount
+            ]
+            
+            if self.isInitialized {
+                let permission = OneSignal.Notifications.permission
+                let subscriptionId = OneSignal.User.pushSubscription.id
+                let optedIn = OneSignal.User.pushSubscription.optedIn
+                let token = OneSignal.User.pushSubscription.token
+                
+                result["permission"] = permission
+                result["subscriptionId"] = subscriptionId as Any
+                result["optedIn"] = optedIn
+                result["token"] = token as Any
+                result["hasToken"] = token != nil
+            }
+            
+            print("📱 [\(self.TAG)] Full status: \(result)")
+            call.resolve(result)
         }
-        
-        print("📱 [\(TAG)] Full status: \(result)")
-        call.resolve(result)
     }
     
     // MARK: - Subscription Polling (SDK 5.x compatible approach)
     
     private func startPollingForSubscription() {
-        stopPolling()
-        pollingAttempts = 0
-        
-        print("📱 [\(TAG)] 🔄 Starting subscription polling...")
-        
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] timer in
-            guard let self = self else {
-                timer.invalidate()
-                return
-            }
+        // Must be called from Main Thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             
-            self.pollingAttempts += 1
+            self.stopPolling()
+            self.pollingAttempts = 0
             
-            let subscriptionId = OneSignal.User.pushSubscription.id
-            let optedIn = OneSignal.User.pushSubscription.optedIn
-            let token = OneSignal.User.pushSubscription.token
+            print("📱 [\(self.TAG)] 🔄 Starting subscription polling...")
             
-            print("📱 [\(self.TAG)] 🔄 Polling attempt \(self.pollingAttempts)/\(self.maxPollingAttempts) - id: \(subscriptionId ?? "nil"), optedIn: \(optedIn), token: \(token != nil ? "exists" : "nil")")
-            
-            // Subscription is ready when we have an ID and optedIn is true
-            if let subId = subscriptionId, !subId.isEmpty, optedIn {
-                self.stopPolling()
-                self.onSubscriptionReady(subscriptionId: subId, optedIn: optedIn, token: token)
-                return
-            }
-            
-            // Timeout
-            if self.pollingAttempts >= self.maxPollingAttempts {
-                self.stopPolling()
-                print("📱 [\(self.TAG)] ⚠️ Polling timeout - subscription not ready after \(self.maxPollingAttempts) attempts")
-                self.notifyListeners("subscriptionTimeout", data: [:])
+            self.pollingTimer = Timer.scheduledTimer(withTimeInterval: self.pollingInterval, repeats: true) { [weak self] timer in
+                guard let self = self else {
+                    timer.invalidate()
+                    return
+                }
+                
+                self.pollingAttempts += 1
+                
+                let subscriptionId = OneSignal.User.pushSubscription.id
+                let optedIn = OneSignal.User.pushSubscription.optedIn
+                let token = OneSignal.User.pushSubscription.token
+                
+                print("📱 [\(self.TAG)] 🔄 Polling attempt \(self.pollingAttempts)/\(self.maxPollingAttempts) - id: \(subscriptionId ?? "nil"), optedIn: \(optedIn), token: \(token != nil ? "exists" : "nil")")
+                
+                // Subscription is ready when we have an ID, optedIn is true, AND token exists
+                if let subId = subscriptionId, !subId.isEmpty, optedIn, token != nil {
+                    self.stopPolling()
+                    self.onSubscriptionReady(subscriptionId: subId, optedIn: optedIn, token: token)
+                    return
+                }
+                
+                // Timeout
+                if self.pollingAttempts >= self.maxPollingAttempts {
+                    self.stopPolling()
+                    print("📱 [\(self.TAG)] ⚠️ Polling timeout - subscription not ready after \(self.maxPollingAttempts) attempts")
+                    self.notifyListeners("subscriptionTimeout", data: [:])
+                }
             }
         }
     }
@@ -300,15 +400,23 @@ public class BioPeakOneSignal: CAPPlugin, CAPBridgedPlugin {
             "hasToken": token != nil
         ])
         
-        // If we have a pending external ID and subscription is ready, login now
-        if let externalId = pendingExternalId, optedIn {
-            print("📱 [\(TAG)] 🔧 Subscription ready with pending externalId, logging in...")
+        // If we have a pending external ID and subscription is fully ready, login now with retry
+        if let externalId = pendingExternalId, optedIn, token != nil {
+            print("📱 [\(TAG)] 🔧 Subscription ready with pending externalId, logging in with delay...")
             
-            OneSignal.login(externalId)
-            currentExternalId = externalId
-            pendingExternalId = nil
-            
-            print("📱 [\(TAG)] ✅ Login completed for: \(externalId.prefix(8))...")
+            // Add small delay before login to ensure OneSignal internal state is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                
+                self.loginRetryCount = 0
+                self.performLoginWithRetry(externalId: externalId) { success in
+                    if success {
+                        print("📱 [\(self.TAG)] ✅ Pending login completed successfully")
+                    } else {
+                        print("📱 [\(self.TAG)] ⚠️ Pending login completed with warnings")
+                    }
+                }
+            }
         }
     }
 }
