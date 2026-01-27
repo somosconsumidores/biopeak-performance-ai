@@ -1,166 +1,237 @@
 
-
-# Plano: Corrigir Política RLS Vulnerável em `user_evolution_stats`
+# Plano: Corrigir Vulnerabilidade de Segurança em `whatsapp_buffer`
 
 ## Contexto do Problema
 
 ### Situação Atual
-A tabela `user_evolution_stats` armazena estatísticas de evolução pré-calculadas para cada atleta. A tabela tem RLS habilitado, mas contém uma **falha crítica de segurança** na política de escrita.
+A tabela `whatsapp_buffer` armazena mensagens de WhatsApp pendentes de processamento. Contém **dados pessoais sensíveis** (números de telefone e conteúdo de mensagens) mas está **completamente exposta** via API.
 
-### Políticas Atuais
+### Dados na Tabela
 
-| Política | Comando | Condição |
-|----------|---------|----------|
-| `Users can read own evolution stats` | SELECT | `auth.uid() = user_id` |
-| `Service can manage evolution stats` | ALL | `USING (true)` |
+| Métrica | Valor |
+|---------|-------|
+| Total de registros | 238 |
+| Última entrada | 2026-01-23 |
+| Status RLS | ❌ Desabilitado |
+| Políticas RLS | Nenhuma |
+
+### Colunas Sensíveis
+
+| Coluna | Tipo | Sensibilidade |
+|--------|------|---------------|
+| `phone` | text | 🔴 Alta - Número de telefone pessoal |
+| `message_content` | text | 🔴 Alta - Conteúdo de conversas |
+| `processed` | boolean | 🟡 Média - Estado de processamento |
+| `created_at` | timestamp | 🟢 Baixa |
 
 ### O Problema Técnico
-A política `"Service can manage evolution stats"` foi criada com a intenção de permitir que apenas a Edge Function (usando `service_role`) pudesse inserir/atualizar dados. **Porém, a política não especifica `TO service_role`**, o que significa que ela se aplica a **todas as roles**, incluindo `authenticated`.
 
-### Fluxo de Ataque Possível
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  Usuário malicioso autenticado                               │
+│  Qualquer pessoa com a chave anon pode:                      │
 ├──────────────────────────────────────────────────────────────┤
-│  1. Obtém JWT válido (login normal no app)                   │
-│  2. Usa Supabase client ou API direta                        │
-│  3. Executa: UPDATE user_evolution_stats                     │
-│              SET stats_data = '{"fake": true}'               │
-│              WHERE user_id = 'outro-atleta-uuid'             │
-│  4. Política "Service can manage..." permite (USING true)   │
-│  5. Dados de outro atleta são corrompidos                   │
+│  1. GET /rest/v1/whatsapp_buffer                             │
+│     → Lê TODOS os telefones e mensagens                      │
+│                                                              │
+│  2. POST /rest/v1/whatsapp_buffer                            │
+│     → Injeta mensagens falsas no sistema                     │
+│                                                              │
+│  3. PATCH/DELETE /rest/v1/whatsapp_buffer                    │
+│     → Modifica ou apaga mensagens legítimas                  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
+### Riscos
+
+| Risco | Severidade | Descrição |
+|-------|------------|-----------|
+| Vazamento de dados | 🔴 Crítico | Telefones e mensagens expostos publicamente |
+| Injeção de dados | 🔴 Crítico | Atacante pode inserir mensagens maliciosas |
+| Manipulação | 🟠 Alto | Atacante pode marcar mensagens como processadas |
+| Compliance | 🔴 Crítico | Violação potencial de LGPD/GDPR |
+
 ---
 
-## Análise de Impacto
+## Análise de Uso
 
 ### Quem Acessa Esta Tabela?
 
-| Componente | Operação | Role Usada |
-|------------|----------|------------|
-| `useEvolutionStats.ts` (frontend) | SELECT | `authenticated` (via JWT do usuário) |
-| `calculate-evolution-stats` (Edge Function) | UPSERT | `service_role` |
-| `analyze-evolution-stats` (Edge Function) | SELECT | `service_role` |
+| Componente | Encontrado | Observação |
+|------------|------------|------------|
+| Frontend (`src/`) | ❌ Não | Apenas tipos gerados automaticamente |
+| Edge Functions | ❌ Não | Nenhuma referência encontrada |
+| Webhooks externos (n8n) | ⚠️ Provável | Padrão comum para integração WhatsApp |
 
-### Impacto da Correção
-
-**Nenhum impacto negativo para o usuário final:**
-
-1. **Frontend (SELECT)**: Continuará funcionando normalmente
-   - A policy `"Users can read own evolution stats"` já restringe corretamente por `auth.uid() = user_id`
-   
-2. **Edge Functions (UPSERT/SELECT)**: Continuarão funcionando
-   - Ambas usam `SUPABASE_SERVICE_ROLE_KEY` para criar o client
-   - A nova policy explícita para `service_role` permitirá as operações
+### Conclusão
+A tabela parece ser usada **exclusivamente por sistemas backend** (provavelmente n8n ou webhooks externos) para buffer de mensagens WhatsApp. O frontend **não acessa** esta tabela diretamente.
 
 ---
 
 ## Solução Proposta
 
-### Passo 1: Remover Política Vulnerável
+### Opção Recomendada: RLS + Acesso Restrito a `service_role`
+
+Esta abordagem:
+- ✅ Mantém a tabela funcional para Edge Functions e webhooks com `service_role`
+- ✅ Bloqueia completamente acesso via `anon` e `authenticated`
+- ✅ Não requer mudanças em integrações externas que usam `service_role`
+
+### Passo 1: Habilitar RLS
 
 ```sql
-DROP POLICY "Service can manage evolution stats" ON public.user_evolution_stats;
+ALTER TABLE public.whatsapp_buffer ENABLE ROW LEVEL SECURITY;
 ```
 
-### Passo 2: Criar Nova Política Segura
+### Passo 2: Criar Política Restritiva
 
 ```sql
-CREATE POLICY "Service role can manage evolution stats"
-ON public.user_evolution_stats
+-- Apenas service_role pode acessar (usado por Edge Functions e webhooks)
+CREATE POLICY "Service role only access"
+ON public.whatsapp_buffer
 FOR ALL
 TO service_role
 USING (true)
 WITH CHECK (true);
 ```
 
-### Diferença Crítica
+### Passo 3: Garantir Bloqueio para Outras Roles
 
-| Antes | Depois |
-|-------|--------|
-| `FOR ALL` (sem TO) | `FOR ALL TO service_role` |
-| Aplica-se a TODAS as roles | Aplica-se APENAS a `service_role` |
+Com RLS habilitado e apenas a política para `service_role`, as roles `anon` e `authenticated` serão automaticamente bloqueadas (comportamento padrão do RLS).
+
+---
+
+## Alternativas Consideradas
+
+### Alternativa A: Mover para Schema Privado
+
+```sql
+-- Criar schema não exposto ao PostgREST
+CREATE SCHEMA IF NOT EXISTS private;
+
+-- Mover tabela
+ALTER TABLE public.whatsapp_buffer SET SCHEMA private;
+```
+
+**Prós:** Tabela invisível na API  
+**Contras:** Requer atualizar todas as referências para `private.whatsapp_buffer`
+
+### Alternativa B: Revogar Permissões Diretamente
+
+```sql
+REVOKE ALL ON public.whatsapp_buffer FROM anon, authenticated;
+GRANT ALL ON public.whatsapp_buffer TO service_role;
+```
+
+**Prós:** Simples  
+**Contras:** Menos granular que RLS, pode ser sobrescrito
+
+### Alternativa C: Dropar Tabela (se não estiver em uso)
+
+```sql
+DROP TABLE public.whatsapp_buffer;
+```
+
+**Prós:** Elimina risco completamente  
+**Contras:** Só viável se tabela não for mais necessária
 
 ---
 
 ## Validação Pós-Correção
 
-### Teste 1: Verificar que usuários autenticados NÃO podem modificar dados de outros
+### Teste 1: Verificar que `anon` NÃO pode ler dados
 
-```sql
--- Simular usuário autenticado tentando UPDATE em dados de outro
-SET ROLE authenticated;
-SET request.jwt.claims = '{"sub": "user-a-uuid"}';
+```bash
+curl -X GET \
+  'https://grcwlmltlcltmwbhdpky.supabase.co/rest/v1/whatsapp_buffer?select=*' \
+  -H 'apikey: <ANON_KEY>' \
+  -H 'Authorization: Bearer <ANON_KEY>'
 
-UPDATE user_evolution_stats 
-SET stats_data = '{"hack": true}' 
-WHERE user_id = 'user-b-uuid';
-
--- Esperado: 0 rows affected (política bloqueia)
+# Esperado: [] (array vazio) ou erro 403
 ```
 
-### Teste 2: Verificar que Edge Functions continuam funcionando
+### Teste 2: Verificar que `service_role` PODE acessar
 
-1. Acessar página de Evolução no app
-2. Clicar em "Atualizar"
-3. Verificar que stats são calculadas e salvas corretamente
-4. Verificar logs da Edge Function `calculate-evolution-stats`
+```sql
+-- Via SQL Editor com service_role
+SELECT COUNT(*) FROM whatsapp_buffer;
+-- Esperado: 238 (ou total atual)
+```
 
-### Teste 3: Verificar que SELECT próprio continua funcionando
+### Teste 3: Verificar integrações externas
 
-1. Acessar página de Evolução
-2. Verificar que gráficos carregam normalmente
-3. Verificar console para erros de permissão
-
----
-
-## Resumo das Alterações
-
-| Ação | Arquivo/Recurso | Descrição |
-|------|-----------------|-----------|
-| DROP | RLS Policy | Remove `"Service can manage evolution stats"` |
-| CREATE | RLS Policy | Cria `"Service role can manage evolution stats"` com `TO service_role` |
+1. Enviar mensagem de teste via WhatsApp
+2. Verificar se webhook/n8n consegue inserir no buffer
+3. Verificar se processamento continua funcionando
 
 ---
 
-## Seção Técnica: SQL Completo da Migração
+## SQL Completo da Migração
 
 ```sql
 -- =============================================================
--- CORREÇÃO DE SEGURANÇA: user_evolution_stats
--- Problema: Política permissiva permitia UPDATE/DELETE por qualquer
---           usuário autenticado em dados de outros atletas
--- Solução: Restringir operações de escrita apenas para service_role
+-- CORREÇÃO DE SEGURANÇA: whatsapp_buffer
+-- Problema: Tabela com dados sensíveis (telefones, mensagens)
+--           exposta publicamente sem RLS
+-- Solução: Habilitar RLS e restringir acesso a service_role
 -- =============================================================
 
--- Passo 1: Remover política vulnerável
-DROP POLICY IF EXISTS "Service can manage evolution stats" ON public.user_evolution_stats;
+-- Passo 1: Habilitar Row Level Security
+ALTER TABLE public.whatsapp_buffer ENABLE ROW LEVEL SECURITY;
 
--- Passo 2: Criar política segura restrita a service_role
-CREATE POLICY "Service role can manage evolution stats"
-ON public.user_evolution_stats
+-- Passo 2: Criar política restrita a service_role
+-- (webhooks e Edge Functions usam service_role)
+CREATE POLICY "Service role only access"
+ON public.whatsapp_buffer
 FOR ALL
 TO service_role
 USING (true)
 WITH CHECK (true);
 
--- Verificação: Listar políticas após correção
--- SELECT policyname, cmd, roles, qual, with_check 
--- FROM pg_policies 
--- WHERE tablename = 'user_evolution_stats';
+-- Verificação: Confirmar que RLS está ativo
+-- SELECT tablename, rowsecurity FROM pg_tables WHERE tablename = 'whatsapp_buffer';
+
+-- Verificação: Listar políticas
+-- SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'whatsapp_buffer';
 ```
 
 ---
 
 ## Resultado Esperado
 
-Após a correção:
+### Antes
+
+| Role | SELECT | INSERT | UPDATE | DELETE |
+|------|--------|--------|--------|--------|
+| `anon` | ✅ Todos | ✅ | ✅ | ✅ |
+| `authenticated` | ✅ Todos | ✅ | ✅ | ✅ |
+| `service_role` | ✅ Todos | ✅ | ✅ | ✅ |
+
+### Depois
 
 | Role | SELECT | INSERT | UPDATE | DELETE |
 |------|--------|--------|--------|--------|
 | `anon` | ❌ | ❌ | ❌ | ❌ |
-| `authenticated` | ✅ (próprio) | ❌ | ❌ | ❌ |
-| `service_role` | ✅ (todos) | ✅ | ✅ | ✅ |
+| `authenticated` | ❌ | ❌ | ❌ | ❌ |
+| `service_role` | ✅ Todos | ✅ | ✅ | ✅ |
 
+---
+
+## Impacto
+
+| Componente | Impacto |
+|------------|---------|
+| Frontend | ✅ Nenhum (não usa esta tabela) |
+| Edge Functions | ✅ Nenhum (usam `service_role`) |
+| Webhooks (n8n) | ✅ Nenhum (devem usar `service_role`) |
+| API pública | ✅ **Bloqueada** (objetivo da correção) |
+
+---
+
+## Checklist de Implementação
+
+- [ ] Executar migração SQL
+- [ ] Verificar RLS habilitado via `pg_tables`
+- [ ] Verificar política criada via `pg_policies`
+- [ ] Testar acesso com `anon` (deve falhar)
+- [ ] Testar acesso com `service_role` (deve funcionar)
+- [ ] Verificar integrações WhatsApp continuam funcionando
