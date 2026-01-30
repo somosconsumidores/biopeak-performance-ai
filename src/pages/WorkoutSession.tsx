@@ -56,6 +56,7 @@ import { useActivityRecalculate } from '@/hooks/useActivityRecalculate';
 import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 import { isCyclingActivity, formatSpeed, formatSpeedOrPace, getSpeedOrPaceLabel } from '@/utils/activityTypeUtils';
 import { usePlatform } from '@/hooks/usePlatform';
+import { PaceComparisonCard } from '@/components/PaceComparisonCard';
 
 
 export const WorkoutSession = () => {
@@ -382,6 +383,14 @@ export const WorkoutSession = () => {
                 </div>
               </CardContent>
             </Card>
+          </ScrollReveal>
+
+          {/* Pace Comparison Card */}
+          <ScrollReveal delay={150}>
+            <PaceComparisonCard 
+              currentPace={currentActivity.average_pace_in_minutes_per_kilometer}
+              activityType={currentActivity.activity_type}
+            />
           </ScrollReveal>
 
           {/* GPS Heatmap */}
