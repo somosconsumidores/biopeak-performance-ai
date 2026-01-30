@@ -13,6 +13,7 @@ export const CACHE_KEYS = {
   NUTRITIONAL_PROFILE: 'biopeak_nutritional_profile_cache_v1',
   NUTRITION_WEEKLY_PLAN: 'biopeak_nutrition_weekly_plan_cache_v1',
   EVOLUTION_STATS: 'biopeak_evolution_stats_cache_v1',
+  AVERAGE_PACE: 'biopeak_average_pace_cache_v1',
 } as const;
 
 export const CACHE_DURATIONS = {
