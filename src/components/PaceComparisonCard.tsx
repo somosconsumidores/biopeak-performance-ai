@@ -76,32 +76,44 @@ export function PaceComparisonCard({ currentPace, activityType }: PaceComparison
     motivationalMessage = 'Continue treinando! Cada treino te aproxima do seu objetivo.';
   }
 
-  // Format pace values based on activity type
-  const formatPaceValue = (value: number) => {
+  // Format pace as mm:ss
+  const formatPaceTime = (paceValue: number) => {
+    const minutes = Math.floor(paceValue);
+    const seconds = Math.round((paceValue - minutes) * 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Format current pace display (currentPace is always in min/km from activity)
+  const getCurrentPaceDisplay = () => {
     if (category === 'CYCLING') {
-      // Community average is already in km/h, current pace needs conversion
-      return `${value.toFixed(1)} km/h`;
+      // Convert min/km to km/h
+      return `${(60 / pace).toFixed(1)} km/h`;
     } else if (category === 'SWIMMING') {
-      // Convert from min/km to min/100m
-      const pacePer100m = value / 10;
-      const minutes = Math.floor(pacePer100m);
-      const seconds = Math.round((pacePer100m - minutes) * 60);
-      return `${minutes}:${seconds.toString().padStart(2, '0')}/100m`;
+      // Convert from min/km to min/100m (divide by 10)
+      const pacePer100m = pace / 10;
+      return `${formatPaceTime(pacePer100m)}/100m`;
     } else {
-      // Running - min/km
-      const minutes = Math.floor(value);
-      const seconds = Math.round((value - minutes) * 60);
-      return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+      // Running - already in min/km
+      return `${formatPaceTime(pace)}/km`;
     }
   };
 
-  // Format current pace display
-  const currentPaceDisplay = category === 'CYCLING' 
-    ? `${(60 / pace).toFixed(1)} km/h`
-    : formatPaceValue(pace);
+  // Format community average display (already in correct unit from average_pace table)
+  const getCommunityDisplay = () => {
+    if (category === 'CYCLING') {
+      // Already in km/h
+      return `${communityAverage.toFixed(1)} km/h`;
+    } else if (category === 'SWIMMING') {
+      // Already in min/100m - no conversion needed
+      return `${formatPaceTime(communityAverage)}/100m`;
+    } else {
+      // Running - already in min/km
+      return `${formatPaceTime(communityAverage)}/km`;
+    }
+  };
 
-  // Format community average display
-  const communityDisplay = formatPaceValue(communityAverage);
+  const currentPaceDisplay = getCurrentPaceDisplay();
+  const communityDisplay = getCommunityDisplay();
 
   // Get category label in Portuguese
   const getCategoryLabel = () => {
