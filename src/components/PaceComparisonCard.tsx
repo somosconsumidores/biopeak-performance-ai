@@ -125,63 +125,63 @@ export function PaceComparisonCard({ currentPace, activityType }: PaceComparison
   };
 
   return (
-    <Card className="glass-card border-glass-border mb-8">
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
+    <Card className="glass-card border-glass-border mb-6 sm:mb-8">
+      <CardHeader className="pb-3 sm:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
             <span>Comparação com a Comunidade</span>
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
-            <Users className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="text-xs w-fit">
+            <Users className="h-3 w-3 mr-1 flex-shrink-0" />
             {totalActivities.toLocaleString('pt-BR')} atividades
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6 pt-0">
         {/* Pace Comparison Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {/* User's Pace */}
-          <div className="bg-primary/10 rounded-lg p-4 text-center border border-primary/20">
-            <div className="text-sm text-muted-foreground mb-2">Seu Pace</div>
-            <div className="text-2xl sm:text-3xl font-bold text-primary">
+          <div className="bg-primary/10 rounded-lg p-3 sm:p-4 text-center border border-primary/20">
+            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Seu Pace</div>
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-primary leading-tight">
               {currentPaceDisplay}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">este treino</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">este treino</div>
           </div>
 
           {/* Community Average */}
-          <div className="bg-muted/50 rounded-lg p-4 text-center border border-border">
-            <div className="text-sm text-muted-foreground mb-2">Média da Comunidade</div>
-            <div className="text-2xl sm:text-3xl font-bold text-foreground">
+          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 text-center border border-border">
+            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Média Comunidade</div>
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
               {communityDisplay}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">últimos 30 dias</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">últimos 30 dias</div>
           </div>
         </div>
 
         {/* Performance Badge */}
-        <div className={`rounded-lg p-4 ${
+        <div className={`rounded-lg p-3 sm:p-4 ${
           isFasterThanAverage && !isClose 
             ? 'bg-green-500/10 border border-green-500/30' 
             : isClose 
               ? 'bg-blue-500/10 border border-blue-500/30'
               : 'bg-orange-500/10 border border-orange-500/30'
         }`}>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Badge variant={badgeVariant} className="text-sm px-3 py-1">
+          <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
+            <Badge variant={badgeVariant} className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1">
               {badgeIcon}
-              {badgeMessage}
+              <span className="truncate">{badgeMessage}</span>
             </Badge>
           </div>
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-xs sm:text-sm text-muted-foreground leading-snug">
             {motivationalMessage}
           </p>
         </div>
 
         {/* Footer Info */}
-        <div className="text-center text-xs text-muted-foreground">
-          Baseado em {totalActivities.toLocaleString('pt-BR')} {getCategoryLabel()} de todos os atletas BioPeak nos últimos 30 dias.
+        <div className="text-center text-[10px] sm:text-xs text-muted-foreground leading-relaxed px-2">
+          Baseado em {totalActivities.toLocaleString('pt-BR')} {getCategoryLabel()} de atletas BioPeak nos últimos 30 dias.
         </div>
       </CardContent>
     </Card>
