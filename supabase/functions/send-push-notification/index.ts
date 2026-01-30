@@ -111,7 +111,28 @@ serve(async (req) => {
       console.log('📱 OneSignal errors format:', typeof oneSignalResult.errors, JSON.stringify(oneSignalResult.errors));
     }
 
-    // Check for "All included players are not subscribed" error (handles array, object, or string)
+    // SUCCESS: If OneSignal returned a notification ID, it was successful (even with warnings like invalid_aliases)
+    if (oneSignalResult.id && oneSignalResponse.ok) {
+      // Log warnings if present, but don't treat as error
+      if (oneSignalResult.errors) {
+        console.log('⚠️ Notification sent with warnings:', JSON.stringify(oneSignalResult.errors));
+      }
+      
+      console.log('✅ Notification sent successfully:', oneSignalResult);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          notification_id: oneSignalResult.id,
+          recipients: oneSignalResult.recipients,
+          method: 'external_id',
+          warnings: oneSignalResult.errors || null
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // FALLBACK: Check for "All included players are not subscribed" error (handles array, object, or string)
     const isNotSubscribedError = hasNotSubscribedError(oneSignalResult.errors);
 
     if (isNotSubscribedError && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
