@@ -57,6 +57,9 @@ export function HeartRateZonesCard({ zones, loading }: HeartRateZonesCardProps) 
                 <Progress value={zone.percentage} className="h-2 sm:h-2.5" />
               </div>
             ))}
+            <p className="text-[10px] sm:text-xs text-muted-foreground text-center pt-2 border-t border-border/50">
+              Suas Zonas de FC podem ser editadas na página de perfil
+            </p>
           </div>
         ) : (
           <div className="text-center py-4 sm:py-6">
