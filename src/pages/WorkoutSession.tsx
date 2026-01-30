@@ -402,6 +402,20 @@ export const WorkoutSession = () => {
             />
           </ScrollReveal>
 
+          {/* Variation Analysis - Moved here for better UX flow */}
+          <ScrollReveal delay={180}>
+            <div className="mb-6 sm:mb-8">
+              <ActivitySourceInfo 
+                activity={currentActivity as UnifiedActivity} 
+                feature="detailed_metrics" 
+              />
+              <VariationAnalysisCard 
+                activity={currentActivity as UnifiedActivity}
+                activitySource={(currentActivity as any)?.source?.toLowerCase()}
+              />
+            </div>
+          </ScrollReveal>
+
           {/* GPS Heatmap */}
           <ScrollReveal>
             <Card className="glass-card border-glass-border mb-8">
@@ -623,19 +637,6 @@ export const WorkoutSession = () => {
             </div>
           </ScrollReveal>
 
-          {/* Variation Analysis */}
-          <ScrollReveal delay={185}>
-            <div className="mb-8 mt-8">
-              <ActivitySourceInfo 
-                activity={currentActivity as UnifiedActivity} 
-                feature="detailed_metrics" 
-              />
-              <VariationAnalysisCard 
-                activity={currentActivity as UnifiedActivity}
-                activitySource={(currentActivity as any)?.source?.toLowerCase()}
-              />
-            </div>
-          </ScrollReveal>
 
           {/* Deep Analysis Section */}
           <ScrollReveal delay={250}>
