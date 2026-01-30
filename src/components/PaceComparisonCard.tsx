@@ -134,7 +134,7 @@ export function PaceComparisonCard({ currentPace, activityType }: PaceComparison
           </CardTitle>
           <Badge variant="outline" className="text-xs">
             <Users className="h-3 w-3 mr-1" />
-            {totalActivities.toLocaleString('pt-BR')} atletas
+            {totalActivities.toLocaleString('pt-BR')} atividades
           </Badge>
         </div>
       </CardHeader>
