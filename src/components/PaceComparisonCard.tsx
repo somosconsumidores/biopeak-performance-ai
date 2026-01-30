@@ -142,18 +142,18 @@ export function PaceComparisonCard({ currentPace, activityType }: PaceComparison
         {/* Pace Comparison Grid */}
         <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {/* User's Pace */}
-          <div className="bg-primary/10 rounded-lg p-3 sm:p-4 text-center border border-primary/20">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Seu Pace</div>
-            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-primary leading-tight">
+          <div className="bg-primary/10 rounded-lg p-3 sm:p-4 text-center border border-primary/20 flex flex-col">
+            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 h-8 sm:h-10 flex items-center justify-center">Seu Pace</div>
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-primary leading-tight flex-1 flex items-center justify-center">
               {currentPaceDisplay}
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">este treino</div>
           </div>
 
           {/* Community Average */}
-          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 text-center border border-border">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Média Comunidade</div>
-            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
+          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 text-center border border-border flex flex-col">
+            <div className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 h-8 sm:h-10 flex items-center justify-center">Média Comunidade</div>
+            <div className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight flex-1 flex items-center justify-center">
               {communityDisplay}
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">últimos 30 dias</div>
