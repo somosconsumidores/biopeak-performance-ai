@@ -14,6 +14,31 @@ interface PushNotificationRequest {
   category?: 'training' | 'engagement' | 'achievement' | 'general';
 }
 
+// Helper function to safely check for "not subscribed" errors regardless of format
+function hasNotSubscribedError(errors: unknown): boolean {
+  if (!errors) return false;
+  
+  // If it's an array, use .some()
+  if (Array.isArray(errors)) {
+    return errors.some((err: unknown) => {
+      const errStr = typeof err === 'string' ? err : JSON.stringify(err);
+      return errStr.includes('not subscribed') || errStr.includes('All included players');
+    });
+  }
+  
+  // If it's a string or object, convert and check
+  const errStr = typeof errors === 'string' ? errors : JSON.stringify(errors);
+  return errStr.includes('not subscribed') || errStr.includes('All included players');
+}
+
+// Helper function to safely check if errors exist (regardless of format)
+function hasErrors(errors: unknown): boolean {
+  if (!errors) return false;
+  if (Array.isArray(errors)) return errors.length > 0;
+  if (typeof errors === 'object') return Object.keys(errors as object).length > 0;
+  return !!errors;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -81,12 +106,15 @@ serve(async (req) => {
 
     const oneSignalResult = await oneSignalResponse.json();
 
-    // Check for "All included players are not subscribed" error
-    const hasNotSubscribedError = oneSignalResult.errors?.some(
-      (err: string) => err.includes('not subscribed') || err.includes('All included players')
-    );
+    // Log errors format for debugging
+    if (oneSignalResult.errors) {
+      console.log('📱 OneSignal errors format:', typeof oneSignalResult.errors, JSON.stringify(oneSignalResult.errors));
+    }
 
-    if (hasNotSubscribedError && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    // Check for "All included players are not subscribed" error (handles array, object, or string)
+    const isNotSubscribedError = hasNotSubscribedError(oneSignalResult.errors);
+
+    if (isNotSubscribedError && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       console.log('⚠️ External ID not linked, attempting fallback via subscription_id...');
       
       // Create Supabase client with service role
@@ -132,7 +160,7 @@ serve(async (req) => {
         
         const fallbackResult = await fallbackResponse.json();
         
-        if (!fallbackResponse.ok || fallbackResult.errors?.length > 0) {
+        if (!fallbackResponse.ok || hasErrors(fallbackResult.errors)) {
           console.error('❌ Fallback also failed:', fallbackResult);
           return new Response(
             JSON.stringify({ 
@@ -160,7 +188,7 @@ serve(async (req) => {
       }
     }
 
-    if (!oneSignalResponse.ok || oneSignalResult.errors?.length > 0) {
+    if (!oneSignalResponse.ok || hasErrors(oneSignalResult.errors)) {
       console.error('❌ OneSignal API error:', oneSignalResult);
       return new Response(
         JSON.stringify({ 
