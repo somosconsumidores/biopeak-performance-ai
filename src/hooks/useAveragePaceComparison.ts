@@ -132,22 +132,28 @@ export function useAveragePaceComparison(
       return null;
     }
 
-    // For RUNNING and SWIMMING: lower pace is faster (min/km or min/100m)
-    // For CYCLING: higher speed is faster (km/h)
-    const isCycling = category === 'CYCLING';
+    // For RUNNING: lower pace is faster (min/km) - community avg is in min/km
+    // For CYCLING: higher speed is faster (km/h) - community avg is in km/h
+    // For SWIMMING: lower pace is faster (min/100m) - community avg is in min/100m
     
     let difference: number;
     let percentDifference: number;
     let isFasterThanAverage: boolean;
 
-    if (isCycling) {
-      // For cycling, we need to convert pace (min/km) to speed (km/h)
+    if (category === 'CYCLING') {
+      // For cycling, convert current pace (min/km) to speed (km/h)
       const currentSpeed = 60 / currentPace;
       difference = currentSpeed - communityAverage;
       percentDifference = Math.abs(difference / communityAverage) * 100;
       isFasterThanAverage = currentSpeed > communityAverage;
+    } else if (category === 'SWIMMING') {
+      // For swimming, convert current pace from min/km to min/100m for comparison
+      const currentPacePer100m = currentPace / 10;
+      difference = communityAverage - currentPacePer100m;
+      percentDifference = Math.abs(difference / communityAverage) * 100;
+      isFasterThanAverage = currentPacePer100m < communityAverage;
     } else {
-      // For running and swimming, lower is better
+      // For running, both values are in min/km
       difference = communityAverage - currentPace;
       percentDifference = Math.abs(difference / communityAverage) * 100;
       isFasterThanAverage = currentPace < communityAverage;
