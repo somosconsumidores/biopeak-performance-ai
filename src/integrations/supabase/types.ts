@@ -861,6 +861,48 @@ export type Database = {
         }
         Relationships: []
       }
+      average_pace: {
+        Row: {
+          average_pace_value: number
+          calculated_at: string
+          category: string
+          created_at: string
+          id: string
+          pace_unit: string
+          period_end: string
+          period_start: string
+          total_activities: number
+          total_distance_meters: number
+          total_time_minutes: number
+        }
+        Insert: {
+          average_pace_value: number
+          calculated_at?: string
+          category: string
+          created_at?: string
+          id?: string
+          pace_unit: string
+          period_end: string
+          period_start: string
+          total_activities?: number
+          total_distance_meters?: number
+          total_time_minutes?: number
+        }
+        Update: {
+          average_pace_value?: number
+          calculated_at?: string
+          category?: string
+          created_at?: string
+          id?: string
+          pace_unit?: string
+          period_end?: string
+          period_start?: string
+          total_activities?: number
+          total_distance_meters?: number
+          total_time_minutes?: number
+        }
+        Relationships: []
+      }
       blog_categories: {
         Row: {
           color: string
