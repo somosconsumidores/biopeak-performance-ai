@@ -57,6 +57,7 @@ import type { UnifiedActivity } from '@/hooks/useUnifiedActivityHistory';
 import { isCyclingActivity, formatSpeed, formatSpeedOrPace, getSpeedOrPaceLabel } from '@/utils/activityTypeUtils';
 import { usePlatform } from '@/hooks/usePlatform';
 import { PaceComparisonCard } from '@/components/PaceComparisonCard';
+import { HeartRateZonesCard } from '@/components/HeartRateZonesCard';
 
 
 export const WorkoutSession = () => {
@@ -393,6 +394,14 @@ export const WorkoutSession = () => {
             />
           </ScrollReveal>
 
+          {/* Heart Rate Zones Card - Moved here for better UX flow */}
+          <ScrollReveal delay={175}>
+            <HeartRateZonesCard 
+              zones={heartRateZones}
+              loading={zonesLoading}
+            />
+          </ScrollReveal>
+
           {/* GPS Heatmap */}
           <ScrollReveal>
             <Card className="glass-card border-glass-border mb-8">
@@ -656,86 +665,39 @@ export const WorkoutSession = () => {
             </Card>
           </ScrollReveal>
 
-          {/* Heart Rate Zones */}
-          <div className="grid lg:grid-cols-2 gap-8 mb-8">
-            <ScrollReveal delay={500}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Heart className="h-5 w-5 text-primary" />
-                    <span>Distribuição por Zona</span>
-                  </CardTitle>
-                </CardHeader>
-                 <CardContent>
-                   {zonesLoading ? (
-                     <div className="text-center py-4">
-                       <p className="text-muted-foreground">Calculando zonas...</p>
-                     </div>
-                   ) : heartRateZones.length > 0 ? (
-                     <div className="space-y-4">
-                       {heartRateZones.map((zone, index) => (
-                         <div key={index} className="space-y-2">
-                           <div className="flex items-center justify-between">
-                             <div className="flex items-center space-x-3">
-                               <div className={`w-3 h-3 rounded-full ${zone.color}`} />
-                               <span className="text-sm font-medium">{zone.zone}</span>
-                               <span className="text-xs text-muted-foreground">({zone.label})</span>
-                               <span className="text-xs text-muted-foreground">{zone.minHR}-{zone.maxHR} bpm</span>
-                             </div>
-                             <div className="flex items-center space-x-2">
-                               <span className="text-sm">{zone.percentage}%</span>
-                               <span className="text-xs text-muted-foreground">
-                                 {Math.floor(zone.timeInZone / 60)}:{(zone.timeInZone % 60).toString().padStart(2, '0')}
-                               </span>
-                             </div>
-                           </div>
-                           <Progress value={zone.percentage} className="flex-1" />
-                         </div>
-                       ))}
-                     </div>
-                   ) : (
-                     <div className="text-center py-4">
-                       <p className="text-muted-foreground">Dados de zona não disponíveis</p>
-                     </div>
-                   )}
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-
-            {/* Performance Summary */}
-            <ScrollReveal delay={600}>
-              <Card className="glass-card border-glass-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <span>Resumo de Performance</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary mb-1">
-                        {currentActivity.max_heart_rate_in_beats_per_minute || '--'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">FC Máxima</div>
+          {/* Performance Summary */}
+          <ScrollReveal delay={500}>
+            <Card className="glass-card border-glass-border mb-6 sm:mb-8">
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                  <span>Resumo de Performance</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                  <div className="text-center p-3 sm:p-4 bg-muted/30 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
+                      {currentActivity.max_heart_rate_in_beats_per_minute || '--'}
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary mb-1">
-                        {currentActivity.device_name || 'Dispositivo'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Equipamento</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">FC Máxima</div>
+                  </div>
+                  <div className="text-center p-3 sm:p-4 bg-muted/30 rounded-lg">
+                    <div className="text-lg sm:text-xl font-bold text-primary mb-1 truncate">
+                      {currentActivity.device_name || 'Dispositivo'}
                     </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Equipamento</div>
                   </div>
-                  <div className="mt-6 p-4 bg-muted/10 rounded-lg">
-                    <p className="text-sm text-center">
-                      <span className="font-medium text-primary">Análise:</span> Atividade registrada com sucesso. 
-                      Os dados mostram um bom desempenho geral com métricas consistentes.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          </div>
+                </div>
+                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-muted/10 rounded-lg">
+                  <p className="text-xs sm:text-sm text-center leading-relaxed">
+                    <span className="font-medium text-primary">Análise:</span> Atividade registrada com sucesso. 
+                    Os dados mostram um bom desempenho geral.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
 
         </div>
       </div>
