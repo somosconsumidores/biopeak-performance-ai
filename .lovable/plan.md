@@ -1,109 +1,187 @@
 
+# Plano: Card de Comparação de Pace Médio
 
-# Correção: Limite de 1000 Registros na Edge Function
+## Objetivo
+Adicionar um novo card abaixo do "Resumo do Treino" em `/workouts` que compare o pace médio do treino selecionado com a média histórica de todas as atividades do mesmo tipo (últimos 30 dias) registrada na tabela `average_pace`.
 
-## Problema Identificado
+## Análise de Impacto na Performance
 
-A Edge Function `calculate-average-pace` está limitada pelo **default row limit de 1000** do Supabase, resultando em cálculos incorretos:
+### Impacto Esperado: Mínimo
 
-| Métrica | Valor Calculado | Valor Real |
-|---------|-----------------|------------|
-| RUNNING activities | 526 | **8.581** |
-| CYCLING activities | 285 | ~4.000+ |
-| SWIMMING activities | 14 | ~100+ |
-| Total processado | ~1.000 | **16.769** |
+A implementação **não prejudicará a performance** do app pelos seguintes motivos:
 
-## Solução
+1. **Query Simples e Leve**: A consulta à tabela `average_pace` busca apenas 1 registro (última entrada da categoria correspondente)
+2. **Tabela Pequena**: A tabela `average_pace` contém apenas 3 registros (RUNNING, CYCLING, SWIMMING)
+3. **Cache Adequado**: Implementaremos cache de 24 horas, já que o cálculo é diário
+4. **Nenhuma Agregação em Runtime**: Os dados já estão pré-calculados pelo cron job diário
+5. **Carregamento Independente**: O card carrega seus dados de forma assíncrona, sem bloquear o restante da página
 
-Implementar **paginação** na Edge Function para buscar todos os registros, ou usar uma **abordagem de agregação via RPC** no banco de dados.
+### Métricas de Performance
 
-### Opção Recomendada: Agregação via SQL (mais eficiente)
+| Operação | Impacto |
+|----------|---------|
+| Query Supabase | ~20-50ms (1 row) |
+| Cálculo de diferença | < 1ms |
+| Renderização | Negligível |
 
-Criar uma função SQL que faz a agregação diretamente no banco, eliminando a necessidade de transferir 16.000+ registros para a Edge Function:
+## Arquitetura da Solução
 
-```sql
-CREATE OR REPLACE FUNCTION calculate_average_pace_aggregation(
-  p_period_start DATE,
-  p_period_end DATE
-)
-RETURNS TABLE (
-  category TEXT,
-  total_distance DOUBLE PRECISION,
-  total_time DOUBLE PRECISION,
-  activity_count BIGINT
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    CASE 
-      WHEN UPPER(activity_type) IN ('RIDE','CYCLING','ROAD_BIKING','VIRTUALRIDE','MOUNTAIN_BIKING','INDOOR_CYCLING','VIRTUAL_RIDE','EBIKERIDE','VELOMOBILE') 
-      THEN 'CYCLING'
-      WHEN UPPER(activity_type) IN ('RUN','RUNNING','TREADMILL_RUNNING','INDOOR_CARDIO','TRAIL_RUNNING','VIRTUALRUN','TRACK_RUNNING','VIRTUAL_RUN','INDOOR_RUNNING','ULTRA_RUN','FREE_RUN') 
-      THEN 'RUNNING'
-      WHEN UPPER(activity_type) IN ('SWIM','LAP_SWIMMING','OPEN_WATER_SWIMMING','SWIMMING') 
-      THEN 'SWIMMING'
-    END as category,
-    SUM(total_distance_meters) as total_distance,
-    SUM(total_time_minutes) as total_time,
-    COUNT(*) as activity_count
-  FROM all_activities
-  WHERE activity_date >= p_period_start
-    AND activity_date <= p_period_end
-    AND total_distance_meters > 0
-    AND total_time_minutes > 0
-  GROUP BY 1
-  HAVING CASE 
-    WHEN UPPER(activity_type) IN (...) THEN 'CYCLING'
-    ...
-  END IS NOT NULL;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                 WorkoutSession.tsx                          │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Card: Resumo do Treino                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Card: Comparação de Pace (NOVO)         │  │
+│  │  ┌────────────────┐     ┌────────────────────────┐   │  │
+│  │  │ Seu Pace       │     │ Média da Comunidade    │   │  │
+│  │  │ 6:30/km        │ vs  │ 6:67/km                │   │  │
+│  │  └────────────────┘     └────────────────────────┘   │  │
+│  │                                                      │  │
+│  │  Badge: 5.5% mais rápido que a média 🚀              │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Modificações na Edge Function
+## Mapeamento de Activity Type para Category
 
-1. Remover a busca de todos os registros
-2. Chamar a função RPC `calculate_average_pace_aggregation`
-3. Processar apenas 3 registros (um por categoria)
+A tabela `average_pace` usa categorias padronizadas:
 
-## Arquivos a Modificar
+| Activity Types | Category | Unidade |
+|----------------|----------|---------|
+| Run, RUNNING, TREADMILL_RUNNING, TRAIL_RUNNING, etc. | RUNNING | min/km |
+| Ride, CYCLING, ROAD_BIKING, MOUNTAIN_BIKING, etc. | CYCLING | km/h |
+| Swim, LAP_SWIMMING, OPEN_WATER_SWIMMING, SWIMMING | SWIMMING | min/100m |
 
-| Arquivo | Ação |
-|---------|------|
-| Migration SQL | Criar função `calculate_average_pace_aggregation` |
-| `supabase/functions/calculate-average-pace/index.ts` | Usar RPC ao invés de fetch + loop |
+## Arquivos a Criar/Modificar
 
-## Benefícios
-
-- **Performance**: Agregação no banco (0 transferência de 16k registros)
-- **Precisão**: 100% das atividades processadas
-- **Escalabilidade**: Funciona mesmo com milhões de registros
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/hooks/useAveragePaceComparison.ts` | Criar | Hook para buscar dados da tabela `average_pace` e calcular comparação |
+| `src/components/PaceComparisonCard.tsx` | Criar | Componente visual seguindo o padrão glass-card |
+| `src/pages/WorkoutSession.tsx` | Modificar | Importar e adicionar o novo componente |
+| `src/lib/cache.ts` | Modificar | Adicionar nova chave de cache |
 
 ## Detalhes Técnicos
 
-### Edge Function Modificada (resumo):
+### 1. Hook: useAveragePaceComparison
 
 ```typescript
-// Antes: buscar 16k+ registros e agregar em JavaScript
-const { data: activities } = await supabase
-  .from("all_activities")
-  .select("*")  // PROBLEMA: limite de 1000
+interface PaceComparisonData {
+  currentPace: number;           // Pace da atividade atual
+  communityAverage: number;      // Média da tabela average_pace
+  difference: number;            // Diferença absoluta
+  percentDifference: number;     // Diferença percentual
+  isFasterThanAverage: boolean;  // Se está acima da média
+  category: 'RUNNING' | 'CYCLING' | 'SWIMMING';
+  unit: string;                  // 'min/km', 'km/h', 'min/100m'
+  totalActivities: number;       // Total de atividades na média
+}
 
-// Depois: chamar RPC que retorna apenas 3 registros agregados
-const { data: aggregated } = await supabase
-  .rpc("calculate_average_pace_aggregation", {
-    p_period_start: periodStart,
-    p_period_end: periodEnd
-  });
+// Função de mapeamento activity_type -> category
+function mapActivityTypeToCategory(activityType: string): 'RUNNING' | 'CYCLING' | 'SWIMMING' | null {
+  const upper = activityType.toUpperCase();
+  
+  const runningTypes = ['RUN', 'RUNNING', 'TREADMILL_RUNNING', 'TRAIL_RUNNING', 'VIRTUALRUN', ...];
+  const cyclingTypes = ['RIDE', 'CYCLING', 'ROAD_BIKING', 'MOUNTAIN_BIKING', ...];
+  const swimmingTypes = ['SWIM', 'LAP_SWIMMING', 'OPEN_WATER_SWIMMING', 'SWIMMING'];
+  
+  if (runningTypes.some(t => upper.includes(t))) return 'RUNNING';
+  if (cyclingTypes.some(t => upper.includes(t))) return 'CYCLING';
+  if (swimmingTypes.some(t => upper.includes(t))) return 'SWIMMING';
+  
+  return null;
+}
 ```
 
-## Resultado Esperado
+### 2. Query Supabase
 
-Após a correção, a tabela `average_pace` terá:
+```typescript
+// Busca o último registro da categoria correspondente
+const { data } = await supabase
+  .from('average_pace')
+  .select('*')
+  .eq('category', category)
+  .order('calculated_at', { ascending: false })
+  .limit(1)
+  .single();
+```
 
-| category | total_activities | status |
-|----------|------------------|--------|
-| RUNNING | 8.581 | ✅ Correto |
-| CYCLING | ~4.000 | ✅ Correto |
-| SWIMMING | ~100 | ✅ Correto |
+### 3. Componente: PaceComparisonCard
 
+Seguirá exatamente o padrão visual do card "Resumo do Treino":
+- Classes: `glass-card border-glass-border mb-8`
+- Ícone: `TrendingUp` ou `BarChart3`
+- Badge indicando se está acima/abaixo da média
+- Grid responsivo com 2-3 colunas
+
+### 4. Cache Strategy
+
+```typescript
+// Nova chave de cache
+AVERAGE_PACE: 'biopeak_average_pace_cache_v1'
+
+// Duração: 24 horas (dados calculados diariamente)
+CACHE_DURATIONS.DAILY  // 24 * 60 * 60 * 1000
+```
+
+## UX/UI Design
+
+### Card Visual
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  📊 Comparação com a Comunidade              [8.581 atletas]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────┐         ┌─────────────────────────┐   │
+│  │   Seu Pace      │   VS    │   Média da Comunidade   │   │
+│  │   🏃 6:30/km   │         │   📊 6:67/km           │   │
+│  │   (este treino) │         │   (últimos 30 dias)     │   │
+│  └─────────────────┘         └─────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  🚀 Você está 5.5% mais rápido que a média!        │   │
+│  │     Parabéns! Continue assim.                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ℹ️ Baseado em 8.581 corridas de todos os atletas BioPeak  │
+│     nos últimos 30 dias.                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Estados do Card
+
+1. **Loading**: Skeleton ou spinner
+2. **Sem dados**: Mensagem "Pace não disponível para este tipo de atividade"
+3. **Acima da média**: Badge verde + ícone 🚀
+4. **Abaixo da média**: Badge laranja + ícone 💪 (motivacional)
+5. **Próximo da média** (±2%): Badge azul + ícone ⚡
+
+## Fluxo de Dados
+
+1. Usuário seleciona atividade em `/workouts`
+2. `WorkoutSession` passa `currentActivity` para `PaceComparisonCard`
+3. `useAveragePaceComparison` hook:
+   - Verifica cache local (24h)
+   - Se expirado, busca na tabela `average_pace`
+   - Mapeia `activity_type` para `category`
+   - Calcula diferença percentual
+4. `PaceComparisonCard` renderiza comparação visual
+
+## Considerações de Edge Cases
+
+1. **Atividade sem pace**: Não exibir o card
+2. **Tipo de atividade não mapeável** (ex: academia): Não exibir o card
+3. **Tabela average_pace vazia**: Exibir mensagem "Dados de comparação indisponíveis"
+4. **Pace = 0**: Não calcular comparação
+
+## Resumo da Implementação
+
+1. Criar hook `useAveragePaceComparison.ts` com cache de 24h
+2. Criar componente `PaceComparisonCard.tsx` seguindo padrão glass-card
+3. Adicionar chave de cache em `src/lib/cache.ts`
+4. Inserir componente em `WorkoutSession.tsx` após o card "Resumo do Treino"
