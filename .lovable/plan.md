@@ -1,237 +1,177 @@
 
-# Plano: Corrigir Vulnerabilidade de Segurança em `whatsapp_buffer`
 
-## Contexto do Problema
+# Plano: Cron Job para Cálculo de Pace Médio por Modalidade
 
-### Situação Atual
-A tabela `whatsapp_buffer` armazena mensagens de WhatsApp pendentes de processamento. Contém **dados pessoais sensíveis** (números de telefone e conteúdo de mensagens) mas está **completamente exposta** via API.
+## Visão Geral
 
-### Dados na Tabela
+Criar um sistema automatizado que calcula e armazena o pace médio das atividades dos últimos 30 dias, agrupadas por modalidade (RUNNING, CYCLING, SWIMMING), executando diariamente à meia-noite.
 
-| Métrica | Valor |
-|---------|-------|
-| Total de registros | 238 |
-| Última entrada | 2026-01-23 |
-| Status RLS | ❌ Desabilitado |
-| Políticas RLS | Nenhuma |
+---
 
-### Colunas Sensíveis
-
-| Coluna | Tipo | Sensibilidade |
-|--------|------|---------------|
-| `phone` | text | 🔴 Alta - Número de telefone pessoal |
-| `message_content` | text | 🔴 Alta - Conteúdo de conversas |
-| `processed` | boolean | 🟡 Média - Estado de processamento |
-| `created_at` | timestamp | 🟢 Baixa |
-
-### O Problema Técnico
+## Arquitetura da Solução
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  Qualquer pessoa com a chave anon pode:                      │
-├──────────────────────────────────────────────────────────────┤
-│  1. GET /rest/v1/whatsapp_buffer                             │
-│     → Lê TODOS os telefones e mensagens                      │
-│                                                              │
-│  2. POST /rest/v1/whatsapp_buffer                            │
-│     → Injeta mensagens falsas no sistema                     │
-│                                                              │
-│  3. PATCH/DELETE /rest/v1/whatsapp_buffer                    │
-│     → Modifica ou apaga mensagens legítimas                  │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          pg_cron (00:00 UTC)                        │
+│                                 │                                   │
+│                                 ▼                                   │
+│              HTTP POST → Edge Function                              │
+│                                 │                                   │
+│                                 ▼                                   │
+│                    calculate-average-pace                           │
+│                                 │                                   │
+│    ┌────────────────────────────┼────────────────────────────────┐  │
+│    ▼                            ▼                                ▼  │
+│ RUNNING                     CYCLING                         SWIMMING│
+│ (min/km)                    (km/h)                        (min/100m)│
+│    │                            │                                │  │
+│    └────────────────────────────┼────────────────────────────────┘  │
+│                                 ▼                                   │
+│                        Tabela: average_pace                         │
+│                    (histórico diário por categoria)                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
-
-### Riscos
-
-| Risco | Severidade | Descrição |
-|-------|------------|-----------|
-| Vazamento de dados | 🔴 Crítico | Telefones e mensagens expostos publicamente |
-| Injeção de dados | 🔴 Crítico | Atacante pode inserir mensagens maliciosas |
-| Manipulação | 🟠 Alto | Atacante pode marcar mensagens como processadas |
-| Compliance | 🔴 Crítico | Violação potencial de LGPD/GDPR |
 
 ---
 
-## Análise de Uso
+## 1. Estrutura da Tabela `average_pace`
 
-### Quem Acessa Esta Tabela?
+### Colunas:
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| `id` | UUID | Identificador único |
+| `calculated_at` | TIMESTAMPTZ | Momento do cálculo |
+| `period_start` | DATE | Início do período (30 dias antes) |
+| `period_end` | DATE | Fim do período (data do cálculo) |
+| `category` | TEXT | RUNNING, CYCLING ou SWIMMING |
+| `average_pace_value` | DOUBLE PRECISION | Valor calculado |
+| `pace_unit` | TEXT | Unidade (min/km, km/h, min/100m) |
+| `total_activities` | INTEGER | Quantidade de atividades consideradas |
+| `total_distance_meters` | DOUBLE PRECISION | Distância total agregada |
+| `total_time_minutes` | DOUBLE PRECISION | Tempo total agregado |
 
-| Componente | Encontrado | Observação |
-|------------|------------|------------|
-| Frontend (`src/`) | ❌ Não | Apenas tipos gerados automaticamente |
-| Edge Functions | ❌ Não | Nenhuma referência encontrada |
-| Webhooks externos (n8n) | ⚠️ Provável | Padrão comum para integração WhatsApp |
-
-### Conclusão
-A tabela parece ser usada **exclusivamente por sistemas backend** (provavelmente n8n ou webhooks externos) para buffer de mensagens WhatsApp. O frontend **não acessa** esta tabela diretamente.
-
----
-
-## Solução Proposta
-
-### Opção Recomendada: RLS + Acesso Restrito a `service_role`
-
-Esta abordagem:
-- ✅ Mantém a tabela funcional para Edge Functions e webhooks com `service_role`
-- ✅ Bloqueia completamente acesso via `anon` e `authenticated`
-- ✅ Não requer mudanças em integrações externas que usam `service_role`
-
-### Passo 1: Habilitar RLS
-
-```sql
-ALTER TABLE public.whatsapp_buffer ENABLE ROW LEVEL SECURITY;
-```
-
-### Passo 2: Criar Política Restritiva
-
-```sql
--- Apenas service_role pode acessar (usado por Edge Functions e webhooks)
-CREATE POLICY "Service role only access"
-ON public.whatsapp_buffer
-FOR ALL
-TO service_role
-USING (true)
-WITH CHECK (true);
-```
-
-### Passo 3: Garantir Bloqueio para Outras Roles
-
-Com RLS habilitado e apenas a política para `service_role`, as roles `anon` e `authenticated` serão automaticamente bloqueadas (comportamento padrão do RLS).
+### Índices:
+- Índice composto em `(calculated_at, category)` para consultas rápidas do histórico
 
 ---
 
-## Alternativas Consideradas
+## 2. Mapeamento de Tipos de Atividade
 
-### Alternativa A: Mover para Schema Privado
-
-```sql
--- Criar schema não exposto ao PostgREST
-CREATE SCHEMA IF NOT EXISTS private;
-
--- Mover tabela
-ALTER TABLE public.whatsapp_buffer SET SCHEMA private;
+### CYCLING (→ km/h)
+```text
+Ride, CYCLING, ROAD_BIKING, VirtualRide, MOUNTAIN_BIKING, 
+INDOOR_CYCLING, VIRTUAL_RIDE, EBikeRide, Velomobile
 ```
 
-**Prós:** Tabela invisível na API  
-**Contras:** Requer atualizar todas as referências para `private.whatsapp_buffer`
-
-### Alternativa B: Revogar Permissões Diretamente
-
-```sql
-REVOKE ALL ON public.whatsapp_buffer FROM anon, authenticated;
-GRANT ALL ON public.whatsapp_buffer TO service_role;
+### RUNNING (→ min/km)
+```text
+Run, RUNNING, TREADMILL_RUNNING, INDOOR_CARDIO, TRAIL_RUNNING, 
+VirtualRun, TRACK_RUNNING, VIRTUAL_RUN, INDOOR_RUNNING, ULTRA_RUN, free_run
 ```
 
-**Prós:** Simples  
-**Contras:** Menos granular que RLS, pode ser sobrescrito
-
-### Alternativa C: Dropar Tabela (se não estiver em uso)
-
-```sql
-DROP TABLE public.whatsapp_buffer;
+### SWIMMING (→ min/100m)
+```text
+Swim, LAP_SWIMMING, OPEN_WATER_SWIMMING, SWIMMING
 ```
-
-**Prós:** Elimina risco completamente  
-**Contras:** Só viável se tabela não for mais necessária
 
 ---
 
-## Validação Pós-Correção
+## 3. Edge Function: `calculate-average-pace`
 
-### Teste 1: Verificar que `anon` NÃO pode ler dados
+### Lógica de Cálculo:
 
-```bash
-curl -X GET \
-  'https://grcwlmltlcltmwbhdpky.supabase.co/rest/v1/whatsapp_buffer?select=*' \
-  -H 'apikey: <ANON_KEY>' \
-  -H 'Authorization: Bearer <ANON_KEY>'
-
-# Esperado: [] (array vazio) ou erro 403
+**Para RUNNING:**
+```text
+Pace (min/km) = Total de Minutos ÷ (Total de Metros ÷ 1000)
 ```
 
-### Teste 2: Verificar que `service_role` PODE acessar
-
-```sql
--- Via SQL Editor com service_role
-SELECT COUNT(*) FROM whatsapp_buffer;
--- Esperado: 238 (ou total atual)
+**Para CYCLING:**
+```text
+Velocidade (km/h) = (Total de Metros ÷ 1000) ÷ (Total de Minutos ÷ 60)
 ```
 
-### Teste 3: Verificar integrações externas
+**Para SWIMMING:**
+```text
+Pace (min/100m) = Total de Minutos ÷ (Total de Metros ÷ 100)
+```
 
-1. Enviar mensagem de teste via WhatsApp
-2. Verificar se webhook/n8n consegue inserir no buffer
-3. Verificar se processamento continua funcionando
+### Fluxo:
+1. Buscar atividades dos últimos 30 dias com `total_distance_meters > 0` e `total_time_minutes > 0`
+2. Agrupar por categoria usando `CASE WHEN` no SQL
+3. Calcular totais agregados (distância e tempo)
+4. Aplicar fórmula específica por categoria
+5. Inserir registros na tabela `average_pace`
 
 ---
 
-## SQL Completo da Migração
+## 4. Cron Job: `calculate-average-pace-midnight`
 
+- **Schedule:** `0 0 * * *` (meia-noite UTC todos os dias)
+- **Padrão:** Segue o mesmo modelo de `refresh-materialized-views-midnight`
+- **Endpoint:** `POST /functions/v1/calculate-average-pace`
+
+---
+
+## 5. Arquivos a Criar/Modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/calculate-average-pace/index.ts` | **Criar** - Edge Function principal |
+| `supabase/config.toml` | **Modificar** - Adicionar configuração da função |
+| Migration SQL | **Criar** - Tabela + cron job |
+
+---
+
+## Detalhes Técnicos
+
+### Query SQL de Agregação:
 ```sql
--- =============================================================
--- CORREÇÃO DE SEGURANÇA: whatsapp_buffer
--- Problema: Tabela com dados sensíveis (telefones, mensagens)
---           exposta publicamente sem RLS
--- Solução: Habilitar RLS e restringir acesso a service_role
--- =============================================================
+SELECT 
+  CASE 
+    WHEN UPPER(activity_type) IN ('RIDE','CYCLING','ROAD_BIKING','VIRTUALRIDE','MOUNTAIN_BIKING','INDOOR_CYCLING','VIRTUAL_RIDE','EBIKERIDE','VELOMOBILE') 
+    THEN 'CYCLING'
+    WHEN UPPER(activity_type) IN ('RUN','RUNNING','TREADMILL_RUNNING','INDOOR_CARDIO','TRAIL_RUNNING','VIRTUALRUN','TRACK_RUNNING','VIRTUAL_RUN','INDOOR_RUNNING','ULTRA_RUN','FREE_RUN') 
+    THEN 'RUNNING'
+    WHEN UPPER(activity_type) IN ('SWIM','LAP_SWIMMING','OPEN_WATER_SWIMMING','SWIMMING') 
+    THEN 'SWIMMING'
+  END as category,
+  SUM(total_distance_meters) as total_distance,
+  SUM(total_time_minutes) as total_time,
+  COUNT(*) as activity_count
+FROM all_activities
+WHERE activity_date >= CURRENT_DATE - INTERVAL '30 days'
+  AND activity_date <= CURRENT_DATE
+  AND total_distance_meters > 0
+  AND total_time_minutes > 0
+GROUP BY category
+HAVING category IS NOT NULL
+```
 
--- Passo 1: Habilitar Row Level Security
-ALTER TABLE public.whatsapp_buffer ENABLE ROW LEVEL SECURITY;
+### Segurança:
+- RLS habilitado na tabela `average_pace`
+- Acesso público de leitura (dados agregados sem PII)
+- Apenas `service_role` pode inserir
 
--- Passo 2: Criar política restrita a service_role
--- (webhooks e Edge Functions usam service_role)
-CREATE POLICY "Service role only access"
-ON public.whatsapp_buffer
-FOR ALL
-TO service_role
-USING (true)
-WITH CHECK (true);
-
--- Verificação: Confirmar que RLS está ativo
--- SELECT tablename, rowsecurity FROM pg_tables WHERE tablename = 'whatsapp_buffer';
-
--- Verificação: Listar políticas
--- SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'whatsapp_buffer';
+### Configuração da Edge Function:
+```toml
+[functions.calculate-average-pace]
+verify_jwt = false
 ```
 
 ---
 
 ## Resultado Esperado
 
-### Antes
+Após a implementação, a tabela `average_pace` armazenará registros diários como:
 
-| Role | SELECT | INSERT | UPDATE | DELETE |
-|------|--------|--------|--------|--------|
-| `anon` | ✅ Todos | ✅ | ✅ | ✅ |
-| `authenticated` | ✅ Todos | ✅ | ✅ | ✅ |
-| `service_role` | ✅ Todos | ✅ | ✅ | ✅ |
+| calculated_at | category | average_pace_value | pace_unit | total_activities |
+|---------------|----------|-------------------|-----------|------------------|
+| 2026-01-31 00:00:00 | RUNNING | 5.42 | min/km | 8.214 |
+| 2026-01-31 00:00:00 | CYCLING | 28.5 | km/h | 5.171 |
+| 2026-01-31 00:00:00 | SWIMMING | 2.15 | min/100m | 625 |
 
-### Depois
+Isso permite:
+- Análise de tendências históricas
+- Comparação de evolução entre períodos
+- Insights para o AI Coach sobre médias da plataforma
 
-| Role | SELECT | INSERT | UPDATE | DELETE |
-|------|--------|--------|--------|--------|
-| `anon` | ❌ | ❌ | ❌ | ❌ |
-| `authenticated` | ❌ | ❌ | ❌ | ❌ |
-| `service_role` | ✅ Todos | ✅ | ✅ | ✅ |
-
----
-
-## Impacto
-
-| Componente | Impacto |
-|------------|---------|
-| Frontend | ✅ Nenhum (não usa esta tabela) |
-| Edge Functions | ✅ Nenhum (usam `service_role`) |
-| Webhooks (n8n) | ✅ Nenhum (devem usar `service_role`) |
-| API pública | ✅ **Bloqueada** (objetivo da correção) |
-
----
-
-## Checklist de Implementação
-
-- [ ] Executar migração SQL
-- [ ] Verificar RLS habilitado via `pg_tables`
-- [ ] Verificar política criada via `pg_policies`
-- [ ] Testar acesso com `anon` (deve falhar)
-- [ ] Testar acesso com `service_role` (deve funcionar)
-- [ ] Verificar integrações WhatsApp continuam funcionando
