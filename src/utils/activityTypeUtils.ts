@@ -12,6 +12,13 @@ const CYCLING_ACTIVITY_TYPES = [
   'velomobile'
 ];
 
+const SWIMMING_ACTIVITY_TYPES = [
+  'swim',
+  'lap_swimming',
+  'open_water_swimming',
+  'swimming'
+];
+
 // Max realistic speed: 60 km/h for cycling, which is pace ~1.0 min/km
 // Min realistic speed: 3 km/h (slow walk), which is pace ~20 min/km
 const MIN_REALISTIC_PACE = 1.0; // min/km (60 km/h)
@@ -24,6 +31,14 @@ const MAX_REALISTIC_SPEED_MS = 16.7; // m/s (60 km/h)
 export const isCyclingActivity = (activityType: string | null | undefined): boolean => {
   if (!activityType) return false;
   return CYCLING_ACTIVITY_TYPES.includes(activityType.toLowerCase());
+};
+
+/**
+ * Checks if the given activity type is a swimming activity
+ */
+export const isSwimmingActivity = (activityType: string | null | undefined): boolean => {
+  if (!activityType) return false;
+  return SWIMMING_ACTIVITY_TYPES.includes(activityType.toLowerCase());
 };
 
 /**
@@ -86,6 +101,18 @@ export const formatPaceMinKm = (paceMinutes: number | null | undefined): string 
 };
 
 /**
+ * Formats pace in min/100m for swimming
+ * Converts from min/km to min/100m (divide by 10)
+ */
+export const formatPacePer100m = (paceMinPerKm: number | null | undefined): string => {
+  if (!paceMinPerKm || paceMinPerKm <= 0) return '--';
+  const pacePer100m = paceMinPerKm / 10;
+  const minutes = Math.floor(pacePer100m);
+  const seconds = Math.round((pacePer100m - minutes) * 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}/100m`;
+};
+
+/**
  * Formats speed or pace based on activity type
  */
 export const formatSpeedOrPace = (
@@ -95,6 +122,9 @@ export const formatSpeedOrPace = (
   if (isCyclingActivity(activityType)) {
     return formatSpeed(paceMinPerKm);
   }
+  if (isSwimmingActivity(activityType)) {
+    return formatPacePer100m(paceMinPerKm);
+  }
   return formatPaceMinKm(paceMinPerKm);
 };
 
@@ -102,5 +132,11 @@ export const formatSpeedOrPace = (
  * Returns the label for speed/pace based on activity type
  */
 export const getSpeedOrPaceLabel = (activityType: string | null | undefined): string => {
-  return isCyclingActivity(activityType) ? 'Velocidade Média' : 'Pace Médio';
+  if (isCyclingActivity(activityType)) {
+    return 'Velocidade Média';
+  }
+  if (isSwimmingActivity(activityType)) {
+    return 'Pace Médio';
+  }
+  return 'Pace Médio';
 };
