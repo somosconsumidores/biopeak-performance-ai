@@ -5934,6 +5934,15 @@ export type Database = {
         Args: { affiliate_login_param: string }
         Returns: undefined
       }
+      calculate_average_pace_aggregation: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: {
+          activity_count: number
+          category: string
+          total_distance: number
+          total_time: number
+        }[]
+      }
       calculate_variation_analysis: {
         Args: {
           p_activity_id: string
