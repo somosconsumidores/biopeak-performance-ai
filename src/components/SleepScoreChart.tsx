@@ -100,7 +100,7 @@ export const SleepScoreChart = ({ className }: SleepScoreChartProps) => {
                           Score: {payload[0].value} pontos
                         </p>
                         <p className="text-xs text-muted-foreground capitalize">
-                          Fonte: {data.source}
+                          Fonte: {data.source === 'healthkit' ? 'Apple Watch' : data.source}
                         </p>
                       </div>
                     );

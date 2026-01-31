@@ -191,6 +191,24 @@ export function useDashboardMetrics() {
           setSleepAnalytics(cached.sleepAnalytics);
           setActivities(cached.activities);
           setLoading(false);
+          
+          // Se o cache não tem dados de sono, buscar de forma assíncrona
+          if (!cached.sleepAnalytics) {
+            console.log('🌙 Cache without sleep data, fetching asynchronously...');
+            fetchSleepData().then(sleepData => {
+              if (sleepData?.sleepScore !== null) {
+                setSleepAnalytics(sleepData);
+                setCachedData({
+                  ...cached,
+                  sleepAnalytics: sleepData,
+                });
+                console.log('✅ Sleep data loaded and cached');
+              }
+            }).catch(err => {
+              console.error('Error fetching sleep data:', err);
+            });
+          }
+          
           return;
         }
       }
