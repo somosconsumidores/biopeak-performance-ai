@@ -31,7 +31,7 @@ export interface PaceComparisonResult {
 
 const RUNNING_TYPES = [
   'run', 'running', 'treadmill_running', 'trail_running', 'virtualrun',
-  'virtual_run', 'track_running', 'indoor_running'
+  'virtual_run', 'track_running', 'indoor_running', 'hike', 'hiking'
 ];
 
 const CYCLING_TYPES = [
