@@ -1,238 +1,170 @@
 
-# Plano: Corrigir Query de Rotas GPS no Plugin BioPeakHealthKit
+# Plano: Corrigir Mapeamento de Tipos de Atividade HealthKit
 
 ## Problema Identificado
 
-O plugin nativo `BioPeakHealthKit.swift` não consegue recuperar dados de GPS porque usa o predicate incorreto para buscar rotas de workout.
+O card de "Comparação com a Comunidade" não aparece para atividades sincronizadas do HealthKit porque o tipo de atividade está sendo salvo incorretamente como `"Other"` em vez de `"Run"`, `"Cycle"`, `"Swim"`, etc.
 
-### Codigo Atual (Incorreto)
-```swift
-// Linha 94 - BioPeakHealthKit.swift
-let predicate = HKQuery.predicateForObject(with: UUID(uuidString: workoutUUID)!)
-```
+### Dados do Problema
 
-Este predicate busca um objeto **pelo seu proprio UUID**. Porem, `HKWorkoutRoute` tem um UUID diferente do `HKWorkout` - a rota e apenas **associada** ao workout, nao possui o mesmo identificador.
+| Atividade | activity_type (atual) | activity_type (correto) | pace_min_per_km |
+|-----------|----------------------|------------------------|-----------------|
+| 2900C1F1-4FF1-4501... | Other | Run | 5.86 |
 
-### Codigo Correto
-```swift
-let workoutPredicate = HKQuery.predicateForObjects(from: workout)
-```
+O banco de dados mostra que **1392 atividades** estão classificadas como `"Other"` enquanto apenas **92** estão corretamente como `"Run"`.
 
-Este predicate busca objetos **associados a um workout especifico**.
+### Causa Raiz
 
-## Solucao
-
-### Passo 1: Modificar a funcao `queryWorkoutRoute`
-
-A funcao precisa ser refatorada em duas etapas:
-
-1. **Primeiro**: Buscar o objeto `HKWorkout` usando o UUID fornecido
-2. **Depois**: Usar o workout encontrado para buscar as rotas associadas com `predicateForObjects(from:)`
-
-### Alteracoes no Arquivo
-
-**Arquivo**: `ios/App/App/BioPeakHealthKit.swift`
-
-**Funcao**: `queryWorkoutRoute` (linhas 88-135)
+O plugin Swift retorna `workoutActivityType.rawValue` (um numero inteiro), mas o mapeamento no TypeScript em `useHealthKitSync.ts` esta incompleto e usa valores errados:
 
 ```text
-ANTES (nao funciona):
-  1. Recebe workoutUUID como string
-  2. Cria predicate com HKQuery.predicateForObject(with: UUID)
-  3. Busca HKWorkoutRoute diretamente (falha - UUID nao corresponde)
-  4. Retorna array vazio
+MAPEAMENTO ATUAL (incorreto):
+  1 → 'Run'      ← ERRADO (1 = AmericanFootball)
+  2 → 'Walk'     ← ERRADO (2 = Archery)
+  3 → 'Cycle'    ← ERRADO (3 = AustralianFootball)
+  4 → 'Swim'     ← ERRADO (4 = Badminton)
+  5 → 'Other'    ← ERRADO (5 = Baseball)
+  13 → 'Run'     ← ERRADO (13 = Cycling!)
+  Outros → 'Other'
 
-DEPOIS (correto):
-  1. Recebe workoutUUID como string
-  2. Primeiro busca o HKWorkout usando predicateForObject
-  3. Com o workout encontrado, usa predicateForObjects(from: workout)
-  4. Busca HKWorkoutRoute com o predicate correto
-  5. Extrai localizacoes da rota
-  6. Retorna array com dados GPS
+VALORES CORRETOS DO ENUM HKWorkoutActivityType:
+  37 → Running (Corrida)
+  52 → Walking (Caminhada)
+  13 → Cycling (Ciclismo)
+  46 → Swimming (Natação)
+  24 → Hiking (Trilha)
+  16 → Elliptical (Elíptico)
+  20 → FunctionalStrengthTraining (Musculação)
+  50 → TraditionalStrengthTraining (Treino de Força)
+  35 → Rowing (Remo)
+  63 → HighIntensityIntervalTraining (HIIT)
+  3000 → Other (Outro)
 ```
 
-### Codigo da Correcao
-
-```swift
-@objc public func queryWorkoutRoute(_ call: CAPPluginCall) {
-    guard let workoutUUIDString = call.getString("workoutUUID"),
-          let workoutUUID = UUID(uuidString: workoutUUIDString) else {
-        call.reject("Missing or invalid workoutUUID parameter")
-        return
-    }
-    
-    // Step 1: First, fetch the HKWorkout object using its UUID
-    let workoutPredicate = HKQuery.predicateForObject(with: workoutUUID)
-    let workoutQuery = HKSampleQuery(
-        sampleType: HKWorkoutType.workoutType(),
-        predicate: workoutPredicate,
-        limit: 1,
-        sortDescriptors: nil
-    ) { [weak self] _, samples, error in
-        
-        guard let self = self,
-              let workouts = samples as? [HKWorkout],
-              let workout = workouts.first,
-              error == nil else {
-            print("[BioPeakHealthKit] Could not find workout with UUID: \(workoutUUIDString)")
-            DispatchQueue.main.async {
-                call.resolve(["locations": [], "error": "Workout not found"])
-            }
-            return
-        }
-        
-        print("[BioPeakHealthKit] Found workout: \(workout.uuid.uuidString)")
-        
-        // Step 2: Query routes ASSOCIATED with this workout (correct predicate)
-        let routePredicate = HKQuery.predicateForObjects(from: workout)
-        let routeQuery = HKAnchoredObjectQuery(
-            type: HKSeriesType.workoutRoute(),
-            predicate: routePredicate,
-            anchor: nil,
-            limit: HKObjectQueryNoLimit
-        ) { _, samples, _, _, error in
-            
-            guard let routes = samples as? [HKWorkoutRoute], error == nil else {
-                print("[BioPeakHealthKit] No routes found for workout: \(error?.localizedDescription ?? "unknown error")")
-                DispatchQueue.main.async {
-                    call.resolve(["locations": []])
-                }
-                return
-            }
-            
-            print("[BioPeakHealthKit] Found \(routes.count) route(s) for workout")
-            
-            guard let route = routes.first else {
-                DispatchQueue.main.async {
-                    call.resolve(["locations": []])
-                }
-                return
-            }
-            
-            // Step 3: Extract location data from the route
-            var locations: [[String: Any]] = []
-            let locationQuery = HKWorkoutRouteQuery(route: route) { _, locationResults, done, error in
-                
-                if let error = error {
-                    print("[BioPeakHealthKit] Route query error: \(error.localizedDescription)")
-                }
-                
-                if let locationResults = locationResults {
-                    print("[BioPeakHealthKit] Received batch of \(locationResults.count) locations")
-                    for location in locationResults {
-                        let locationData: [String: Any] = [
-                            "latitude": location.coordinate.latitude,
-                            "longitude": location.coordinate.longitude,
-                            "altitude": location.altitude,
-                            "timestamp": ISO8601DateFormatter().string(from: location.timestamp),
-                            "speed": location.speed >= 0 ? location.speed : 0,
-                            "course": location.course >= 0 ? location.course : 0,
-                            "horizontalAccuracy": location.horizontalAccuracy,
-                            "verticalAccuracy": location.verticalAccuracy
-                        ]
-                        locations.append(locationData)
-                    }
-                }
-                
-                if done {
-                    print("[BioPeakHealthKit] Route query complete. Total locations: \(locations.count)")
-                    DispatchQueue.main.async {
-                        call.resolve(["locations": locations])
-                    }
-                }
-            }
-            
-            self.healthStore.execute(locationQuery)
-        }
-        
-        self.healthStore.execute(routeQuery)
-    }
-    
-    healthStore.execute(workoutQuery)
-}
-```
-
-## Fluxo da Correcao
+### Fluxo do Problema
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    FLUXO CORRIGIDO                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. Recebe: workoutUUID = "2900C1F1-4FF1-4501-A3FB-..."        │
-│                         │                                       │
-│                         ▼                                       │
-│  2. HKSampleQuery(HKWorkoutType)                               │
-│     predicate: predicateForObject(with: UUID)                   │
-│     → Busca o objeto HKWorkout                                  │
-│                         │                                       │
-│                         ▼                                       │
-│  3. Encontra: HKWorkout (objeto completo)                       │
-│                         │                                       │
-│                         ▼                                       │
-│  4. HKAnchoredObjectQuery(HKWorkoutRoute)                       │
-│     predicate: predicateForObjects(from: workout) ← CORRETO!    │
-│     → Busca rotas ASSOCIADAS ao workout                         │
-│                         │                                       │
-│                         ▼                                       │
-│  5. Encontra: HKWorkoutRoute (pode ter UUID diferente)          │
-│                         │                                       │
-│                         ▼                                       │
-│  6. HKWorkoutRouteQuery(route)                                  │
-│     → Extrai CLLocation[] da rota                               │
-│                         │                                       │
-│                         ▼                                       │
-│  7. Retorna: Array de coordenadas GPS                           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Apple Watch grava workout de CORRIDA                         │
+│ HKWorkoutActivityType.running (rawValue = 37)                │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ BioPeakHealthKit.swift envia para JS:                        │
+│ { workoutActivityType: 37, ... }  ✅ Correto                 │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ useHealthKitSync.ts mapWorkoutType(37)                       │
+│ → Não encontra 37 no mapa                                     │
+│ → Retorna 'Other'  ❌ INCORRETO                               │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Salvo no banco: activity_type = 'Other'                       │
+│ PaceComparisonCard não consegue mapear para categoria         │
+│ → Card não é exibido                                          │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Melhorias Adicionais
+## Solução
 
-### 1. Validacao de UUID
-```swift
-// Antes: force unwrap perigoso
-UUID(uuidString: workoutUUID)!
+### Arquivo: `src/hooks/useHealthKitSync.ts`
 
-// Depois: validacao segura
-guard let workoutUUID = UUID(uuidString: workoutUUIDString) else {
-    call.reject("Invalid UUID format")
-    return
-}
+Corrigir a função `mapWorkoutType` com os valores corretos do enum `HKWorkoutActivityType` da Apple:
+
+```typescript
+const mapWorkoutType = (type: number): string => {
+  // HKWorkoutActivityType enum values from Apple HealthKit
+  // Reference: developer.apple.com/documentation/healthkit/hkworkoutactivitytype
+  const workoutTypes: { [key: number]: string } = {
+    // Running types
+    37: 'Run',           // HKWorkoutActivityTypeRunning
+    
+    // Walking types
+    52: 'Walk',          // HKWorkoutActivityTypeWalking
+    24: 'Hike',          // HKWorkoutActivityTypeHiking
+    
+    // Cycling types
+    13: 'Cycle',         // HKWorkoutActivityTypeCycling
+    74: 'Cycle',         // HKWorkoutActivityTypeHandCycling
+    
+    // Swimming types
+    46: 'Swim',          // HKWorkoutActivityTypeSwimming
+    
+    // Gym/Strength types
+    20: 'Strength',      // HKWorkoutActivityTypeFunctionalStrengthTraining
+    50: 'Strength',      // HKWorkoutActivityTypeTraditionalStrengthTraining
+    
+    // Cardio types
+    16: 'Elliptical',    // HKWorkoutActivityTypeElliptical
+    35: 'Rowing',        // HKWorkoutActivityTypeRowing
+    63: 'HIIT',          // HKWorkoutActivityTypeHighIntensityIntervalTraining
+    73: 'MixedCardio',   // HKWorkoutActivityTypeMixedCardio
+    
+    // Cross Training
+    11: 'CrossTraining', // HKWorkoutActivityTypeCrossTraining
+    
+    // Dance
+    14: 'Dance',         // HKWorkoutActivityTypeDance
+    
+    // Yoga/Mind-Body
+    27: 'Yoga',          // HKWorkoutActivityTypeMindAndBody (covers Yoga)
+    
+    // Other/Default
+    3000: 'Other',       // HKWorkoutActivityTypeOther
+  };
+  
+  return workoutTypes[type] || 'Other';
+};
 ```
 
-### 2. Tratamento de Valores Invalidos
-```swift
-// speed e course podem ser -1 quando invalidos
-"speed": location.speed >= 0 ? location.speed : 0,
-"course": location.course >= 0 ? location.course : 0,
+### Arquivo: `src/hooks/useAveragePaceComparison.ts`
+
+Expandir a lista de tipos de corrida para incluir os novos valores:
+
+```typescript
+const RUNNING_TYPES = [
+  'run', 'running', 'treadmill_running', 'trail_running', 'virtualrun',
+  'virtual_run', 'track_running', 'indoor_running', 'hike', 'hiking'
+];
 ```
 
-### 3. Logs Detalhados
-Adicionados logs em cada etapa para facilitar debug no Xcode.
+## Corrigir Atividades Existentes
+
+Apos o deploy, sera necessario atualizar as atividades ja sincronizadas que estao com tipo incorreto. Isso pode ser feito de duas formas:
+
+### Opção 1: SQL direto (recomendado para correção pontual)
+
+```sql
+-- Atualizar atividade específica
+UPDATE healthkit_activities 
+SET activity_type = 'Run'
+WHERE healthkit_uuid = '2900C1F1-4FF1-4501-A3FB-2DBE840485C4';
+```
+
+### Opção 2: Re-sincronizar do HealthKit
+
+O usuario pode forcar uma nova sincronizacao, que agora usara o mapeamento correto.
 
 ## Arquivos Afetados
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `ios/App/App/BioPeakHealthKit.swift` | Refatorar funcao `queryWorkoutRoute` |
+| Arquivo | Tipo de Alteração |
+|---------|-------------------|
+| `src/hooks/useHealthKitSync.ts` | Corrigir função `mapWorkoutType` com valores corretos do enum |
+| `src/hooks/useAveragePaceComparison.ts` | Expandir lista `RUNNING_TYPES` para incluir 'hike' |
 
-## Apos o Deploy
+## Resultado Esperado
 
-Para testar a correcao:
+Apos as correções:
 
-1. Rebuild o app iOS no Xcode
-2. Execute uma sincronizacao do HealthKit
-3. Verifique os logs no console do Xcode
-4. Confirme que `locations_count > 0` nas atividades sincronizadas
-
-## Re-sincronizar Atividades Existentes
-
-As atividades ja sincronizadas sem GPS precisarao ser re-sincronizadas para obter os dados de rota. Opcoes:
-
-1. **Manual**: Usuario clica em "Sincronizar" novamente
-2. **Automatico**: Adicionar logica para detectar atividades sem GPS e re-buscar
+1. Novas sincronizações do HealthKit vão salvar o tipo de atividade correto (Run, Walk, Cycle, Swim, etc.)
+2. O card de "Comparação com a Comunidade" vai aparecer para todas as atividades de corrida, ciclismo e natação
+3. As estatísticas de evolução vão agrupar corretamente as atividades por tipo
 
 ## Resumo
 
-O problema era um **predicate incorreto** no Swift. O HealthKit usa `predicateForObjects(from: workout)` para buscar objetos associados a um workout, nao `predicateForObject(with: UUID)` que busca pelo UUID do proprio objeto. Esta correcao permite que o app recupere todos os dados de GPS que a Apple disponibiliza.
+O problema era um mapeamento incorreto dos valores numéricos do enum `HKWorkoutActivityType` da Apple. O código usava valores arbitrários (1, 2, 3, 4, 5) quando os valores reais da Apple são diferentes (37 para corrida, 52 para caminhada, etc.). A correção é simples: atualizar o dicionário de mapeamento com os valores corretos.
