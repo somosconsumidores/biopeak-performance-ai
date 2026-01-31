@@ -86,52 +86,100 @@ public class BioPeakHealthKit: CAPPlugin, CAPBridgedPlugin {
     }
     
     @objc public func queryWorkoutRoute(_ call: CAPPluginCall) {
-        guard let workoutUUID = call.getString("workoutUUID") else {
-            call.reject("Missing workoutUUID parameter")
+        guard let workoutUUIDString = call.getString("workoutUUID"),
+              let workoutUUID = UUID(uuidString: workoutUUIDString) else {
+            call.reject("Missing or invalid workoutUUID parameter")
             return
         }
         
-        let predicate = HKQuery.predicateForObject(with: UUID(uuidString: workoutUUID)!)
-        let query = HKAnchoredObjectQuery(type: HKSeriesType.workoutRoute(),
-                                         predicate: predicate,
-                                         anchor: nil,
-                                         limit: HKObjectQueryNoLimit) { _, samples, _, _, error in
+        // Step 1: First, fetch the HKWorkout object using its UUID
+        let workoutPredicate = HKQuery.predicateForObject(with: workoutUUID)
+        let workoutQuery = HKSampleQuery(
+            sampleType: HKWorkoutType.workoutType(),
+            predicate: workoutPredicate,
+            limit: 1,
+            sortDescriptors: nil
+        ) { [weak self] _, samples, error in
             
-            guard let routes = samples as? [HKWorkoutRoute], let route = routes.first, error == nil else {
-                call.resolve(["locations": []])
+            guard let self = self,
+                  let workouts = samples as? [HKWorkout],
+                  let workout = workouts.first,
+                  error == nil else {
+                print("[BioPeakHealthKit] Could not find workout with UUID: \(workoutUUIDString)")
+                DispatchQueue.main.async {
+                    call.resolve(["locations": [], "error": "Workout not found"])
+                }
                 return
             }
             
-            var locations: [[String: Any]] = []
-            let locationQuery = HKWorkoutRouteQuery(route: route) { _, locationResults, done, error in
+            print("[BioPeakHealthKit] Found workout: \(workout.uuid.uuidString)")
+            
+            // Step 2: Query routes ASSOCIATED with this workout (correct predicate)
+            let routePredicate = HKQuery.predicateForObjects(from: workout)
+            let routeQuery = HKAnchoredObjectQuery(
+                type: HKSeriesType.workoutRoute(),
+                predicate: routePredicate,
+                anchor: nil,
+                limit: HKObjectQueryNoLimit
+            ) { _, samples, _, _, error in
                 
-                if let locationResults = locationResults {
-                    for location in locationResults {
-                        let locationData: [String: Any] = [
-                            "latitude": location.coordinate.latitude,
-                            "longitude": location.coordinate.longitude,
-                            "altitude": location.altitude,
-                            "timestamp": ISO8601DateFormatter().string(from: location.timestamp),
-                            "speed": location.speed,
-                            "course": location.course,
-                            "horizontalAccuracy": location.horizontalAccuracy,
-                            "verticalAccuracy": location.verticalAccuracy
-                        ]
-                        locations.append(locationData)
-                    }
-                }
-                
-                if done {
+                guard let routes = samples as? [HKWorkoutRoute], error == nil else {
+                    print("[BioPeakHealthKit] No routes found for workout: \(error?.localizedDescription ?? "unknown error")")
                     DispatchQueue.main.async {
-                        call.resolve(["locations": locations])
+                        call.resolve(["locations": []])
+                    }
+                    return
+                }
+                
+                print("[BioPeakHealthKit] Found \(routes.count) route(s) for workout")
+                
+                guard let route = routes.first else {
+                    DispatchQueue.main.async {
+                        call.resolve(["locations": []])
+                    }
+                    return
+                }
+                
+                // Step 3: Extract location data from the route
+                var locations: [[String: Any]] = []
+                let locationQuery = HKWorkoutRouteQuery(route: route) { _, locationResults, done, error in
+                    
+                    if let error = error {
+                        print("[BioPeakHealthKit] Route query error: \(error.localizedDescription)")
+                    }
+                    
+                    if let locationResults = locationResults {
+                        print("[BioPeakHealthKit] Received batch of \(locationResults.count) locations")
+                        for location in locationResults {
+                            let locationData: [String: Any] = [
+                                "latitude": location.coordinate.latitude,
+                                "longitude": location.coordinate.longitude,
+                                "altitude": location.altitude,
+                                "timestamp": ISO8601DateFormatter().string(from: location.timestamp),
+                                "speed": location.speed >= 0 ? location.speed : 0,
+                                "course": location.course >= 0 ? location.course : 0,
+                                "horizontalAccuracy": location.horizontalAccuracy,
+                                "verticalAccuracy": location.verticalAccuracy
+                            ]
+                            locations.append(locationData)
+                        }
+                    }
+                    
+                    if done {
+                        print("[BioPeakHealthKit] Route query complete. Total locations: \(locations.count)")
+                        DispatchQueue.main.async {
+                            call.resolve(["locations": locations])
+                        }
                     }
                 }
+                
+                self.healthStore.execute(locationQuery)
             }
             
-            self.healthStore.execute(locationQuery)
+            self.healthStore.execute(routeQuery)
         }
         
-        healthStore.execute(query)
+        healthStore.execute(workoutQuery)
     }
     
     @objc public func queryWorkoutSeries(_ call: CAPPluginCall) {
