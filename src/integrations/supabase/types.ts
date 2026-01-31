@@ -2293,6 +2293,63 @@ export type Database = {
         }
         Relationships: []
       }
+      healthkit_sleep_summaries: {
+        Row: {
+          awake_seconds: number | null
+          calendar_date: string
+          created_at: string | null
+          deep_sleep_seconds: number | null
+          end_time: string | null
+          id: string
+          in_bed_seconds: number | null
+          light_sleep_seconds: number | null
+          rem_sleep_seconds: number | null
+          sleep_score: number | null
+          source_name: string | null
+          start_time: string | null
+          synced_at: string | null
+          total_sleep_seconds: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          awake_seconds?: number | null
+          calendar_date: string
+          created_at?: string | null
+          deep_sleep_seconds?: number | null
+          end_time?: string | null
+          id?: string
+          in_bed_seconds?: number | null
+          light_sleep_seconds?: number | null
+          rem_sleep_seconds?: number | null
+          sleep_score?: number | null
+          source_name?: string | null
+          start_time?: string | null
+          synced_at?: string | null
+          total_sleep_seconds?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          awake_seconds?: number | null
+          calendar_date?: string
+          created_at?: string | null
+          deep_sleep_seconds?: number | null
+          end_time?: string | null
+          id?: string
+          in_bed_seconds?: number | null
+          light_sleep_seconds?: number | null
+          rem_sleep_seconds?: number | null
+          sleep_score?: number | null
+          source_name?: string | null
+          start_time?: string | null
+          synced_at?: string | null
+          total_sleep_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       healthkit_sync_status: {
         Row: {
           activities_synced: number | null
