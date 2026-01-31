@@ -11,7 +11,8 @@ public class BioPeakHealthKit: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "queryWorkouts", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "queryWorkoutRoute", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "queryWorkoutSeries", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "queryWorkoutSeries", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "querySleepData", returnType: CAPPluginReturnPromise)
     ]
     private let healthStore = HKHealthStore()
     
@@ -31,7 +32,8 @@ public class BioPeakHealthKit: CAPPlugin, CAPBridgedPlugin {
             HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
             HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
             HKQuantityType.quantityType(forIdentifier: .stepCount)!,
-            HKSeriesType.workoutRoute()
+            HKSeriesType.workoutRoute(),
+            HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
         ]
         
         healthStore.requestAuthorization(toShare: [], read: readTypes) { success, error in
@@ -254,5 +256,117 @@ public class BioPeakHealthKit: CAPPlugin, CAPBridgedPlugin {
         group.notify(queue: .main) {
             call.resolve(["series": seriesData])
         }
+    }
+    
+    @objc public func querySleepData(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("HealthKit not available")
+            return
+        }
+        
+        let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
+        let startDate = Date(timeIntervalSinceNow: -7 * 24 * 60 * 60) // Last 7 days
+        let endDate = Date()
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        
+        let query = HKSampleQuery(
+            sampleType: sleepType,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { _, samples, error in
+            
+            guard let samples = samples as? [HKCategorySample], error == nil else {
+                print("[BioPeakHealthKit] Sleep query error: \(error?.localizedDescription ?? "unknown")")
+                DispatchQueue.main.async {
+                    call.resolve(["sleepSessions": []])
+                }
+                return
+            }
+            
+            print("[BioPeakHealthKit] Found \(samples.count) sleep samples")
+            
+            // Group samples by night (using calendar date of end time)
+            var sessionsByDate: [String: [String: Int]] = [:]
+            let calendar = Calendar.current
+            let formatter = ISO8601DateFormatter()
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            
+            for sample in samples {
+                // Use the end date's calendar day as the sleep date
+                let sleepDate = dateFormatter.string(from: sample.endDate)
+                
+                if sessionsByDate[sleepDate] == nil {
+                    sessionsByDate[sleepDate] = [
+                        "inBedSeconds": 0,
+                        "asleepSeconds": 0,
+                        "deepSleepSeconds": 0,
+                        "lightSleepSeconds": 0,
+                        "remSleepSeconds": 0,
+                        "awakeSeconds": 0
+                    ]
+                }
+                
+                let durationSeconds = Int(sample.endDate.timeIntervalSince(sample.startDate))
+                
+                // HKCategoryValueSleepAnalysis enum values:
+                // 0 = inBed, 1 = asleepUnspecified, 2 = awake, 3 = asleepCore (light), 4 = asleepDeep, 5 = asleepREM
+                switch sample.value {
+                case 0: // inBed
+                    sessionsByDate[sleepDate]?["inBedSeconds"]? += durationSeconds
+                case 1: // asleepUnspecified - treat as light sleep
+                    sessionsByDate[sleepDate]?["asleepSeconds"]? += durationSeconds
+                    sessionsByDate[sleepDate]?["lightSleepSeconds"]? += durationSeconds
+                case 2: // awake
+                    sessionsByDate[sleepDate]?["awakeSeconds"]? += durationSeconds
+                case 3: // asleepCore (light sleep)
+                    sessionsByDate[sleepDate]?["asleepSeconds"]? += durationSeconds
+                    sessionsByDate[sleepDate]?["lightSleepSeconds"]? += durationSeconds
+                case 4: // asleepDeep
+                    sessionsByDate[sleepDate]?["asleepSeconds"]? += durationSeconds
+                    sessionsByDate[sleepDate]?["deepSleepSeconds"]? += durationSeconds
+                case 5: // asleepREM
+                    sessionsByDate[sleepDate]?["asleepSeconds"]? += durationSeconds
+                    sessionsByDate[sleepDate]?["remSleepSeconds"]? += durationSeconds
+                default:
+                    break
+                }
+            }
+            
+            // Convert to array of sleep sessions
+            var sleepSessions: [[String: Any]] = []
+            
+            for (date, data) in sessionsByDate {
+                let totalSleepSeconds = data["asleepSeconds"] ?? 0
+                
+                // Skip if no actual sleep recorded
+                if totalSleepSeconds < 60 {
+                    continue
+                }
+                
+                let session: [String: Any] = [
+                    "date": date,
+                    "inBedSeconds": data["inBedSeconds"] ?? 0,
+                    "totalSleepSeconds": totalSleepSeconds,
+                    "deepSleepSeconds": data["deepSleepSeconds"] ?? 0,
+                    "lightSleepSeconds": data["lightSleepSeconds"] ?? 0,
+                    "remSleepSeconds": data["remSleepSeconds"] ?? 0,
+                    "awakeSeconds": data["awakeSeconds"] ?? 0
+                ]
+                sleepSessions.append(session)
+            }
+            
+            // Sort by date descending
+            sleepSessions.sort { ($0["date"] as? String ?? "") > ($1["date"] as? String ?? "") }
+            
+            print("[BioPeakHealthKit] Processed \(sleepSessions.count) sleep sessions")
+            
+            DispatchQueue.main.async {
+                call.resolve(["sleepSessions": sleepSessions])
+            }
+        }
+        
+        healthStore.execute(query)
     }
 }

@@ -392,57 +392,105 @@ export function useDashboardMetrics() {
         .limit(1)
         .maybeSingle();
 
-      if (polarError || !polarSleep) {
+      if (!polarError && polarSleep) {
+        const deepMin = polarSleep.deep_sleep || 0;
+        const lightMin = polarSleep.light_sleep || 0;
+        const remMin = polarSleep.rem_sleep || 0;
+        const stagesTotal = deepMin + lightMin + remMin;
+
+        // total_sleep pode já estar em minutos. Se ausente, somamos as fases.
+        let totalMinutes: number = polarSleep.total_sleep || 0;
+        if (!totalMinutes || totalMinutes <= 0) totalMinutes = stagesTotal;
+
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const hoursSlept = `${hours}h ${minutes}m`;
+
+        const deepPercentage = stagesTotal > 0 ? Math.round((deepMin / stagesTotal) * 100) : 0;
+        const lightPercentage = stagesTotal > 0 ? Math.round((lightMin / stagesTotal) * 100) : 0;
+        const remPercentage = stagesTotal > 0 ? Math.round((remMin / stagesTotal) * 100) : 0;
+
+        const sleepScore = polarSleep.sleep_score || 0;
+        let qualityComment = '';
+        if (sleepScore >= 80) qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
+        else if (sleepScore >= 70) qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
+        else if (sleepScore >= 60) qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
+        else if (sleepScore > 0) qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
+        else qualityComment = 'Score de sono não disponível para esta noite.';
+
+        const lastSleepDate = new Date(polarSleep.date).toLocaleDateString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
         return {
-          sleepScore: null,
-          lastSleepDate: null,
-          hoursSlept: null,
-          qualityComment: 'Ainda não há dados de sono registrados.',
-          deepSleepPercentage: 0,
-          lightSleepPercentage: 0,
-          remSleepPercentage: 0,
-          totalSleepMinutes: 0,
+          sleepScore,
+          lastSleepDate,
+          hoursSlept,
+          qualityComment,
+          deepSleepPercentage: deepPercentage,
+          lightSleepPercentage: lightPercentage,
+          remSleepPercentage: remPercentage,
+          totalSleepMinutes: totalMinutes,
         };
       }
 
-      const deepMin = polarSleep.deep_sleep || 0;
-      const lightMin = polarSleep.light_sleep || 0;
-      const remMin = polarSleep.rem_sleep || 0;
-      const stagesTotal = deepMin + lightMin + remMin;
+      // 3) Fallback para HealthKit (Apple Watch)
+      const { data: hkSleep, error: hkError } = await supabase
+        .from('healthkit_sleep_summaries')
+        .select('calendar_date,total_sleep_seconds,deep_sleep_seconds,light_sleep_seconds,rem_sleep_seconds,awake_seconds,sleep_score')
+        .eq('user_id', user.id)
+        .order('calendar_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // total_sleep pode já estar em minutos. Se ausente, somamos as fases.
-      let totalMinutes: number = polarSleep.total_sleep || 0;
-      if (!totalMinutes || totalMinutes <= 0) totalMinutes = stagesTotal;
+      if (!hkError && hkSleep) {
+        const totalSleepSeconds = hkSleep.total_sleep_seconds || 0;
+        const hours = Math.floor(totalSleepSeconds / 3600);
+        const minutes = Math.floor((totalSleepSeconds % 3600) / 60);
+        const hoursSlept = `${hours}h ${minutes}m`;
 
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      const hoursSlept = `${hours}h ${minutes}m`;
+        const deepSeconds = hkSleep.deep_sleep_seconds || 0;
+        const lightSeconds = hkSleep.light_sleep_seconds || 0;
+        const remSeconds = hkSleep.rem_sleep_seconds || 0;
+        const totalSeconds = deepSeconds + lightSeconds + remSeconds;
 
-      const deepPercentage = stagesTotal > 0 ? Math.round((deepMin / stagesTotal) * 100) : 0;
-      const lightPercentage = stagesTotal > 0 ? Math.round((lightMin / stagesTotal) * 100) : 0;
-      const remPercentage = stagesTotal > 0 ? Math.round((remMin / stagesTotal) * 100) : 0;
+        const deepPercentage = totalSeconds > 0 ? Math.round((deepSeconds / totalSeconds) * 100) : 0;
+        const lightPercentage = totalSeconds > 0 ? Math.round((lightSeconds / totalSeconds) * 100) : 0;
+        const remPercentage = totalSeconds > 0 ? Math.round((remSeconds / totalSeconds) * 100) : 0;
 
-      const sleepScore = polarSleep.sleep_score || 0;
-      let qualityComment = '';
-      if (sleepScore >= 80) qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
-      else if (sleepScore >= 70) qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
-      else if (sleepScore >= 60) qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
-      else if (sleepScore > 0) qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
-      else qualityComment = 'Score de sono não disponível para esta noite.';
+        const sleepScore = hkSleep.sleep_score || 0;
+        let qualityComment = '';
+        if (sleepScore >= 80) qualityComment = 'Excelente qualidade de sono! Você teve uma noite muito restauradora.';
+        else if (sleepScore >= 70) qualityComment = 'Boa qualidade de sono. Algumas melhorias podem ser feitas.';
+        else if (sleepScore >= 60) qualityComment = 'Qualidade regular. Considere melhorar sua rotina de sono.';
+        else if (sleepScore > 0) qualityComment = 'Sono de baixa qualidade. É importante priorizar o descanso.';
+        else qualityComment = 'Score de sono não disponível para esta noite.';
 
-      const lastSleepDate = new Date(polarSleep.date).toLocaleDateString('pt-BR', {
-        day: '2-digit', month: '2-digit', year: 'numeric'
-      });
+        const lastSleepDate = new Date(hkSleep.calendar_date).toLocaleDateString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        return {
+          sleepScore,
+          lastSleepDate,
+          hoursSlept,
+          qualityComment,
+          deepSleepPercentage: deepPercentage,
+          lightSleepPercentage: lightPercentage,
+          remSleepPercentage: remPercentage,
+          totalSleepMinutes: Math.round(totalSleepSeconds / 60),
+        };
+      }
 
       return {
-        sleepScore,
-        lastSleepDate,
-        hoursSlept,
-        qualityComment,
-        deepSleepPercentage: deepPercentage,
-        lightSleepPercentage: lightPercentage,
-        remSleepPercentage: remPercentage,
-        totalSleepMinutes: totalMinutes,
+        sleepScore: null,
+        lastSleepDate: null,
+        hoursSlept: null,
+        qualityComment: 'Ainda não há dados de sono registrados.',
+        deepSleepPercentage: 0,
+        lightSleepPercentage: 0,
+        remSleepPercentage: 0,
+        totalSleepMinutes: 0,
       };
       })();
 

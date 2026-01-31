@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { HealthKit, HealthKitWorkout, HealthKitLocation, HealthKitSeriesData } from '@/lib/healthkit';
+import { HealthKit, HealthKitWorkout, HealthKitLocation, HealthKitSeriesData, HealthKitSleepSession } from '@/lib/healthkit';
 import { useAuth } from './useAuth';
 
 export interface SyncResult {
@@ -75,6 +75,48 @@ export const useHealthKitSync = () => {
     return workoutTypes[type] || 'Other';
   };
 
+  /**
+   * Calculate a sleep score based on sleep duration and stage quality
+   * Since Apple doesn't provide a native sleep score, we calculate one
+   */
+  const calculateSleepScore = (session: HealthKitSleepSession): number => {
+    const totalHours = session.totalSleepSeconds / 3600;
+    const totalStageSeconds = session.deepSleepSeconds + session.lightSleepSeconds + session.remSleepSeconds;
+    
+    // Base score from duration (target: 8 hours = 100%)
+    let baseScore = Math.min(100, (totalHours / 8) * 100);
+    
+    // Quality bonuses/penalties
+    let qualityAdjustment = 0;
+    
+    if (totalStageSeconds > 0) {
+      const deepPercentage = (session.deepSleepSeconds / totalStageSeconds) * 100;
+      const remPercentage = (session.remSleepSeconds / totalStageSeconds) * 100;
+      
+      // Bonus for good deep sleep (target: 15-20%)
+      if (deepPercentage >= 15) qualityAdjustment += 10;
+      else if (deepPercentage >= 10) qualityAdjustment += 5;
+      
+      // Bonus for good REM sleep (target: 20-25%)
+      if (remPercentage >= 20) qualityAdjustment += 10;
+      else if (remPercentage >= 15) qualityAdjustment += 5;
+    }
+    
+    // Penalty for being awake too much
+    if (session.inBedSeconds > 0) {
+      const awakePercentage = (session.awakeSeconds / session.inBedSeconds) * 100;
+      if (awakePercentage > 10) qualityAdjustment -= 10;
+      else if (awakePercentage > 5) qualityAdjustment -= 5;
+    }
+    
+    // Penalty for sleeping less than 6 hours
+    if (totalHours < 6) {
+      qualityAdjustment -= (6 - totalHours) * 5;
+    }
+    
+    return Math.round(Math.max(0, Math.min(100, baseScore + qualityAdjustment)));
+  };
+
   const processHeartRateData = (heartRateData?: Array<{timestamp: string; value: number}>): {avg?: number; max?: number} => {
     if (!heartRateData || heartRateData.length === 0) return {};
     
@@ -95,9 +137,9 @@ export const useHealthKitSync = () => {
     try {
       console.log('[HealthKitSync] Starting sync process');
       
-      // Check permissions first
+      // Check permissions first (including sleep)
       const authResult = await HealthKit.requestAuthorization({
-        read: ['workouts', 'heart_rate', 'calories', 'distance', 'steps'],
+        read: ['workouts', 'heart_rate', 'calories', 'distance', 'steps', 'sleep'],
         write: []
       });
 
@@ -250,8 +292,49 @@ export const useHealthKitSync = () => {
           onConflict: 'user_id'
         });
 
+      // Also sync sleep data
+      let sleepSyncedCount = 0;
+      try {
+        const sleepSessions = await HealthKit.querySleepData();
+        console.log(`[HealthKitSync] Found ${sleepSessions.length} sleep sessions`);
+        
+        for (const session of sleepSessions) {
+          try {
+            const sleepScore = calculateSleepScore(session);
+            
+            const { error } = await supabase
+              .from('healthkit_sleep_summaries')
+              .upsert({
+                user_id: user.id,
+                calendar_date: session.date,
+                in_bed_seconds: session.inBedSeconds,
+                total_sleep_seconds: session.totalSleepSeconds,
+                deep_sleep_seconds: session.deepSleepSeconds,
+                light_sleep_seconds: session.lightSleepSeconds,
+                rem_sleep_seconds: session.remSleepSeconds,
+                awake_seconds: session.awakeSeconds,
+                sleep_score: sleepScore,
+                source_name: 'Apple Watch',
+                synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,calendar_date'
+              });
+
+            if (!error) {
+              sleepSyncedCount++;
+            }
+          } catch (e) {
+            console.error(`[HealthKitSync] Error syncing sleep ${session.date}:`, e);
+          }
+        }
+        console.log(`[HealthKitSync] Synced ${sleepSyncedCount} sleep sessions`);
+      } catch (sleepError) {
+        console.error('[HealthKitSync] Error syncing sleep data:', sleepError);
+      }
+
       const result: SyncResult = {
-        message: `Successfully synced ${syncedCount} of ${workouts.length} activities`,
+        message: `Synced ${syncedCount} activities${sleepSyncedCount > 0 ? ` and ${sleepSyncedCount} sleep nights` : ''}`,
         syncedCount,
         totalCount: workouts.length,
         lastSyncAt: new Date().toISOString()

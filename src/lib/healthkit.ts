@@ -47,10 +47,21 @@ export interface HealthKitSeriesData {
   }>;
 }
 
+export interface HealthKitSleepSession {
+  date: string;
+  inBedSeconds: number;
+  totalSleepSeconds: number;
+  deepSleepSeconds: number;
+  lightSleepSeconds: number;
+  remSleepSeconds: number;
+  awakeSeconds: number;
+}
+
 export interface HealthKitQueryResult {
   workouts?: HealthKitWorkout[];
   locations?: HealthKitLocation[];
   series?: HealthKitSeriesData;
+  sleepSessions?: HealthKitSleepSession[];
   resultData?: HealthKitSample[]; // Legacy compatibility
 }
 
@@ -82,6 +93,7 @@ interface BioPeakHealthKitPlugin {
   queryWorkouts(): Promise<{ workouts: HealthKitWorkout[] }>;
   queryWorkoutRoute(options: { workoutUUID: string }): Promise<{ locations: HealthKitLocation[] }>;
   queryWorkoutSeries(options: { workoutUUID: string; startDate: string; endDate: string }): Promise<{ series: HealthKitSeriesData }>;
+  querySleepData(): Promise<{ sleepSessions: HealthKitSleepSession[] }>;
 }
 
 const BioPeakHealthKit = registerPlugin<BioPeakHealthKitPlugin>('BioPeakHealthKit');
@@ -236,6 +248,48 @@ class HealthKitWrapper {
     }
   }
 
+  async querySleepData(): Promise<HealthKitSleepSession[]> {
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+      try {
+        console.log('[BioPeakHealthKit] Querying sleep data');
+        const result = await this.plugin.querySleepData();
+        console.log('[BioPeakHealthKit] Found', result.sleepSessions?.length || 0, 'sleep sessions');
+        return result.sleepSessions || [];
+      } catch (error) {
+        console.error('[BioPeakHealthKit] Error querying sleep data:', error);
+        return [];
+      }
+    } else {
+      // Mock sleep data for development
+      console.log('[BioPeakHealthKit] Mock: Querying sleep data');
+      const today = new Date();
+      const mockSessions: HealthKitSleepSession[] = [];
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const totalSleep = 25200 + Math.floor(Math.random() * 7200); // 7-9 hours
+        const deepSleep = Math.floor(totalSleep * (0.15 + Math.random() * 0.1)); // 15-25%
+        const remSleep = Math.floor(totalSleep * (0.18 + Math.random() * 0.1)); // 18-28%
+        const lightSleep = totalSleep - deepSleep - remSleep;
+        
+        mockSessions.push({
+          date: dateStr,
+          inBedSeconds: totalSleep + Math.floor(Math.random() * 1800),
+          totalSleepSeconds: totalSleep,
+          deepSleepSeconds: deepSleep,
+          lightSleepSeconds: lightSleep,
+          remSleepSeconds: remSleep,
+          awakeSeconds: Math.floor(Math.random() * 600)
+        });
+      }
+      
+      return mockSessions;
+    }
+  }
+
   // Legacy compatibility method
   async queryHKitSampleType(options: HealthKitQueryOptions): Promise<HealthKitQueryResult> {
     console.log('[BioPeakHealthKit] Legacy method called, redirecting to new API');
@@ -266,7 +320,8 @@ class HealthKitWrapper {
       'distance': 'HKQuantityTypeIdentifierDistanceWalkingRunning', 
       'calories': 'HKQuantityTypeIdentifierActiveEnergyBurned',
       'activity': 'HKWorkoutTypeIdentifier',
-      'heart_rate': 'HKQuantityTypeIdentifierHeartRate'
+      'heart_rate': 'HKQuantityTypeIdentifierHeartRate',
+      'sleep': 'HKCategoryTypeIdentifierSleepAnalysis'
     };
     
     return permissionMap[permission] || permission;
