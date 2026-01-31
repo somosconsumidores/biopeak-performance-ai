@@ -1,180 +1,238 @@
 
-# Correção: Gráfico de Evolução de Ritmo para Atividades HealthKit sem Dados de Distância por Intervalo
+# Plano: Corrigir Query de Rotas GPS no Plugin BioPeakHealthKit
 
-## Diagnóstico Completo
+## Problema Identificado
 
-### Problema Identificado
+O plugin nativo `BioPeakHealthKit.swift` não consegue recuperar dados de GPS porque usa o predicate incorreto para buscar rotas de workout.
 
-A atividade `2900C1F1-4FF1-4501-A3FB-2DBE840485C4` (HealthKit) mostra no gráfico:
-- **Pace exibido**: ~8:14/km (linha praticamente reta)
-- **Pace real**: 5:52/km (5.86 min/km)
-- **Distância máxima no gráfico**: 4.3km
-- **Distância real**: 6.05km
+### Codigo Atual (Incorreto)
+```swift
+// Linha 94 - BioPeakHealthKit.swift
+let predicate = HKQuery.predicateForObject(with: UUID(uuidString: workoutUUID)!)
+```
 
-### Causa Raiz
+Este predicate busca um objeto **pelo seu proprio UUID**. Porem, `HKWorkoutRoute` tem um UUID diferente do `HKWorkout` - a rota e apenas **associada** ao workout, nao possui o mesmo identificador.
 
-O HealthKit envia 3 tipos de séries temporais, mas **nem todas estão presentes em toda atividade**:
+### Codigo Correto
+```swift
+let workoutPredicate = HKQuery.predicateForObjects(from: workout)
+```
 
-| Série | Disponível | Quantidade |
-|-------|------------|------------|
-| `energy` (calorias) | ✅ Sim | 827 amostras |
-| `heartRate` (FC) | ✅ Sim | 426 amostras |
-| `distances` (distância por intervalo) | ❌ Não | 0 amostras |
+Este predicate busca objetos **associados a um workout especifico**.
 
-Quando **não há dados de `distances`**, o algoritmo atual tenta **estimar velocidade usando energia**, o que é incorreto:
+## Solucao
+
+### Passo 1: Modificar a funcao `queryWorkoutRoute`
+
+A funcao precisa ser refatorada em duas etapas:
+
+1. **Primeiro**: Buscar o objeto `HKWorkout` usando o UUID fornecido
+2. **Depois**: Usar o workout encontrado para buscar as rotas associadas com `predicateForObjects(from:)`
+
+### Alteracoes no Arquivo
+
+**Arquivo**: `ios/App/App/BioPeakHealthKit.swift`
+
+**Funcao**: `queryWorkoutRoute` (linhas 88-135)
 
 ```text
-Lógica atual (incorreta):
-  energia alta → velocidade alta
-  energia baixa → velocidade baixa
-  
-Problema: energia não correlaciona diretamente com velocidade
-          (subir ladeira = mais energia, menor velocidade)
+ANTES (nao funciona):
+  1. Recebe workoutUUID como string
+  2. Cria predicate com HKQuery.predicateForObject(with: UUID)
+  3. Busca HKWorkoutRoute diretamente (falha - UUID nao corresponde)
+  4. Retorna array vazio
+
+DEPOIS (correto):
+  1. Recebe workoutUUID como string
+  2. Primeiro busca o HKWorkout usando predicateForObject
+  3. Com o workout encontrado, usa predicateForObjects(from: workout)
+  4. Busca HKWorkoutRoute com o predicate correto
+  5. Extrai localizacoes da rota
+  6. Retorna array com dados GPS
 ```
 
-### Por que 826 pontos têm pace ~8.2 min/km?
+### Codigo da Correcao
 
-O algoritmo calcula:
-1. `baseSpeed = totalDistance / totalDuration` = 6049m / 2128s = **2.84 m/s**
-2. `speedMultiplier = 0.7 + (normalizedEnergy * 0.8)` → varia de 0.7 a 1.5
-3. Como a energia é relativamente uniforme, quase todos multiplicadores ficam próximos de **0.7**
-4. `speed = 2.84 * 0.7 = ~2.0 m/s` → equivale a **~8.3 min/km**
-
-## Solução Proposta
-
-### Abordagem: Usar Distância Linear Interpolada
-
-Quando não há dados de `distances`, a melhor abordagem é **assumir velocidade constante** (pace médio) e interpolar a distância linearmente. Isso é mais preciso do que tentar estimar usando energia.
-
-### Alterações no Código
-
-#### Arquivo: `supabase/functions/calculate-activity-chart-data/index.ts`
-
-Modificar a seção de processamento HealthKit (linhas ~274-370):
-
-```text
-ANTES:
-  - Calcular velocidade baseada em energia (speedMultiplier = 0.7-1.5)
-  - Somar distâncias cumulativas baseadas em estimativas
-
-DEPOIS:
-  1. Verificar se existem dados de `distances` no raw_data
-  2. SE existirem: usar distâncias reais para calcular velocidade
-  3. SE NÃO existirem:
-     a. Calcular velocidade média: avgSpeed = totalDistance / totalDuration
-     b. Interpolar distância linearmente ao longo do tempo
-     c. Usar avgSpeed como velocidade para todos os pontos
-     d. Resultado: gráfico mostra pace médio real (5:52/km) consistentemente
-```
-
-### Código da Solução
-
-1. **Adicionar verificação de dados de distância**:
-```typescript
-// Check if we have actual distance samples from HealthKit
-const distanceSamples = healthkitActivity.raw_data.distances || [];
-const hasDistanceData = distanceSamples.length > 0;
-```
-
-2. **Se houver dados de distância, usar diretamente**:
-```typescript
-if (hasDistanceData) {
-  // Use actual distance samples for accurate pace calculation
-  rows = distanceSamples.map((distPoint, index) => {
-    const timestamp = new Date(distPoint.timestamp).getTime() / 1000;
-    const distance = distPoint.value; // cumulative distance
-    const relativeTime = timestamp - activityStartTime;
-    
-    // Calculate speed from consecutive distance points
-    let speed = avgSpeed;
-    if (index > 0) {
-      const prevDist = distanceSamples[index - 1].value;
-      const prevTime = new Date(distanceSamples[index - 1].timestamp).getTime() / 1000;
-      const deltaD = distance - prevDist;
-      const deltaT = timestamp - prevTime;
-      if (deltaT > 0) speed = deltaD / deltaT;
+```swift
+@objc public func queryWorkoutRoute(_ call: CAPPluginCall) {
+    guard let workoutUUIDString = call.getString("workoutUUID"),
+          let workoutUUID = UUID(uuidString: workoutUUIDString) else {
+        call.reject("Missing or invalid workoutUUID parameter")
+        return
     }
     
-    return {
-      sample_timestamp: timestamp,
-      timer_duration_in_seconds: relativeTime,
-      heart_rate: interpolateHeartRate(timestamp),
-      total_distance_in_meters: distance,
-      speed_meters_per_second: speed,
-    };
-  });
-}
-```
-
-3. **Se NÃO houver dados de distância, usar interpolação linear**:
-```typescript
-else {
-  // No distance data - use linear interpolation with average speed
-  const avgSpeed = totalDistance / totalDuration;
-  
-  rows = primaryData.map((point, index) => {
-    const timestamp = new Date(point.timestamp).getTime() / 1000;
-    const relativeTime = timestamp - activityStartTime;
+    // Step 1: First, fetch the HKWorkout object using its UUID
+    let workoutPredicate = HKQuery.predicateForObject(with: workoutUUID)
+    let workoutQuery = HKSampleQuery(
+        sampleType: HKWorkoutType.workoutType(),
+        predicate: workoutPredicate,
+        limit: 1,
+        sortDescriptors: nil
+    ) { [weak self] _, samples, error in
+        
+        guard let self = self,
+              let workouts = samples as? [HKWorkout],
+              let workout = workouts.first,
+              error == nil else {
+            print("[BioPeakHealthKit] Could not find workout with UUID: \(workoutUUIDString)")
+            DispatchQueue.main.async {
+                call.resolve(["locations": [], "error": "Workout not found"])
+            }
+            return
+        }
+        
+        print("[BioPeakHealthKit] Found workout: \(workout.uuid.uuidString)")
+        
+        // Step 2: Query routes ASSOCIATED with this workout (correct predicate)
+        let routePredicate = HKQuery.predicateForObjects(from: workout)
+        let routeQuery = HKAnchoredObjectQuery(
+            type: HKSeriesType.workoutRoute(),
+            predicate: routePredicate,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit
+        ) { _, samples, _, _, error in
+            
+            guard let routes = samples as? [HKWorkoutRoute], error == nil else {
+                print("[BioPeakHealthKit] No routes found for workout: \(error?.localizedDescription ?? "unknown error")")
+                DispatchQueue.main.async {
+                    call.resolve(["locations": []])
+                }
+                return
+            }
+            
+            print("[BioPeakHealthKit] Found \(routes.count) route(s) for workout")
+            
+            guard let route = routes.first else {
+                DispatchQueue.main.async {
+                    call.resolve(["locations": []])
+                }
+                return
+            }
+            
+            // Step 3: Extract location data from the route
+            var locations: [[String: Any]] = []
+            let locationQuery = HKWorkoutRouteQuery(route: route) { _, locationResults, done, error in
+                
+                if let error = error {
+                    print("[BioPeakHealthKit] Route query error: \(error.localizedDescription)")
+                }
+                
+                if let locationResults = locationResults {
+                    print("[BioPeakHealthKit] Received batch of \(locationResults.count) locations")
+                    for location in locationResults {
+                        let locationData: [String: Any] = [
+                            "latitude": location.coordinate.latitude,
+                            "longitude": location.coordinate.longitude,
+                            "altitude": location.altitude,
+                            "timestamp": ISO8601DateFormatter().string(from: location.timestamp),
+                            "speed": location.speed >= 0 ? location.speed : 0,
+                            "course": location.course >= 0 ? location.course : 0,
+                            "horizontalAccuracy": location.horizontalAccuracy,
+                            "verticalAccuracy": location.verticalAccuracy
+                        ]
+                        locations.append(locationData)
+                    }
+                }
+                
+                if done {
+                    print("[BioPeakHealthKit] Route query complete. Total locations: \(locations.count)")
+                    DispatchQueue.main.async {
+                        call.resolve(["locations": locations])
+                    }
+                }
+            }
+            
+            self.healthStore.execute(locationQuery)
+        }
+        
+        self.healthStore.execute(routeQuery)
+    }
     
-    // Linear interpolation of distance based on time
-    const progressRatio = Math.min(1, relativeTime / totalDuration);
-    const interpolatedDistance = totalDistance * progressRatio;
-    
-    return {
-      sample_timestamp: timestamp,
-      timer_duration_in_seconds: relativeTime,
-      heart_rate: energyData.length > 0 ? interpolateHeartRate(timestamp) : point.value,
-      total_distance_in_meters: interpolatedDistance,
-      speed_meters_per_second: avgSpeed, // Consistent average speed
-    };
-  });
+    healthStore.execute(workoutQuery)
 }
 ```
 
-### Resultado Esperado
+## Fluxo da Correcao
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Pace no gráfico | ~8:14/km (incorreto) | ~5:52/km (correto) |
-| Distância máxima | ~4.3km | 6.05km |
-| Forma da linha FC | ✅ Correta | ✅ Mantida |
-| Forma da linha Pace | Reta incorreta | Reta com pace real |
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO CORRIGIDO                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Recebe: workoutUUID = "2900C1F1-4FF1-4501-A3FB-..."        │
+│                         │                                       │
+│                         ▼                                       │
+│  2. HKSampleQuery(HKWorkoutType)                               │
+│     predicate: predicateForObject(with: UUID)                   │
+│     → Busca o objeto HKWorkout                                  │
+│                         │                                       │
+│                         ▼                                       │
+│  3. Encontra: HKWorkout (objeto completo)                       │
+│                         │                                       │
+│                         ▼                                       │
+│  4. HKAnchoredObjectQuery(HKWorkoutRoute)                       │
+│     predicate: predicateForObjects(from: workout) ← CORRETO!    │
+│     → Busca rotas ASSOCIADAS ao workout                         │
+│                         │                                       │
+│                         ▼                                       │
+│  5. Encontra: HKWorkoutRoute (pode ter UUID diferente)          │
+│                         │                                       │
+│                         ▼                                       │
+│  6. HKWorkoutRouteQuery(route)                                  │
+│     → Extrai CLLocation[] da rota                               │
+│                         │                                       │
+│                         ▼                                       │
+│  7. Retorna: Array de coordenadas GPS                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Consideração sobre Variação de Pace
+## Melhorias Adicionais
 
-Com a solução de interpolação linear, o gráfico mostrará uma **linha reta de pace** (velocidade constante). Isso é correto quando:
-- Não temos dados de GPS
-- Não temos dados de distância por intervalo
+### 1. Validacao de UUID
+```swift
+// Antes: force unwrap perigoso
+UUID(uuidString: workoutUUID)!
 
-A alternativa seria tentar estimar variação de velocidade usando FC ou energia, mas isso introduz mais erro do que valor. É preferível mostrar o pace médio real do que um pace variável incorreto.
-
-### Opção Futura: Usar GPS se Disponível
-
-Se a atividade tiver dados de `locationSamples` (GPS), podemos calcular velocidade real entre pontos:
-```typescript
-// Future enhancement: calculate speed from GPS points
-const locationSamples = healthkitActivity.raw_data.locationSamples || [];
-if (locationSamples.length > 1) {
-  // Calculate distance between consecutive GPS points using Haversine formula
-  // This would give pace variation real
+// Depois: validacao segura
+guard let workoutUUID = UUID(uuidString: workoutUUIDString) else {
+    call.reject("Invalid UUID format")
+    return
 }
 ```
+
+### 2. Tratamento de Valores Invalidos
+```swift
+// speed e course podem ser -1 quando invalidos
+"speed": location.speed >= 0 ? location.speed : 0,
+"course": location.course >= 0 ? location.course : 0,
+```
+
+### 3. Logs Detalhados
+Adicionados logs em cada etapa para facilitar debug no Xcode.
 
 ## Arquivos Afetados
 
-| Arquivo | Tipo de Alteração |
-|---------|-------------------|
-| `supabase/functions/calculate-activity-chart-data/index.ts` | Modificar lógica de processamento HealthKit |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `ios/App/App/BioPeakHealthKit.swift` | Refatorar funcao `queryWorkoutRoute` |
 
-## Ação Adicional Necessária
+## Apos o Deploy
 
-Após o deploy da correção, será necessário **reprocessar** a atividade:
-```sql
-DELETE FROM activity_chart_data 
-WHERE activity_id = '2900C1F1-4FF1-4501-A3FB-2DBE840485C4';
-```
-E então forçar o recálculo acessando a página de detalhes da atividade.
+Para testar a correcao:
+
+1. Rebuild o app iOS no Xcode
+2. Execute uma sincronizacao do HealthKit
+3. Verifique os logs no console do Xcode
+4. Confirme que `locations_count > 0` nas atividades sincronizadas
+
+## Re-sincronizar Atividades Existentes
+
+As atividades ja sincronizadas sem GPS precisarao ser re-sincronizadas para obter os dados de rota. Opcoes:
+
+1. **Manual**: Usuario clica em "Sincronizar" novamente
+2. **Automatico**: Adicionar logica para detectar atividades sem GPS e re-buscar
 
 ## Resumo
 
-O problema ocorre porque o HealthKit não enviou dados de distância por intervalo para esta atividade, e o algoritmo atual tenta estimar velocidade usando energia - o que resulta em valores incorretos. A solução é usar **interpolação linear** da distância total quando não houver dados granulares, garantindo que o pace médio exibido corresponda ao pace real da atividade.
+O problema era um **predicate incorreto** no Swift. O HealthKit usa `predicateForObjects(from: workout)` para buscar objetos associados a um workout, nao `predicateForObject(with: UUID)` que busca pelo UUID do proprio objeto. Esta correcao permite que o app recupere todos os dados de GPS que a Apple disponibiliza.
