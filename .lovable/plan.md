@@ -1,170 +1,251 @@
 
-# Plano: Corrigir Mapeamento de Tipos de Atividade HealthKit
+# Plano: Adicionar Sincronização de Dados de Sono do HealthKit
 
-## Problema Identificado
+## Situação Atual
 
-O card de "Comparação com a Comunidade" não aparece para atividades sincronizadas do HealthKit porque o tipo de atividade está sendo salvo incorretamente como `"Other"` em vez de `"Run"`, `"Cycle"`, `"Swim"`, etc.
+O app BioPeak já exibe métricas de sono no Dashboard, mas atualmente só suporta duas fontes:
+- **Garmin** (tabela `garmin_sleep_summaries`)
+- **Polar** (tabela `polar_sleep`)
 
-### Dados do Problema
+Usuários de **Apple Watch** que sincronizam pelo HealthKit não têm seus dados de sono exibidos, mesmo que a Apple colete essas informações detalhadas.
 
-| Atividade | activity_type (atual) | activity_type (correto) | pace_min_per_km |
-|-----------|----------------------|------------------------|-----------------|
-| 2900C1F1-4FF1-4501... | Other | Run | 5.86 |
+## O que a Apple Fornece
 
-O banco de dados mostra que **1392 atividades** estão classificadas como `"Other"` enquanto apenas **92** estão corretamente como `"Run"`.
+O HealthKit disponibiliza dados completos de sono através de `HKCategoryTypeIdentifierSleepAnalysis`:
 
-### Causa Raiz
+| Estágio | Valor | Descrição |
+|---------|-------|-----------|
+| `inBed` | 0 | Tempo na cama (antes de dormir) |
+| `asleepUnspecified` | 1 | Dormindo (sem classificação) |
+| `awake` | 2 | Acordado durante a noite |
+| `asleepCore` | 3 | Sono leve |
+| `asleepDeep` | 4 | Sono profundo |
+| `asleepREM` | 5 | Sono REM |
 
-O plugin Swift retorna `workoutActivityType.rawValue` (um numero inteiro), mas o mapeamento no TypeScript em `useHealthKitSync.ts` esta incompleto e usa valores errados:
-
-```text
-MAPEAMENTO ATUAL (incorreto):
-  1 → 'Run'      ← ERRADO (1 = AmericanFootball)
-  2 → 'Walk'     ← ERRADO (2 = Archery)
-  3 → 'Cycle'    ← ERRADO (3 = AustralianFootball)
-  4 → 'Swim'     ← ERRADO (4 = Badminton)
-  5 → 'Other'    ← ERRADO (5 = Baseball)
-  13 → 'Run'     ← ERRADO (13 = Cycling!)
-  Outros → 'Other'
-
-VALORES CORRETOS DO ENUM HKWorkoutActivityType:
-  37 → Running (Corrida)
-  52 → Walking (Caminhada)
-  13 → Cycling (Ciclismo)
-  46 → Swimming (Natação)
-  24 → Hiking (Trilha)
-  16 → Elliptical (Elíptico)
-  20 → FunctionalStrengthTraining (Musculação)
-  50 → TraditionalStrengthTraining (Treino de Força)
-  35 → Rowing (Remo)
-  63 → HighIntensityIntervalTraining (HIIT)
-  3000 → Other (Outro)
-```
-
-### Fluxo do Problema
+## Arquitetura da Solução
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ Apple Watch grava workout de CORRIDA                         │
-│ HKWorkoutActivityType.running (rawValue = 37)                │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│ BioPeakHealthKit.swift envia para JS:                        │
-│ { workoutActivityType: 37, ... }  ✅ Correto                 │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│ useHealthKitSync.ts mapWorkoutType(37)                       │
-│ → Não encontra 37 no mapa                                     │
-│ → Retorna 'Other'  ❌ INCORRETO                               │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│ Salvo no banco: activity_type = 'Other'                       │
-│ PaceComparisonCard não consegue mapear para categoria         │
-│ → Card não é exibido                                          │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     FLUXO DE DADOS DE SONO                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Apple Watch ──► HealthKit (iOS) ──► BioPeakHealthKit Plugin    │
+│                                              │                  │
+│                                              ▼                  │
+│                                    querySleepData()             │
+│                                              │                  │
+│                                              ▼                  │
+│                         JS: useHealthKitSleepSync.ts            │
+│                                              │                  │
+│                                              ▼                  │
+│                       Supabase: healthkit_sleep_summaries       │
+│                                              │                  │
+│                                              ▼                  │
+│                      Dashboard ◄─── useDashboardMetrics.ts      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Solução
+## Alterações Necessárias
 
-### Arquivo: `src/hooks/useHealthKitSync.ts`
+### 1. Plugin Swift - Adicionar Query de Sono
 
-Corrigir a função `mapWorkoutType` com os valores corretos do enum `HKWorkoutActivityType` da Apple:
+**Arquivo**: `ios/App/App/BioPeakHealthKit.swift`
+
+Adicionar permissão de leitura para sono e nova função `querySleepData`:
+
+```swift
+// Na lista de readTypes, adicionar:
+HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
+
+// Nova função:
+@objc public func querySleepData(_ call: CAPPluginCall) {
+    let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
+    let startDate = Date(timeIntervalSinceNow: -7 * 24 * 60 * 60) // 7 dias
+    let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
+    
+    let query = HKSampleQuery(sampleType: sleepType, ...) { _, samples, _ in
+        // Processar amostras por noite
+        // Calcular: inBed, asleepCore (light), asleepDeep, asleepREM
+        // Retornar array de noites com durações
+    }
+}
+```
+
+**Dados retornados:**
+```json
+{
+  "sleepSessions": [
+    {
+      "date": "2024-01-30",
+      "startTime": "2024-01-30T23:15:00Z",
+      "endTime": "2024-01-31T07:30:00Z",
+      "inBedSeconds": 29700,
+      "totalSleepSeconds": 28500,
+      "deepSleepSeconds": 5400,
+      "lightSleepSeconds": 14400,
+      "remSleepSeconds": 7200,
+      "awakeSeconds": 1200
+    }
+  ]
+}
+```
+
+### 2. Wrapper TypeScript
+
+**Arquivo**: `src/lib/healthkit.ts`
+
+Adicionar interface e método para sono:
 
 ```typescript
-const mapWorkoutType = (type: number): string => {
-  // HKWorkoutActivityType enum values from Apple HealthKit
-  // Reference: developer.apple.com/documentation/healthkit/hkworkoutactivitytype
-  const workoutTypes: { [key: number]: string } = {
-    // Running types
-    37: 'Run',           // HKWorkoutActivityTypeRunning
+export interface HealthKitSleepSession {
+  date: string;
+  startTime: string;
+  endTime: string;
+  inBedSeconds: number;
+  totalSleepSeconds: number;
+  deepSleepSeconds: number;
+  lightSleepSeconds: number;
+  remSleepSeconds: number;
+  awakeSeconds: number;
+}
+
+// Na classe HealthKitWrapper:
+async querySleepData(): Promise<HealthKitSleepSession[]> {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+    const result = await this.plugin.querySleepData();
+    return result.sleepSessions || [];
+  }
+  // Mock para desenvolvimento
+  return [...];
+}
+```
+
+### 3. Tabela no Supabase
+
+**Nova tabela**: `healthkit_sleep_summaries`
+
+```sql
+CREATE TABLE healthkit_sleep_summaries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  calendar_date DATE NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE,
+  end_time TIMESTAMP WITH TIME ZONE,
+  in_bed_seconds INTEGER DEFAULT 0,
+  total_sleep_seconds INTEGER DEFAULT 0,
+  deep_sleep_seconds INTEGER DEFAULT 0,
+  light_sleep_seconds INTEGER DEFAULT 0,
+  rem_sleep_seconds INTEGER DEFAULT 0,
+  awake_seconds INTEGER DEFAULT 0,
+  sleep_score INTEGER, -- calculado localmente
+  source_name TEXT DEFAULT 'Apple Watch',
+  synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, calendar_date)
+);
+```
+
+### 4. Hook de Sincronização
+
+**Novo arquivo**: `src/hooks/useHealthKitSleepSync.ts`
+
+Hook para buscar dados de sono do HealthKit e salvar no Supabase:
+
+```typescript
+export const useHealthKitSleepSync = () => {
+  const syncSleepData = async () => {
+    const sessions = await HealthKit.querySleepData();
     
-    // Walking types
-    52: 'Walk',          // HKWorkoutActivityTypeWalking
-    24: 'Hike',          // HKWorkoutActivityTypeHiking
-    
-    // Cycling types
-    13: 'Cycle',         // HKWorkoutActivityTypeCycling
-    74: 'Cycle',         // HKWorkoutActivityTypeHandCycling
-    
-    // Swimming types
-    46: 'Swim',          // HKWorkoutActivityTypeSwimming
-    
-    // Gym/Strength types
-    20: 'Strength',      // HKWorkoutActivityTypeFunctionalStrengthTraining
-    50: 'Strength',      // HKWorkoutActivityTypeTraditionalStrengthTraining
-    
-    // Cardio types
-    16: 'Elliptical',    // HKWorkoutActivityTypeElliptical
-    35: 'Rowing',        // HKWorkoutActivityTypeRowing
-    63: 'HIIT',          // HKWorkoutActivityTypeHighIntensityIntervalTraining
-    73: 'MixedCardio',   // HKWorkoutActivityTypeMixedCardio
-    
-    // Cross Training
-    11: 'CrossTraining', // HKWorkoutActivityTypeCrossTraining
-    
-    // Dance
-    14: 'Dance',         // HKWorkoutActivityTypeDance
-    
-    // Yoga/Mind-Body
-    27: 'Yoga',          // HKWorkoutActivityTypeMindAndBody (covers Yoga)
-    
-    // Other/Default
-    3000: 'Other',       // HKWorkoutActivityTypeOther
+    for (const session of sessions) {
+      // Calcular score baseado em tempo total e estágios
+      const sleepScore = calculateSleepScore(session);
+      
+      // Upsert no Supabase
+      await supabase.from('healthkit_sleep_summaries').upsert({
+        calendar_date: session.date,
+        total_sleep_seconds: session.totalSleepSeconds,
+        deep_sleep_seconds: session.deepSleepSeconds,
+        // ...
+        sleep_score: sleepScore
+      });
+    }
   };
   
-  return workoutTypes[type] || 'Other';
+  return { syncSleepData };
 };
 ```
 
-### Arquivo: `src/hooks/useAveragePaceComparison.ts`
+### 5. Dashboard - Adicionar HealthKit como Fonte
 
-Expandir a lista de tipos de corrida para incluir os novos valores:
+**Arquivo**: `src/hooks/useDashboardMetrics.ts`
+
+Modificar `fetchSleepData` para incluir HealthKit como fallback:
 
 ```typescript
-const RUNNING_TYPES = [
-  'run', 'running', 'treadmill_running', 'trail_running', 'virtualrun',
-  'virtual_run', 'track_running', 'indoor_running', 'hike', 'hiking'
-];
+const fetchSleepData = async (): Promise<SleepAnalytics> => {
+  // 1) Tenta Garmin primeiro
+  // 2) Fallback para Polar
+  // 3) NOVO: Fallback para HealthKit
+  
+  const { data: hkSleep } = await supabase
+    .from('healthkit_sleep_summaries')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('calendar_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+    
+  if (hkSleep) {
+    // Converter para formato SleepAnalytics
+    return {
+      sleepScore: hkSleep.sleep_score,
+      totalSleepMinutes: Math.round(hkSleep.total_sleep_seconds / 60),
+      deepSleepPercentage: calculatePercentage(hkSleep.deep_sleep_seconds, ...),
+      // ...
+    };
+  }
+};
 ```
-
-## Corrigir Atividades Existentes
-
-Apos o deploy, sera necessario atualizar as atividades ja sincronizadas que estao com tipo incorreto. Isso pode ser feito de duas formas:
-
-### Opção 1: SQL direto (recomendado para correção pontual)
-
-```sql
--- Atualizar atividade específica
-UPDATE healthkit_activities 
-SET activity_type = 'Run'
-WHERE healthkit_uuid = '2900C1F1-4FF1-4501-A3FB-2DBE840485C4';
-```
-
-### Opção 2: Re-sincronizar do HealthKit
-
-O usuario pode forcar uma nova sincronizacao, que agora usara o mapeamento correto.
 
 ## Arquivos Afetados
 
-| Arquivo | Tipo de Alteração |
-|---------|-------------------|
-| `src/hooks/useHealthKitSync.ts` | Corrigir função `mapWorkoutType` com valores corretos do enum |
-| `src/hooks/useAveragePaceComparison.ts` | Expandir lista `RUNNING_TYPES` para incluir 'hike' |
+| Arquivo | Tipo | Alteração |
+|---------|------|-----------|
+| `ios/App/App/BioPeakHealthKit.swift` | Modificar | Adicionar `querySleepData` e permissão de sono |
+| `src/lib/healthkit.ts` | Modificar | Adicionar interface e método `querySleepData` |
+| `src/hooks/useHealthKitSleepSync.ts` | Novo | Hook para sincronizar sono do HealthKit |
+| `src/hooks/useDashboardMetrics.ts` | Modificar | Adicionar HealthKit como fallback para dados de sono |
+| Supabase | Novo | Tabela `healthkit_sleep_summaries` |
+
+## Cálculo do Sleep Score
+
+A Apple não fornece um "sleep score" nativo como Garmin/Polar. Vamos calculá-lo baseado em:
+
+```text
+Score Base = (Total Sleep / 8 horas) * 100, max 100
+
+Bônus de Qualidade:
+  +10 pontos se Deep Sleep >= 15% do total
+  +10 pontos se REM Sleep >= 20% do total
+  -10 pontos se Awake > 10% do tempo na cama
+  -5 pontos por hora abaixo de 6h de sono
+
+Score Final = clamp(Score Base + Bônus, 0, 100)
+```
+
+## Ordem de Implementação
+
+1. Criar tabela `healthkit_sleep_summaries` no Supabase
+2. Modificar `BioPeakHealthKit.swift` para adicionar permissão e query de sono
+3. Atualizar `src/lib/healthkit.ts` com nova interface e método
+4. Criar hook `useHealthKitSleepSync.ts`
+5. Integrar sincronização de sono no fluxo existente de sync do HealthKit
+6. Modificar `useDashboardMetrics.ts` para buscar dados do HealthKit
 
 ## Resultado Esperado
 
-Apos as correções:
-
-1. Novas sincronizações do HealthKit vão salvar o tipo de atividade correto (Run, Walk, Cycle, Swim, etc.)
-2. O card de "Comparação com a Comunidade" vai aparecer para todas as atividades de corrida, ciclismo e natação
-3. As estatísticas de evolução vão agrupar corretamente as atividades por tipo
-
-## Resumo
-
-O problema era um mapeamento incorreto dos valores numéricos do enum `HKWorkoutActivityType` da Apple. O código usava valores arbitrários (1, 2, 3, 4, 5) quando os valores reais da Apple são diferentes (37 para corrida, 52 para caminhada, etc.). A correção é simples: atualizar o dicionário de mapeamento com os valores corretos.
+Após implementação:
+- Usuários de Apple Watch verão seus dados de sono no Dashboard
+- Métricas incluem: tempo total, sono profundo, sono leve, REM, score calculado
+- Dados sincronizam automaticamente junto com workouts
+- Análise de IA de sono funcionará para usuários HealthKit
