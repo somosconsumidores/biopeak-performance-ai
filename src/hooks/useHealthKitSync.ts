@@ -33,14 +33,44 @@ export const useHealthKitSync = () => {
   const { user } = useAuth();
 
   const mapWorkoutType = (type: number): string => {
+    // HKWorkoutActivityType enum values from Apple HealthKit
+    // Reference: developer.apple.com/documentation/healthkit/hkworkoutactivitytype
     const workoutTypes: { [key: number]: string } = {
-      1: 'Run',
-      2: 'Walk',
-      3: 'Cycle',
-      4: 'Swim',
-      5: 'Other',
-      13: 'Run', // HKWorkoutActivityTypeRunning
-      // Add more mappings as needed
+      // Running types
+      37: 'Run',           // HKWorkoutActivityTypeRunning
+      
+      // Walking types
+      52: 'Walk',          // HKWorkoutActivityTypeWalking
+      24: 'Hike',          // HKWorkoutActivityTypeHiking
+      
+      // Cycling types
+      13: 'Cycle',         // HKWorkoutActivityTypeCycling
+      74: 'Cycle',         // HKWorkoutActivityTypeHandCycling
+      
+      // Swimming types
+      46: 'Swim',          // HKWorkoutActivityTypeSwimming
+      
+      // Gym/Strength types
+      20: 'Strength',      // HKWorkoutActivityTypeFunctionalStrengthTraining
+      50: 'Strength',      // HKWorkoutActivityTypeTraditionalStrengthTraining
+      
+      // Cardio types
+      16: 'Elliptical',    // HKWorkoutActivityTypeElliptical
+      35: 'Rowing',        // HKWorkoutActivityTypeRowing
+      63: 'HIIT',          // HKWorkoutActivityTypeHighIntensityIntervalTraining
+      73: 'MixedCardio',   // HKWorkoutActivityTypeMixedCardio
+      
+      // Cross Training
+      11: 'CrossTraining', // HKWorkoutActivityTypeCrossTraining
+      
+      // Dance
+      14: 'Dance',         // HKWorkoutActivityTypeDance
+      
+      // Yoga/Mind-Body
+      27: 'Yoga',          // HKWorkoutActivityTypeMindAndBody
+      
+      // Other/Default
+      3000: 'Other',       // HKWorkoutActivityTypeOther
     };
     return workoutTypes[type] || 'Other';
   };
