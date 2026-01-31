@@ -235,15 +235,19 @@ Deno.serve(async (req) => {
         })
       }
 
-      // Extract both energy and heart rate data from HealthKit series
+      // Extract data from HealthKit series
       const heartRateData = healthkitActivity.raw_data.series.heartRate || []
       const energyData = healthkitActivity.raw_data.series.energy || []
+      const distanceData = healthkitActivity.raw_data.series.distances || healthkitActivity.raw_data.distances || []
+      const locationSamples = healthkitActivity.raw_data.locationSamples || healthkitActivity.raw_data.locations || []
       
       // Use energy data as primary temporal base (usually more data points)
       const primaryData = energyData.length > 0 ? energyData : heartRateData
       const activityStartTime = new Date(healthkitActivity.start_time).getTime() / 1000
+      const totalDistance = healthkitActivity.distance_meters || 0
+      const totalDuration = healthkitActivity.duration_seconds || 1
       
-      if (primaryData.length === 0) {
+      if (primaryData.length === 0 && distanceData.length === 0 && locationSamples.length === 0) {
         return new Response(JSON.stringify({ success: false, message: 'No HealthKit temporal data found' }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -269,93 +273,168 @@ Deno.serve(async (req) => {
         // Only use if within 30 seconds
         return minDiff <= 30000 ? closest.value : null
       }
+
+      // Check if we have actual distance samples from HealthKit
+      const hasDistanceData = distanceData.length > 0
+      const hasGpsData = locationSamples.length > 1
       
-      // Calculate time intervals and realistic speeds based on energy expenditure
-      let cumulativeDistance = 0
-      const totalDistance = healthkitActivity.distance_meters || 0
-      const totalDuration = healthkitActivity.duration_seconds || 1
+      console.log(`[HealthKit] Activity ${activity_id}: distanceData=${distanceData.length}, gpsData=${locationSamples.length}, energyData=${energyData.length}, hrData=${heartRateData.length}`)
       
-      // Create realistic speed profile using energy data
-      const energyBasedSpeeds = energyData.map((energyPoint: any, index: number) => {
-        const currentEnergy = energyPoint.value || 0
-        const timestamp = new Date(energyPoint.timestamp).getTime() / 1000
-        const endTimestamp = energyPoint.endTimestamp ? new Date(energyPoint.endTimestamp).getTime() / 1000 : timestamp + 1
-        const duration = Math.max(0.1, endTimestamp - timestamp) // Minimum 0.1 second duration
+      // Calculate average speed from total distance/duration (the reliable source)
+      const avgSpeed = totalDuration > 0 ? totalDistance / totalDuration : 0
+      
+      if (hasDistanceData) {
+        // CASE 1: Use actual distance samples for accurate pace calculation
+        console.log(`[HealthKit] Using ${distanceData.length} distance samples for pace calculation`)
         
-        // Calculate speed based on energy expenditure
-        // Higher energy = higher speed (but not linearly)
-        const baseSpeed = totalDistance / totalDuration // Average speed for the activity
+        let cumulativeDistance = 0
+        rows = distanceData.map((distPoint: any, index: number) => {
+          const timestamp = new Date(distPoint.timestamp || distPoint.startDate).getTime() / 1000
+          const relativeTime = timestamp - activityStartTime
+          
+          // Handle cumulative vs incremental distance values
+          const distValue = distPoint.value ?? distPoint.quantity ?? 0
+          
+          // If values look incremental (each is small), accumulate them
+          // If values look cumulative (monotonically increasing), use directly
+          if (index === 0 || distValue < cumulativeDistance) {
+            cumulativeDistance += distValue
+          } else {
+            cumulativeDistance = distValue
+          }
+          
+          // Calculate instantaneous speed from consecutive distance points
+          let speed = avgSpeed
+          if (index > 0) {
+            const prevDist = rows[index - 1]?.total_distance_in_meters ?? 0
+            const prevTime = rows[index - 1]?.sample_timestamp ?? activityStartTime
+            const deltaD = cumulativeDistance - prevDist
+            const deltaT = timestamp - prevTime
+            if (deltaT > 0 && deltaD >= 0) {
+              speed = deltaD / deltaT
+              // Sanity check: speed should be reasonable (between 0.5 and 10 m/s for running)
+              if (speed < 0.5 || speed > 10) speed = avgSpeed
+            }
+          }
+          
+          return {
+            sample_timestamp: timestamp,
+            timer_duration_in_seconds: relativeTime,
+            heart_rate: interpolateHeartRate(timestamp),
+            total_distance_in_meters: cumulativeDistance,
+            speed_meters_per_second: speed,
+          }
+        }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
         
-        // Normalize energy to create speed variation
-        const maxEnergy = Math.max(...energyData.map((e: any) => e.value || 0))
-        const minEnergy = Math.min(...energyData.map((e: any) => e.value || 0))
-        const energyRange = maxEnergy - minEnergy
+      } else if (hasGpsData) {
+        // CASE 2: Calculate speed from GPS coordinates using Haversine formula
+        console.log(`[HealthKit] Using ${locationSamples.length} GPS points for pace calculation`)
         
-        let speedMultiplier = 1.0 // Default to average speed
-        if (energyRange > 0) {
-          // Normalize current energy (0 to 1)
-          const normalizedEnergy = (currentEnergy - minEnergy) / energyRange
-          // Create speed variation: energy 0.0 = 70% of base speed, energy 1.0 = 150% of base speed
-          speedMultiplier = 0.7 + (normalizedEnergy * 0.8)
+        const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+          const R = 6371000 // Earth radius in meters
+          const toRad = (deg: number) => deg * Math.PI / 180
+          const dLat = toRad(lat2 - lat1)
+          const dLon = toRad(lon2 - lon1)
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2)
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+          return R * c
         }
         
-        const speed = baseSpeed * speedMultiplier
+        let cumulativeDistance = 0
+        rows = locationSamples.map((loc: any, index: number) => {
+          const timestamp = new Date(loc.timestamp).getTime() / 1000
+          const relativeTime = timestamp - activityStartTime
+          const lat = loc.latitude ?? loc.lat
+          const lon = loc.longitude ?? loc.lon ?? loc.lng
+          
+          let speed = avgSpeed
+          if (index > 0) {
+            const prevLoc = locationSamples[index - 1]
+            const prevLat = prevLoc.latitude ?? prevLoc.lat
+            const prevLon = prevLoc.longitude ?? prevLoc.lon ?? prevLoc.lng
+            const prevTimestamp = new Date(prevLoc.timestamp).getTime() / 1000
+            
+            const deltaD = haversineDistance(prevLat, prevLon, lat, lon)
+            const deltaT = timestamp - prevTimestamp
+            
+            cumulativeDistance += deltaD
+            
+            if (deltaT > 0 && deltaD >= 0) {
+              speed = deltaD / deltaT
+              // Sanity check
+              if (speed < 0.3 || speed > 12) speed = avgSpeed
+            }
+          }
+          
+          return {
+            sample_timestamp: timestamp,
+            timer_duration_in_seconds: relativeTime,
+            heart_rate: interpolateHeartRate(timestamp),
+            total_distance_in_meters: cumulativeDistance,
+            speed_meters_per_second: speed,
+            latitude_in_degree: lat,
+            longitude_in_degree: lon,
+          }
+        }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
         
-        return {
-          timestamp,
-          endTimestamp,
-          duration,
-          speed: Math.max(0.5, Math.min(10, speed)), // Reasonable bounds
-          energy: currentEnergy
+        // Scale cumulative distance to match reported total (GPS can be noisy)
+        if (cumulativeDistance > 0 && totalDistance > 0) {
+          const scaleFactor = totalDistance / cumulativeDistance
+          rows = rows.map((row: any) => ({
+            ...row,
+            total_distance_in_meters: row.total_distance_in_meters * scaleFactor
+          }))
         }
-      })
+        
+      } else {
+        // CASE 3: No distance/GPS data - use LINEAR INTERPOLATION with average speed
+        // This is the correct approach when we only have energy/HR data
+        console.log(`[HealthKit] No distance/GPS data. Using linear interpolation with avgSpeed=${avgSpeed.toFixed(3)} m/s (pace: ${paceFromSpeed(avgSpeed)?.toFixed(2)} min/km)`)
+        
+        rows = primaryData.map((point: any, index: number) => {
+          const timestamp = new Date(point.timestamp).getTime() / 1000
+          const relativeTime = timestamp - activityStartTime
+          
+          // Linear interpolation of distance based on time progress
+          const progressRatio = Math.min(1, Math.max(0, relativeTime / totalDuration))
+          const interpolatedDistance = totalDistance * progressRatio
+          
+          // Get heart rate - either from energy data's interpolation or direct HR value
+          let heartRate: number | null = null
+          if (energyData.length > 0) {
+            heartRate = interpolateHeartRate(timestamp)
+          } else if (heartRateData.length > 0 && point.value) {
+            heartRate = point.value
+          }
+          
+          return {
+            sample_timestamp: timestamp,
+            timer_duration_in_seconds: relativeTime,
+            heart_rate: heartRate,
+            total_distance_in_meters: interpolatedDistance,
+            speed_meters_per_second: avgSpeed, // Constant average speed
+          }
+        }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
+      }
       
-      // Build data points based on energy timestamps
-      rows = energyBasedSpeeds.map((energySpeed: any, index: number) => {
-        const timestamp = energySpeed.timestamp
-        const relativeTime = timestamp - activityStartTime
-        
-        // Calculate distance for this segment
-        const segmentDistance = energySpeed.speed * energySpeed.duration
-        cumulativeDistance += segmentDistance
-        
-        // Ensure we don't exceed total distance
-        if (cumulativeDistance > totalDistance) {
-          cumulativeDistance = totalDistance
-        }
-        
-        return {
-          sample_timestamp: timestamp,
-          timer_duration_in_seconds: relativeTime,
-          heart_rate: interpolateHeartRate(timestamp),
-          total_distance_in_meters: cumulativeDistance,
-          speed_meters_per_second: energySpeed.speed,
-        }
-      }).filter((row: any) => row.sample_timestamp && row.timer_duration_in_seconds >= 0)
-      
-      // If we have fewer energy points than desired, interpolate additional points
+      // If we have very few points from distance/GPS, supplement with heart rate data
       if (rows.length < 20 && heartRateData.length > rows.length) {
-        // Use heart rate data to fill gaps with interpolated speeds
+        console.log(`[HealthKit] Supplementing ${rows.length} points with ${heartRateData.length} HR data points`)
+        
         const additionalRows = heartRateData.map((hr: any) => {
           const timestamp = new Date(hr.timestamp).getTime() / 1000
           const relativeTime = timestamp - activityStartTime
           
           if (relativeTime < 0 || relativeTime > totalDuration) return null
           
-          // Find closest energy-based speed
-          let closestSpeed = totalDistance / totalDuration // Default to average
-          let minTimeDiff = Infinity
+          // Check if we already have a point close to this timestamp
+          const hasNearbyPoint = rows.some((r: any) => Math.abs(r.sample_timestamp - timestamp) < 5)
+          if (hasNearbyPoint) return null
           
-          for (const energySpeed of energyBasedSpeeds) {
-            const timeDiff = Math.abs(timestamp - energySpeed.timestamp)
-            if (timeDiff < minTimeDiff) {
-              minTimeDiff = timeDiff
-              closestSpeed = energySpeed.speed
-            }
-          }
-          
-          // Calculate interpolated distance
-          const progressRatio = relativeTime / totalDuration
+          // Linear interpolation for distance
+          const progressRatio = Math.min(1, relativeTime / totalDuration)
           const interpolatedDistance = totalDistance * progressRatio
           
           return {
@@ -363,13 +442,15 @@ Deno.serve(async (req) => {
             timer_duration_in_seconds: relativeTime,
             heart_rate: hr.value,
             total_distance_in_meters: interpolatedDistance,
-            speed_meters_per_second: closestSpeed,
+            speed_meters_per_second: avgSpeed,
           }
         }).filter(Boolean)
         
         // Merge and sort by time
-        rows = [...rows, ...additionalRows].sort((a, b) => a.sample_timestamp - b.sample_timestamp)
+        rows = [...rows, ...additionalRows].sort((a: any, b: any) => a.sample_timestamp - b.sample_timestamp)
       }
+      
+      console.log(`[HealthKit] Final row count: ${rows.length}, totalDistance: ${totalDistance}m, avgSpeed: ${avgSpeed.toFixed(3)} m/s`)
     } else if (activity_source === 'biopeak_app') {
       // Fetch performance snapshots for BioPeak App activities
       const { data: snapshots, error } = await supabase
@@ -427,6 +508,7 @@ Deno.serve(async (req) => {
     const baseTsSec = toEpochSeconds(rows[0]?.sample_timestamp)
 
     let timeS = 0
+
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i]
 
@@ -611,7 +693,6 @@ Deno.serve(async (req) => {
         [Math.max(...lats), Math.max(...lons)]
       ]
 
-      // Upsert into activity_coordinates
       // Upsert into activity_coordinates (handles race conditions and avoids missing columns)
       const coordPayload = {
         user_id: uid,
