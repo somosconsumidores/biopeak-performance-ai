@@ -291,7 +291,7 @@ export const LandingPage = () => {
             <ScrollReveal delay={300}>
               <div className="relative">
                 {/* Main display area with phone mockup effect */}
-                <div className="relative mx-auto max-w-sm">
+                <div className="relative mx-auto max-w-[180px] sm:max-w-[200px]">
                   {/* Phone frame effect */}
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-accent/20 rounded-[3rem] blur-2xl animate-pulse" />
                   
