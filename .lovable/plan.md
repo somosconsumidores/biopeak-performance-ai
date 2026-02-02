@@ -1,282 +1,202 @@
 
-# Plano Final: Correção de Planos de Treino de Corrida "Fracos"
+# Plano de Correção: Planos de Corrida Fracos
 
-## Resumo Executivo
+## Diagnóstico Confirmado
 
-Após análise detalhada do código atual (`generate-training-plan/index.ts`) e da proposta v2.0 (Sonnet 4.5), este plano apresenta uma **fusão incremental** das melhores ideias de ambas as versões, mantendo estabilidade e corrigindo os problemas de planos conservadores demais.
+Após análise do plano `4c89cc8d-e9cb-4ac7-8230-ff57c4136036`, identifiquei **5 problemas críticos** que explicam por que os usuários reclamam que os planos estão "fracos":
 
----
-
-## Diagnóstico Final
-
-### Problemas Identificados no Código Atual
-
-| Problema | Linha | Valor Atual | Impacto |
-|----------|-------|-------------|---------|
-| Volume semanal máximo fixo | 429 | 70km | Atletas avançados limitados |
-| Longão máximo fixo | 433 | 32km | Maratonistas sub-preparados |
-| Easy runs limitados | 994 | 12km | Volume diário insuficiente |
-| Intervalados estáticos | 1059, 1204 | 5x1km, 8x400m | Sem progressão |
-| Fase Base muito longa | 677-679 | 50% do plano | Atletas avançados "estagnados" |
-| Nível do atleta ignorado | - | - | Todos recebem mesmos caps |
-| Paces muito conservadores | 404-409 | +1.0 easy, +0.7 long | Treinos parecem "fáceis demais" |
+| Problema | Impacto | Linha do Código |
+|----------|---------|-----------------|
+| Fase Base bloqueia TODA qualidade | 8 semanas sem treinos intensos | 1203 |
+| Volume semanal muito baixo | 29 km/sem vs 70 km esperado | 1027-1033 |
+| Longão máximo em 22km | Deveria ser 32-35km para maratona | 1031-1032 |
+| Zero intervalados para 42k | Falta de estímulo VO2max | 1209-1272 |
+| Progressão de paces inexistente | Easy runs estáticos em 6:70/km | 1117-1170 |
 
 ---
 
-## Solução: 6 Módulos de Correção
+## Solução Técnica: 5 Correções
 
-### Módulo 1: Configuração Dinâmica por Nível de Atleta
-
-Criar um sistema de configuração que ajusta automaticamente os limites baseado no nível:
-
-```text
-Nível        | Volume Máx | Longão Máx | Easy Máx | Fase Base | Paces
--------------|------------|------------|----------|-----------|-------
-Beginner     | 50km       | 25km       | 10km     | 50%       | Conservadores (+1.0)
-Intermediate | 70km       | 32km       | 14km     | 42%       | Moderados (+0.8)
-Advanced     | 90km       | 36km       | 18km     | 38%       | Agressivos (+0.6)
-Elite        | 120km      | 40km       | 22km     | 35%       | Máximos (+0.5)
-```
+### Correção 1: Permitir Qualidade na Fase Base (Fartlek Leve)
 
 **Arquivo:** `supabase/functions/generate-training-plan/index.ts`
-- Criar interface `AthleteLevelConfig`
-- Criar função `getAthleteLevelConfig(level: string, goalType: string)`
-- Modificar `AthleteCapacityAnalyzer.getMaxWeeklyKm()` para usar config
-- Modificar `AthleteCapacityAnalyzer.getMaxLongRunKm()` para usar config
 
----
-
-### Módulo 2: Periodização Científica (Inspirado v2.0)
-
-Substituir a lógica de fases atual por uma classe `ScientificPeriodization` com proporções fisiologicamente validadas:
-
-**Atual:**
-- Base: 50% fixo
-- Build: 30%
-- Peak: 15%
-- Taper: 5%
-
-**Novo (por objetivo):**
-
-```text
-42K Maratona:    Base 45% | Build 32% | Peak 15% | Taper 8%
-21K Meia:        Base 42% | Build 35% | Peak 16% | Taper 7%
-10K:             Base 40% | Build 38% | Peak 15% | Taper 7%
-5K:              Base 35% | Build 40% | Peak 18% | Taper 7%
-```
-
-**Métodos novos:**
-- `getVolumeMultiplier(week)`: Progressão linear dentro de cada fase (0.6→1.0 base, 1.0→1.15 build, etc.)
-- `getIntensityMultiplier(week)`: Acelera paces gradualmente (1.0→0.85 ao longo do plano)
-
----
-
-### Módulo 3: Paces Ajustados por Zona de Treino
-
-Modificar os deltas de pace para serem mais alinhados com as zonas de Daniels:
-
-**Atual vs Novo:**
-
-| Tipo de Treino | Atual | Novo (Atleta Médio) | Zona VO2max |
-|----------------|-------|---------------------|-------------|
-| Easy Run       | +1.00 | +0.70              | 60-65%      |
-| Long Run       | +0.70 | +0.50              | 65-75%      |
-| Tempo          | +0.20 | +0.15              | 85-90%      |
-| Interval 1km   | -0.30 | -0.15              | 95-98%      |
-| Interval 800m  | -0.40 | -0.25              | 98-100%     |
-| Interval 400m  | -0.60 | -0.40              | 105-110%    |
-
-**Implementação:** Criar função `adjustPacesByAthleteLevel(basePaces, athleteLevel)` que aplica multiplicadores:
-- Beginner: Manter conservador (1.0x)
-- Intermediate: 0.9x
-- Advanced: 0.8x
-- Elite: 0.7x
-
----
-
-### Módulo 4: Progressão de Intervalados
-
-Substituir repetições estáticas por progressão ao longo do plano:
-
-**400m:**
-```text
-Semana 1-4:   6x400m
-Semana 5-8:   8x400m
-Semana 9-12:  10x400m
-Semana 13+:   12x400m
-```
-
-**800m:**
-```text
-Semana 1-4:   4x800m
-Semana 5-8:   6x800m
-Semana 9-12:  8x800m
-```
-
-**1km:**
-```text
-Semana 1-4:   4x1km
-Semana 5-8:   5x1km
-Semana 9-12:  6x1km
-Semana 13+:   8x1km
-```
-
-**Implementação:** Criar função `getIntervalReps(distance, week, totalWeeks, level)` que retorna quantidade progressiva.
-
----
-
-### Módulo 5: Easy Runs e Long Runs Dinâmicos
-
-**Easy Runs (linha 994):**
-- Atual: `Math.min(12, ...)`
-- Novo: `Math.min(easyCap[goal][level], baseDistance + week * progressionRate)`
-
-```text
-Caps por objetivo e nível:
-5K:  Beg=10, Int=12, Adv=14, Elite=16
-10K: Beg=12, Int=14, Adv=16, Elite=18
-21K: Beg=14, Int=16, Adv=20, Elite=22
-42K: Beg=16, Int=18, Adv=22, Elite=25
-```
-
-**Long Runs (linhas 826-878):**
-Usar % do volume semanal alvo ao invés de fórmulas fixas:
-
-```text
-Fase Base:  28-35% do volume semanal
-Fase Build: 35-40% do volume semanal
-Fase Peak:  38-42% do volume semanal
-Fase Taper: 25-30% do volume semanal
-```
-
----
-
-### Módulo 6: Passagem do Nível do Atleta para Edge Function
-
-Modificar `useTrainingPlanWizard.ts` para enviar `athlete_level` no payload:
-
-**Linhas 1037-1043:**
+**Problema:** Linha 1203 bloqueia TUDO na fase base:
 ```typescript
-default: // running
-  edgeFunctionName = 'generate-training-plan';
-  functionPayload = {
-    plan_id: planId,
-    declared_paces: declaredPaces,
-    absolute_beginner: absoluteBeginner,
-    athlete_level: wizardData.athleteLevel,        // NOVO
+const shouldAddQuality = phase !== 'base' && phase !== 'taper' && isQualityDay;
+```
+
+**Solução:** Permitir treinos de qualidade LEVE na fase base (fartlek, strides):
+```typescript
+// Base phase: allow gentle quality (fartlek, strides) but not intervals
+const isBasePhase = phase === 'base';
+const isTaperPhase = phase === 'taper';
+const shouldAddQuality = !isTaperPhase && isQualityDay && (
+  !isBasePhase || (isBasePhase && week >= 3 && weeklyQualityCount < 1)
+);
+```
+
+### Correção 2: Aumentar Volume Semanal para Maratona
+
+**Problema:** Linhas 1027-1033 limitam demais o volume para iniciantes:
+```typescript
+if (calibrator.trainingVolume.avgWeeklyKm <= 15) {
+  dist = Math.min(maxLongRun, 10 + (week - 1) * 1.0);
+  dist = Math.min(28, dist);  // Cap muito baixo!
+}
+```
+
+**Solução:** Progressão mais agressiva baseada na distância do objetivo:
+```typescript
+if (calibrator.trainingVolume.avgWeeklyKm <= 15) {
+  // BEGINNER 42K: Progressão gradual mas adequada
+  // Semana 1: 10km, Semana 10: 20km, Semana 18: 32km
+  const progressionRate = goal === '42k' ? 1.3 : 1.0;
+  dist = Math.min(maxLongRun, 10 + (week - 1) * progressionRate);
+  // Permitir até 32km para iniciantes em maratona (últimas 4 semanas antes do taper)
+  const beginnerCap = phase === 'peak' ? 32 : 28;
+  dist = Math.min(beginnerCap, dist);
+}
+```
+
+### Correção 3: Adicionar Intervalados para 42k/21k
+
+**Problema:** O case `42k` (linhas 1209-1272) não inclui intervalados - só tempo, MP blocks, progressivo e fartlek.
+
+**Solução:** Adicionar intervalados de 1km e 800m ao ciclo de qualidade:
+```typescript
+if (goal === '42k' || goal === '21k') {
+  // Expand cycle to 7 workout types (was 5)
+  const qualityType = week % 7;
+  
+  switch (qualityType) {
+    case 0: // Tempo
+    case 1: // MP Blocks  
+    case 2: // Intervals 1km (NEW!)
+      type = 'interval';
+      const reps1k = getIntervalReps(1000, week, totalWeeks, athleteLevel);
+      title = `${reps1k}x1km`;
+      description = `Aquecimento + ${reps1k}x1km ritmo 10k, rec 2min`;
+      duration_min = 30 + reps1k * 2;
+      pace = paces.pace_interval_1km;
+      zone = 4;
+      intensity = 'high';
+      break;
+    case 3: // Progressivo
+    case 4: // Fartlek
+    case 5: // Intervals 800m (NEW!)
+      type = 'interval';
+      const reps800 = getIntervalReps(800, week, totalWeeks, athleteLevel);
+      title = `${reps800}x800m`;
+      description = `Aquecimento + ${reps800}x800m ritmo 5-10k, rec 90s`;
+      duration_min = 30 + reps800 * 1.5;
+      pace = paces.pace_interval_800m;
+      zone = 4;
+      intensity = 'high';
+      break;
+    case 6: // Threshold Run (NEW!)
+      type = 'threshold';
+      title = 'Threshold 3x10min';
+      description = 'Aquecimento + 3x10min @ limiar, rec 3min';
+      duration_min = 45;
+      pace = paces.pace_tempo - 0.2;
+      zone = 4;
+      intensity = 'high';
+      break;
+  }
+}
+```
+
+### Correção 4: Aumentar Longão Máximo
+
+**Problema:** `maxLongRunKm` muito conservador para maratona.
+
+**Arquivo:** Função `getAthleteLevelConfig` (linhas 165-174)
+
+**Solução:** Ajustar caps por objetivo:
+```typescript
+// Current: maxLongRunKm: 25-40 based on level
+// New: Add goal-specific overrides
+const GOAL_LONG_RUN_CAPS: Record<string, number> = {
+  '5k': 14,
+  '10k': 18,
+  '21k': 26,
+  '42k': 36,  // Was effectively 28 for beginners
+};
+
+function getMaxLongRunForGoal(level: string, goal: string, currentLongest: number): number {
+  const levelConfig = getAthleteLevelConfig(level, goal);
+  const goalCap = GOAL_LONG_RUN_CAPS[goal] || 20;
+  
+  // Para maratona, permitir progressão até 36km independente do nível
+  if (goal === '42k') {
+    return Math.min(36, Math.max(currentLongest * 1.5, levelConfig.maxLongRunKm));
+  }
+  
+  return Math.min(goalCap, levelConfig.maxLongRunKm);
+}
+```
+
+### Correção 5: Progressão de Volume Semanal Mais Agressiva
+
+**Problema:** O volume semanal não cresce adequadamente ao longo do plano.
+
+**Solução:** Criar função de progressão de volume baseada na fase:
+```typescript
+function getWeeklyVolumeTarget(
+  week: number, 
+  totalWeeks: number, 
+  phase: string, 
+  goal: string,
+  currentVolume: number,
+  maxVolume: number
+): number {
+  const phaseMultipliers = {
+    'base': { start: 0.6, end: 0.75 },
+    'build': { start: 0.75, end: 0.95 },
+    'peak': { start: 0.95, end: 1.0 },
+    'taper': { start: 0.7, end: 0.5 },
   };
+  
+  const multiplier = phaseMultipliers[phase] || phaseMultipliers['build'];
+  const phaseProgress = getPhaseProgress(week, totalWeeks, phase);
+  const targetMultiplier = multiplier.start + (multiplier.end - multiplier.start) * phaseProgress;
+  
+  // Start from current volume + 20%, progress to max
+  const startVolume = Math.max(currentVolume * 1.2, 25);
+  const targetVolume = startVolume + (maxVolume - startVolume) * (week / totalWeeks);
+  
+  return Math.round(targetVolume * targetMultiplier);
+}
 ```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alterações |
-|---------|------------|
-| `supabase/functions/generate-training-plan/index.ts` | ~200 linhas modificadas |
-| `src/hooks/useTrainingPlanWizard.ts` | ~5 linhas modificadas |
+| Arquivo | Alterações | Linhas Afetadas |
+|---------|------------|-----------------|
+| `supabase/functions/generate-training-plan/index.ts` | 5 correções | ~1200-1280, ~1027-1044, ~165-174 |
 
 ---
 
-## Detalhes Técnicos de Implementação
-
-### 1. Nova Interface de Configuração (Edge Function)
-
-```typescript
-interface AthleteLevelConfig {
-  maxWeeklyKm: number;
-  maxLongRunKm: number;
-  maxEasyRunKm: number;
-  basePhasePct: number;
-  paceMultiplier: number;
-  minWeeklyKm: number;
-}
-
-const LEVEL_CONFIGS: Record<string, AthleteLevelConfig> = {
-  'Beginner': { maxWeeklyKm: 50, maxLongRunKm: 25, maxEasyRunKm: 10, basePhasePct: 0.50, paceMultiplier: 1.0, minWeeklyKm: 20 },
-  'Intermediate': { maxWeeklyKm: 70, maxLongRunKm: 32, maxEasyRunKm: 14, basePhasePct: 0.42, paceMultiplier: 0.9, minWeeklyKm: 30 },
-  'Advanced': { maxWeeklyKm: 90, maxLongRunKm: 36, maxEasyRunKm: 18, basePhasePct: 0.38, paceMultiplier: 0.8, minWeeklyKm: 40 },
-  'Elite': { maxWeeklyKm: 120, maxLongRunKm: 40, maxEasyRunKm: 22, basePhasePct: 0.35, paceMultiplier: 0.7, minWeeklyKm: 50 },
-};
-```
-
-### 2. Progressão de Intervalados
-
-```typescript
-function getIntervalReps(
-  distanceM: 400 | 800 | 1000,
-  week: number,
-  totalWeeks: number,
-  level: string
-): number {
-  const baseReps = { 400: 6, 800: 4, 1000: 4 };
-  const maxReps = { 400: 12, 800: 10, 1000: 8 };
-  
-  const progress = week / totalWeeks;
-  const levelMultiplier = level === 'Elite' ? 1.3 : level === 'Advanced' ? 1.2 : level === 'Intermediate' ? 1.1 : 1.0;
-  
-  const base = baseReps[distanceM];
-  const max = maxReps[distanceM];
-  const reps = Math.round(base + (max - base) * progress * levelMultiplier);
-  
-  return Math.min(max, reps);
-}
-```
-
-### 3. Modificação de `getSafeTargetPaces`
-
-```typescript
-getSafeTargetPaces(goalType?: string, athleteLevel?: string) {
-  // ... código existente ...
-  
-  const levelConfig = LEVEL_CONFIGS[athleteLevel || 'Intermediate'];
-  const paceMult = levelConfig.paceMultiplier;
-  
-  return {
-    // Paces ajustados pelo nível
-    pace_easy: currentCapacityPace + (0.70 * paceMult),      // Era +1.0
-    pace_long: currentCapacityPace + (0.50 * paceMult),      // Era +0.7
-    pace_tempo: currentCapacityPace + (0.15 * paceMult),     // Era +0.2
-    pace_interval_1km: currentCapacityPace - (0.15 / paceMult), // Era -0.3
-    pace_interval_800m: currentCapacityPace - (0.25 / paceMult),// Era -0.4
-    pace_interval_400m: currentCapacityPace - (0.40 / paceMult),// Era -0.6
-    // ... resto igual ...
-  };
-}
-```
-
----
-
-## Benefícios Esperados
+## Resultado Esperado
 
 | Métrica | Antes | Depois |
 |---------|-------|--------|
-| Volume semanal máximo (Elite) | 70km | 120km |
-| Longão máximo (42K, Advanced) | 32km | 36-38km |
-| Easy runs (42K, Advanced) | 12km | 18-20km |
-| Intervalados 1km (semana 12) | 5x1km | 6-8x1km |
-| Fase Base (Advanced) | 50% | 38% |
-| Qualidade percebida | "Plano fraco" | "Plano desafiador" |
+| Treinos de qualidade na Base | 0 | 4-6 (fartlek/strides) |
+| Intervalados totais | 0 | 8-12 |
+| Volume semanal pico | 33 km | 65-75 km |
+| Longão máximo | 22 km | 32-35 km |
+| Diversidade de treinos | 6 tipos | 10+ tipos |
 
 ---
 
-## Riscos e Mitigações
+## Validação do Usuário
 
-| Risco | Mitigação |
-|-------|-----------|
-| Iniciantes sobrecarregados | Manter caps conservadores para Beginner |
-| Lesões por aumento brusco | Progressão linear, nunca >10%/semana |
-| Atletas com nível errado | Validação por histórico continua ativa |
-| Regressão de funcionalidade | Testes unitários + deploy gradual |
-
----
-
-## Cronograma de Implementação
-
-1. **Fase 1:** Criar sistema de configuração por nível (Módulos 1 e 6)
-2. **Fase 2:** Implementar ScientificPeriodization (Módulo 2)
-3. **Fase 3:** Ajustar paces e intervalados (Módulos 3 e 4)
-4. **Fase 4:** Atualizar Easy/Long runs (Módulo 5)
-5. **Fase 5:** Testes e validação
-
-Tempo estimado: ~3-4 horas de implementação
+Após implementar, o plano do Sandro deverá ter:
+- Semanas 3-4 (Base): Fartlek leve + strides
+- Semanas 9-14 (Build): 2x qualidade/semana (intervalados + tempo)
+- Semanas 15-17 (Peak): Intervalados mais curtos + MP blocks
+- Longões: 10km → 16km → 22km → 28km → 32km → 35km
+- Volume: 25km → 45km → 65km → 75km → 50km (taper)
