@@ -226,6 +226,7 @@ serve(async (req) => {
     eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    const today = new Date().toISOString().split("T")[0];
 
     // Fetch only ACTIVE SUBSCRIBERS with activities (uses RPC with JOIN on subscribers table)
     const { data: usersData, error: usersError } = await supabase
@@ -241,8 +242,6 @@ serve(async (req) => {
 
     const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
     console.log(`[compute-athlete-segmentation] Found ${uniqueUserIds.length} active subscribers`);
-
-    const today = new Date().toISOString().split("T")[0];
     let processedCount = 0;
     let errorCount = 0;
 
