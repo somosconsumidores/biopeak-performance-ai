@@ -162,6 +162,19 @@ const GOAL_LEVEL_ADJUSTMENTS: Record<string, Partial<AthleteLevelConfig>> = {
   '42k': { maxLongRunKm: +4, maxWeeklyKm: +10 }, // Increase for marathon
 };
 
+// 🚀 FIX 4: Goal-specific long run caps (increased for marathon)
+const GOAL_LONG_RUN_CAPS: Record<string, number> = {
+  '5k': 14,
+  '10k': 18,
+  '21k': 26,
+  '42k': 36,  // Increased from effective 28 for beginners
+  'condicionamento': 16,
+  'perda_de_peso': 14,
+  'manutencao': 18,
+  'retorno': 14,
+  'melhorar_tempos': 22,
+};
+
 function getAthleteLevelConfig(level: string, goalType?: string): AthleteLevelConfig {
   const baseConfig = LEVEL_CONFIGS[level] || LEVEL_CONFIGS['Intermediate'];
   const goalAdjust = GOAL_LEVEL_ADJUSTMENTS[goalType || ''] || {};
@@ -171,6 +184,24 @@ function getAthleteLevelConfig(level: string, goalType?: string): AthleteLevelCo
     maxWeeklyKm: baseConfig.maxWeeklyKm + (goalAdjust.maxWeeklyKm || 0),
     maxLongRunKm: baseConfig.maxLongRunKm + (goalAdjust.maxLongRunKm || 0),
   };
+}
+
+// 🚀 FIX 4: Get max long run considering goal-specific caps
+function getMaxLongRunForGoal(level: string, goal: string, currentLongest: number): number {
+  const levelConfig = getAthleteLevelConfig(level, goal);
+  const goalCap = GOAL_LONG_RUN_CAPS[goal] || 20;
+  
+  // For marathon, allow progression up to 36km regardless of level
+  if (goal === '42k') {
+    return Math.min(36, Math.max(currentLongest * 1.5, levelConfig.maxLongRunKm));
+  }
+  
+  // For half marathon, allow up to 26km
+  if (goal === '21k') {
+    return Math.min(26, Math.max(currentLongest * 1.3, levelConfig.maxLongRunKm));
+  }
+  
+  return Math.min(goalCap, levelConfig.maxLongRunKm);
 }
 
 // ============== MODULE 2: SCIENTIFIC PERIODIZATION ==============
@@ -248,6 +279,56 @@ const LONG_RUN_PCT_BY_PHASE: Record<string, { min: number; max: number }> = {
   'peak':  { min: 0.38, max: 0.42 },
   'taper': { min: 0.25, max: 0.30 },
 };
+
+// 🚀 FIX 5: Phase-based volume multipliers for more aggressive progression
+const PHASE_VOLUME_MULTIPLIERS: Record<string, { start: number; end: number }> = {
+  'base':  { start: 0.60, end: 0.75 },
+  'build': { start: 0.75, end: 0.95 },
+  'peak':  { start: 0.95, end: 1.0 },
+  'taper': { start: 0.70, end: 0.50 },
+};
+
+function getPhaseProgress(week: number, totalWeeks: number, goalType: string, athleteLevel: string): number {
+  const config = GOAL_PERIODIZATION[goalType] || GOAL_PERIODIZATION['condicionamento'];
+  const levelConfig = getAthleteLevelConfig(athleteLevel, goalType);
+  const adjustedBase = config.base * (levelConfig.basePhasePct / 0.50);
+  
+  const baseCutoff = Math.max(1, Math.floor(totalWeeks * adjustedBase));
+  const buildCutoff = Math.max(baseCutoff + 1, Math.floor(totalWeeks * (adjustedBase + config.build)));
+  const peakCutoff = Math.max(buildCutoff + 1, Math.floor(totalWeeks * (adjustedBase + config.build + config.peak)));
+  
+  // Determine which phase we're in and how far into it
+  if (week <= baseCutoff) {
+    return week / baseCutoff;
+  } else if (week <= buildCutoff) {
+    return (week - baseCutoff) / (buildCutoff - baseCutoff);
+  } else if (week <= peakCutoff) {
+    return (week - buildCutoff) / (peakCutoff - buildCutoff);
+  } else {
+    return (week - peakCutoff) / Math.max(1, totalWeeks - peakCutoff);
+  }
+}
+
+// 🚀 FIX 5: Get weekly volume target based on phase progression
+function getWeeklyVolumeTarget(
+  week: number,
+  totalWeeks: number,
+  phase: string,
+  goalType: string,
+  currentVolume: number,
+  maxVolume: number,
+  athleteLevel: string
+): number {
+  const phaseMultipliers = PHASE_VOLUME_MULTIPLIERS[phase] || PHASE_VOLUME_MULTIPLIERS['build'];
+  const phaseProgress = getPhaseProgress(week, totalWeeks, goalType, athleteLevel);
+  const targetMultiplier = phaseMultipliers.start + (phaseMultipliers.end - phaseMultipliers.start) * phaseProgress;
+  
+  // Start from current volume + 20%, progress to max
+  const startVolume = Math.max(currentVolume * 1.2, 25);
+  const targetVolume = startVolume + (maxVolume - startVolume) * (week / totalWeeks);
+  
+  return Math.round(targetVolume * targetMultiplier);
+}
 
 function getEasyRunCap(goalType: string, level: string): number {
   const goalCaps = EASY_RUN_CAPS[goalType] || EASY_RUN_CAPS['10k'];
@@ -599,10 +680,12 @@ class AthleteCapacityAnalyzer {
   }
   
   getMaxLongRunKm(athleteLevel?: string, goalType?: string): number {
-    const levelConfig = getAthleteLevelConfig(athleteLevel || 'Intermediate', goalType);
+    const level = athleteLevel || 'Intermediate';
+    const goal = goalType || '10k';
     const basedOnHistory = this.trainingVolume.longestRunLast8W * 1.2;
-    // Use the minimum of level cap and history-based progression
-    return Math.min(levelConfig.maxLongRunKm, Math.max(20, basedOnHistory));
+    
+    // 🚀 FIX 4: Use goal-specific long run caps
+    return getMaxLongRunForGoal(level, goal, basedOnHistory);
   }
 }
 
@@ -922,21 +1005,39 @@ function generatePlan(
     }
     previousPhase = phase;
     
-    // Apply load cycle multiplier
+    // 🚀 FIX 5: Apply phase-based volume multiplier for more aggressive progression
     let volumeMultiplier = loadCyclePattern[cycleIndex];
     
-    // Taper: reduce volume progressively
+    // Apply phase-based progression on top of load cycle
+    const phaseMultipliers = PHASE_VOLUME_MULTIPLIERS[phase] || PHASE_VOLUME_MULTIPLIERS['build'];
+    const phaseProgress = getPhaseProgress(w, weeks, goal, athleteLevel);
+    const phaseVolumeMultiplier = phaseMultipliers.start + (phaseMultipliers.end - phaseMultipliers.start) * phaseProgress;
+    
+    // Combine load cycle with phase progression
+    volumeMultiplier = volumeMultiplier * phaseVolumeMultiplier;
+    
+    // Taper: reduce volume progressively (override)
     if (phase === 'taper') {
       const weeksFromEnd = weeks - w + 1;
       volumeMultiplier = weeksFromEnd === 1 ? 0.5 : 0.7;
     }
+    
+    console.log(`[FIX5] Week ${w}: phase=${phase}, phaseProgress=${(phaseProgress*100).toFixed(0)}%, phaseVolMult=${phaseVolumeMultiplier.toFixed(2)}, finalVolMult=${volumeMultiplier.toFixed(2)}`);
 
     // Track weekly quality sessions (max 2 per week)
     let weeklyQualityCount = 0;
     
     // ============== USE DYNAMIC CAPS ==============
+    // 🚀 FIX 5: Calculate target weekly volume based on phase
     let weeklyDistanceKm = 0;
     const maxWeeklyKm = calibrator.getMaxWeeklyKm(athleteLevel, goal);
+    const targetWeeklyKm = getWeeklyVolumeTarget(
+      w, weeks, phase, goal, 
+      calibrator.trainingVolume.avgWeeklyKm, 
+      maxWeeklyKm, 
+      athleteLevel
+    );
+    console.log(`[FIX5] Week ${w}: targetWeeklyKm=${targetWeeklyKm}km, maxWeeklyKm=${maxWeeklyKm}km`);
 
     for (const dow of dayIndices) {
       const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
@@ -1023,17 +1124,20 @@ function generateLongRun(
       dist = Math.min(Math.min(22, maxLongRun), 14 + week * 0.8); 
       break;
     case '42k': 
+      // 🚀 FIX 2: Improved volume progression for marathon
       // Check if this is a beginner plan (no history)
       if (calibrator.trainingVolume.avgWeeklyKm <= 15) {
-        // BEGINNER: Very gradual progression
-        // Start at 10km and increase 1km per week
-        dist = Math.min(maxLongRun, 10 + (week - 1) * 1.0);
-        // Cap at 28km for absolute beginners (no 30+ runs)
-        dist = Math.min(28, dist);
-        console.log(`[generateLongRun] BEGINNER 42k plan - Week ${week}: ${dist}km (capped at 28km)`);
+        // BEGINNER 42K: More aggressive but safe progression
+        // Semana 1: 10km, Semana 10: 20km, Semana 18: 32km
+        const progressionRate = 1.3; // Increased from 1.0
+        dist = Math.min(maxLongRun, 10 + (week - 1) * progressionRate);
+        // Allow up to 32km for beginners in peak phase, 28km otherwise
+        const beginnerCap = phase === 'peak' ? 32 : (phase === 'build' ? 28 : 25);
+        dist = Math.min(beginnerCap, dist);
+        console.log(`[generateLongRun] BEGINNER 42k plan - Week ${week}, phase=${phase}: ${dist}km (cap=${beginnerCap}km)`);
       } else {
-        // EXPERIENCED: Normal progression
-        dist = Math.min(maxLongRun, 14 + week * 1.2); 
+        // EXPERIENCED: More aggressive progression
+        dist = Math.min(maxLongRun, 14 + week * 1.4); // Increased from 1.2
         // Limit to 3 runs ≥30km, with 2-week spacing
         if (dist >= 30) {
           if (longRunTracker.count30Plus >= 3 || (week - longRunTracker.lastWeek30Plus < 2)) {
@@ -1197,78 +1301,142 @@ function generateSession(
     };
   }
 
+  // 🚀 FIX 1: Allow quality in base phase (fartlek, strides) after week 3
   // Distribuição de qualidade baseada em dias fixos (terça=2, quinta=4)
   // Max 2 treinos intensos por semana
   const isQualityDay = (dow === 2 || dow === 4) && weeklyQualityCount < 2;
-  const shouldAddQuality = phase !== 'base' && phase !== 'taper' && isQualityDay;
+  const isBasePhase = phase === 'base';
+  const isTaperPhase = phase === 'taper';
+  
+  // Allow gentle quality in base phase (fartlek, strides) from week 3, max 1 per week
+  const shouldAddQuality = !isTaperPhase && isQualityDay && (
+    !isBasePhase || (isBasePhase && week >= 3 && weeklyQualityCount < 1)
+  );
+  
+  // Track if we're in base phase for workout type restriction
+  const isBasePhaseQuality = isBasePhase && shouldAddQuality;
 
   if (shouldAddQuality) {
-    // Rotate through different quality sessions
-    const qualityType = week % 5;
+    // 🚀 FIX 3: Expanded workout cycle with intervals for 42k/21k (7 types instead of 5)
+    const qualityType = week % 7;
     
     if (goal === '42k' || goal === '21k') {
-      switch (qualityType) {
-        case 0: // Tempo
-          type = 'tempo';
-          title = goal === '42k' ? 'Tempo 30min' : 'Tempo 25min';
-          description = `Aquecimento + ${goal === '42k' ? '30' : '25'}min em ritmo limiar`;
-          duration_min = goal === '42k' ? 30 : 25;
+      // In base phase, only allow fartlek and strides
+      if (isBasePhaseQuality) {
+        // Base phase: gentle quality only
+        if (week % 2 === 0) {
+          type = 'fartlek';
+          title = 'Fartlek Leve 30min';
+          description = 'Aquecimento + 8x(1min moderado/1min leve) + desaquecimento';
+          duration_min = 30;
           distance_km = null as any;
-          pace = p.pace_tempo;
-          zone = 3;
+          pace = paces.pace_easy - 0.3;
+          zone = 2;
           intensity = 'moderate';
-          break;
-        case 1: // Marathon Pace blocks
-          if (goal === '42k') {
-            type = 'mp_block';
-            title = 'Blocos MP';
-            description = 'Aquecimento + 3x4km em ritmo maratona, rec 2min';
-            duration_min = 55;
+        } else {
+          type = 'strides';
+          title = 'Corrida + Strides';
+          description = '6km leve + 6x100m acelerações com recuperação caminhando';
+          distance_km = 6;
+          duration_min = null as any;
+          pace = paces.pace_easy;
+          zone = 2;
+          intensity = 'low';
+        }
+        console.log(`[generateSession] BASE PHASE quality: week=${week}, type=${type}`);
+      } else {
+        // Build/Peak phase: full workout rotation
+        switch (qualityType) {
+          case 0: // Tempo
+            type = 'tempo';
+            title = goal === '42k' ? 'Tempo 30min' : 'Tempo 25min';
+            description = `Aquecimento + ${goal === '42k' ? '30' : '25'}min em ritmo limiar`;
+            duration_min = goal === '42k' ? 30 : 25;
             distance_km = null as any;
-            pace = p.pace_marathon;
+            pace = paces.pace_tempo;
             zone = 3;
             intensity = 'moderate';
-          } else {
+            break;
+          case 1: // Marathon Pace blocks
+            if (goal === '42k') {
+              type = 'mp_block';
+              title = 'Blocos MP';
+              description = 'Aquecimento + 3x4km em ritmo maratona, rec 2min';
+              duration_min = 55;
+              distance_km = null as any;
+              pace = paces.pace_marathon;
+              zone = 3;
+              intensity = 'moderate';
+            } else {
+              type = 'progressivo';
+              title = 'Progressivo 35min';
+              description = 'Inicie Z2 leve, termine próximo ao ritmo de meia';
+              duration_min = 35;
+              distance_km = null as any;
+              pace = (paces.pace_easy + paces.pace_half) / 2;
+              zone = 3;
+              intensity = 'moderate';
+            }
+            break;
+          case 2: // 🚀 NEW: Intervals 1km (VO2max stimulus)
+            {
+              const reps1k = getIntervalReps(1000, week, totalWeeks, athleteLevel);
+              type = 'interval';
+              title = `${reps1k}x1km`;
+              description = `Aquecimento + ${reps1k}x1km ritmo 10k, rec 2min`;
+              duration_min = 30 + reps1k * 3;
+              distance_km = null as any;
+              pace = paces.pace_interval_1km;
+              zone = 4;
+              intensity = 'high';
+              console.log(`[generateSession] INTERVAL 1km: week=${week}, reps=${reps1k}`);
+            }
+            break;
+          case 3: // Progressivo
             type = 'progressivo';
-            title = 'Progressivo 35min';
-            description = 'Inicie Z2 leve, termine próximo ao ritmo de meia';
+            title = 'Progressivo 40min';
+            description = 'Inicie Z2 leve, termine em ritmo de prova';
+            duration_min = 40;
+            distance_km = null as any;
+            pace = (paces.pace_easy + paces.pace_marathon) / 2;
+            zone = 3;
+            intensity = 'moderate';
+            break;
+          case 4: // Fartlek
+            type = 'fartlek';
+            title = 'Fartlek 35min';
+            description = 'Aquecimento + 10x(2min moderado/1min leve)';
             duration_min = 35;
             distance_km = null as any;
-            pace = (p.pace_easy + p.pace_half) / 2;
+            pace = (paces.pace_easy + paces.pace_tempo) / 2;
             zone = 3;
             intensity = 'moderate';
-          }
-          break;
-        case 2: // Intervals
-          type = 'interval';
-          title = '5x1km';
-          description = 'Aquecimento + 5x1km ritmo 10k, rec 2min';
-          duration_min = 40;
-          distance_km = null as any;
-          pace = p.pace_interval_1km;
-          zone = 4;
-          intensity = 'high';
-          break;
-        case 3: // Progressivo
-          type = 'progressivo';
-          title = 'Progressivo 40min';
-          description = 'Inicie Z2 leve, termine em ritmo de prova';
-          duration_min = 40;
-          distance_km = null as any;
-          pace = (p.pace_easy + p.pace_marathon) / 2;
-          zone = 3;
-          intensity = 'moderate';
-          break;
-        case 4: // Fartlek
-          type = 'fartlek';
-          title = 'Fartlek 35min';
-          description = 'Aquecimento + 10x(2min moderado/1min leve)';
-          duration_min = 35;
-          distance_km = null as any;
-          pace = (p.pace_easy + p.pace_tempo) / 2;
-          zone = 3;
-          intensity = 'moderate';
-          break;
+            break;
+          case 5: // 🚀 NEW: Intervals 800m
+            {
+              const reps800 = getIntervalReps(800, week, totalWeeks, athleteLevel);
+              type = 'interval';
+              title = `${reps800}x800m`;
+              description = `Aquecimento + ${reps800}x800m ritmo 5-10k, rec 90s`;
+              duration_min = 30 + Math.round(reps800 * 2.5);
+              distance_km = null as any;
+              pace = paces.pace_interval_800m;
+              zone = 4;
+              intensity = 'high';
+              console.log(`[generateSession] INTERVAL 800m: week=${week}, reps=${reps800}`);
+            }
+            break;
+          case 6: // 🚀 NEW: Threshold Run
+            type = 'threshold';
+            title = 'Threshold 3x10min';
+            description = 'Aquecimento + 3x10min @ limiar, rec 3min';
+            duration_min = 45;
+            distance_km = null as any;
+            pace = paces.pace_tempo - 0.2;
+            zone = 4;
+            intensity = 'high';
+            break;
+        }
       }
     } else if (goal === '5k') {
       // ============== MODULE 4: Progressive intervals for 5k ==============
