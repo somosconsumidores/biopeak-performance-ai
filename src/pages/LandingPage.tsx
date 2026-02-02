@@ -203,8 +203,15 @@ export const LandingPage = () => {
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               {t('heroDescription')}
             </p>
-            <div className="flex justify-center mb-8">
-              <img src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/HeroSection.png" alt="BioPeak Hero" className="max-h-96 sm:max-h-[30rem] md:max-h-[36rem] lg:max-h-[42rem] w-auto max-w-full object-contain" />
+            <div className="flex justify-center mb-8 px-4">
+              <div className="relative w-full max-w-4xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/10 to-accent/20 rounded-3xl blur-3xl opacity-60" />
+                <img 
+                  src="https://grcwlmltlcltmwbhdpky.supabase.co/storage/v1/object/public/Geral/HeroSectionNew.png" 
+                  alt="BioPeak Hero" 
+                  className="relative w-full h-auto rounded-2xl shadow-2xl shadow-primary/20"
+                />
+              </div>
             </div>
             <div className="flex justify-center mb-8">
               <img 
