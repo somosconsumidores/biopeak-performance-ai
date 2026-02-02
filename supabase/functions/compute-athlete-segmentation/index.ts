@@ -227,20 +227,20 @@ serve(async (req) => {
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
-    const { data: activeUsers, error: usersError } = await supabase
-      .from("all_activities")
-      .select("user_id")
-      .gte("activity_date", eightWeeksAgo.toISOString().split("T")[0])
-      .not("user_id", "is", null);
+    // Fetch only ACTIVE SUBSCRIBERS with activities (uses RPC with JOIN on subscribers table)
+    const { data: usersData, error: usersError } = await supabase
+      .rpc('active_users_with_activities', { 
+        p_start: eightWeeksAgo.toISOString().split("T")[0], 
+        p_end: today 
+      });
 
     if (usersError) {
-      console.error("Error fetching active users:", usersError);
+      console.error("Error fetching active subscribers:", usersError);
       throw usersError;
     }
 
-    // Get unique user IDs
-    const uniqueUserIds = [...new Set(activeUsers?.map((a) => a.user_id) || [])];
-    console.log(`[compute-athlete-segmentation] Found ${uniqueUserIds.length} active users`);
+    const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
+    console.log(`[compute-athlete-segmentation] Found ${uniqueUserIds.length} active subscribers`);
 
     const today = new Date().toISOString().split("T")[0];
     let processedCount = 0;
