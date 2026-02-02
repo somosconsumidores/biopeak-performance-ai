@@ -306,13 +306,7 @@ export const Dashboard = () => {
           {/* Athlete Profile - Top of Dashboard */}
           <ScrollReveal delay={11}>
             <div className="mb-6 md:mb-8">
-              {isSubscribed ? (
-                <AthleteSegmentationCard />
-              ) : (
-                <PremiumBlur message="Perfil de Atleta é um recurso premium">
-                  <AthleteSegmentationCard />
-                </PremiumBlur>
-              )}
+              <AthleteSegmentationCard />
             </div>
           </ScrollReveal>
 
