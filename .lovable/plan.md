@@ -1,77 +1,65 @@
 
-# Plano: Filtrar Segmentação Apenas para Assinantes Ativos
+# Correção: Variável `today` usada antes da declaração
 
-## Problema Atual
+## Problema Identificado
 
-A Edge Function `compute-athlete-segmentation` está processando **todos os usuários** que possuem atividades, independente do status de assinatura. Isso causa:
-- Processamento desnecessário de usuários não pagantes
-- Erros de foreign key para usuários que não existem mais
-- Desperdício de chamadas à API da OpenAI
+Na Edge Function `compute-athlete-segmentation`, a variável `today` está sendo referenciada na **linha 234** mas só é declarada na **linha 245**:
+
+```typescript
+// Linha 234 - USO (antes da declaração)
+.rpc('active_users_with_activities', { 
+  p_start: eightWeeksAgo.toISOString().split("T")[0], 
+  p_end: today  // ❌ Erro aqui
+});
+
+// Linha 245 - DECLARAÇÃO (tarde demais)
+const today = new Date().toISOString().split("T")[0];
+```
 
 ## Solução
 
-Utilizar o RPC existente `active_users_with_activities` que já faz o filtro correto:
+Mover a declaração de `today` para **antes** do uso no RPC, junto com as outras variáveis de data.
 
-```sql
--- Lógica do RPC existente:
-SELECT DISTINCT a.user_id 
-FROM all_activities a
-JOIN subscribers s ON s.user_id = a.user_id
-WHERE s.subscribed = true 
-  AND a.activity_date BETWEEN p_start AND p_end
+## Modificação
+
+**Arquivo:** `supabase/functions/compute-athlete-segmentation/index.ts`
+
+```text
+Antes (linhas 224-245):
+├── eightWeeksAgo declarado
+├── fourWeeksAgo declarado
+├── RPC usa 'today' ❌
+├── ...código...
+└── today declarado (tarde demais)
+
+Depois:
+├── eightWeeksAgo declarado
+├── fourWeeksAgo declarado
+├── today declarado ✅
+├── RPC usa 'today'
+└── ...resto do código
 ```
 
-## Modificação Necessária
+## Código Corrigido
 
-### Arquivo: `supabase/functions/compute-athlete-segmentation/index.ts`
-
-**Antes (linhas 224-243):**
 ```typescript
-// Busca TODOS os usuários com atividades
-const { data: activeUsers, error: usersError } = await supabase
-  .from("all_activities")
-  .select("user_id")
-  .gte("activity_date", eightWeeksAgo.toISOString().split("T")[0])
-  .not("user_id", "is", null);
-```
+// 1. Get active users with recent activities (last 60 days)
+const eightWeeksAgo = new Date();
+eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+const fourWeeksAgo = new Date();
+fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+const today = new Date().toISOString().split("T")[0]; // ✅ Movido para cá
 
-**Depois:**
-```typescript
-// Busca apenas ASSINANTES ATIVOS com atividades
+// Fetch only ACTIVE SUBSCRIBERS with activities
 const { data: usersData, error: usersError } = await supabase
   .rpc('active_users_with_activities', { 
     p_start: eightWeeksAgo.toISOString().split("T")[0], 
-    p_end: today 
+    p_end: today // ✅ Agora funciona
   });
-
-if (usersError) {
-  console.error("Error fetching active subscribers:", usersError);
-  throw usersError;
-}
-
-const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
-console.log(`[compute-athlete-segmentation] Found ${uniqueUserIds.length} active subscribers`);
 ```
 
-## Benefícios
+## Impacto
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Usuários processados | ~21+ (todos com atividades) | ~15 (apenas assinantes) |
-| Erros de FK | 3 usuários inexistentes | 0 (filtrados pelo JOIN) |
-| Chamadas OpenAI | ~21 | ~15 (economia de 30%) |
-| Tempo execução | ~156s | ~100s (estimado) |
-
-## Segurança Adicional
-
-A função `active_users_with_activities` faz `JOIN` com a tabela `subscribers`, o que automaticamente:
-1. Valida que o `user_id` existe na tabela de assinantes
-2. Confirma que `subscribed = true`
-3. Evita erros de foreign key na inserção
-
-## Implementação
-
-Modificação de apenas 1 arquivo:
-- `supabase/functions/compute-athlete-segmentation/index.ts`
-
-Tempo estimado: 5 minutos
+- Correção de 1 linha (mover declaração)
+- Remover declaração duplicada da linha 245
+- Tempo: menos de 1 minuto
