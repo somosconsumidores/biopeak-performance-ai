@@ -417,12 +417,16 @@ export function useTrainingPlanWizard() {
           return !!wizardData.availableHoursPerWeek && wizardData.availableHoursPerWeek >= 2;
         }
         return wizardData.unknownPaces === true || Object.values(wizardData.estimatedTimes).some(time => time);
-      case 7:
+      case 7: {
         // Days for cycling, Weekly frequency for running
         if (sportType === 'cycling') {
           return wizardData.availableDays.length >= 2;
         }
-        return wizardData.weeklyFrequency >= 1 && wizardData.weeklyFrequency <= 7;
+        // Marathon requires minimum 5 days per week
+        const isMarathonGoal = wizardData.goal === 'marathon' || wizardData.goal === '42k';
+        const minFrequency = isMarathonGoal ? 5 : 1;
+        return wizardData.weeklyFrequency >= minFrequency && wizardData.weeklyFrequency <= 7;
+      }
       case 8:
         // Equipment for cycling, Available days for running
         if (sportType === 'cycling') {
