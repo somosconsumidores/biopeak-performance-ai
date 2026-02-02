@@ -467,20 +467,21 @@ export const Dashboard = () => {
               {/* BioPeak Fitness Score Section */}
               {!loading && activeSection === 'fitness-score' && (
                 <>
-                  {isSubscribed ? (
-                    <BioPeakFitnessCard />
-                  ) : (
-                    <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
-                      <BioPeakFitnessCard />
-                    </PremiumBlur>
-                  )}
-                  
-                  {/* Athlete Segmentation Card */}
+                  {/* Athlete Segmentation Card - Perfil do Atleta no topo */}
                   {isSubscribed ? (
                     <AthleteSegmentationCard className="mb-6" />
                   ) : (
                     <PremiumBlur message="Perfil de Atleta é um recurso premium">
                       <AthleteSegmentationCard className="mb-6" />
+                    </PremiumBlur>
+                  )}
+                  
+                  {/* BioPeak Fitness Score */}
+                  {isSubscribed ? (
+                    <BioPeakFitnessCard />
+                  ) : (
+                    <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
+                      <BioPeakFitnessCard />
                     </PremiumBlur>
                   )}
                   
