@@ -1,336 +1,77 @@
 
-# Plano: Sistema de Segmentação de Atleta com IA
+# Plano: Filtrar Segmentação Apenas para Assinantes Ativos
 
-## Visão Geral
+## Problema Atual
 
-Criar um sistema de segmentação inteligente que classifica atletas em categorias significativas, atualizado semanalmente via cron job, com explicações personalizadas geradas por IA e exibido no Dashboard Performance com badges elegantes.
+A Edge Function `compute-athlete-segmentation` está processando **todos os usuários** que possuem atividades, independente do status de assinatura. Isso causa:
+- Processamento desnecessário de usuários não pagantes
+- Erros de foreign key para usuários que não existem mais
+- Desperdício de chamadas à API da OpenAI
 
-## Arquitetura da Solução
+## Solução
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     FLUXO DE SEGMENTAÇÃO DE ATLETA                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐                                                        │
-│  │  CRON JOB       │  Domingo 00:00 UTC-3 (São Paulo)                       │
-│  │  (pg_cron)      │────────────────────────────────────────┐               │
-│  └─────────────────┘                                        │               │
-│                                                             ▼               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                  EDGE FUNCTION: compute-athlete-segmentation        │    │
-│  ├─────────────────────────────────────────────────────────────────────┤    │
-│  │  1. Buscar todos os usuários ativos (subscribers + activities)      │    │
-│  │  2. Para cada usuário:                                              │    │
-│  │     ├─ Coletar métricas de all_activities (8 semanas)               │    │
-│  │     ├─ Buscar PRs de activity_best_segments                         │    │
-│  │     ├─ Consultar VO2 Max (garmin_vo2max + v_all_activities_daniels) │    │
-│  │     ├─ Verificar training_plans (adesão, progresso)                 │    │
-│  │     └─ Calcular evolução vs período anterior                        │    │
-│  │  3. Classificar em categoria (Rising Star, Consistent, etc.)        │    │
-│  │  4. Chamar OpenAI para gerar explicação personalizada               │    │
-│  │  5. Salvar em athlete_segmentation                                  │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                             │               │
-│                                                             ▼               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                   TABELA: athlete_segmentation                      │    │
-│  ├─────────────────────────────────────────────────────────────────────┤    │
-│  │  user_id, segment_name, badge_icon, ai_explanation,                 │    │
-│  │  metrics_snapshot (JSONB), score, trend, created_at                 │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                             │               │
-│                                                             ▼               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │             FRONTEND: Dashboard Performance                         │    │
-│  ├─────────────────────────────────────────────────────────────────────┤    │
-│  │  ┌─────────────────────────────────────────────────────────────┐    │    │
-│  │  │  🏃 AthleteSegmentationCard                                  │    │    │
-│  │  │  ┌────────────────────────────────────────────────────────┐ │    │    │
-│  │  │  │  [Badge Icon]  "Rising Star" ⬆️                        │ │    │    │
-│  │  │  │  ────────────────────────────────────────────────────  │ │    │    │
-│  │  │  │  "Você está em uma trajetória ascendente! Nas últimas  │ │    │    │
-│  │  │  │  8 semanas, seu pace médio melhorou 8%, você aumentou  │ │    │    │
-│  │  │  │  a distância semanal em 15% e bateu 2 PRs pessoais..." │ │    │    │
-│  │  │  └────────────────────────────────────────────────────────┘ │    │    │
-│  │  └─────────────────────────────────────────────────────────────┘    │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Categorias de Segmentação
-
-| Segmento | Ícone | Cor | Critérios |
-|----------|-------|-----|-----------|
-| **Rising Star** ⭐ | rocket | Amarelo/Dourado | Melhoria >10% em pace ou distância, PRs recentes, tendência ascendente |
-| **Consistent Performer** 💎 | gem | Azul | Mantém volume e intensidade estáveis, sem queda, treina 3+ vezes/semana |
-| **Comeback Hero** 🔥 | flame | Laranja | Retornou após período inativo (>2 semanas) com atividade nas últimas 2 semanas |
-| **Endurance Builder** 🏔️ | mountain | Verde | Foco em aumentar distância/volume, sem foco em velocidade |
-| **Speed Demon** ⚡ | zap | Roxo | Foco em melhorar pace/velocidade, PRs de 1km recentes |
-| **Recovery Mode** 😴 | moon | Cinza | Volume reduzido intencionalmente, descanso ativo |
-| **Getting Started** 🌱 | seedling | Verde claro | <4 semanas de dados ou <8 atividades |
-
-## Estrutura de Dados
-
-### Tabela: `athlete_segmentation`
+Utilizar o RPC existente `active_users_with_activities` que já faz o filtro correto:
 
 ```sql
-CREATE TABLE athlete_segmentation (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  
-  -- Segmento principal
-  segment_name TEXT NOT NULL,  -- Ex: "Rising Star", "Consistent Performer"
-  badge_icon TEXT NOT NULL,    -- Ex: "rocket", "gem", "flame"
-  badge_color TEXT NOT NULL,   -- Ex: "yellow", "blue", "orange"
-  
-  -- Explicação gerada por IA
-  ai_explanation TEXT NOT NULL,
-  
-  -- Snapshot das métricas usadas na análise
-  metrics_snapshot JSONB NOT NULL DEFAULT '{}',
-  -- Exemplo:
-  -- {
-  --   "weekly_distance_km": 35.2,
-  --   "weekly_frequency": 4.5,
-  --   "avg_pace_min_km": 5.42,
-  --   "pace_improvement_percent": 8.3,
-  --   "distance_improvement_percent": 15.1,
-  --   "vo2_max": 48.5,
-  --   "personal_records_count": 2,
-  --   "training_plan_adherence_percent": 85
-  -- }
-  
-  -- Score composto (0-100) para ordenação/comparação
-  composite_score NUMERIC(5,2),
-  
-  -- Tendência: up, down, stable
-  trend TEXT NOT NULL DEFAULT 'stable',
-  
-  -- Período analisado
-  analysis_period_start DATE,
-  analysis_period_end DATE,
-  
-  -- Timestamps
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  -- Unique constraint: um registro por usuário por semana
-  UNIQUE(user_id, created_at::date)
-);
-
--- Index para busca rápida
-CREATE INDEX idx_athlete_segmentation_user_latest 
-  ON athlete_segmentation(user_id, created_at DESC);
-
--- RLS
-ALTER TABLE athlete_segmentation ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can read own segmentation"
-  ON athlete_segmentation FOR SELECT
-  USING (auth.uid() = user_id);
+-- Lógica do RPC existente:
+SELECT DISTINCT a.user_id 
+FROM all_activities a
+JOIN subscribers s ON s.user_id = a.user_id
+WHERE s.subscribed = true 
+  AND a.activity_date BETWEEN p_start AND p_end
 ```
 
-## Edge Function: `compute-athlete-segmentation`
+## Modificação Necessária
 
-### Algoritmo de Classificação
+### Arquivo: `supabase/functions/compute-athlete-segmentation/index.ts`
 
+**Antes (linhas 224-243):**
 ```typescript
-// Pseudocódigo do algoritmo de classificação
-function classifyAthlete(metrics: AthleteMetrics): SegmentResult {
-  const { 
-    weeklyActivities, 
-    paceImprovement, 
-    distanceImprovement,
-    prCount,
-    daysInactive,
-    vo2Max,
-    trainingPlanAdherence
-  } = metrics;
-
-  // 1. Getting Started - dados insuficientes
-  if (weeklyActivities < 2 || metrics.totalWeeks < 4) {
-    return { segment: "Getting Started", icon: "seedling", color: "green-300" };
-  }
-
-  // 2. Comeback Hero - retornou de inatividade
-  if (daysInactive > 14 && metrics.recentActivityDays <= 14) {
-    return { segment: "Comeback Hero", icon: "flame", color: "orange" };
-  }
-
-  // 3. Rising Star - melhorando rapidamente
-  if (paceImprovement > 10 || distanceImprovement > 15 || prCount >= 2) {
-    return { segment: "Rising Star", icon: "rocket", color: "yellow" };
-  }
-
-  // 4. Speed Demon - foco em velocidade
-  if (paceImprovement > 5 && distanceImprovement < 5) {
-    return { segment: "Speed Demon", icon: "zap", color: "purple" };
-  }
-
-  // 5. Endurance Builder - foco em volume
-  if (distanceImprovement > 10 && paceImprovement < 3) {
-    return { segment: "Endurance Builder", icon: "mountain", color: "green" };
-  }
-
-  // 6. Recovery Mode - volume reduzido
-  if (distanceImprovement < -20 || weeklyActivities < 2) {
-    return { segment: "Recovery Mode", icon: "moon", color: "gray" };
-  }
-
-  // 7. Consistent Performer - padrão estável
-  return { segment: "Consistent Performer", icon: "gem", color: "blue" };
-}
+// Busca TODOS os usuários com atividades
+const { data: activeUsers, error: usersError } = await supabase
+  .from("all_activities")
+  .select("user_id")
+  .gte("activity_date", eightWeeksAgo.toISOString().split("T")[0])
+  .not("user_id", "is", null);
 ```
 
-### Prompt para OpenAI
-
+**Depois:**
 ```typescript
-const prompt = `
-Você é um coach de corrida experiente e motivador. Analise o perfil do atleta abaixo e escreva uma explicação personalizada (2-3 parágrafos, máximo 150 palavras) sobre sua performance recente.
+// Busca apenas ASSINANTES ATIVOS com atividades
+const { data: usersData, error: usersError } = await supabase
+  .rpc('active_users_with_activities', { 
+    p_start: eightWeeksAgo.toISOString().split("T")[0], 
+    p_end: today 
+  });
 
-**Categoria Atribuída:** ${segmentName}
-
-**Métricas das Últimas 8 Semanas:**
-- Distância Semanal Média: ${metrics.weeklyDistanceKm} km
-- Frequência: ${metrics.weeklyFrequency} treinos/semana
-- Pace Médio: ${metrics.avgPaceMinKm} min/km
-- Melhoria de Pace: ${metrics.paceImprovement}%
-- Melhoria de Distância: ${metrics.distanceImprovement}%
-- VO2 Max: ${metrics.vo2Max || 'não disponível'}
-- PRs Pessoais Recentes: ${metrics.prCount}
-- Adesão ao Plano de Treino: ${metrics.planAdherence || 'sem plano ativo'}%
-
-**Instruções:**
-1. Comece com uma frase positiva e encorajadora relacionada à categoria
-2. Destaque 2-3 pontos fortes específicos baseados nos dados
-3. Se houver espaço para melhoria, sugira de forma construtiva
-4. Termine com uma frase motivacional curta
-5. Use linguagem informal mas profissional, em português brasileiro
-6. NÃO use emojis no texto
-`;
-```
-
-## Componente Frontend: `AthleteSegmentationCard`
-
-### Arquivo: `src/components/AthleteSegmentationCard.tsx`
-
-```typescript
-// Estrutura do componente
-interface AthleteSegmentationCardProps {
-  className?: string;
+if (usersError) {
+  console.error("Error fetching active subscribers:", usersError);
+  throw usersError;
 }
 
-export function AthleteSegmentationCard({ className }: AthleteSegmentationCardProps) {
-  const { segmentation, loading, error } = useAthleteSegmentation();
-  
-  // Badge icons mapping
-  const iconMap = {
-    rocket: Rocket,
-    gem: Gem,
-    flame: Flame,
-    mountain: Mountain,
-    zap: Zap,
-    moon: Moon,
-    seedling: Sprout,
-  };
-  
-  // Badge colors mapping
-  const colorMap = {
-    yellow: 'from-yellow-500 to-amber-500',
-    blue: 'from-blue-500 to-indigo-500',
-    orange: 'from-orange-500 to-red-500',
-    green: 'from-green-500 to-emerald-500',
-    purple: 'from-purple-500 to-violet-500',
-    gray: 'from-gray-400 to-slate-500',
-    'green-300': 'from-green-300 to-teal-400',
-  };
-  
-  // Render card com badge animado e explicação IA
-}
+const uniqueUserIds = (usersData ?? []).map((r: { user_id: string }) => r.user_id);
+console.log(`[compute-athlete-segmentation] Found ${uniqueUserIds.length} active subscribers`);
 ```
 
-### Design do Badge
+## Benefícios
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │         🚀                                               │   │
-│  │     ┌───────────────────────────────────────┐            │   │
-│  │     │       RISING STAR                     │            │   │
-│  │     │       ──────────────────────          │            │   │
-│  │     │       Tendência: ⬆️ Ascendente        │            │   │
-│  │     └───────────────────────────────────────┘            │   │
-│  │                                                          │   │
-│  │  "Você está em uma trajetória impressionante! Nas        │   │
-│  │  últimas 8 semanas, seu pace médio melhorou 8.3%,        │   │
-│  │  passando de 5:52/km para 5:21/km. Além disso, você      │   │
-│  │  aumentou sua distância semanal em 15%, alcançando uma   │   │
-│  │  média de 35km por semana.                               │   │
-│  │                                                          │   │
-│  │  Seus 2 recordes pessoais recentes mostram que o         │   │
-│  │  trabalho está dando resultado. Continue focando na      │   │
-│  │  consistência e lembre-se: cada quilômetro te deixa      │   │
-│  │  mais forte."                                            │   │
-│  │                                                          │   │
-│  │  ─────────────────────────────────────────────────────   │   │
-│  │  📊 Métricas: 35.2 km/sem • 4.5 treinos • 5:21 pace      │   │
-│  │  🕐 Atualizado: 02/02/2026                               │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Usuários processados | ~21+ (todos com atividades) | ~15 (apenas assinantes) |
+| Erros de FK | 3 usuários inexistentes | 0 (filtrados pelo JOIN) |
+| Chamadas OpenAI | ~21 | ~15 (economia de 30%) |
+| Tempo execução | ~156s | ~100s (estimado) |
 
-## Cron Job Configuration
+## Segurança Adicional
 
-```sql
--- Executar todo domingo às 03:00 UTC (00:00 horário de Brasília)
-SELECT cron.schedule(
-  'weekly-athlete-segmentation',
-  '0 3 * * 0',  -- Domingo, 03:00 UTC
-  $$
-  SELECT net.http_post(
-    url := 'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/compute-athlete-segmentation',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM"}'::jsonb,
-    body := concat('{"triggered_at": "', now(), '"}')::jsonb
-  );
-  $$
-);
-```
+A função `active_users_with_activities` faz `JOIN` com a tabela `subscribers`, o que automaticamente:
+1. Valida que o `user_id` existe na tabela de assinantes
+2. Confirma que `subscribed = true`
+3. Evita erros de foreign key na inserção
 
-## Arquivos a Criar/Modificar
+## Implementação
 
-| Arquivo | Tipo | Descrição |
-|---------|------|-----------|
-| `supabase/migrations/xxx_athlete_segmentation.sql` | Novo | Criar tabela + índices + RLS |
-| `supabase/functions/compute-athlete-segmentation/index.ts` | Novo | Edge function principal |
-| `src/hooks/useAthleteSegmentation.ts` | Novo | Hook para consumir dados |
-| `src/components/AthleteSegmentationCard.tsx` | Novo | Componente visual do badge |
-| `src/pages/Dashboard.tsx` | Modificar | Adicionar card na seção de Performance |
+Modificação de apenas 1 arquivo:
+- `supabase/functions/compute-athlete-segmentation/index.ts`
 
-## Dependências
-
-### Secrets Necessárias
-- `OPENAI_API_KEY` - Já configurada no projeto (usada por analyze-workout)
-
-### Extensões Supabase
-- `pg_cron` - Para agendamento (já habilitada)
-- `pg_net` - Para HTTP requests do cron (já habilitada)
-
-## Ordem de Implementação
-
-1. **Migração SQL**: Criar tabela `athlete_segmentation` com índices e RLS
-2. **Edge Function**: Implementar `compute-athlete-segmentation`
-3. **Hook React**: Criar `useAthleteSegmentation` 
-4. **Componente UI**: Criar `AthleteSegmentationCard`
-5. **Dashboard**: Integrar card na seção de Performance
-6. **Cron Job**: Configurar agendamento semanal via SQL
-
-## Resultado Esperado
-
-Após implementação:
-- Todos os atletas receberão uma classificação semanal automaticamente
-- O Dashboard Performance exibirá um badge visual com a categoria do atleta
-- Uma explicação personalizada gerada por IA acompanha o badge
-- O histórico de segmentações fica registrado para análise de evolução futura
-- Atletas entenderão de forma clara e motivadora como sua performance está evoluindo
+Tempo estimado: 5 minutos
