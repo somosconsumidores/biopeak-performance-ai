@@ -1173,9 +1173,9 @@ function generatePlan(
       let sessionKm = easySession.distance_km || 6;
       if (weeklyDistanceKm + sessionKm > maxWeeklyKm) {
         sessionKm = Math.max(3, maxWeeklyKm - weeklyDistanceKm);
-        easySession.distance_km = sessionKm;
-        // 🚀 CORREÇÃO 3: Atualizar título quando distância muda para manter consistência
-        easySession.title = `Corrida Leve ${sessionKm}km`;
+        easySession.distance_km = Math.round(sessionKm);
+        // 🚀 CORREÇÃO 3: Atualizar título quando distância muda para manter consistência (sempre inteiro)
+        easySession.title = `Corrida Leve ${Math.round(sessionKm)}km`;
       }
       
       weeklyDistanceKm += sessionKm;
@@ -1269,6 +1269,7 @@ function generateQualityWorkout(
 }
 
 // ============== QUALITY WORKOUT GENERATORS ==============
+// 🚀 FIX: All quality workouts now include distance_km for proper volume calculation
 function generateTempoWorkout(goal: GoalType, phase: string, paces: Paces, level: string): WorkoutSession {
   const durationByGoal: Record<string, number> = {
     '5k': 20, '10k': 25, '21k': 30, '42k': 35,
@@ -1280,11 +1281,16 @@ function generateTempoWorkout(goal: GoalType, phase: string, paces: Paces, level
   if (phase === 'peak') duration += 5;
   if (phase === 'taper') duration -= 10;
   
+  // 🚀 FIX: Calculate distance from duration and pace (including warmup/cooldown)
+  const totalDuration = 15 + duration; // 10min warmup + tempo + 5min cooldown
+  const avgPace = paces.pace_tempo + 0.5; // Slightly slower average due to warmup/cooldown
+  const distanceKm = Math.round(totalDuration / avgPace);
+  
   return {
     type: 'tempo',
     title: `Tempo ${duration}min`,
     description: `Aquecimento 10min + ${duration}min em ritmo limiar (Z3) + desaquecimento 5min`,
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: duration,
     target_hr_zone: 3,
     target_pace_min_per_km: Number(paces.pace_tempo.toFixed(2)),
@@ -1301,11 +1307,16 @@ function generateIntervalWorkout(distanceM: number, week: number, totalWeeks: nu
   const recoveryTime = distanceM === 400 ? '90s' : distanceM === 800 ? '2min' : '2min30s';
   const estimatedDuration = 15 + reps * (distanceM / 200); // rough estimate
   
+  // 🚀 FIX: Calculate distance (warmup 1.5km + intervals + recovery jog + cooldown 1km)
+  const intervalDistance = (reps * distanceM) / 1000;
+  const recoveryDistance = reps * 0.1; // ~100m jog recovery per rep
+  const distanceKm = Math.round(1.5 + intervalDistance + recoveryDistance + 1);
+  
   return {
     type: 'interval',
     title: `${reps}x${distanceM}m`,
     description: `Aquecimento 10min + ${reps}x${distanceM}m @ ${pace.toFixed(2)} min/km, rec ${recoveryTime} + desaquecimento 5min`,
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: Math.round(estimatedDuration),
     target_hr_zone: distanceM === 400 ? 5 : 4,
     target_pace_min_per_km: Number(pace.toFixed(2)),
@@ -1316,15 +1327,20 @@ function generateIntervalWorkout(distanceM: number, week: number, totalWeeks: nu
 function generateThresholdWorkout(phase: string, paces: Paces, level: string): WorkoutSession {
   const reps = phase === 'peak' ? 4 : 3;
   const repDuration = 10;
+  const totalDuration = 15 + reps * (repDuration + 3);
+  
+  // 🚀 FIX: Calculate distance from duration and threshold pace
+  const thresholdPace = paces.pace_tempo - 0.2;
+  const distanceKm = Math.round(totalDuration / thresholdPace);
   
   return {
     type: 'threshold',
     title: `Threshold ${reps}x${repDuration}min`,
     description: `Aquecimento 10min + ${reps}x${repDuration}min @ limiar (Z4), rec 3min + desaquecimento 5min`,
-    distance_km: null as any,
-    duration_min: 15 + reps * (repDuration + 3),
+    distance_km: distanceKm,
+    duration_min: totalDuration,
     target_hr_zone: 4,
-    target_pace_min_per_km: Number((paces.pace_tempo - 0.2).toFixed(2)),
+    target_pace_min_per_km: Number(thresholdPace.toFixed(2)),
     intensity: 'high',
   };
 }
@@ -1333,27 +1349,36 @@ function generateFartlekWorkout(phase: string, paces: Paces, goal: GoalType): Wo
   const duration = phase === 'peak' ? 40 : 35;
   const intervals = phase === 'peak' ? '12x(2min moderado/1min leve)' : '10x(2min moderado/1min leve)';
   
+  // 🚀 FIX: Calculate distance from total time and average pace
+  const totalDuration = 15 + duration; // warmup/cooldown included
+  const avgPace = (paces.pace_easy + paces.pace_tempo) / 2;
+  const distanceKm = Math.round(totalDuration / avgPace);
+  
   return {
     type: 'fartlek',
     title: `Fartlek ${duration}min`,
     description: `Aquecimento 10min + ${intervals} + desaquecimento 5min`,
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: duration,
     target_hr_zone: 3,
-    target_pace_min_per_km: Number(((paces.pace_easy + paces.pace_tempo) / 2).toFixed(2)),
+    target_pace_min_per_km: Number(avgPace.toFixed(2)),
     intensity: 'moderate',
   };
 }
 
 function generateFartlekLightWorkout(paces: Paces): WorkoutSession {
+  // 🚀 FIX: Calculate distance from duration and pace
+  const avgPace = paces.pace_easy - 0.3;
+  const distanceKm = Math.round(30 / avgPace);
+  
   return {
     type: 'fartlek',
     title: 'Fartlek Leve 30min',
     description: 'Aquecimento 10min + 8x(1min moderado/1min leve) + desaquecimento 4min',
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: 30,
     target_hr_zone: 2,
-    target_pace_min_per_km: Number((paces.pace_easy - 0.3).toFixed(2)),
+    target_pace_min_per_km: Number(avgPace.toFixed(2)),
     intensity: 'moderate',
   };
 }
@@ -1362,14 +1387,18 @@ function generateProgressivoWorkout(phase: string, paces: Paces, goal: GoalType)
   const duration = phase === 'peak' ? 45 : 40;
   const targetPace = goal === '42k' ? paces.pace_marathon : goal === '21k' ? paces.pace_half : paces.pace_10k;
   
+  // 🚀 FIX: Calculate distance from duration and average pace
+  const avgPace = (paces.pace_easy + (targetPace || paces.pace_tempo)) / 2;
+  const distanceKm = Math.round(duration / avgPace);
+  
   return {
     type: 'progressivo',
     title: `Progressivo ${duration}min`,
     description: `Inicie em Z2 leve, aumente gradualmente, termine próximo ao ritmo de prova (${targetPace?.toFixed(2) || '?'} min/km)`,
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: duration,
     target_hr_zone: 3,
-    target_pace_min_per_km: Number(((paces.pace_easy + (targetPace || paces.pace_tempo)) / 2).toFixed(2)),
+    target_pace_min_per_km: Number(avgPace.toFixed(2)),
     intensity: 'moderate',
   };
 }
@@ -1380,11 +1409,17 @@ function generateMPBlockWorkout(week: number, totalWeeks: number, paces: Paces):
   const blocks = progress > 0.6 ? 3 : 2;
   const blockDistance = progress > 0.7 ? 5 : 4;
   
+  // 🚀 FIX: Calculate total distance (warmup + blocks + recovery jog + cooldown)
+  const warmupCooldown = 3; // ~1.5km warmup + 1.5km cooldown
+  const blocksTotalKm = blocks * blockDistance;
+  const recoveryKm = (blocks - 1) * 0.4; // ~400m jog recovery between blocks
+  const distanceKm = Math.round(warmupCooldown + blocksTotalKm + recoveryKm);
+  
   return {
     type: 'mp_block',
     title: `Blocos MP ${blocks}x${blockDistance}km`,
     description: `Aquecimento 10min + ${blocks}x${blockDistance}km em ritmo maratona (${paces.pace_marathon?.toFixed(2) || '?'} min/km), rec 3min + desaquecimento`,
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: 15 + blocks * (blockDistance * 5 + 3),
     target_hr_zone: 3,
     target_pace_min_per_km: Number((paces.pace_marathon || paces.pace_tempo + 0.3).toFixed(2)),
@@ -1423,11 +1458,14 @@ function generateStridesWorkout(paces: Paces): WorkoutSession {
 }
 
 function generateHillRepeatsWorkout(paces: Paces): WorkoutSession {
+  // 🚀 FIX: Calculate distance (warmup 1.5km + 6x200m hills + jog down + cooldown 1km)
+  const distanceKm = Math.round(1.5 + 6 * 0.4 + 1); // ~5km total
+  
   return {
     type: 'hill_repeats',
     title: 'Repetições em Subida',
     description: 'Aquecimento 10min + 6x60s subida forte, trote de volta + desaquecimento 5min',
-    distance_km: null as any,
+    distance_km: distanceKm,
     duration_min: 35,
     target_hr_zone: 4,
     target_pace_min_per_km: Number((paces.pace_tempo - 0.3).toFixed(2)),
