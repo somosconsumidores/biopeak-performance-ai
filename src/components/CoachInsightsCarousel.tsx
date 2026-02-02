@@ -54,7 +54,7 @@ const iconMap: Record<string, LucideIcon> = {
   'cycling': Bike,
 };
 
-// Status configurations with badge text
+// Status configurations with badge text - using semantic design tokens
 const statusConfig: Record<InsightData['status'], {
   border: string;
   icon: string;
@@ -64,36 +64,40 @@ const statusConfig: Record<InsightData['status'], {
   badgeBg: string;
   badgeText: string;
   meterColor: string;
+  valueColor: string;
 }> = {
   positive: {
-    border: 'border-emerald-500/30',
+    border: 'border-border',
     icon: 'text-emerald-500',
     bg: 'bg-emerald-500/10',
-    glow: 'shadow-emerald-500/20',
+    glow: '',
     badge: 'ZONA SEGURA',
-    badgeBg: 'bg-emerald-500/20',
-    badgeText: 'text-emerald-400',
+    badgeBg: 'bg-emerald-500/15',
+    badgeText: 'text-emerald-600 dark:text-emerald-400',
     meterColor: 'bg-emerald-500',
+    valueColor: 'text-emerald-600 dark:text-emerald-500',
   },
   warning: {
-    border: 'border-amber-500/30',
+    border: 'border-border',
     icon: 'text-amber-500',
     bg: 'bg-amber-500/10',
-    glow: 'shadow-amber-500/20',
+    glow: '',
     badge: 'ATENÇÃO',
-    badgeBg: 'bg-amber-500/20',
-    badgeText: 'text-amber-400',
+    badgeBg: 'bg-amber-500/15',
+    badgeText: 'text-amber-600 dark:text-amber-400',
     meterColor: 'bg-amber-500',
+    valueColor: 'text-amber-600 dark:text-amber-500',
   },
   neutral: {
-    border: 'border-slate-400/30',
-    icon: 'text-slate-400',
-    bg: 'bg-slate-400/10',
-    glow: 'shadow-slate-400/10',
+    border: 'border-border',
+    icon: 'text-muted-foreground',
+    bg: 'bg-muted/50',
+    glow: '',
     badge: 'ESTÁVEL',
-    badgeBg: 'bg-slate-500/20',
-    badgeText: 'text-slate-300',
-    meterColor: 'bg-slate-400',
+    badgeBg: 'bg-muted',
+    badgeText: 'text-muted-foreground',
+    meterColor: 'bg-muted-foreground',
+    valueColor: 'text-foreground',
   },
 };
 
@@ -134,11 +138,11 @@ const ACWRMeter = ({ value, color }: { value: number; color: string }) => {
   const position = Math.min(Math.max((value / 2) * 100, 5), 95);
   
   return (
-    <div className="mt-3 space-y-1">
-      <div className="relative h-2 rounded-full overflow-hidden bg-gradient-to-r from-amber-500/30 via-emerald-500/50 to-red-500/30">
+    <div className="mt-4 space-y-1.5">
+      <div className="relative h-1.5 rounded-full overflow-hidden bg-gradient-to-r from-amber-400/40 via-emerald-500/60 to-red-400/40">
         {/* Marker */}
         <div 
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-background shadow-lg z-10"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-card shadow-sm z-10"
           style={{ 
             left: `${position}%`,
             backgroundColor: color,
@@ -146,9 +150,9 @@ const ACWRMeter = ({ value, color }: { value: number; color: string }) => {
           }}
         />
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground/70">
+      <div className="flex justify-between text-[10px] text-muted-foreground">
         <span>Baixo</span>
-        <span className="text-emerald-400/80">Ideal</span>
+        <span className="text-emerald-500 font-medium">Ideal</span>
         <span>Alto</span>
       </div>
     </div>
@@ -161,11 +165,11 @@ const EfficiencyMeter = ({ value, color }: { value: number; color: string }) => 
   const position = Math.min(Math.max(((value + 20) / 40) * 100, 5), 95);
   
   return (
-    <div className="mt-3 space-y-1">
-      <div className="relative h-2 rounded-full overflow-hidden bg-gradient-to-r from-red-500/40 via-slate-500/30 to-emerald-500/40">
+    <div className="mt-4 space-y-1.5">
+      <div className="relative h-1.5 rounded-full overflow-hidden bg-gradient-to-r from-red-400/40 via-muted/60 to-emerald-400/40">
         {/* Marker */}
         <div 
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-background shadow-lg z-10"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-card shadow-sm z-10"
           style={{ 
             left: `${position}%`,
             backgroundColor: color,
@@ -173,7 +177,7 @@ const EfficiencyMeter = ({ value, color }: { value: number; color: string }) => 
           }}
         />
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground/70">
+      <div className="flex justify-between text-[10px] text-muted-foreground">
         <span>-20%</span>
         <span>0%</span>
         <span>+20%</span>
@@ -191,40 +195,40 @@ export const CoachInsightsCarousel = () => {
     // Show Pro-only card immediately for non-subscribers (don't wait for data loading)
     if (!subscriptionLoading && isSubscribed === false) {
       return [
-        <CarouselItem key="pro-only" className="basis-[85%] sm:basis-[320px] pl-4">
-          <Card className="glass-card border-primary/30 h-full overflow-hidden relative bg-gradient-to-br from-primary/5 via-transparent to-primary/10">
+        <CarouselItem key="pro-only" className="basis-[85%] sm:basis-[280px] pl-4">
+          <Card className="bg-card border-primary/20 h-full overflow-hidden relative shadow-sm">
             {/* Lock watermark */}
-            <div className="absolute -bottom-4 -right-4 opacity-[0.05] pointer-events-none">
-              <Lock className="h-32 w-32" />
+            <div className="absolute -bottom-6 -right-6 opacity-[0.03] pointer-events-none">
+              <Lock className="h-28 w-28" />
             </div>
             
-            <CardContent className="p-5 flex flex-col items-center justify-center min-h-[220px] text-center relative z-10">
-              <div className="p-3 rounded-full bg-primary/10 mb-4">
-                <Crown className="h-6 w-6 text-primary" />
+            <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center min-h-[200px] text-center relative z-10">
+              <div className="p-2.5 rounded-lg bg-primary/10 mb-3">
+                <Crown className="h-5 w-5 text-primary" />
               </div>
               
               <Badge 
                 variant="outline" 
-                className="bg-primary/20 text-primary border-0 text-[10px] font-semibold px-3 py-1 mb-3"
+                className="bg-primary/10 text-primary border-0 text-[9px] font-bold px-2.5 py-0.5 mb-3 rounded-md"
               >
                 CONTEÚDO PRO
               </Badge>
               
-              <h4 className="font-semibold text-sm text-foreground mb-2">
+              <h4 className="font-semibold text-sm text-foreground mb-1.5">
                 Insights do Coach IA
               </h4>
               
-              <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
-                Análises personalizadas e inteligentes sobre seu desempenho, exclusivo para assinantes Pro.
+              <p className="text-xs text-muted-foreground mb-4 max-w-[180px] leading-relaxed">
+                Análises personalizadas sobre seu desempenho, exclusivo para assinantes Pro.
               </p>
               
               <Button 
                 size="sm" 
                 onClick={() => navigate('/paywall2')}
-                className="bg-primary hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Desbloquear Insights
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                Desbloquear
               </Button>
             </CardContent>
           </Card>
@@ -235,17 +239,18 @@ export const CoachInsightsCarousel = () => {
     // Show skeleton while loading subscription status or data for subscribers
     if (loading || subscriptionLoading) {
       return Array.from({ length: 2 }).map((_, i) => (
-        <CarouselItem key={`skeleton-${i}`} className="basis-[85%] sm:basis-[320px] pl-4">
-          <Card className="glass-card border-glass-border h-full overflow-hidden">
-            <CardContent className="p-5 space-y-4">
+        <CarouselItem key={`skeleton-${i}`} className="basis-[85%] sm:basis-[280px] pl-4">
+          <Card className="bg-card border-border h-full overflow-hidden shadow-sm">
+            <CardContent className="p-4 sm:p-5 space-y-3">
               <div className="flex items-start justify-between">
                 <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-md" />
               </div>
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-2 w-full rounded-full" />
-              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-1.5 w-full rounded-full" />
+              <Skeleton className="h-3 w-28" />
             </CardContent>
           </Card>
         </CarouselItem>
@@ -254,15 +259,15 @@ export const CoachInsightsCarousel = () => {
 
     if (error || insights.length === 0) {
       return [
-        <CarouselItem key="empty" className="basis-[85%] sm:basis-[320px] pl-4">
-          <Card className="glass-card border-glass-border h-full overflow-hidden relative">
-            <CardContent className="p-5 flex flex-col items-center justify-center min-h-[200px] text-center">
+        <CarouselItem key="empty" className="basis-[85%] sm:basis-[280px] pl-4">
+          <Card className="bg-card border-border h-full overflow-hidden relative shadow-sm">
+            <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center min-h-[180px] text-center">
               <div className="absolute inset-0 flex items-center justify-center opacity-[0.03]">
-                <Brain className="h-32 w-32" />
+                <Brain className="h-28 w-28" />
               </div>
               <div className="relative z-10">
-                <div className="p-3 rounded-full bg-primary/10 mb-3">
-                  <Brain className="h-6 w-6 text-primary" />
+                <div className="p-2.5 rounded-lg bg-primary/10 mb-3">
+                  <Brain className="h-5 w-5 text-primary" />
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">
                   Analisando seus dados...
@@ -289,27 +294,27 @@ export const CoachInsightsCarousel = () => {
       const isEfficiency = insight_type.includes('efficiency');
 
       return (
-        <CarouselItem key={insight.id} className="basis-[85%] sm:basis-[320px] pl-4">
-          <Card className={`glass-card border ${config.border} h-full overflow-hidden relative hover:shadow-lg ${config.glow} transition-all duration-300`}>
+        <CarouselItem key={insight.id} className="basis-[85%] sm:basis-[280px] pl-4">
+          <Card className={`bg-card ${config.border} h-full overflow-hidden relative shadow-sm hover:shadow-md transition-shadow duration-200`}>
             {/* Watermark Icon */}
-            <div className="absolute -bottom-4 -right-4 opacity-[0.04] pointer-events-none">
-              <WatermarkIcon className="h-32 w-32" />
+            <div className="absolute -bottom-6 -right-6 opacity-[0.03] pointer-events-none">
+              <WatermarkIcon className="h-28 w-28" />
             </div>
             
-            <CardContent className="p-5 flex flex-col h-full relative z-10">
+            <CardContent className="p-4 sm:p-5 flex flex-col h-full relative z-10">
               {/* Header with Badge */}
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className={`p-2 rounded-lg ${config.bg}`}>
-                    <IconComponent className={`h-4 w-4 ${config.icon}`} />
+                  <div className={`p-1.5 rounded-md ${config.bg}`}>
+                    <IconComponent className={`h-3.5 w-3.5 ${config.icon}`} />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                     {insight_data.kpi_label || 'Status'}
                   </span>
                 </div>
                 <Badge 
                   variant="outline" 
-                  className={`${config.badgeBg} ${config.badgeText} border-0 text-[10px] font-semibold px-2 py-0.5`}
+                  className={`${config.badgeBg} ${config.badgeText} border-0 text-[9px] font-bold px-2 py-0.5 rounded-md`}
                 >
                   {config.badge}
                 </Badge>
@@ -317,15 +322,15 @@ export const CoachInsightsCarousel = () => {
 
               {/* KPI Value - Central Focus */}
               {insight_data.kpi_value !== undefined && (
-                <div className="mb-3">
-                  <span className={`text-3xl font-bold ${config.icon}`}>
+                <div className="mb-2">
+                  <span className={`text-2xl sm:text-3xl font-bold tracking-tight ${config.valueColor}`}>
                     {String(insight_data.kpi_value)}
                   </span>
                 </div>
               )}
 
               {/* Title */}
-              <h4 className="font-semibold text-sm text-foreground mb-2 line-clamp-1">
+              <h4 className="font-semibold text-sm text-foreground mb-1.5 line-clamp-1">
                 {insight_data.title}
               </h4>
 
@@ -343,9 +348,9 @@ export const CoachInsightsCarousel = () => {
               )}
 
               {/* Educational Footer */}
-              <div className="mt-4 pt-3 border-t border-border/30">
-                <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3" />
+              <div className="mt-3 pt-2.5 border-t border-border/50">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-primary/60" />
                   {microcopy}
                 </p>
               </div>
