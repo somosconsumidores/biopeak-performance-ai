@@ -17,11 +17,20 @@ const FREQUENCY_RECOMMENDATIONS = {
   'Elite': { min: 5, max: 7, recommended: 6 },
 };
 
+// Minimum frequency requirements by goal
+const GOAL_MIN_FREQUENCY: Record<string, number> = {
+  'marathon': 5,
+  '42k': 5,
+};
+
 export function WeeklyFrequencyStep({ wizardData, updateWizardData }: WeeklyFrequencyStepProps) {
   const recommendation = FREQUENCY_RECOMMENDATIONS[wizardData.athleteLevel];
+  const goalMinFrequency = GOAL_MIN_FREQUENCY[wizardData.goal] || 1;
+  const effectiveMin = Math.max(goalMinFrequency, 1);
+  const isMarathon = wizardData.goal === 'marathon' || wizardData.goal === '42k';
   
   const handleFrequencyChange = (newFrequency: number) => {
-    const clampedFrequency = Math.max(1, Math.min(7, newFrequency));
+    const clampedFrequency = Math.max(effectiveMin, Math.min(7, newFrequency));
     updateWizardData({ weeklyFrequency: clampedFrequency });
   };
 
@@ -49,6 +58,21 @@ export function WeeklyFrequencyStep({ wizardData, updateWizardData }: WeeklyFreq
         </div>
       </div>
 
+      {/* Marathon minimum requirement warning */}
+      {isMarathon && (
+        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <span className="font-medium text-amber-800 dark:text-amber-200">
+              Requisito para Maratona
+            </span>
+          </div>
+          <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+            Planos de maratona exigem no mínimo 5 treinos por semana para garantir volume adequado de preparação.
+          </p>
+        </div>
+      )}
+
       {/* Recommendation based on level */}
       <div className="p-4 rounded-lg bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border border-primary/20">
         <div className="flex items-center gap-2 mb-2">
@@ -57,10 +81,10 @@ export function WeeklyFrequencyStep({ wizardData, updateWizardData }: WeeklyFreq
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {recommendation.recommended}x por semana
+            {isMarathon ? Math.max(5, recommendation.recommended) : recommendation.recommended}x por semana
           </Badge>
           <span className="text-sm text-muted-foreground">
-            (Recomendado entre {recommendation.min}-{recommendation.max}x)
+            (Mínimo {isMarathon ? 5 : recommendation.min}x, máximo {recommendation.max}x)
           </span>
         </div>
       </div>
@@ -72,7 +96,7 @@ export function WeeklyFrequencyStep({ wizardData, updateWizardData }: WeeklyFreq
             variant="outline"
             size="icon"
             onClick={() => handleFrequencyChange(wizardData.weeklyFrequency - 1)}
-            disabled={wizardData.weeklyFrequency <= 1}
+            disabled={wizardData.weeklyFrequency <= effectiveMin}
           >
             <Minus className="h-4 w-4" />
           </Button>
