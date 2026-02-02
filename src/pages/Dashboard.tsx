@@ -303,6 +303,19 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
+          {/* Athlete Profile - Top of Dashboard */}
+          <ScrollReveal delay={11}>
+            <div className="mb-6 md:mb-8">
+              {isSubscribed ? (
+                <AthleteSegmentationCard />
+              ) : (
+                <PremiumBlur message="Perfil de Atleta é um recurso premium">
+                  <AthleteSegmentationCard />
+                </PremiumBlur>
+              )}
+            </div>
+          </ScrollReveal>
+
           {/* Coach Advice Card */}
           <ScrollReveal delay={12}>
             <div className="mb-4 md:mb-6">
@@ -467,15 +480,6 @@ export const Dashboard = () => {
               {/* BioPeak Fitness Score Section */}
               {!loading && activeSection === 'fitness-score' && (
                 <>
-                  {/* Athlete Segmentation Card - Perfil do Atleta no topo */}
-                  {isSubscribed ? (
-                    <AthleteSegmentationCard className="mb-6" />
-                  ) : (
-                    <PremiumBlur message="Perfil de Atleta é um recurso premium">
-                      <AthleteSegmentationCard className="mb-6" />
-                    </PremiumBlur>
-                  )}
-                  
                   {/* BioPeak Fitness Score */}
                   {isSubscribed ? (
                     <BioPeakFitnessCard />
