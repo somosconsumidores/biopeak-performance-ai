@@ -103,6 +103,163 @@ const dayToIndex: Record<string, number> = {
   saturday: 6,
 };
 
+// ============== MODULE 1: ATHLETE LEVEL CONFIGURATION ==============
+// Dynamic limits based on athlete level (replaces hardcoded caps)
+interface AthleteLevelConfig {
+  maxWeeklyKm: number;
+  maxLongRunKm: number;
+  maxEasyRunKm: number;
+  basePhasePct: number;
+  paceMultiplier: number;
+  minWeeklyKm: number;
+  intervalMultiplier: number;
+}
+
+const LEVEL_CONFIGS: Record<string, AthleteLevelConfig> = {
+  'Beginner': { 
+    maxWeeklyKm: 50, 
+    maxLongRunKm: 25, 
+    maxEasyRunKm: 10, 
+    basePhasePct: 0.50, 
+    paceMultiplier: 1.0,  // Conservative paces
+    minWeeklyKm: 20,
+    intervalMultiplier: 0.8
+  },
+  'Intermediate': { 
+    maxWeeklyKm: 70, 
+    maxLongRunKm: 32, 
+    maxEasyRunKm: 14, 
+    basePhasePct: 0.42, 
+    paceMultiplier: 0.9,  // Moderate paces
+    minWeeklyKm: 30,
+    intervalMultiplier: 1.0
+  },
+  'Advanced': { 
+    maxWeeklyKm: 90, 
+    maxLongRunKm: 36, 
+    maxEasyRunKm: 18, 
+    basePhasePct: 0.38, 
+    paceMultiplier: 0.8,  // Aggressive paces
+    minWeeklyKm: 40,
+    intervalMultiplier: 1.2
+  },
+  'Elite': { 
+    maxWeeklyKm: 120, 
+    maxLongRunKm: 40, 
+    maxEasyRunKm: 22, 
+    basePhasePct: 0.35, 
+    paceMultiplier: 0.7,  // Maximum pace
+    minWeeklyKm: 50,
+    intervalMultiplier: 1.3
+  },
+};
+
+// Goal-specific adjustments to level configs
+const GOAL_LEVEL_ADJUSTMENTS: Record<string, Partial<AthleteLevelConfig>> = {
+  '5k': { maxLongRunKm: -5, maxWeeklyKm: -10 },  // Reduce for shorter distances
+  '10k': { maxLongRunKm: -3, maxWeeklyKm: -5 },
+  '21k': { maxLongRunKm: 0, maxWeeklyKm: 0 },
+  '42k': { maxLongRunKm: +4, maxWeeklyKm: +10 }, // Increase for marathon
+};
+
+function getAthleteLevelConfig(level: string, goalType?: string): AthleteLevelConfig {
+  const baseConfig = LEVEL_CONFIGS[level] || LEVEL_CONFIGS['Intermediate'];
+  const goalAdjust = GOAL_LEVEL_ADJUSTMENTS[goalType || ''] || {};
+  
+  return {
+    ...baseConfig,
+    maxWeeklyKm: baseConfig.maxWeeklyKm + (goalAdjust.maxWeeklyKm || 0),
+    maxLongRunKm: baseConfig.maxLongRunKm + (goalAdjust.maxLongRunKm || 0),
+  };
+}
+
+// ============== MODULE 2: SCIENTIFIC PERIODIZATION ==============
+// Goal-specific phase ratios (replaces fixed 50/30/15/5)
+interface PeriodizationConfig {
+  base: number;
+  build: number;
+  peak: number;
+  taper: number;
+}
+
+const GOAL_PERIODIZATION: Record<string, PeriodizationConfig> = {
+  '42k': { base: 0.45, build: 0.32, peak: 0.15, taper: 0.08 },
+  '21k': { base: 0.42, build: 0.35, peak: 0.16, taper: 0.07 },
+  '10k': { base: 0.40, build: 0.38, peak: 0.15, taper: 0.07 },
+  '5k':  { base: 0.35, build: 0.40, peak: 0.18, taper: 0.07 },
+  'condicionamento': { base: 0.50, build: 0.30, peak: 0.15, taper: 0.05 },
+  'perda_de_peso':   { base: 0.55, build: 0.28, peak: 0.12, taper: 0.05 },
+  'manutencao':      { base: 0.60, build: 0.25, peak: 0.10, taper: 0.05 },
+  'retorno':         { base: 0.65, build: 0.25, peak: 0.07, taper: 0.03 },
+  'melhorar_tempos': { base: 0.38, build: 0.38, peak: 0.17, taper: 0.07 },
+};
+
+function getScientificPhase(week: number, totalWeeks: number, goalType: string, athleteLevel: string): 'base' | 'build' | 'peak' | 'taper' {
+  const config = GOAL_PERIODIZATION[goalType] || GOAL_PERIODIZATION['condicionamento'];
+  const levelConfig = getAthleteLevelConfig(athleteLevel, goalType);
+  
+  // Adjust base phase based on athlete level (experienced athletes get shorter base)
+  const adjustedBase = config.base * (levelConfig.basePhasePct / 0.50);
+  
+  const baseCutoff = Math.max(1, Math.floor(totalWeeks * adjustedBase));
+  const buildCutoff = Math.max(baseCutoff + 1, Math.floor(totalWeeks * (adjustedBase + config.build)));
+  const peakCutoff = Math.max(buildCutoff + 1, Math.floor(totalWeeks * (adjustedBase + config.build + config.peak)));
+  
+  if (week <= baseCutoff) return 'base';
+  if (week <= buildCutoff) return 'build';
+  if (week <= peakCutoff) return 'peak';
+  return 'taper';
+}
+
+// ============== MODULE 4: PROGRESSIVE INTERVALS ==============
+// Returns progressive rep count based on week, total weeks, and level
+function getIntervalReps(
+  distanceM: 400 | 800 | 1000,
+  week: number,
+  totalWeeks: number,
+  level: string
+): number {
+  const baseReps: Record<number, number> = { 400: 6, 800: 4, 1000: 4 };
+  const maxReps: Record<number, number> = { 400: 12, 800: 10, 1000: 8 };
+  
+  const progress = Math.min(1.0, week / totalWeeks);
+  const levelConfig = getAthleteLevelConfig(level);
+  const levelMult = levelConfig.intervalMultiplier;
+  
+  const base = baseReps[distanceM] || 6;
+  const max = maxReps[distanceM] || 12;
+  const reps = Math.round(base + (max - base) * progress * levelMult);
+  
+  console.log(`[getIntervalReps] ${distanceM}m: Week ${week}/${totalWeeks}, level=${level}, reps=${Math.min(max, reps)}`);
+  return Math.min(max, reps);
+}
+
+// ============== MODULE 5: DYNAMIC EASY/LONG RUN CAPS ==============
+const EASY_RUN_CAPS: Record<string, Record<string, number>> = {
+  '5k':  { 'Beginner': 10, 'Intermediate': 12, 'Advanced': 14, 'Elite': 16 },
+  '10k': { 'Beginner': 12, 'Intermediate': 14, 'Advanced': 16, 'Elite': 18 },
+  '21k': { 'Beginner': 14, 'Intermediate': 16, 'Advanced': 20, 'Elite': 22 },
+  '42k': { 'Beginner': 16, 'Intermediate': 18, 'Advanced': 22, 'Elite': 25 },
+};
+
+const LONG_RUN_PCT_BY_PHASE: Record<string, { min: number; max: number }> = {
+  'base':  { min: 0.28, max: 0.35 },
+  'build': { min: 0.35, max: 0.40 },
+  'peak':  { min: 0.38, max: 0.42 },
+  'taper': { min: 0.25, max: 0.30 },
+};
+
+function getEasyRunCap(goalType: string, level: string): number {
+  const goalCaps = EASY_RUN_CAPS[goalType] || EASY_RUN_CAPS['10k'];
+  return goalCaps[level] || 12;
+}
+
+function getLongRunTargetKm(weeklyVolume: number, phase: string, maxLongRun: number): number {
+  const phasePct = LONG_RUN_PCT_BY_PHASE[phase] || LONG_RUN_PCT_BY_PHASE['base'];
+  const targetPct = (phasePct.min + phasePct.max) / 2;
+  return Math.min(maxLongRun, Math.round(weeklyVolume * targetPct));
+}
+
 function addDays(date: Date, days: number) {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + days);
@@ -348,8 +505,11 @@ class AthleteCapacityAnalyzer {
     });
   }
   
-  getSafeTargetPaces(goalType?: string) {
+  // ============== MODULE 3: Level-Adjusted Paces ==============
+  getSafeTargetPaces(goalType?: string, athleteLevel?: string) {
     const goal = normalizeGoal(goalType || '');
+    const levelConfig = getAthleteLevelConfig(athleteLevel || 'Intermediate', goal);
+    const paceMult = levelConfig.paceMultiplier;
     
     let currentCapacityPace: number;
     
@@ -395,18 +555,23 @@ class AthleteCapacityAnalyzer {
       console.log(`[AthleteCapacityAnalyzer] VO2max adjustment applied: ${this.vo2maxBest} -> pace adjusted by ${vo2Adjustment.toFixed(2)}x`);
     }
     
+    // ============== MODULE 3: Apply level-based pace adjustments ==============
+    // Paces adjusted by athlete level (more aggressive for experienced athletes)
+    console.log(`[AthleteCapacityAnalyzer] Applying level ${athleteLevel} with paceMultiplier=${paceMult}`);
+    
     return {
       pace_5k: this.bestPerformances.pace_5k || currentCapacityPace * 0.95,
       pace_10k: this.bestPerformances.pace_10k || currentCapacityPace,
       pace_half: this.bestPerformances.pace_21k || currentCapacityPace * 1.08,
       pace_marathon: this.bestPerformances.pace_42k || currentCapacityPace * 1.15,
       
-      pace_easy: currentCapacityPace + 1.0,
-      pace_long: currentCapacityPace + 0.7,
-      pace_tempo: currentCapacityPace + 0.2,
-      pace_interval_1km: this.bestSegmentPace || (currentCapacityPace - 0.3),
-      pace_interval_800m: (this.bestSegmentPace || currentCapacityPace) - 0.4,
-      pace_interval_400m: (this.bestSegmentPace || currentCapacityPace) - 0.6,
+      // Training paces adjusted by level
+      pace_easy: currentCapacityPace + (0.70 * paceMult),           // Was +1.0, now 0.70 * level
+      pace_long: currentCapacityPace + (0.50 * paceMult),           // Was +0.7, now 0.50 * level
+      pace_tempo: currentCapacityPace + (0.15 * paceMult),          // Was +0.2, now 0.15 * level
+      pace_interval_1km: (this.bestSegmentPace || currentCapacityPace) - (0.15 / paceMult),   // Was -0.3, now 0.15/level
+      pace_interval_800m: (this.bestSegmentPace || currentCapacityPace) - (0.25 / paceMult),  // Was -0.4, now 0.25/level
+      pace_interval_400m: (this.bestSegmentPace || currentCapacityPace) - (0.40 / paceMult),  // Was -0.6, now 0.40/level
       
       pace_best: this.bestSegmentPace || currentCapacityPace - 0.3,
       pace_median: currentCapacityPace,
@@ -425,12 +590,19 @@ class AthleteCapacityAnalyzer {
     return base;
   }
   
-  getMaxWeeklyKm(): number {
-    return Math.min(70, this.trainingVolume.avgWeeklyKm * 1.15);
+  // ============== Updated to use dynamic level configs ==============
+  getMaxWeeklyKm(athleteLevel?: string, goalType?: string): number {
+    const levelConfig = getAthleteLevelConfig(athleteLevel || 'Intermediate', goalType);
+    const basedOnHistory = this.trainingVolume.avgWeeklyKm * 1.15;
+    // Use the minimum of level cap and history-based progression
+    return Math.min(levelConfig.maxWeeklyKm, Math.max(levelConfig.minWeeklyKm, basedOnHistory));
   }
   
-  getMaxLongRunKm(): number {
-    return Math.min(32, Math.max(20, this.trainingVolume.longestRunLast8W * 1.2));
+  getMaxLongRunKm(athleteLevel?: string, goalType?: string): number {
+    const levelConfig = getAthleteLevelConfig(athleteLevel || 'Intermediate', goalType);
+    const basedOnHistory = this.trainingVolume.longestRunLast8W * 1.2;
+    // Use the minimum of level cap and history-based progression
+    return Math.min(levelConfig.maxLongRunKm, Math.max(20, basedOnHistory));
   }
 }
 
@@ -674,12 +846,10 @@ function calculateProgressionFactor(week: number, totalWeeks: number, phase: str
   return Math.min(1.0, sigmoidFactor * multiplier);
 }
 
+// Legacy getPhase function (kept for backward compatibility)
 function getPhase(week: number, totalWeeks: number): 'base' | 'build' | 'peak' | 'taper' {
-  // Base: 50%, Build: 30%, Peak: 15%, Taper: 5%
-  if (week <= Math.max(1, Math.floor(totalWeeks * 0.5))) return 'base';
-  if (week <= Math.max(2, Math.floor(totalWeeks * 0.8))) return 'build';
-  if (week < Math.max(totalWeeks - 1, Math.floor(totalWeeks * 0.95))) return 'peak';
-  return 'taper';
+  // Use default Intermediate level for legacy calls
+  return getScientificPhase(week, totalWeeks, 'condicionamento', 'Intermediate');
 }
 
 function defaultDaysFromPrefs(prefs: PlanPreferences | null, longDayIdx: number): number[] {
@@ -709,9 +879,11 @@ function generatePlan(
   requestedWeeks: number, 
   targetPaces: Paces, 
   prefs: PlanPreferences | null, 
-  calibrator: AthleteCapacityAnalyzer
+  calibrator: AthleteCapacityAnalyzer,
+  athleteLevel: string = 'Intermediate'  // NEW: Accept athlete level
 ): WorkoutSession[] {
   const goal = normalizeGoal(goalRaw);
+  const levelConfig = getAthleteLevelConfig(athleteLevel, goal);
   
   // 🚀 Calculate optimal weeks based on improvement needed
   const improvementPercent = (targetPaces as any).improvement_percent || 0;
@@ -720,6 +892,13 @@ function generatePlan(
   if (weeks !== requestedWeeks) {
     console.log(`[generatePlan] Adjusted duration from ${requestedWeeks} to ${weeks} weeks for ${improvementPercent.toFixed(1)}% improvement`);
   }
+  
+  console.log(`[generatePlan] Using level ${athleteLevel} config:`, {
+    maxWeeklyKm: levelConfig.maxWeeklyKm,
+    maxLongRunKm: levelConfig.maxLongRunKm,
+    maxEasyRunKm: levelConfig.maxEasyRunKm,
+    basePhasePct: levelConfig.basePhasePct
+  });
   
   const longDayIdx = toDayIndex(prefs?.long_run_weekday, 6);
   const dayIndices = defaultDaysFromPrefs(prefs, longDayIdx);
@@ -731,8 +910,9 @@ function generatePlan(
   let previousPhase: string | null = null;
 
   for (let w = 1; w <= weeks; w++) {
-    const phase = getPhase(w, weeks);
-    console.log(`[v4.3 DEBUG] Week ${w}: phase=${phase}, totalWeeks=${weeks}`);
+    // ============== USE SCIENTIFIC PERIODIZATION ==============
+    const phase = getScientificPhase(w, weeks, goal, athleteLevel);
+    console.log(`[v5.0 SCIENTIFIC] Week ${w}: phase=${phase}, goal=${goal}, level=${athleteLevel}`);
     const cycleIndex = (w - 1) % 4;
     const isCutbackWeek = cycleIndex === 3 && phase !== 'taper';
     
@@ -754,9 +934,9 @@ function generatePlan(
     // Track weekly quality sessions (max 2 per week)
     let weeklyQualityCount = 0;
     
-    // 🚀 WAVE 1.2: Track weekly distance to apply cap
+    // ============== USE DYNAMIC CAPS ==============
     let weeklyDistanceKm = 0;
-    const maxWeeklyKm = calibrator.getMaxWeeklyKm();
+    const maxWeeklyKm = calibrator.getMaxWeeklyKm(athleteLevel, goal);
 
     for (const dow of dayIndices) {
       const weekday = Object.keys(dayToIndex).find((k) => dayToIndex[k] === dow) || 'saturday';
@@ -765,9 +945,10 @@ function generatePlan(
       const session = isLong
         ? generateLongRun(
             goal, w, phase, volumeMultiplier, targetPaces, calibrator,
-            { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek }
+            { count30Plus: longRunCount30Plus, lastWeek30Plus: lastLongRun30PlusWeek },
+            athleteLevel  // Pass athlete level
           )
-        : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator, weeks);
+        : generateSession(goal, w, dow, phase, volumeMultiplier, targetPaces, isCutbackWeek, dayIndices.length, weeklyQualityCount, calibrator, weeks, athleteLevel);  // Pass athlete level
 
       // Calculate estimated distance for this session
       const sessionKm = session.distance_km ?? (session.duration_min ? session.duration_min / (targetPaces.pace_median || 6.0) : 0);
@@ -817,9 +998,10 @@ function generateLongRun(
   vol: number, 
   p: Paces,
   calibrator: AthleteCapacityAnalyzer,
-  longRunTracker: LongRunTracker
+  longRunTracker: LongRunTracker,
+  athleteLevel: string = 'Intermediate'  // NEW: Accept athlete level
 ): WorkoutSession {
-  const maxLongRun = calibrator.getMaxLongRunKm();
+  const maxLongRun = calibrator.getMaxLongRunKm(athleteLevel, goal);
   
   // Start at 14-16km and progress gradually
   let dist = 0;
@@ -923,7 +1105,8 @@ function generateSession(
   totalSessions: number,
   weeklyQualityCount: number,
   calibrator: AthleteCapacityAnalyzer,
-  totalWeeks: number
+  totalWeeks: number,
+  athleteLevel: string = 'Intermediate'  // NEW: Accept athlete level
 ): WorkoutSession {
   // 🚀 Calculate progression using sigmoidal curve
   const progressionFactor = calculateProgressionFactor(week, totalWeeks, phase);
@@ -990,8 +1173,10 @@ function generateSession(
   let type = 'easy';
   let title = 'Corrida leve';
   let description = 'Corrida confortável em Z2';
-  // Controle de volume: limite de 12km para easy runs, progressão gradual
-  let distance_km = Math.min(12, Math.round((5 + week * 0.4) * vol));
+  // ============== MODULE 5: Dynamic easy run cap based on goal and level ==============
+  const easyRunCap = getEasyRunCap(goal, athleteLevel);
+  let distance_km = Math.min(easyRunCap, Math.round((5 + week * 0.4) * vol));
+  console.log(`[generateSession] Easy run: week=${week}, cap=${easyRunCap}km (goal=${goal}, level=${athleteLevel}), distance=${distance_km}km`);
   let duration_min: number | null = null;
   let pace = p.pace_easy;
   let zone = 2;
@@ -1086,15 +1271,16 @@ function generateSession(
           break;
       }
     } else if (goal === '5k') {
-      // Rotação de treinos de qualidade para 5k (mais frequente)
+      // ============== MODULE 4: Progressive intervals for 5k ==============
       const mod = week % 3;
       
       if (mod === 0) {
-        // Intervals 400m - Velocidade pura
+        // Intervals 400m - Velocidade pura (PROGRESSIVE)
+        const reps400 = getIntervalReps(400, week, totalWeeks, athleteLevel);
         type = 'interval';
-        title = '8x400m';
-        description = 'Aquecimento + 8x400m ritmo 5k, 90s rec';
-        duration_min = 30;
+        title = `${reps400}x400m`;
+        description = `Aquecimento + ${reps400}x400m ritmo 5k, 90s rec`;
+        duration_min = 25 + Math.round(reps400 * 0.8);
         distance_km = null as any;
         pace = paces.pace_interval_400m;
         zone = 5;
@@ -1110,11 +1296,12 @@ function generateSession(
         zone = 4;
         intensity = 'high';
       } else {
-        // Intervals 1km - Resistência anaeróbica
+        // Intervals 1km - Resistência anaeróbica (PROGRESSIVE)
+        const reps1k = getIntervalReps(1000, week, totalWeeks, athleteLevel);
         type = 'interval';
-        title = '5x1km';
-        description = 'Aquecimento + 5x1km ritmo 5k, 2min rec';
-        duration_min = 35;
+        title = `${reps1k}x1km`;
+        description = `Aquecimento + ${reps1k}x1km ritmo 5k, 2min rec`;
+        duration_min = 30 + reps1k * 2;
         distance_km = null as any;
         pace = paces.pace_interval_1km;
         zone = 4;
@@ -1585,6 +1772,8 @@ serve(async (req) => {
     // Suporte a paces declarados pelo usuário e modo iniciante
     const inputPaces = body?.declared_paces;
     const absoluteBeginner = body?.absolute_beginner === true;
+    const athleteLevel = body?.athlete_level || 'Intermediate';  // MODULE 6: Get athlete level from payload
+    console.info(`[generate-training-plan] Using athlete level: ${athleteLevel}`);
     let safeTargetPaces: Paces;
     
     // PRIORIDADE 1: MODO INICIANTE ABSOLUTO (sem histórico e sem paces conhecidos)
@@ -1611,7 +1800,7 @@ serve(async (req) => {
       const g = normalizeGoal(plan.goal_type);
       
       // Obter capacidade ATUAL do atleta
-      const currentCapacityPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type);
+      const currentCapacityPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type, athleteLevel);
       
       // Calcular pace ALVO da meta
       let targetPaceMinPerKm: number;
@@ -1645,10 +1834,10 @@ serve(async (req) => {
       
     } else {
       console.info('[generate-training-plan] Using athlete current capacity');
-      safeTargetPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type);
+      safeTargetPaces = athleteAnalyzer.getSafeTargetPaces(plan.goal_type, athleteLevel);
     }
 
-    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer);
+    const workouts = generatePlan(plan.goal_type, weeks, safeTargetPaces, prefs, athleteAnalyzer, athleteLevel);
 
     // 🚀 WAVE 1.1: Calculate actual weeks generated (adjustedWeeks)
     const adjustedWeeks = workouts.length > 0 

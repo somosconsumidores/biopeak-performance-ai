@@ -1039,7 +1039,8 @@ export function useTrainingPlanWizard() {
           functionPayload = {
             plan_id: planId,
             declared_paces: declaredPaces,
-            absolute_beginner: absoluteBeginner
+            absolute_beginner: absoluteBeginner,
+            athlete_level: wizardData.athleteLevel,  // MODULE 6: Pass athlete level to edge function
           };
       }
 
