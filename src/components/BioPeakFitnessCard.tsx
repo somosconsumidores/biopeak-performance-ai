@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, TrendingUp, TrendingDown, Calculator, BarChart3 } from 'lucide-react';
 import { useFitnessScore } from '@/hooks/useFitnessScore';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 
 export const BioPeakFitnessCard = () => {
   const { 
@@ -221,41 +222,83 @@ export const BioPeakFitnessCard = () => {
           </div>
         </div>
 
-        {/* Histórico Recente */}
+        {/* Histórico Recente - Bar Chart */}
         {scoreHistory.length > 0 && (
           <div className="mt-6 pt-6 border-t border-muted">
-            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
               Evolução (30 dias)
             </h4>
-            <div className="relative h-16 w-full">
-              <svg className="w-full h-full" viewBox="0 0 400 60">
-                {scoreHistory.map((point, index) => {
-                  const x = (index / (scoreHistory.length - 1)) * 380 + 10;
-                  const y = 50 - (point.score / 100) * 40;
-                  const nextPoint = scoreHistory[index + 1];
-                  
-                  return (
-                    <g key={index}>
-                      {nextPoint && (
-                        <line
-                          x1={x}
-                          y1={y}
-                          x2={(index + 1) / (scoreHistory.length - 1) * 380 + 10}
-                          y2={50 - (nextPoint.score / 100) * 40}
-                          stroke="hsl(var(--primary))"
-                          strokeWidth="2"
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={scoreHistory} 
+                  margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
+                  barCategoryGap="20%"
+                >
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis 
+                    domain={[0, 100]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickCount={3}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px hsl(var(--foreground) / 0.1)',
+                    }}
+                    labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+                    formatter={(value: number) => [`${value.toFixed(0)} pts`, 'Score']}
+                    labelFormatter={(label) => {
+                      const date = new Date(label);
+                      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                    }}
+                  />
+                  <Bar 
+                    dataKey="score" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={24}
+                  >
+                    {scoreHistory.map((entry, index) => {
+                      const isLast = index === scoreHistory.length - 1;
+                      const isPeak = entry.score === Math.max(...scoreHistory.map(e => e.score));
+                      return (
+                        <Cell 
+                          key={`cell-${index}`}
+                          fill={isLast ? 'hsl(var(--primary))' : isPeak ? 'hsl(var(--accent))' : 'hsl(var(--primary) / 0.4)'}
                         />
-                      )}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r="2"
-                        fill="hsl(var(--primary))"
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
+                <span>Atual</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-accent" />
+                <span>Melhor</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary/40" />
+                <span>Histórico</span>
+              </div>
             </div>
           </div>
         )}
