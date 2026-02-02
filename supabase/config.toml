@@ -284,3 +284,6 @@ verify_jwt = true
 
 [functions.calculate-average-pace]
 verify_jwt = false
+
+[functions.compute-athlete-segmentation]
+verify_jwt = false

@@ -5,6 +5,7 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { CommitmentsCard } from '@/components/CommitmentsCard';
 import { BioPeakFitnessCard } from '@/components/BioPeakFitnessCard';
+import { AthleteSegmentationCard } from '@/components/AthleteSegmentationCard';
 import { AchievementSection } from '@/components/AchievementSection';
 import { TrainingAgendaWidget } from '@/components/TrainingAgendaWidget';
 import { RaceCalendar } from '@/components/RaceCalendar';
@@ -471,6 +472,15 @@ export const Dashboard = () => {
                   ) : (
                     <PremiumBlur message="BioPeak Fitness Score é um recurso premium">
                       <BioPeakFitnessCard />
+                    </PremiumBlur>
+                  )}
+                  
+                  {/* Athlete Segmentation Card */}
+                  {isSubscribed ? (
+                    <AthleteSegmentationCard className="mb-6" />
+                  ) : (
+                    <PremiumBlur message="Perfil de Atleta é um recurso premium">
+                      <AthleteSegmentationCard className="mb-6" />
                     </PremiumBlur>
                   )}
                   

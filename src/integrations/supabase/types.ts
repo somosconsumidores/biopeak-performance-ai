@@ -861,6 +861,54 @@ export type Database = {
         }
         Relationships: []
       }
+      athlete_segmentation: {
+        Row: {
+          ai_explanation: string
+          analysis_period_end: string | null
+          analysis_period_start: string | null
+          badge_color: string
+          badge_icon: string
+          composite_score: number | null
+          created_at: string | null
+          id: string
+          metrics_snapshot: Json
+          segment_name: string
+          segmentation_date: string
+          trend: string
+          user_id: string
+        }
+        Insert: {
+          ai_explanation: string
+          analysis_period_end?: string | null
+          analysis_period_start?: string | null
+          badge_color: string
+          badge_icon: string
+          composite_score?: number | null
+          created_at?: string | null
+          id?: string
+          metrics_snapshot?: Json
+          segment_name: string
+          segmentation_date?: string
+          trend?: string
+          user_id: string
+        }
+        Update: {
+          ai_explanation?: string
+          analysis_period_end?: string | null
+          analysis_period_start?: string | null
+          badge_color?: string
+          badge_icon?: string
+          composite_score?: number | null
+          created_at?: string | null
+          id?: string
+          metrics_snapshot?: Json
+          segment_name?: string
+          segmentation_date?: string
+          trend?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       average_pace: {
         Row: {
           average_pace_value: number
