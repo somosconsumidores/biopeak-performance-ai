@@ -236,7 +236,7 @@ export function TrainWithoutWatchesSection() {
             )} />
             
             {/* Phone Stack Container */}
-            <div className="relative w-full max-w-sm sm:max-w-md perspective-1000">
+            <div className="relative w-full max-w-[180px] sm:max-w-[200px] perspective-1000">
               {/* Background phones (stacked effect) */}
               <div className="absolute top-4 left-4 right-4 bottom-0 opacity-20 blur-sm">
                 <img 
