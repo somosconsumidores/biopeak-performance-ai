@@ -58,6 +58,9 @@ import { isCyclingActivity, formatSpeed, formatSpeedOrPace, getSpeedOrPaceLabel 
 import { usePlatform } from '@/hooks/usePlatform';
 import { PaceComparisonCard } from '@/components/PaceComparisonCard';
 import { HeartRateZonesCard } from '@/components/HeartRateZonesCard';
+import { EffortDistributionChart } from '@/components/EffortDistributionChart';
+import { useSessionEffortDistribution } from '@/hooks/useSessionEffortDistribution';
+import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
 
 
 export const WorkoutSession = () => {
@@ -115,6 +118,12 @@ export const WorkoutSession = () => {
 
   // Combine refresh triggers
   const combinedRefreshTrigger = stravaRefreshTrigger + recalculateRefreshTrigger;
+
+  // Get chart data for effort distribution calculation
+  const { data: chartData } = useActivityDetailsChart(currentActivity?.activity_id || null, combinedRefreshTrigger);
+  
+  // Calculate effort distribution from chart data
+  const { distribution: effortDistribution } = useSessionEffortDistribution(chartData);
 
   // Get pace data for heatmap
   const { paceData, loading: paceLoading, error: paceError } = useActivityPaceData(currentActivity?.activity_id || null, combinedRefreshTrigger);
@@ -400,6 +409,13 @@ export const WorkoutSession = () => {
               zones={heartRateZones}
               loading={zonesLoading}
             />
+          </ScrollReveal>
+
+          {/* Effort Distribution Chart */}
+          <ScrollReveal delay={177}>
+            <div className="mb-6 sm:mb-8">
+              <EffortDistributionChart data={effortDistribution} />
+            </div>
           </ScrollReveal>
 
           {/* Variation Analysis - Moved here for better UX flow */}
