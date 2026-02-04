@@ -403,19 +403,19 @@ export const WorkoutSession = () => {
             />
           </ScrollReveal>
 
-          {/* Heart Rate Zones Card - Moved here for better UX flow */}
+          {/* Effort Distribution Chart - Right after community comparison */}
+          <ScrollReveal delay={173}>
+            <div className="mb-6 sm:mb-8">
+              <EffortDistributionChart data={effortDistribution} />
+            </div>
+          </ScrollReveal>
+
+          {/* Heart Rate Zones Card */}
           <ScrollReveal delay={175}>
             <HeartRateZonesCard 
               zones={heartRateZones}
               loading={zonesLoading}
             />
-          </ScrollReveal>
-
-          {/* Effort Distribution Chart */}
-          <ScrollReveal delay={177}>
-            <div className="mb-6 sm:mb-8">
-              <EffortDistributionChart data={effortDistribution} />
-            </div>
           </ScrollReveal>
 
           {/* Variation Analysis - Moved here for better UX flow */}
