@@ -1,105 +1,120 @@
 
+# Plano: Análise Combinada FC + Pace para Distribuição de Esforço
 
-# Plano: Distribuição de Esforço por Treino Individual
+## Problema Identificado
+A implementação atual classifica o padrão de esforço **apenas pela variação da FC**, o que é **fisiologicamente incorreto**:
 
-## Objetivo
-Adicionar o gráfico `EffortDistributionChart` na página `/workouts` (`WorkoutSession.tsx`) calculando a distribuição de esforço **específica do treino selecionado** usando os dados granulares de `activity_chart_data`.
+| Situação | FC Final | Pace Final | Classificação Atual | Realidade |
+|----------|----------|------------|---------------------|-----------|
+| Cardiac Drift | ↑ Subiu | ↓ Caiu | ❌ Negative Split | **FADIGA** |
+| Negative Split Real | ↑ Subiu | ↑ Subiu | ✅ Negative Split | Correto |
 
-## Análise Técnica
+## Solução: Matriz de Decisão FC + Pace
 
-### Situação Atual
-- O `EffortDistributionChart` em `/premium-stats` usa dados **mockados** (`Math.random()`)
-- A página `/workouts` já carrega dados detalhados via `useActivityDetailsChart` que retorna séries temporais com:
-  - `heart_rate` (FC por ponto)
-  - `pace_min_per_km` (pace por ponto)  
-  - `distance_km` (distância acumulada)
-
-### Fonte de Dados Ideal
-A tabela `activity_chart_data` contém o campo `series_data` com centenas/milhares de pontos por atividade, permitindo calcular a distribuição de esforço real dividindo a atividade em 3 terços:
-- **Início**: primeiro 33% da distância/tempo
-- **Meio**: 33-66% da distância/tempo
-- **Fim**: 66-100% da distância/tempo
-
-### Impacto na Performance
-
-| Aspecto | Impacto |
-|---------|---------|
-| **Novas Queries** | Nenhuma - reutiliza os dados já carregados pelo `useActivityDetailsChart` |
-| **Bundle Size** | Mínimo - o componente `EffortDistributionChart` já existe |
-| **Renderização** | Baixo - cálculo local sobre dados já em memória |
-
-## Implementação
-
-### 1. Criar Hook `useSessionEffortDistribution`
-Novo hook que processa os dados do `useActivityDetailsChart` para calcular a distribuição de esforço do treino.
+A nova lógica cruzará as variações de FC e Pace para classificar corretamente:
 
 ```text
-src/hooks/useSessionEffortDistribution.ts
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MATRIZ DE CLASSIFICAÇÃO                          │
+├─────────────┬─────────────┬─────────────────────────────────────────┤
+│   FC Final  │ Pace Final  │ Classificação                           │
+├─────────────┼─────────────┼─────────────────────────────────────────┤
+│   ↑ Subiu   │  ↑ Mais rápido  │ 🏃 NEGATIVE SPLIT (ideal)          │
+│   ↑ Subiu   │  ↓ Mais lento   │ 😰 CARDIAC DRIFT (fadiga)          │
+│   ↓ Desceu  │  ↓ Mais lento   │ 🔻 POSITIVE SPLIT                  │
+│   ↓ Desceu  │  ↑ Mais rápido  │ 💪 ECONOMY (economia de esforço)   │
+│   = Estável │  = Estável      │ ⚖️  EVEN PACE (ritmo constante)    │
+└─────────────┴─────────────┴─────────────────────────────────────────┘
 ```
 
-**Lógica de Cálculo:**
-1. Recebe os dados de `activity_chart_data.series_data`
-2. Divide os pontos em 3 terços por distância ou índice
-3. Calcula a média de FC (ou pace) de cada terço
-4. Normaliza para percentual do esforço máximo
-5. Determina o padrão: `negative_split`, `positive_split` ou `even_pace`
+## Alterações Técnicas
 
-### 2. Adicionar Componente na WorkoutSession.tsx
-Inserir o `EffortDistributionChart` após os cards de Comparação de Pace e Zonas de FC, mantendo a hierarquia de análise existente.
+### 1. Atualizar Interface `EffortDistribution`
+Adicionar novos padrões e métricas de pace:
 
-```text
-Posição sugerida: após o HeartRateZonesCard (linha ~425)
+```typescript
+export interface EffortDistribution {
+  // Esforço baseado em FC (existente)
+  startEffort: number;
+  middleEffort: number;
+  endEffort: number;
+  
+  // NOVO: Pace por segmento (min/km)
+  startPace: number | null;
+  middlePace: number | null;
+  endPace: number | null;
+  
+  // NOVO: Padrões expandidos
+  pattern: 'negative_split' | 'positive_split' | 'even_pace' | 'cardiac_drift' | 'economy';
+  
+  // NOVO: Flags de diagnóstico
+  hasCardiacDrift: boolean;
+  paceChange: 'faster' | 'slower' | 'stable';
+  hrChange: 'higher' | 'lower' | 'stable';
+}
 ```
 
-### 3. Dados Necessários
-O cálculo utilizará:
-- **FC**: `series_data[].heart_rate` - média de FC por terço
-- **Referência**: FC máxima da atividade para normalização percentual
+### 2. Nova Lógica de Cálculo no Hook
+O hook `useSessionEffortDistribution` será atualizado para:
+
+1. **Calcular média de pace por segmento** (além da FC)
+2. **Determinar variação de pace** (início vs fim)
+3. **Cruzar FC + Pace** para classificação correta
+4. **Detectar cardiac drift** quando FC sobe mas pace cai
 
 ```text
-startEffort = (avg_hr_primeiro_terço / max_hr) * 100
-middleEffort = (avg_hr_segundo_terço / max_hr) * 100  
-endEffort = (avg_hr_terceiro_terço / max_hr) * 100
+Lógica de Detecção:
+─────────────────────────────────────────────
+hrChange = endAvgHR > startAvgHR + 2% ? 'higher' : 
+           endAvgHR < startAvgHR - 2% ? 'lower' : 'stable'
+
+paceChange = endAvgPace < startAvgPace - 2% ? 'faster' :
+             endAvgPace > startAvgPace + 2% ? 'slower' : 'stable'
+
+if (hrChange === 'higher' && paceChange === 'slower')
+  → CARDIAC DRIFT
+
+if (hrChange === 'higher' && paceChange === 'faster')
+  → NEGATIVE SPLIT REAL
+─────────────────────────────────────────────
+```
+
+### 3. Atualizar Componente `EffortDistributionChart`
+Adicionar visualização dos novos padrões com cores e descrições apropriadas:
+
+| Padrão | Cor | Badge | Descrição |
+|--------|-----|-------|-----------|
+| `negative_split` | Verde | 🏃 Negative Split | Acelerou e manteve eficiência |
+| `positive_split` | Vermelho | 🔻 Positive Split | Desacelerou no final |
+| `even_pace` | Azul | ⚖️ Even Pace | Ritmo constante |
+| `cardiac_drift` | Laranja | 😰 Cardiac Drift | FC subiu mas pace caiu (fadiga) |
+| `economy` | Roxo | 💪 Economia | Acelerou com menos esforço cardíaco |
+
+### 4. Exibir Pace no Card (Opcional)
+Mostrar o pace médio de cada segmento abaixo do esforço:
+
+```text
+┌─────────────────────────────────────────────────┐
+│  Início      │     Meio       │      Fim       │
+│   92.5%      │    94.2%       │    96.8%       │
+│  5:45/km     │   5:38/km      │   5:52/km      │
+│              │                │   (mais lento) │
+└─────────────────────────────────────────────────┘
 ```
 
 ## Arquivos a Modificar
 
-| Arquivo | Ação |
-|---------|------|
-| `src/hooks/useSessionEffortDistribution.ts` | **Criar** - hook para calcular distribuição por sessão |
-| `src/pages/WorkoutSession.tsx` | **Modificar** - adicionar o gráfico |
-| `src/components/EffortDistributionChart.tsx` | **Manter** - reutilizar componente existente |
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/hooks/useSessionEffortDistribution.ts` | Modificar | Adicionar cálculo de pace + matriz de decisão |
+| `src/components/EffortDistributionChart.tsx` | Modificar | Novos padrões, cores e exibição de pace |
 
-## Visualização da Lógica
+## Benefícios da Melhoria
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                 SÉRIES TEMPORAIS DO TREINO                  │
-│  [p1, p2, p3, ... p100, p101, ... p200, p201, ... p300]    │
-└─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-    ┌─────────┐          ┌─────────┐          ┌─────────┐
-    │ INÍCIO  │          │  MEIO   │          │   FIM   │
-    │ 0-33%   │          │ 33-66%  │          │ 66-100% │
-    │ avg(hr) │          │ avg(hr) │          │ avg(hr) │
-    └────┬────┘          └────┬────┘          └────┬────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-    ┌─────────────────────────────────────────────────────┐
-    │     NORMALIZAÇÃO: (avg_hr / max_hr) * 100          │
-    └─────────────────────────────────────────────────────┘
-                              │
-                              ▼
-    ┌─────────────────────────────────────────────────────┐
-    │  PADRÃO: negative_split | positive_split | even    │
-    │  (baseado na diferença entre início e fim)         │
-    └─────────────────────────────────────────────────────┘
-```
+1. **Diagnóstico Correto**: Identifica fadiga cardíaca vs aceleração real
+2. **Feedback Educativo**: Atleta aprende sobre cardiac drift
+3. **Dados Completos**: Mostra FC + Pace por segmento
+4. **Sem Queries Adicionais**: Usa dados já carregados (`pace_min_per_km` existe nos dados)
 
-## Resultado Esperado
-O atleta verá como distribuiu seu esforço durante o treino específico, podendo identificar se:
-- **Negative Split** (ideal): Acelerou/intensificou no final
-- **Positive Split**: Desacelerou/fadiga no final
-- **Even Pace**: Ritmo/esforço constante
-
+## Impacto na Performance
+**Zero** - apenas processamento local adicional sobre dados já em memória.
