@@ -1,18 +1,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 
 interface EffortDistribution {
   startEffort: number;
   middleEffort: number;
   endEffort: number;
-  pattern: 'negative_split' | 'positive_split' | 'even_pace';
+  startPace: number | null;
+  middlePace: number | null;
+  endPace: number | null;
+  pattern: 'negative_split' | 'positive_split' | 'even_pace' | 'cardiac_drift' | 'economy';
+  hasCardiacDrift: boolean;
+  paceChange: 'faster' | 'slower' | 'stable';
+  hrChange: 'higher' | 'lower' | 'stable';
 }
 
 interface EffortDistributionChartProps {
   data?: EffortDistribution | null;
 }
+
+const formatPace = (pace: number | null): string => {
+  if (pace === null || pace <= 0) return '--:--';
+  const minutes = Math.floor(pace);
+  const seconds = Math.round((pace - minutes) * 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
 
 export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) => {
   if (!data) {
@@ -43,21 +56,33 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
     switch (pattern) {
       case 'negative_split':
         return {
-          label: 'Negative Split',
+          label: '🏃 Negative Split',
           color: 'bg-green-500',
-          description: 'Acelera no final (ideal)'
+          description: 'Acelerou e manteve eficiência cardíaca'
         };
       case 'positive_split':
         return {
-          label: 'Positive Split',
+          label: '🔻 Positive Split',
           color: 'bg-red-500',
-          description: 'Desacelera no final'
+          description: 'Desacelerou no final do treino'
         };
       case 'even_pace':
         return {
-          label: 'Even Pace',
+          label: '⚖️ Even Pace',
           color: 'bg-blue-500',
-          description: 'Ritmo constante'
+          description: 'Ritmo e esforço constantes'
+        };
+      case 'cardiac_drift':
+        return {
+          label: '😰 Cardiac Drift',
+          color: 'bg-orange-500',
+          description: 'FC subiu mas pace caiu (sinal de fadiga)'
+        };
+      case 'economy':
+        return {
+          label: '💪 Economia',
+          color: 'bg-purple-500',
+          description: 'Acelerou com menos esforço cardíaco'
         };
       default:
         return {
@@ -69,6 +94,7 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
   };
 
   const patternInfo = getPatternInfo(data.pattern);
+  const hasPaceData = data.startPace !== null && data.middlePace !== null && data.endPace !== null;
 
   return (
     <Card className="glass-card border-glass-border">
@@ -89,6 +115,16 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
           <p className="text-xs text-muted-foreground">
             {patternInfo.description}
           </p>
+          
+          {data.hasCardiacDrift && (
+            <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-orange-200">
+                <strong>Cardiac Drift detectado:</strong> Sua FC aumentou enquanto o pace diminuiu. 
+                Isso pode indicar desidratação, calor excessivo ou fadiga acumulada.
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="h-48 mb-4">
@@ -112,7 +148,7 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any) => [`${value.toFixed(1)}%`, 'Esforço']}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, 'Esforço (FC)']}
                 labelFormatter={(label) => `Fase: ${label}`}
               />
               <Line 
@@ -130,15 +166,61 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div className="text-center">
             <div className="font-semibold text-lg">{data.startEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Início</div>
+            <div className="text-muted-foreground text-xs">FC Início</div>
+            {hasPaceData && (
+              <div className="text-primary text-xs mt-1">
+                {formatPace(data.startPace)}/km
+              </div>
+            )}
           </div>
           <div className="text-center">
             <div className="font-semibold text-lg">{data.middleEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Meio</div>
+            <div className="text-muted-foreground text-xs">FC Meio</div>
+            {hasPaceData && (
+              <div className="text-primary text-xs mt-1">
+                {formatPace(data.middlePace)}/km
+              </div>
+            )}
           </div>
           <div className="text-center">
             <div className="font-semibold text-lg">{data.endEffort.toFixed(1)}%</div>
-            <div className="text-muted-foreground text-xs">Fim</div>
+            <div className="text-muted-foreground text-xs">FC Fim</div>
+            {hasPaceData && (
+              <div className={`text-xs mt-1 ${
+                data.paceChange === 'faster' ? 'text-green-400' : 
+                data.paceChange === 'slower' ? 'text-red-400' : 'text-primary'
+              }`}>
+                {formatPace(data.endPace)}/km
+                {data.paceChange === 'faster' && ' ⬆'}
+                {data.paceChange === 'slower' && ' ⬇'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Legend for HR and Pace changes */}
+        <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <span>FC:</span>
+            <span className={
+              data.hrChange === 'higher' ? 'text-red-400' :
+              data.hrChange === 'lower' ? 'text-green-400' : 'text-muted-foreground'
+            }>
+              {data.hrChange === 'higher' && '↑ Subiu'}
+              {data.hrChange === 'lower' && '↓ Desceu'}
+              {data.hrChange === 'stable' && '→ Estável'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>Pace:</span>
+            <span className={
+              data.paceChange === 'faster' ? 'text-green-400' :
+              data.paceChange === 'slower' ? 'text-red-400' : 'text-muted-foreground'
+            }>
+              {data.paceChange === 'faster' && '↑ Mais rápido'}
+              {data.paceChange === 'slower' && '↓ Mais lento'}
+              {data.paceChange === 'stable' && '→ Estável'}
+            </span>
           </div>
         </div>
       </CardContent>
