@@ -117,10 +117,10 @@ export const EffortDistributionChart = ({ data }: EffortDistributionChartProps) 
           </p>
           
           {data.hasCardiacDrift && (
-            <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-orange-200">
-                <strong>Cardiac Drift detectado:</strong> Sua FC aumentou enquanto o pace diminuiu. 
+            <div className="mt-3 p-3 bg-orange-950 border border-orange-700 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-orange-100">
+                <strong className="text-orange-300">Cardiac Drift detectado:</strong> Sua FC aumentou enquanto o pace diminuiu. 
                 Isso pode indicar desidratação, calor excessivo ou fadiga acumulada.
               </div>
             </div>
