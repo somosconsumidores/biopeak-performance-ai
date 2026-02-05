@@ -1,20 +1,24 @@
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
 import { AICoachChat } from '@/components/AICoachChat';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlatform } from '@/hooks/usePlatform';
-import { Card, CardContent } from '@/components/ui/card';
-import { Brain, MessageCircle, Smartphone } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Button } from '@/components/ui/button';
+import { Brain, Lock, Crown, CheckCircle, ArrowLeft, MessageCircle } from 'lucide-react';
 
 export const AICoach = () => {
-  const { user, loading } = useAuth();
-  const { isIOS, isNative } = usePlatform();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { isNative } = usePlatform();
+  const { isSubscribed, loading: subscriptionLoading } = useSubscription();
 
-  // Universal access to AI Coach
-  const hasAccess = true;
+  const isLoading = authLoading || subscriptionLoading;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
@@ -26,6 +30,11 @@ export const AICoach = () => {
         </div>
       </div>
     );
+  }
+
+  // Show paywall for non-subscribers
+  if (!isSubscribed) {
+    return <AICoachPaywall onSubscribe={() => navigate('/paywall2')} />;
   }
 
   return (
@@ -52,44 +61,127 @@ export const AICoach = () => {
             </div>
           </ScrollReveal>
 
-          {/* Content - Show based on access */}
-          {hasAccess ? (
-            <ScrollReveal delay={100}>
-              <AICoachChat />
-            </ScrollReveal>
-          ) : (
-            <ScrollReveal delay={100}>
-              <Card className="glass-card border-glass-border">
-                <CardContent className="py-12">
-                  <div className="text-center space-y-6">
-                    <div className="flex items-center justify-center gap-3 mb-6">
-                      <div className="p-4 rounded-full bg-primary/10">
-                        <Smartphone className="h-12 w-12 text-primary" />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <h2 className="text-2xl font-bold">Feature exclusiva do app iOS</h2>
-                      <p className="text-lg text-muted-foreground max-w-md mx-auto">
-                        Os treinos com GPS em background estão disponíveis apenas no aplicativo nativo iOS.
-                      </p>
-                    </div>
-                    
-                    <div className="pt-4">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
-                        <MessageCircle className="h-4 w-4 text-primary" />
-                        <span className="text-sm text-primary font-medium">
-                          Baixe o app iOS para acessar
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </ScrollReveal>
-          )}
+          {/* Chat Component */}
+          <ScrollReveal delay={100}>
+            <AICoachChat />
+          </ScrollReveal>
         </div>
       </div>
     </div>
   );
 };
+
+function AICoachPaywall({ onSubscribe }: { onSubscribe: () => void }) {
+  const navigate = useNavigate();
+
+  const benefits = [
+    "Conversas ilimitadas com o Coach IA",
+    "Tire dúvidas sobre treinos e nutrição",
+    "Crie e gerencie seu plano de treinos via chat",
+    "Análises personalizadas da sua evolução",
+    "Suporte 24/7 para suas questões de performance"
+  ];
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="shrink-0"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Chat com Coach IA
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Paywall Content */}
+      <div className="max-w-md mx-auto px-4 py-12 text-center">
+        {/* Icon with lock */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="relative w-24 h-24 mx-auto mb-6"
+        >
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+            <Brain className="h-12 w-12 text-primary" />
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+            <Lock className="h-4 w-4 text-white" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <h2 className="text-2xl font-bold mb-2">
+            Coach IA Exclusivo para Assinantes
+          </h2>
+          
+          <p className="text-muted-foreground mb-8">
+            Converse diretamente com seu{' '}
+            <span className="text-primary font-medium">Coach de Inteligência Artificial</span>{' '}
+            para tirar dúvidas, criar planos e receber orientações personalizadas.
+          </p>
+        </motion.div>
+
+        {/* Benefits list */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="text-left space-y-3 mb-8 bg-card rounded-xl p-6 border border-border"
+        >
+          {benefits.map((benefit, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <span className="text-sm">{benefit}</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Impact phrase */}
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="text-sm italic text-muted-foreground mb-8"
+        >
+          "Seu personal trainer virtual, disponível 24 horas por dia"
+        </motion.p>
+
+        {/* Main CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <Button 
+            size="lg" 
+            className="w-full bg-gradient-to-r from-primary to-primary/80 gap-2 shadow-lg shadow-primary/20"
+            onClick={onSubscribe}
+          >
+            <Crown className="h-5 w-5" />
+            Desbloquear Coach IA
+          </Button>
+          
+          <p className="text-xs text-muted-foreground mt-3">
+            por apenas R$ 12,90/mês
+          </p>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

@@ -1,11 +1,23 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Home, Calendar, Utensils, Dumbbell } from 'lucide-react';
+import { TrendingUp, Home, Calendar, Dumbbell, MessageCircle } from 'lucide-react';
 import { usePlatform } from '@/hooks/usePlatform';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
+
+interface NavItem {
+  path: string;
+  icon: React.ElementType;
+  label: string;
+  isCenter: boolean;
+  requiresSubscription?: boolean;
+}
 
 const MobileBottomBar: React.FC = () => {
   const { isNative } = usePlatform();
+  const { isSubscribed } = useSubscription();
+  const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -16,20 +28,29 @@ const MobileBottomBar: React.FC = () => {
   const hideOnRoutes = ['/', '/auth', '/reset-password'];
   if (hideOnRoutes.includes(location.pathname)) return null;
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: '/dashboard', icon: Home, label: 'Início', isCenter: false },
     { path: '/workouts', icon: Dumbbell, label: 'Treinos', isCenter: false },
     { path: '/evolution', icon: TrendingUp, label: 'Evolução', isCenter: true },
     { path: '/training-plan', icon: Calendar, label: 'Plano', isCenter: false },
-    { path: '/dashboard?section=nutrition-plan', icon: Utensils, label: 'Nutrição', isCenter: false },
+    { path: '/ai-coach', icon: MessageCircle, label: 'Chat', isCenter: false, requiresSubscription: true },
   ];
 
   const isActive = (itemPath: string) => {
-    const [path, query] = itemPath.split('?');
-    if (query) {
-      return location.pathname === path && location.search.includes('section=nutrition-plan');
+    return location.pathname === itemPath;
+  };
+
+  const handleNavigation = (item: NavItem) => {
+    // Check subscription for premium features
+    if (item.requiresSubscription && !isSubscribed) {
+      toast({
+        title: "Recurso Premium",
+        description: "O Chat com Coach IA é exclusivo para assinantes.",
+      });
+      navigate('/paywall2');
+      return;
     }
-    return location.pathname === path && !location.search.includes('section=nutrition-plan');
+    navigate(item.path);
   };
 
   return (
@@ -47,7 +68,7 @@ const MobileBottomBar: React.FC = () => {
             return (
               <button
                 key={item.path}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigation(item)}
                 className="relative -mt-5 flex items-center justify-center focus:outline-none"
               >
                 <div className={`
@@ -69,7 +90,7 @@ const MobileBottomBar: React.FC = () => {
               key={item.path}
               variant="ghost"
               size="sm"
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavigation(item)}
               className={`flex flex-col items-center justify-center gap-1 h-12 px-2 ${
                 active 
                   ? 'text-primary' 
