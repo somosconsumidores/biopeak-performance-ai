@@ -14,6 +14,7 @@ export const CACHE_KEYS = {
   NUTRITION_WEEKLY_PLAN: 'biopeak_nutrition_weekly_plan_cache_v1',
   EVOLUTION_STATS: 'biopeak_evolution_stats_cache_v1',
   AVERAGE_PACE: 'biopeak_average_pace_cache_v1',
+  LAST_TRAINING_ANALYSIS: 'biopeak_last_training_analysis_v1',
 } as const;
 
 export const CACHE_DURATIONS = {
@@ -21,6 +22,7 @@ export const CACHE_DURATIONS = {
   MEDIUM: 5 * 60 * 1000,      // 5 minutes
   LONG: 10 * 60 * 1000,       // 10 minutes
   PROFILE: 30 * 60 * 1000,    // 30 minutes
+  LAST_TRAINING: 60 * 60 * 1000, // 1 hour
   COACH: 4 * 60 * 60 * 1000,  // 4 hours
   DAILY: 24 * 60 * 60 * 1000, // 24 hours
 } as const;
