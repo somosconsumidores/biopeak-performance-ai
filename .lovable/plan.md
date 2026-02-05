@@ -1,122 +1,163 @@
 
+# Plano: Implementar Melhorias de Produção no AI Coach
 
-# Plano: AI Coach com Geração de Treinos Científicos Personalizados
+## Resumo
 
-## Problema Identificado
+Implementar as melhorias críticas sugeridas para tornar o AI Coach production-ready, focando em segurança (rate limiting), robustez (error handling, timeout) e eficiência (history limit).
 
-Quando você pede "crie um treino de VO2max para amanhã", o Coach atual:
-- ❌ Apenas insere um registro genérico na agenda
-- ❌ Não calcula intervalos, paces, ou recuperações
-- ❌ Não usa seus dados de performance (VO2max, ritmos históricos)
+## Mudanças a Implementar
 
-## Solução
+### 1. Rate Limiting (Prioridade Máxima)
 
-Criar uma tool `generate_scientific_workout` que use a mesma lógica científica do gerador de planos para criar treinos personalizados sob demanda.
+Limitar a 20 mensagens por 5 minutos por usuário:
 
-## Como Vai Funcionar
+```typescript
+async function checkRateLimit(userId: string, sb: any) {
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { count } = await sb
+    .from('ai_coach_conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('role', 'user')
+    .gte('created_at', fiveMinAgo);
+  
+  if (count && count >= 20) {
+    throw new Error('RATE_LIMIT');
+  }
+}
+```
 
-Quando você pedir: *"Crie um treino de VO2max para amanhã"*
+### 2. Aumentar MAX_ITERATIONS + Timeout
 
-1. O LLM chama `get_athlete_metrics` para buscar:
-   - Melhor pace de 5K/10K
-   - VO2max estimado (Garmin ou calculado por Daniels)
-   - FC máxima e zonas
-   
-2. O LLM chama `generate_scientific_workout` com:
-   ```
-   workout_type: "interval_vo2max"
-   date: "2026-02-06"
-   athlete_data: (dados coletados acima)
-   ```
+```typescript
+const MAX_ITERATIONS = 10;  // Aumentar de 5 para 10
+const TIMEOUT_MS = 25000;   // 25 segundos
 
-3. O sistema gera um treino estruturado:
-   ```
-   ✅ Aquecimento: 15min em ritmo leve (6:30 min/km)
-   ✅ Principal: 6x800m @ 4:45 min/km (Z5, 90-95% FC)
-      - Recuperação: 2min trote leve entre tiros
-   ✅ Desaquecimento: 10min leve
-   
-   📊 Distância total: ~10km
-   🎯 Zona de FC: 4-5 (VO2max)
-   ```
+// No loop:
+const startTime = Date.now();
+for (let i = 0; i < MAX_ITERATIONS && !finalResp; i++) {
+  if (Date.now() - startTime > TIMEOUT_MS) {
+    finalResp = "Processamento complexo demais. Tente uma pergunta mais específica.";
+    break;
+  }
+  // ... resto do loop
+}
+```
 
-## Tipos de Treino Suportados
+### 3. Error Handling Melhorado
 
-| Tipo | Descrição |
-|------|-----------|
-| `interval_vo2max` | 800m-1km em Z5 (VO2max) |
-| `interval_speed` | 400m rápidos (velocidade) |
-| `tempo` | Corrida contínua em limiar |
-| `threshold` | Blocos em Z4 |
-| `long_run` | Longão com progressão |
-| `fartlek` | Variação de ritmo |
-| `recovery` | Corrida regenerativa |
-| `progressivo` | Aumentando ritmo gradualmente |
+```typescript
+catch (e: any) {
+  console.error('AI Coach Error:', { userId: user?.id, error: e.message });
+  
+  let userMessage = 'Desculpe, ocorreu um erro. Tente novamente.';
+  let status = 500;
+  
+  if (e.message === 'RATE_LIMIT') {
+    userMessage = 'Você atingiu o limite de mensagens. Aguarde 5 minutos.';
+    status = 429;
+  } else if (e.message === 'Not authenticated') {
+    userMessage = 'Sessão expirada. Faça login novamente.';
+    status = 401;
+  } else if (e.message.includes('AI error')) {
+    userMessage = 'Serviço de IA indisponível. Tente em alguns instantes.';
+    status = 503;
+  }
+  
+  return new Response(JSON.stringify({ error: userMessage }), 
+    { status, headers: corsHeaders });
+}
+```
 
-## Mudanças Técnicas
+### 4. Limitar Conversation History
 
-### 1. Nova Tool: `get_athlete_metrics`
+Carregar apenas as últimas 20 mensagens (não ALL):
 
-Busca dados de performance do atleta:
-- VO2max (Garmin + Daniels calculado)
-- Melhores paces (5K, 10K, meia, maratona)
-- FC máxima e zonas
-- Volume médio semanal recente
+```typescript
+if (reqConvId && !history.length) {
+  const { data: prev } = await sb
+    .from('ai_coach_conversations')
+    .select('role, content')
+    .eq('conversation_id', reqConvId)
+    .order('created_at', { ascending: false })
+    .limit(20);  // ✅ Últimas 20 apenas
+  
+  if (prev?.length) {
+    history = prev.reverse().map((m: any) => ({ 
+      role: m.role, 
+      content: m.content 
+    }));
+  }
+}
+```
 
-### 2. Tool Atualizada: `create_custom_workout`
+### 5. Tool Logging Enriquecido
 
-Adicionados parâmetros opcionais:
-- `workout_category`: `vo2max`, `threshold`, `tempo`, `long_run`, `recovery`, `speed`
-- `use_athlete_data`: boolean para usar métricas reais
+Adicionar timing e status às tool calls (sem nova tabela):
 
-Se `use_athlete_data=true`, o sistema:
-1. Busca métricas do atleta
-2. Calcula paces específicos com base no VO2max/histórico
-3. Gera descrição estruturada (aquecimento, principal, desaquecimento)
-4. Define FC alvo e distância estimada
+```typescript
+for (const tc of am.tool_calls) {
+  const toolStart = Date.now();
+  const args = JSON.parse(tc.function.arguments || '{}');
+  const result = await executeTool(tc.function.name, args, sb, user.id);
+  
+  toolLog.push({ 
+    tool: tc.function.name, 
+    args,
+    execution_ms: Date.now() - toolStart,
+    success: !result.error
+  });
+  
+  msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+}
+```
 
-### 3. Prompt do Coach Atualizado
+### 6. System Prompt Otimizado
 
-Instruções para o LLM:
-- Ao criar treinos, SEMPRE buscar métricas primeiro
-- Gerar descrições detalhadas com paces específicos
-- Incluir aquecimento/desaquecimento
-- Citar zonas de FC e distância total
+Versão condensada mantendo o essencial (menos tokens):
 
-## Exemplo de Fluxo
+```typescript
+function buildPrompt() {
+  const today = new Date().toISOString().split('T')[0];
+  return `Você é o BioPeak AI Coach - coach científico de corrida. DATA: ${today}
 
-**Usuário**: "Preciso de um treino de VO2max para amanhã"
+PERSONALIDADE: Consultivo, científico mas acessível, empático, celebra vitórias, honesto sobre riscos.
 
-**Coach** (internamente):
-1. Chama `get_athlete_metrics()` → retorna { vo2max: 52, pace_5k: 4:35, fc_max: 185 }
-2. Chama `create_custom_workout({ date: "2026-02-06", workout_category: "vo2max", use_athlete_data: true })`
-3. Sistema gera:
-   - Título: "VO2max 6x800m"
-   - Descrição estruturada com paces calculados
-   - target_pace: 4:28 min/km
-   - target_hr_zone: 5
+REGRAS CRÍTICAS:
+1. DADOS REAIS: Nunca invente métricas. Chame get_athlete_metrics ANTES de criar treinos.
+2. PROGRESSÃO: Nunca aumente volume >10%/semana. TSB negativo = sugerir recuperação.
+3. SAÚDE PRIMEIRO: Dor/desconforto = alerta + ajustar plano. TSB < -15 = descanso forçado.
+4. EXPLIQUE: Diga O PORQUÊ de cada recomendação.
 
-**Coach responde**:
-> "Criei seu treino de VO2max para amanhã:
-> 
-> **🏃 VO2max 6x800m**
-> - Aquecimento: 15min em ritmo leve (~6:30/km)
-> - Principal: 6x800m @ 4:28/km (Z5, ~175-185bpm)
->   - Recuperação: 2min trote entre tiros
-> - Desaquecimento: 10min leve
-> 
-> 📊 Distância total: ~10km | ⏱️ Duração: ~55min"
+TOOLS:
+- get_athlete_metrics: OBRIGATÓRIO antes de criar treinos (VO2max, paces, zonas)
+- create_scientific_workout: Treino estruturado (vo2max/threshold/tempo/long_run/recovery/speed/fartlek/progressive)
+- get_last_activity, get_training_plan, get_fitness_scores, get_sleep_data: Consultas
+- reschedule_workout, mark_workout_complete: Ações
 
-## Arquivos a Modificar
+FLUXO TREINO: 1) get_athlete_metrics → 2) create_scientific_workout com dados → 3) Mostrar treino detalhado
 
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/ai-coach-chat/index.ts` | Adicionar `get_athlete_metrics` tool + melhorar `create_custom_workout` com geração científica |
+Responda em português, cite dados específicos, seja objetivo mas humano.`;
+}
+```
 
-## Benefícios
+## Arquivo a Modificar
 
-- **Treinos personalizados**: Paces calculados com base no VO2max real
-- **Estrutura científica**: Aquecimento, principal, desaquecimento sempre presentes
-- **Zonas de FC corretas**: Baseadas na FC máxima do atleta
-- **Pronto para executar**: Atleta sabe exatamente o que fazer
+| Arquivo | Mudanças |
+|---------|----------|
+| `supabase/functions/ai-coach-chat/index.ts` | Rate limiting, timeout, error handling, history limit, tool logging, prompt |
 
+## O Que NÃO Implementar Agora
+
+| Sugestão | Motivo |
+|----------|--------|
+| Tabela `ai_coach_tool_logs` | Desnecessária - `context_used` já armazena isso |
+| Streaming (SSE) | Complexo, requer mudanças no frontend |
+| User Feedback | Precisa de UI no frontend primeiro |
+
+## Resultado Esperado
+
+- **Segurança**: Rate limiting previne abuse e custos inesperados
+- **Robustez**: Erros claros, timeout evita travamentos
+- **Eficiência**: History limitado = menos tokens = mais rápido e barato
+- **Observability**: Tool logs com timing permitem debugar gargalos
