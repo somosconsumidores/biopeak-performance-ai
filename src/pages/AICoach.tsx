@@ -1,12 +1,11 @@
 import { Header } from '@/components/Header';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { ScrollReveal } from '@/components/ScrollReveal';
-import WeeklyAIPlanCard from '@/components/WeeklyAIPlanCard';
 import { AICoachChat } from '@/components/AICoachChat';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlatform } from '@/hooks/usePlatform';
 import { Card, CardContent } from '@/components/ui/card';
-import { Brain, Sparkles, Smartphone } from 'lucide-react';
+import { Brain, MessageCircle, Smartphone } from 'lucide-react';
 
 export const AICoach = () => {
   const { user, loading } = useAuth();
@@ -43,28 +42,22 @@ export const AICoach = () => {
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
                   <Brain className="h-8 w-8 text-primary" />
                 </div>
-                <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                <MessageCircle className="h-6 w-6 text-primary animate-pulse" />
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
-                Coach <span className="bg-gradient-primary bg-clip-text text-transparent">IA Premium</span>
+                Converse com seu <span className="bg-gradient-primary bg-clip-text text-transparent">Coach IA</span>
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-                Seu assistente inteligente personalizado para treinos e análises avançadas
+                Tire dúvidas sobre seus treinos, pergunte sobre sua evolução, peça para criar plano de treinos, reagendar, cancelar. Este é um espaço aberto para você saber tudo sobre sua evolução. O seu Coach IA não dorme e está sempre a sua disposição!
               </p>
             </div>
           </ScrollReveal>
 
           {/* Content - Show based on access */}
           {hasAccess ? (
-            <div className="space-y-6">
-              <ScrollReveal delay={100}>
-                <WeeklyAIPlanCard />
-              </ScrollReveal>
-              
-              <ScrollReveal delay={200}>
-                <AICoachChat />
-              </ScrollReveal>
-            </div>
+            <ScrollReveal delay={100}>
+              <AICoachChat />
+            </ScrollReveal>
           ) : (
             <ScrollReveal delay={100}>
               <Card className="glass-card border-glass-border">
@@ -85,7 +78,7 @@ export const AICoach = () => {
                     
                     <div className="pt-4">
                       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20">
-                        <Sparkles className="h-4 w-4 text-primary" />
+                        <MessageCircle className="h-4 w-4 text-primary" />
                         <span className="text-sm text-primary font-medium">
                           Baixe o app iOS para acessar
                         </span>
