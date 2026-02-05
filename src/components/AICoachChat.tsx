@@ -9,6 +9,7 @@ import { Send, MessageCircle, Trash2, Volume2, VolumeX, Plus, History, ChevronDo
 import { useEnhancedAICoachChat } from '@/hooks/useEnhancedAICoachChat';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
+import { usePlatform } from '@/hooks/usePlatform';
 import { ConversationHistory } from './ConversationHistory';
 import { toast } from 'sonner';
 
@@ -16,6 +17,7 @@ export const AICoachChat = () => {
   const { messages, loading, error, currentConversationId, sendMessage, clearMessages, startNewConversation, loadConversation } = useEnhancedAICoachChat();
   const { sessions, loadingSessions, deleteConversation, refreshSessions } = useConversationHistory();
   const { speak, stop, isEnabled, isSpeaking, toggle: toggleTTS } = useEnhancedTTS();
+  const { isNative } = usePlatform();
   const [inputMessage, setInputMessage] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -93,7 +95,7 @@ export const AICoachChat = () => {
   };
 
   return (
-    <Card className="flex flex-col w-full h-[700px]">
+    <Card className={`flex flex-col w-full h-[700px] ${isNative ? 'pb-20' : ''}`}>
       <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
