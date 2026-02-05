@@ -128,8 +128,18 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     if (!plan) return { success: false, error: 'Sem plano ativo' };
     
     const metrics = args.athlete_metrics || {};
-    const paces = metrics.training_paces || { easy: '6:30', tempo: '5:15', threshold: '5:00', interval: '4:40', repetition: '4:20' };
-    const zones = metrics.zones || { z1: {min:93,max:111}, z2: {min:111,max:130}, z3: {min:130,max:148}, z4: {min:148,max:167}, z5: {min:167,max:185} };
+    const defaultPaces = { easy: '6:30', tempo: '5:15', threshold: '5:00', interval: '4:40', repetition: '4:20' };
+    const paces = { ...defaultPaces, ...(metrics.training_paces || {}) };
+    
+    const defaultZones = { z1: {min:93,max:111}, z2: {min:111,max:130}, z3: {min:130,max:148}, z4: {min:148,max:167}, z5: {min:167,max:185} };
+    const rawZones = metrics.zones || {};
+    const zones = {
+      z1: { ...defaultZones.z1, ...(rawZones.z1 || {}) },
+      z2: { ...defaultZones.z2, ...(rawZones.z2 || {}) },
+      z3: { ...defaultZones.z3, ...(rawZones.z3 || {}) },
+      z4: { ...defaultZones.z4, ...(rawZones.z4 || {}) },
+      z5: { ...defaultZones.z5, ...(rawZones.z5 || {}) },
+    };
     const hrMax = metrics.hr_max || 185;
     
     const workoutTemplates: Record<string, any> = {
