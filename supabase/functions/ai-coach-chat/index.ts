@@ -22,13 +22,14 @@ async function checkRateLimit(userId: string, sb: any) {
 const coachTools = [
   { type: "function", function: { name: "get_last_activity", description: "Busca última atividade com pace, FC, distância", parameters: { type: "object", properties: { activity_type: { type: "string", description: "RUNNING, CYCLING, etc" } }, additionalProperties: false } } },
   { type: "function", function: { name: "get_activity_by_date", description: "Atividade em data específica", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" } }, required: ["date"], additionalProperties: false } } },
-  { type: "function", function: { name: "get_training_plan", description: "Plano ativo e próximos treinos", parameters: { type: "object", properties: {}, additionalProperties: false } } },
+  { type: "function", function: { name: "get_training_plan", description: "Retorna TODOS os planos ativos do atleta (corrida, ciclismo, natação, força) e próximos treinos de cada", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "get_sleep_data", description: "Dados de sono", parameters: { type: "object", properties: { days: { type: "number" } }, additionalProperties: false } } },
   { type: "function", function: { name: "get_fitness_scores", description: "CTL, ATL, TSB", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "get_athlete_metrics", description: "Busca métricas do atleta: VO2max, paces de referência, FC máxima, zonas. SEMPRE use antes de criar treinos científicos.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "reschedule_workout", description: "Move treino para outra data", parameters: { type: "object", properties: { from_date: { type: "string" }, to_date: { type: "string" }, strategy: { type: "string", enum: ["swap", "replace", "push"] } }, required: ["from_date", "to_date"], additionalProperties: false } } },
   { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
-  { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } }
+  { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } },
+  { type: "function", function: { name: "cancel_training_plan", description: "Cancela plano de treino do usuário. Use quando atleta pedir para encerrar, pausar ou cancelar um plano.", parameters: { type: "object", properties: { sport_type: { type: "string", enum: ["running", "cycling", "swimming", "strength"], description: "Tipo do plano: running (corrida), cycling (ciclismo), swimming (natação), strength (força/musculação)" }, reason: { type: "string", description: "Motivo do cancelamento para registro" } }, required: ["sport_type"], additionalProperties: false } } }
 ];
 
 async function executeTool(name: string, args: any, sb: any, uid: string) {
@@ -45,12 +46,26 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     return { found: true, activities: data.map((a: any) => ({ type: a.activity_type, distance_km: a.total_distance_meters?(a.total_distance_meters/1000).toFixed(2):null, pace: a.pace_min_per_km?Number(a.pace_min_per_km).toFixed(2):null, hr_avg: a.average_heart_rate })) };
   }
   if (name === "get_training_plan") {
-    const { data: plan } = await sb.from('training_plans').select('*').eq('user_id', uid).eq('status', 'active').maybeSingle();
-    if (!plan) return { found: false };
-    const { data: workouts } = await sb.from('training_plan_workouts').select('id, workout_date, title, workout_type, status').eq('plan_id', plan.id).order('workout_date');
+    // Buscar TODOS os planos ativos (multi-esporte)
+    const { data: plans } = await sb.from('training_plans').select('*').eq('user_id', uid).eq('status', 'active');
+    if (!plans?.length) return { found: false, message: 'Nenhum plano ativo' };
+    
+    const result = [];
     const today = new Date().toISOString().split('T')[0];
-    const upcoming = workouts?.filter((w: any) => w.workout_date >= today && w.status === 'planned') || [];
-    return { found: true, plan_name: plan.name || plan.plan_name, upcoming: upcoming.slice(0, 7).map((w: any) => ({ date: w.workout_date, title: w.title, type: w.workout_type })) };
+    
+    for (const plan of plans) {
+      const { data: workouts } = await sb.from('training_plan_workouts').select('id, workout_date, title, workout_type, status').eq('plan_id', plan.id).gte('workout_date', today).eq('status', 'planned').order('workout_date').limit(5);
+      result.push({
+        id: plan.id,
+        name: plan.plan_name || plan.goal_type,
+        sport: plan.sport_type,
+        goal: plan.goal_type,
+        start_date: plan.start_date,
+        end_date: plan.end_date,
+        upcoming_workouts: workouts?.map((w: any) => ({ date: w.workout_date, title: w.title, type: w.workout_type })) || []
+      });
+    }
+    return { found: true, plans: result, total_active: result.length };
   }
   if (name === "get_sleep_data") {
     const days = args.days || 7;
@@ -232,12 +247,28 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     await sb.from('training_plan_workouts').update({ status: 'completed' }).eq('id', w.id);
     return { success: true, message: `"${w.title}" concluído!` };
   }
+  
+  if (name === "cancel_training_plan") {
+    const sportType = args.sport_type?.toLowerCase();
+    const validSports = ['running', 'cycling', 'swimming', 'strength'];
+    if (!validSports.includes(sportType)) return { success: false, error: 'Esporte inválido. Use: running, cycling, swimming ou strength' };
+    
+    const { data: plan, error: fetchError } = await sb.from('training_plans').select('id, plan_name, sport_type, start_date, end_date').eq('user_id', uid).eq('sport_type', sportType).eq('status', 'active').maybeSingle();
+    if (fetchError) return { success: false, error: 'Erro ao buscar plano' };
+    if (!plan) return { success: false, error: `Nenhum plano de ${sportType} ativo encontrado` };
+    
+    const { error: updateError } = await sb.from('training_plans').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', plan.id);
+    if (updateError) return { success: false, error: 'Falha ao cancelar plano' };
+    
+    return { success: true, message: `Plano de ${sportType} "${plan.plan_name || 'Sem nome'}" cancelado com sucesso`, cancelled_plan: { id: plan.id, name: plan.plan_name, sport: plan.sport_type, start_date: plan.start_date, end_date: plan.end_date }, reason: args.reason || 'Solicitado pelo atleta' };
+  }
+  
   return { error: 'Tool desconhecida' };
 }
 
 function buildPrompt() {
   const today = new Date().toISOString().split('T')[0];
-  return `Você é o BioPeak AI Coach - coach científico de corrida. DATA: ${today}
+  return `Você é o BioPeak AI Coach - coach científico multi-esporte. DATA: ${today}
 
 PERSONALIDADE: Consultivo, científico mas acessível, empático, celebra vitórias, honesto sobre riscos.
 
@@ -250,8 +281,15 @@ REGRAS CRÍTICAS:
 TOOLS:
 - get_athlete_metrics: OBRIGATÓRIO antes de criar treinos (VO2max, paces, zonas)
 - create_scientific_workout: Treino estruturado (vo2max/threshold/tempo/long_run/recovery/speed/fartlek/progressive)
-- get_last_activity, get_training_plan, get_fitness_scores, get_sleep_data: Consultas
+- get_training_plan: Retorna TODOS os planos ativos (running/cycling/swimming/strength)
+- get_last_activity, get_fitness_scores, get_sleep_data: Consultas
 - reschedule_workout, mark_workout_complete: Ações
+- cancel_training_plan: Cancela plano específico (running/cycling/swimming/strength)
+
+REGRAS PARA CANCELAMENTO:
+- SEMPRE confirme com o usuário antes de cancelar
+- Pergunte o motivo para registro
+- Após cancelar, sugira alternativas (novo plano, pausa temporária, etc)
 
 FLUXO TREINO: 1) get_athlete_metrics → 2) create_scientific_workout com dados → 3) Mostrar treino detalhado
 
