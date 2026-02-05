@@ -4,15 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Send, MessageCircle, Trash2, Volume2, VolumeX, Plus } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Send, MessageCircle, Trash2, Volume2, VolumeX, Plus, History, ChevronDown } from 'lucide-react';
 import { useEnhancedAICoachChat } from '@/hooks/useEnhancedAICoachChat';
+import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { useEnhancedTTS } from '@/hooks/useEnhancedTTS';
+import { ConversationHistory } from './ConversationHistory';
 import { toast } from 'sonner';
 
 export const AICoachChat = () => {
-  const { messages, loading, error, sendMessage, clearMessages, startNewConversation } = useEnhancedAICoachChat();
+  const { messages, loading, error, currentConversationId, sendMessage, clearMessages, startNewConversation, loadConversation } = useEnhancedAICoachChat();
+  const { sessions, loadingSessions, deleteConversation, refreshSessions } = useConversationHistory();
   const { speak, stop, isEnabled, isSpeaking, toggle: toggleTTS } = useEnhancedTTS();
   const [inputMessage, setInputMessage] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,10 +44,30 @@ export const AICoachChat = () => {
     
     try {
       await sendMessage(messageToSend);
+      // Refresh sessions after sending a message to update the list
+      refreshSessions();
     } catch (err) {
       console.error('Failed to send message:', err);
       toast.error('Falha ao enviar mensagem');
     }
+  };
+
+  const handleSelectConversation = async (conversationId: string) => {
+    await loadConversation(conversationId);
+    setHistoryOpen(false);
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    await deleteConversation(conversationId);
+    if (currentConversationId === conversationId) {
+      startNewConversation();
+    }
+    toast.success('Conversa excluída');
+  };
+
+  const handleNewConversation = () => {
+    startNewConversation();
+    refreshSessions();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -79,7 +104,7 @@ export const AICoachChat = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={startNewConversation}
+              onClick={handleNewConversation}
               className="h-8 px-2 text-muted-foreground hover:text-primary"
               title="Nova conversa"
             >
@@ -106,7 +131,34 @@ export const AICoachChat = () => {
             </Button>
           </div>
         </div>
-        <Separator />
+        
+        {/* Conversation History Collapsible */}
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="mt-2">
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-between text-muted-foreground hover:text-foreground h-8"
+            >
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                <span className="text-xs">Conversas anteriores ({sessions.length})</span>
+              </div>
+              <ChevronDown className={`h-4 w-4 transition-transform ${historyOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <ConversationHistory
+              sessions={sessions}
+              loading={loadingSessions}
+              currentConversationId={currentConversationId}
+              onSelectConversation={handleSelectConversation}
+              onDeleteConversation={handleDeleteConversation}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+        
+        <Separator className="mt-2" />
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col p-4 gap-3 min-h-0">
