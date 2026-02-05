@@ -12,6 +12,7 @@ import { RaceCalendar } from '@/components/RaceCalendar';
 import { TodayTrainingAlert } from '@/components/TodayTrainingAlert';
 import { CoachInsightsCarousel } from '@/components/CoachInsightsCarousel';
 import { CoachAdviceCard } from '@/components/CoachAdviceCard';
+import { LastTrainingCard } from '@/components/LastTrainingCard';
 import { useRaceStrategies } from '@/hooks/useRaceStrategies';
 import { useInsights } from '@/hooks/useInsights';
 import { useCommitments } from '@/hooks/useCommitments';
@@ -303,22 +304,29 @@ export const Dashboard = () => {
             </div>
           </ScrollReveal>
 
-          {/* Athlete Profile - Top of Dashboard */}
+          {/* Last Training Analysis Card - First card */}
           <ScrollReveal delay={11}>
+            <div className="mb-6 md:mb-8">
+              <LastTrainingCard />
+            </div>
+          </ScrollReveal>
+
+          {/* Athlete Profile */}
+          <ScrollReveal delay={12}>
             <div className="mb-6 md:mb-8">
               <AthleteSegmentationCard />
             </div>
           </ScrollReveal>
 
           {/* Coach Advice Card */}
-          <ScrollReveal delay={12}>
+          <ScrollReveal delay={13}>
             <div className="mb-4 md:mb-6">
               <CoachAdviceCard />
             </div>
           </ScrollReveal>
 
           {/* Coach Insights Carousel */}
-          <ScrollReveal delay={15}>
+          <ScrollReveal delay={14}>
             <div className="mb-6 md:mb-8">
               <CoachInsightsCarousel />
             </div>
