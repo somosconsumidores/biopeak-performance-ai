@@ -38,11 +38,10 @@ export const AICoach = () => {
           {/* Header */}
           <ScrollReveal>
             <div className="mb-6 md:mb-8 text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="flex items-center justify-center mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
                   <Brain className="h-8 w-8 text-primary" />
                 </div>
-                <MessageCircle className="h-6 w-6 text-primary animate-pulse" />
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
                 Converse com seu <span className="bg-gradient-primary bg-clip-text text-transparent">Coach IA</span>
