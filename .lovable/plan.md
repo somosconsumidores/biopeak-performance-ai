@@ -1,120 +1,119 @@
 
-# Plano: Análise Combinada FC + Pace para Distribuição de Esforço
+# Plano: Card "Seu Último Treino" no Dashboard
 
-## Problema Identificado
-A implementação atual classifica o padrão de esforço **apenas pela variação da FC**, o que é **fisiologicamente incorreto**:
+## Resumo
+Criar um novo card profissional no Dashboard que exibe a análise de desacoplamento aeróbico do último treino, gerada pela IA via n8n. O card será posicionado como o primeiro elemento da página, logo acima do "Perfil de Atleta".
 
-| Situação | FC Final | Pace Final | Classificação Atual | Realidade |
-|----------|----------|------------|---------------------|-----------|
-| Cardiac Drift | ↑ Subiu | ↓ Caiu | ❌ Negative Split | **FADIGA** |
-| Negative Split Real | ↑ Subiu | ↑ Subiu | ✅ Negative Split | Correto |
+## Arquitetura da Solução
 
-## Solução: Matriz de Decisão FC + Pace
+### 1. Novo Hook: `useLastTrainingAnalysis`
+**Arquivo**: `src/hooks/useLastTrainingAnalysis.ts`
 
-A nova lógica cruzará as variações de FC e Pace para classificar corretamente:
+Responsabilidades:
+- Buscar o registro mais recente de `ai_coach_insights_history` onde `insight_type = 'ia_analysis_training'`
+- Implementar cache local para carregamento instantâneo
+- Retornar: `analysis` (string), `createdAt` (data), `loading`, `error`
+- Apenas para assinantes ativos
 
+### 2. Novo Componente: `LastTrainingCard`
+**Arquivo**: `src/components/LastTrainingCard.tsx`
+
+Visual e funcionalidades:
+- Segue o padrão visual do `CoachAdviceCard` com glass-card e gradientes
+- Header com ícone de atividade (Activity) e título "Seu Último Treino"
+- Badge indicando que é análise de desacoplamento aeróbico
+- Timestamp relativo ("há 2 horas")
+- Texto da análise com truncamento e botão "Ver mais"
+- Estado de loading com Skeleton
+- Mostra prompt de upgrade para não-assinantes
+- Não renderiza nada se não houver análise disponível
+
+### 3. Integração no Dashboard
+**Arquivo**: `src/pages/Dashboard.tsx`
+
+Posicionamento na hierarquia (ordem final):
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                    MATRIZ DE CLASSIFICAÇÃO                          │
-├─────────────┬─────────────┬─────────────────────────────────────────┤
-│   FC Final  │ Pace Final  │ Classificação                           │
-├─────────────┼─────────────┼─────────────────────────────────────────┤
-│   ↑ Subiu   │  ↑ Mais rápido  │ 🏃 NEGATIVE SPLIT (ideal)          │
-│   ↑ Subiu   │  ↓ Mais lento   │ 😰 CARDIAC DRIFT (fadiga)          │
-│   ↓ Desceu  │  ↓ Mais lento   │ 🔻 POSITIVE SPLIT                  │
-│   ↓ Desceu  │  ↑ Mais rápido  │ 💪 ECONOMY (economia de esforço)   │
-│   = Estável │  = Estável      │ ⚖️  EVEN PACE (ritmo constante)    │
-└─────────────┴─────────────┴─────────────────────────────────────────┘
+1. Header ("Dashboard Performance")
+2. TodayTrainingAlert
+3. ★ LastTrainingCard (NOVO - primeiro card)
+4. AthleteSegmentationCard (Perfil do Atleta)
+5. CoachAdviceCard
+6. CoachInsightsCarousel
+7. Section Toggle + conteúdo das abas
 ```
 
-## Alterações Técnicas
+---
 
-### 1. Atualizar Interface `EffortDistribution`
-Adicionar novos padrões e métricas de pace:
+## Detalhes Técnicos
+
+### Hook `useLastTrainingAnalysis`
 
 ```typescript
-export interface EffortDistribution {
-  // Esforço baseado em FC (existente)
-  startEffort: number;
-  middleEffort: number;
-  endEffort: number;
-  
-  // NOVO: Pace por segmento (min/km)
-  startPace: number | null;
-  middlePace: number | null;
-  endPace: number | null;
-  
-  // NOVO: Padrões expandidos
-  pattern: 'negative_split' | 'positive_split' | 'even_pace' | 'cardiac_drift' | 'economy';
-  
-  // NOVO: Flags de diagnóstico
-  hasCardiacDrift: boolean;
-  paceChange: 'faster' | 'slower' | 'stable';
-  hrChange: 'higher' | 'lower' | 'stable';
+interface LastTrainingAnalysis {
+  id: string;
+  analysis: string;
+  createdAt: string;
 }
+
+// Busca do Supabase:
+.from('ai_coach_insights_history')
+.select('id, insight_data, created_at')
+.eq('user_id', user.id)
+.eq('insight_type', 'ia_analysis_training')
+.order('created_at', { ascending: false })
+.limit(1)
+.single()
 ```
 
-### 2. Nova Lógica de Cálculo no Hook
-O hook `useSessionEffortDistribution` será atualizado para:
-
-1. **Calcular média de pace por segmento** (além da FC)
-2. **Determinar variação de pace** (início vs fim)
-3. **Cruzar FC + Pace** para classificação correta
-4. **Detectar cardiac drift** quando FC sobe mas pace cai
+### Design do Card
 
 ```text
-Lógica de Detecção:
-─────────────────────────────────────────────
-hrChange = endAvgHR > startAvgHR + 2% ? 'higher' : 
-           endAvgHR < startAvgHR - 2% ? 'lower' : 'stable'
-
-paceChange = endAvgPace < startAvgPace - 2% ? 'faster' :
-             endAvgPace > startAvgPace + 2% ? 'slower' : 'stable'
-
-if (hrChange === 'higher' && paceChange === 'slower')
-  → CARDIAC DRIFT
-
-if (hrChange === 'higher' && paceChange === 'faster')
-  → NEGATIVE SPLIT REAL
-─────────────────────────────────────────────
+┌─────────────────────────────────────────────────────┐
+│ ┌─────┐                                             │
+│ │ 🏃 │  Seu Último Treino        há 2 horas        │
+│ └─────┘  ┌──────────────────┐                       │
+│          │ Desacoplamento   │                       │
+│          └──────────────────┘                       │
+│                                                     │
+│  Com base nos dados apresentados, seu              │
+│  desacoplamento de -0.94% indica que você teve     │
+│  um desempenho excelente, conseguindo correr a     │
+│  um ritmo maior na segunda metade do treino...     │
+│                                                     │
+│  ▼ Ver mais                                         │
+└─────────────────────────────────────────────────────┘
 ```
 
-### 3. Atualizar Componente `EffortDistributionChart`
-Adicionar visualização dos novos padrões com cores e descrições apropriadas:
+Características visuais:
+- Gradiente de fundo: `from-emerald-500/5 to-cyan-500/5`
+- Ícone: Activity (lucide-react) em círculo com gradiente verde
+- Badge: "Desacoplamento" com borda verde
+- Animações suaves de hover
 
-| Padrão | Cor | Badge | Descrição |
-|--------|-----|-------|-----------|
-| `negative_split` | Verde | 🏃 Negative Split | Acelerou e manteve eficiência |
-| `positive_split` | Vermelho | 🔻 Positive Split | Desacelerou no final |
-| `even_pace` | Azul | ⚖️ Even Pace | Ritmo constante |
-| `cardiac_drift` | Laranja | 😰 Cardiac Drift | FC subiu mas pace caiu (fadiga) |
-| `economy` | Roxo | 💪 Economia | Acelerou com menos esforço cardíaco |
+### Cache
 
-### 4. Exibir Pace no Card (Opcional)
-Mostrar o pace médio de cada segmento abaixo do esforço:
-
-```text
-┌─────────────────────────────────────────────────┐
-│  Início      │     Meio       │      Fim       │
-│   92.5%      │    94.2%       │    96.8%       │
-│  5:45/km     │   5:38/km      │   5:52/km      │
-│              │                │   (mais lento) │
-└─────────────────────────────────────────────────┘
+Utilizar o sistema de cache existente em `@/lib/cache`:
+```typescript
+CACHE_KEYS.LAST_TRAINING_ANALYSIS = 'last_training_analysis'
+CACHE_DURATIONS.LAST_TRAINING = 60 * 60 * 1000 // 1 hora
 ```
 
-## Arquivos a Modificar
+---
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `src/hooks/useSessionEffortDistribution.ts` | Modificar | Adicionar cálculo de pace + matriz de decisão |
-| `src/components/EffortDistributionChart.tsx` | Modificar | Novos padrões, cores e exibição de pace |
+## Arquivos a Criar/Modificar
 
-## Benefícios da Melhoria
+| Ação | Arquivo |
+|------|---------|
+| Criar | `src/hooks/useLastTrainingAnalysis.ts` |
+| Criar | `src/components/LastTrainingCard.tsx` |
+| Modificar | `src/pages/Dashboard.tsx` |
+| Modificar | `src/lib/cache.ts` (adicionar novas chaves) |
 
-1. **Diagnóstico Correto**: Identifica fadiga cardíaca vs aceleração real
-2. **Feedback Educativo**: Atleta aprende sobre cardiac drift
-3. **Dados Completos**: Mostra FC + Pace por segmento
-4. **Sem Queries Adicionais**: Usa dados já carregados (`pace_min_per_km` existe nos dados)
+---
 
-## Impacto na Performance
-**Zero** - apenas processamento local adicional sobre dados já em memória.
+## Considerações
+
+1. **Não-assinantes**: Mostrar card bloqueado com call-to-action para upgrade (igual ao CoachAdviceCard)
+2. **Sem análise**: Não renderizar o card (silent fail)
+3. **Responsividade**: Card deve funcionar bem em mobile e desktop
+4. **Performance**: Cache de 1 hora para evitar requisições repetidas
