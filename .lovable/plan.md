@@ -1,217 +1,122 @@
 
 
-# Plano: Coach IA Autônomo com Tool Calling
+# Plano: AI Coach com Geração de Treinos Científicos Personalizados
 
 ## Problema Identificado
 
-O Coach IA atual tem duas limitações críticas:
+Quando você pede "crie um treino de VO2max para amanhã", o Coach atual:
+- ❌ Apenas insere um registro genérico na agenda
+- ❌ Não calcula intervalos, paces, ou recuperações
+- ❌ Não usa seus dados de performance (VO2max, ritmos históricos)
 
-1. **Não usa os dados que já busca**: A função `fetchLastActivityDetails` busca todos os dados do último treino (pace, FC, distância, etc.), mas a IA pede ao usuário para informá-los manualmente
-2. **Não pode executar ações**: O coach só responde perguntas, não pode reagendar treinos, criar workouts, ou modificar planos
+## Solução
 
-## Solução: Sistema de Tool Calling
+Criar uma tool `generate_scientific_workout` que use a mesma lógica científica do gerador de planos para criar treinos personalizados sob demanda.
 
-Implementar **Function Calling** no AI Coach, permitindo que o LLM:
-- Busque dados específicos sob demanda
-- Execute ações no sistema (CRUD de treinos, reagendamentos, análises)
+## Como Vai Funcionar
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    ARQUITETURA PROPOSTA                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐     ┌──────────────┐     ┌─────────────┐  │
-│  │   Frontend  │────▶│ ai-coach-chat│────▶│ Lovable AI  │  │
-│  │  (Chat UI)  │◀────│ (Edge Func)  │◀────│  + Tools    │  │
-│  └─────────────┘     └──────┬───────┘     └─────────────┘  │
-│                             │                               │
-│                             ▼                               │
-│              ┌──────────────────────────────┐              │
-│              │        TOOL EXECUTOR         │              │
-│              ├──────────────────────────────┤              │
-│              │ • get_last_activity          │              │
-│              │ • get_activity_by_date       │              │
-│              │ • analyze_training_load      │              │
-│              │ • reschedule_workout         │              │
-│              │ • create_workout             │              │
-│              │ • get_training_plan          │              │
-│              │ • compare_activities         │              │
-│              │ • get_sleep_recovery         │              │
-│              └──────────────────────────────┘              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+Quando você pedir: *"Crie um treino de VO2max para amanhã"*
 
-## Tools a Implementar
+1. O LLM chama `get_athlete_metrics` para buscar:
+   - Melhor pace de 5K/10K
+   - VO2max estimado (Garmin ou calculado por Daniels)
+   - FC máxima e zonas
+   
+2. O LLM chama `generate_scientific_workout` com:
+   ```
+   workout_type: "interval_vo2max"
+   date: "2026-02-06"
+   athlete_data: (dados coletados acima)
+   ```
 
-### Ferramentas de Leitura (Query)
-| Tool | Descrição | Parâmetros |
-|------|-----------|------------|
-| `get_last_activity` | Busca detalhes completos da última atividade | `activity_type?` (RUNNING, CYCLING, etc) |
-| `get_activity_by_date` | Busca atividade em data específica | `date`, `activity_type?` |
-| `get_activities_range` | Lista atividades em período | `start_date`, `end_date`, `activity_type?` |
-| `get_training_plan` | Retorna plano ativo com workouts | - |
-| `get_sleep_data` | Dados de sono dos últimos N dias | `days` (default: 7) |
-| `get_fitness_scores` | CTL, ATL, TSB atuais | - |
-| `compare_activities` | Compara 2+ atividades | `activity_ids[]` ou `date_range` |
+3. O sistema gera um treino estruturado:
+   ```
+   ✅ Aquecimento: 15min em ritmo leve (6:30 min/km)
+   ✅ Principal: 6x800m @ 4:45 min/km (Z5, 90-95% FC)
+      - Recuperação: 2min trote leve entre tiros
+   ✅ Desaquecimento: 10min leve
+   
+   📊 Distância total: ~10km
+   🎯 Zona de FC: 4-5 (VO2max)
+   ```
 
-### Ferramentas de Ação (Mutation)
-| Tool | Descrição | Parâmetros |
-|------|-----------|------------|
-| `reschedule_workout` | Move treino para nova data | `workout_id`, `new_date`, `strategy` |
-| `create_custom_workout` | Cria treino personalizado | `date`, `type`, `description`, `target_pace?`, `duration?` |
-| `mark_workout_complete` | Marca treino como concluído | `workout_id`, `notes?` |
-| `skip_workout` | Pula treino com motivo | `workout_id`, `reason` |
+## Tipos de Treino Suportados
+
+| Tipo | Descrição |
+|------|-----------|
+| `interval_vo2max` | 800m-1km em Z5 (VO2max) |
+| `interval_speed` | 400m rápidos (velocidade) |
+| `tempo` | Corrida contínua em limiar |
+| `threshold` | Blocos em Z4 |
+| `long_run` | Longão com progressão |
+| `fartlek` | Variação de ritmo |
+| `recovery` | Corrida regenerativa |
+| `progressivo` | Aumentando ritmo gradualmente |
 
 ## Mudanças Técnicas
 
-### 1. Definição das Tools (Schema)
+### 1. Nova Tool: `get_athlete_metrics`
 
-```typescript
-const coachTools = [
-  {
-    type: "function",
-    function: {
-      name: "get_last_activity",
-      description: "Busca detalhes completos da última atividade do atleta",
-      parameters: {
-        type: "object",
-        properties: {
-          activity_type: {
-            type: "string",
-            enum: ["RUNNING", "CYCLING", "SWIMMING", "STRENGTH"],
-            description: "Tipo de atividade (opcional)"
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "reschedule_workout",
-      description: "Reagenda um treino para nova data",
-      parameters: {
-        type: "object",
-        properties: {
-          workout_id: { type: "string", description: "ID do treino" },
-          new_date: { type: "string", description: "Nova data (YYYY-MM-DD)" },
-          strategy: { 
-            type: "string", 
-            enum: ["swap", "replace", "push"],
-            description: "Estratégia de conflito"
-          }
-        },
-        required: ["workout_id", "new_date"]
-      }
-    }
-  }
-  // ... outras tools
-];
-```
+Busca dados de performance do atleta:
+- VO2max (Garmin + Daniels calculado)
+- Melhores paces (5K, 10K, meia, maratona)
+- FC máxima e zonas
+- Volume médio semanal recente
 
-### 2. Loop de Execução de Tools
+### 2. Tool Atualizada: `create_custom_workout`
 
-```typescript
-// Chamada inicial ao LLM com tools disponíveis
-let response = await callAI(messages, coachTools);
+Adicionados parâmetros opcionais:
+- `workout_category`: `vo2max`, `threshold`, `tempo`, `long_run`, `recovery`, `speed`
+- `use_athlete_data`: boolean para usar métricas reais
 
-// Loop enquanto LLM solicitar tools
-while (response.choices[0].message.tool_calls) {
-  const toolCalls = response.choices[0].message.tool_calls;
-  const toolResults = [];
-  
-  for (const call of toolCalls) {
-    const result = await executeToolCall(call.function.name, call.function.arguments);
-    toolResults.push({
-      tool_call_id: call.id,
-      role: "tool",
-      content: JSON.stringify(result)
-    });
-  }
-  
-  // Nova chamada com resultados das tools
-  messages.push(response.choices[0].message);
-  messages.push(...toolResults);
-  response = await callAI(messages, coachTools);
-}
+Se `use_athlete_data=true`, o sistema:
+1. Busca métricas do atleta
+2. Calcula paces específicos com base no VO2max/histórico
+3. Gera descrição estruturada (aquecimento, principal, desaquecimento)
+4. Define FC alvo e distância estimada
 
-// Resposta final ao usuário
-return response.choices[0].message.content;
-```
+### 3. Prompt do Coach Atualizado
 
-### 3. Executor de Tools
+Instruções para o LLM:
+- Ao criar treinos, SEMPRE buscar métricas primeiro
+- Gerar descrições detalhadas com paces específicos
+- Incluir aquecimento/desaquecimento
+- Citar zonas de FC e distância total
 
-```typescript
-async function executeToolCall(name: string, args: any, supabase: any, userId: string) {
-  switch (name) {
-    case 'get_last_activity':
-      return await fetchLastActivityDetails(userId, supabase, null, args.activity_type);
-    
-    case 'reschedule_workout':
-      // Chama a Edge Function existente internamente
-      return await rescheduleWorkout(userId, args.workout_id, args.new_date, args.strategy, supabase);
-    
-    case 'create_custom_workout':
-      return await createWorkout(userId, args, supabase);
-    
-    // ... outros cases
-  }
-}
-```
+## Exemplo de Fluxo
 
-## Arquivos a Modificar/Criar
+**Usuário**: "Preciso de um treino de VO2max para amanhã"
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/ai-coach-chat/index.ts` | Modificar | Adicionar tools e loop de execução |
-| `supabase/functions/ai-coach-chat/tools.ts` | Criar | Definições das tools (schema) |
-| `supabase/functions/ai-coach-chat/executor.ts` | Criar | Lógica de execução das tools |
+**Coach** (internamente):
+1. Chama `get_athlete_metrics()` → retorna { vo2max: 52, pace_5k: 4:35, fc_max: 185 }
+2. Chama `create_custom_workout({ date: "2026-02-06", workout_category: "vo2max", use_athlete_data: true })`
+3. Sistema gera:
+   - Título: "VO2max 6x800m"
+   - Descrição estruturada com paces calculados
+   - target_pace: 4:28 min/km
+   - target_hr_zone: 5
 
-## Fluxo de Exemplo
+**Coach responde**:
+> "Criei seu treino de VO2max para amanhã:
+> 
+> **🏃 VO2max 6x800m**
+> - Aquecimento: 15min em ritmo leve (~6:30/km)
+> - Principal: 6x800m @ 4:28/km (Z5, ~175-185bpm)
+>   - Recuperação: 2min trote entre tiros
+> - Desaquecimento: 10min leve
+> 
+> 📊 Distância total: ~10km | ⏱️ Duração: ~55min"
 
-**Usuário**: "Analise meu último treino de corrida"
+## Arquivos a Modificar
 
-```text
-1. LLM recebe mensagem + lista de tools disponíveis
-2. LLM decide chamar: get_last_activity(activity_type: "RUNNING")
-3. Executor busca dados do banco
-4. Resultado retorna ao LLM: { distance: 8.5km, pace: 5:23, hr_avg: 152, ... }
-5. LLM gera análise baseada em dados REAIS
-6. Resposta ao usuário com insights específicos
-```
-
-**Usuário**: "Preciso adiar meu treino de amanhã para sexta"
-
-```text
-1. LLM recebe mensagem + tools
-2. LLM chama: get_training_plan() para ver workouts
-3. LLM identifica o treino de amanhã
-4. LLM chama: reschedule_workout(workout_id, "2026-02-07", "swap")
-5. Executor move o treino no banco
-6. LLM confirma: "Pronto! Seu treino de intervalados foi movido para sexta-feira."
-```
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/ai-coach-chat/index.ts` | Adicionar `get_athlete_metrics` tool + melhorar `create_custom_workout` com geração científica |
 
 ## Benefícios
 
-- **Autonomia real**: Coach busca dados automaticamente sem perguntar ao usuário
-- **Ações executáveis**: Pode modificar agenda, criar treinos, reagendar
-- **Contexto preciso**: Só busca dados quando necessário (economia de tokens)
-- **Extensível**: Adicionar novas capacidades = adicionar nova tool
-- **Segurança**: Todas as ações passam por validação de ownership
-
-## Seção Técnica
-
-### Modelo e Configuração
-- Modelo: `google/gemini-2.5-flash` (já suporta tool calling)
-- Max iterations: 5 (evitar loops infinitos)
-- Timeout por tool: 10s
-
-### Tratamento de Erros
-- Se tool falhar, retornar erro estruturado ao LLM
-- LLM pode tentar abordagem alternativa ou informar usuário
-
-### Logging
-- Registrar todas as tool calls em `ai_coach_conversations.context_used`
-- Permitir auditoria de ações executadas
+- **Treinos personalizados**: Paces calculados com base no VO2max real
+- **Estrutura científica**: Aquecimento, principal, desaquecimento sempre presentes
+- **Zonas de FC corretas**: Baseadas na FC máxima do atleta
+- **Pronto para executar**: Atleta sabe exatamente o que fazer
 
