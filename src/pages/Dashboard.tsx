@@ -289,10 +289,10 @@ export const Dashboard = () => {
           <ScrollReveal>
             <div className="mb-6 md:mb-8">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
-                Dashboard <span className="bg-gradient-primary bg-clip-text text-transparent">Performance</span>
+                Meu <span className="bg-gradient-primary bg-clip-text text-transparent">Coach IA</span>
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground">
-                Visão geral da sua evolução atlética e insights inteligentes
+                Feedbacks personalizados e insights inteligentes para sua evolução
               </p>
             </div>
           </ScrollReveal>
