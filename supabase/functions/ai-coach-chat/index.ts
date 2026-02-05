@@ -2,7 +2,22 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
-const MAX_ITERATIONS = 5;
+const MAX_ITERATIONS = 10;
+const TIMEOUT_MS = 25000;
+
+async function checkRateLimit(userId: string, sb: any) {
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { count } = await sb
+    .from('ai_coach_conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('role', 'user')
+    .gte('created_at', fiveMinAgo);
+  
+  if (count && count >= 20) {
+    throw new Error('RATE_LIMIT');
+  }
+}
 
 const coachTools = [
   { type: "function", function: { name: "get_last_activity", description: "Busca última atividade com pace, FC, distância", parameters: { type: "object", properties: { activity_type: { type: "string", description: "RUNNING, CYCLING, etc" } }, additionalProperties: false } } },
@@ -222,29 +237,25 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
 
 function buildPrompt() {
   const today = new Date().toISOString().split('T')[0];
-  return `Você é o BioPeak AI Coach - um coach de corrida científico. DATA: ${today}
+  return `Você é o BioPeak AI Coach - coach científico de corrida. DATA: ${today}
 
-REGRAS CRÍTICAS para criar treinos:
-1. SEMPRE chame get_athlete_metrics PRIMEIRO para obter paces e zonas do atleta
-2. Use create_scientific_workout com os dados obtidos para criar treinos personalizados
-3. Nunca invente paces - use apenas os dados reais do atleta
+PERSONALIDADE: Consultivo, científico mas acessível, empático, celebra vitórias, honesto sobre riscos.
 
-TOOLS DISPONÍVEIS:
-- get_athlete_metrics: OBRIGATÓRIO antes de criar qualquer treino! Retorna VO2max, paces, FC máx, zonas
-- create_scientific_workout: Cria treino científico com estrutura completa (aquecimento, principal, desaquecimento)
-  - Categorias: vo2max, threshold, tempo, long_run, recovery, speed, fartlek, progressive
-- get_last_activity: última atividade
-- get_training_plan: próximos treinos
-- get_fitness_scores: CTL/ATL/TSB
-- reschedule_workout: mover treino
-- mark_workout_complete: marcar feito
+REGRAS CRÍTICAS:
+1. DADOS REAIS: Nunca invente métricas. Chame get_athlete_metrics ANTES de criar treinos.
+2. PROGRESSÃO: Nunca aumente volume >10%/semana. TSB negativo = sugerir recuperação.
+3. SAÚDE PRIMEIRO: Dor/desconforto = alerta + ajustar plano. TSB < -15 = descanso forçado.
+4. EXPLIQUE: Diga O PORQUÊ de cada recomendação.
 
-FLUXO para criar treino:
-1. Chame get_athlete_metrics
-2. Chame create_scientific_workout passando athlete_metrics com os dados recebidos
-3. Responda mostrando o treino criado com todos os detalhes
+TOOLS:
+- get_athlete_metrics: OBRIGATÓRIO antes de criar treinos (VO2max, paces, zonas)
+- create_scientific_workout: Treino estruturado (vo2max/threshold/tempo/long_run/recovery/speed/fartlek/progressive)
+- get_last_activity, get_training_plan, get_fitness_scores, get_sleep_data: Consultas
+- reschedule_workout, mark_workout_complete: Ações
 
-Responda em português, cite dados específicos, seja objetivo.`;
+FLUXO TREINO: 1) get_athlete_metrics → 2) create_scientific_workout com dados → 3) Mostrar treino detalhado
+
+Responda em português, cite dados específicos, seja objetivo mas humano.`;
 }
 
 serve(async (req) => {
@@ -255,6 +266,8 @@ serve(async (req) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    await checkRateLimit(user.id, sb);
+
     const { message, conversationHistory = [], conversationId: reqConvId } = await req.json();
     if (!message) throw new Error('Message required');
 
@@ -262,8 +275,8 @@ serve(async (req) => {
     let history = conversationHistory;
     
     if (reqConvId && !history.length) {
-      const { data: prev } = await sb.from('ai_coach_conversations').select('role, content').eq('conversation_id', reqConvId).order('created_at');
-      if (prev?.length) history = prev.map((m: any) => ({ role: m.role, content: m.content }));
+      const { data: prev } = await sb.from('ai_coach_conversations').select('role, content').eq('conversation_id', reqConvId).order('created_at', { ascending: false }).limit(20);
+      if (prev?.length) history = prev.reverse().map((m: any) => ({ role: m.role, content: m.content }));
     }
 
     await sb.from('ai_coach_conversations').insert({ user_id: user.id, conversation_id: convId, role: 'user', content: message });
@@ -273,7 +286,12 @@ serve(async (req) => {
     let tokens = 0;
     const toolLog: any[] = [];
 
+    const startTime = Date.now();
     for (let i = 0; i < MAX_ITERATIONS && !finalResp; i++) {
+      if (Date.now() - startTime > TIMEOUT_MS) {
+        finalResp = "Processamento complexo demais. Tente uma pergunta mais específica.";
+        break;
+      }
       const res = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}` },
         body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: msgs, tools: coachTools, tool_choice: 'auto', max_completion_tokens: 1500 })
@@ -286,9 +304,10 @@ serve(async (req) => {
       if (am.tool_calls?.length) {
         msgs.push(am);
         for (const tc of am.tool_calls) {
+          const toolStart = Date.now();
           const args = JSON.parse(tc.function.arguments || '{}');
           const result = await executeTool(tc.function.name, args, sb, user.id);
-          toolLog.push({ tool: tc.function.name, args });
+          toolLog.push({ tool: tc.function.name, args, execution_ms: Date.now() - toolStart, success: !result.error });
           msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
         }
       } else {
@@ -308,8 +327,23 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ response: finalResp, conversationId: convId, tokensUsed: tokens }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (e) {
-    console.error('Error:', e);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (e: any) {
+    console.error('AI Coach Error:', { error: e.message, stack: e.stack });
+    
+    let userMessage = 'Desculpe, ocorreu um erro. Tente novamente.';
+    let status = 500;
+    
+    if (e.message === 'RATE_LIMIT') {
+      userMessage = 'Você atingiu o limite de mensagens. Aguarde 5 minutos.';
+      status = 429;
+    } else if (e.message === 'Not authenticated') {
+      userMessage = 'Sessão expirada. Faça login novamente.';
+      status = 401;
+    } else if (e.message.includes('AI error')) {
+      userMessage = 'Serviço de IA indisponível. Tente em alguns instantes.';
+      status = 503;
+    }
+    
+    return new Response(JSON.stringify({ error: userMessage }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
