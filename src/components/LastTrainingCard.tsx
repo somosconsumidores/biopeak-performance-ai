@@ -111,14 +111,7 @@ export const LastTrainingCard = () => {
             <div className="flex-1 min-w-0">
               {/* Header */}
               <div className="flex flex-col gap-1.5 mb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-foreground">Seu Último Treino</h3>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-                    <Clock className="h-3 w-3" />
-                    <span className="hidden sm:inline">{timeAgo}</span>
-                    <span className="sm:hidden">{timeAgo.replace('há ', '').replace(' atrás', '')}</span>
-                  </div>
-                </div>
+                <h3 className="font-semibold text-foreground">Seu Último Treino</h3>
                 <Badge 
                   variant="outline" 
                   className="text-[10px] px-1.5 py-0 border-emerald-500/30 text-emerald-500 w-fit"
@@ -126,6 +119,10 @@ export const LastTrainingCard = () => {
                   <Zap className="h-2.5 w-2.5 mr-0.5" />
                   Feedback de seu Coach IA
                 </Badge>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>{timeAgo}</span>
+                </div>
               </div>
 
               {/* Analysis Body */}
