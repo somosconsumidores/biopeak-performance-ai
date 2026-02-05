@@ -61,7 +61,7 @@ export function AppSidebar() {
   };
 
   const mainNavItems = [
-    { title: 'Dashboard', path: '/dashboard', icon: Home },
+    { title: 'Meu Coach IA', path: '/dashboard', icon: Home },
     { title: 'Treinos', path: '/workouts', icon: Dumbbell },
     { title: 'Planos de Treino', path: '/training-plan', icon: Calendar },
     { title: 'Insights', path: '/insights', icon: Lightbulb },
