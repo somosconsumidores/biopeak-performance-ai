@@ -25,7 +25,7 @@ const coachTools = [
   { type: "function", function: { name: "get_training_plan", description: "Retorna TODOS os planos ativos do atleta (corrida, ciclismo, natação, força) e próximos treinos de cada", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "get_sleep_data", description: "Dados de sono", parameters: { type: "object", properties: { days: { type: "number" } }, additionalProperties: false } } },
   { type: "function", function: { name: "get_fitness_scores", description: "CTL, ATL, TSB", parameters: { type: "object", properties: {}, additionalProperties: false } } },
-  { type: "function", function: { name: "get_athlete_metrics", description: "Busca métricas do atleta: VO2max, paces de referência, FC máxima, zonas. SEMPRE use antes de criar treinos científicos.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
+  { type: "function", function: { name: "get_athlete_metrics", description: "Busca métricas fisiológicas: VO2max (dados Garmin), paces de referência (5K, 10K), FC máxima, zonas de treino. USE SEMPRE para: perguntas sobre VO2max, capacidade aeróbica, zonas de frequência cardíaca, ou antes de criar treinos científicos.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "reschedule_workout", description: "Move treino para outra data", parameters: { type: "object", properties: { from_date: { type: "string" }, to_date: { type: "string" }, strategy: { type: "string", enum: ["swap", "replace", "push"] } }, required: ["from_date", "to_date"], additionalProperties: false } } },
   { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
   { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } },
@@ -88,11 +88,13 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     const { data: tokens } = await sb.from('garmin_tokens').select('garmin_user_id').eq('user_id', uid).eq('is_active', true).limit(1);
     const garminUserId = tokens?.[0]?.garmin_user_id;
     
-    // Get VO2max from Garmin
+    // Get VO2max from Garmin with date
     let vo2max = null;
+    let vo2maxDate = null;
     if (garminUserId) {
-      const { data: vo2Data } = await sb.from('garmin_vo2max').select('vo2_max_running, vo2_max_cycling').eq('garmin_user_id', garminUserId).order('calendar_date', { ascending: false }).limit(1).maybeSingle();
+      const { data: vo2Data } = await sb.from('garmin_vo2max').select('vo2_max_running, vo2_max_cycling, calendar_date').eq('garmin_user_id', garminUserId).order('calendar_date', { ascending: false }).limit(1).maybeSingle();
       vo2max = vo2Data?.vo2_max_running || vo2Data?.vo2_max_cycling || null;
+      vo2maxDate = vo2Data?.calendar_date || null;
     }
     
     // Get best paces from activities (last 90 days)
@@ -132,7 +134,9 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     
     return { 
       found: true, 
-      vo2max, 
+      vo2max,
+      vo2max_date: vo2maxDate,
+      vo2max_source: vo2max ? 'Garmin' : null,
       hr_max: fcMax,
       zones,
       best_paces: { pace_5k: best5k?.toFixed(2) || null, pace_10k: best10k?.toFixed(2) || null },
@@ -326,6 +330,7 @@ PERSONALIDADE: Consultivo, científico mas acessível, empático, celebra vitór
 Você é um coach que TEM ACESSO A TODOS OS DADOS do atleta. NUNCA pergunte o que você pode descobrir!
 
 REGRA DE OURO: Antes de responder qualquer pergunta, SEMPRE consulte os dados relevantes:
+- Pergunta sobre VO2max/capacidade aeróbica/zonas? → Chame get_athlete_metrics PRIMEIRO
 - Pergunta sobre plano? → Chame get_training_plan PRIMEIRO
 - Pergunta sobre treino? → Chame get_athlete_metrics e get_training_plan
 - Pergunta sobre performance? → Chame get_last_activity e get_fitness_scores
