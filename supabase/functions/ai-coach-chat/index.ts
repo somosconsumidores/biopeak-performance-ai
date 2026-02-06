@@ -91,10 +91,32 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     // Get VO2max from Garmin with date
     let vo2max = null;
     let vo2maxDate = null;
+    let vo2maxSource: string | null = null;
+    
     if (garminUserId) {
       const { data: vo2Data } = await sb.from('garmin_vo2max').select('vo2_max_running, vo2_max_cycling, calendar_date').eq('garmin_user_id', garminUserId).order('calendar_date', { ascending: false }).limit(1).maybeSingle();
       vo2max = vo2Data?.vo2_max_running || vo2Data?.vo2_max_cycling || null;
       vo2maxDate = vo2Data?.calendar_date || null;
+      if (vo2max) vo2maxSource = 'Garmin';
+    }
+    
+    // Fallback: Get VO2max from Daniels formula if Garmin is null
+    if (!vo2max) {
+      const { data: danielsData } = await sb
+        .from('v_all_activities_with_vo2_daniels')
+        .select('vo2_max_daniels, activity_date')
+        .eq('user_id', uid)
+        .not('vo2_max_daniels', 'is', null)
+        .order('activity_date', { ascending: false })
+        .limit(10);
+      
+      if (danielsData?.length) {
+        // Use the maximum VO2max from recent activities (best effort)
+        const maxDaniels = Math.max(...danielsData.map((d: any) => d.vo2_max_daniels));
+        vo2max = Math.round(maxDaniels * 10) / 10;
+        vo2maxDate = danielsData[0]?.activity_date || null;
+        vo2maxSource = 'Calculado (Daniels)';
+      }
     }
     
     // Get best paces from activities (last 90 days)
@@ -136,7 +158,7 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
       found: true, 
       vo2max,
       vo2max_date: vo2maxDate,
-      vo2max_source: vo2max ? 'Garmin' : null,
+      vo2max_source: vo2maxSource,
       hr_max: fcMax,
       zones,
       best_paces: { pace_5k: best5k?.toFixed(2) || null, pace_10k: best10k?.toFixed(2) || null },
