@@ -2739,6 +2739,51 @@ export type Database = {
         }
         Relationships: []
       }
+      my_personal_records: {
+        Row: {
+          activity_date: string
+          activity_id: string
+          activity_source: string
+          best_pace_value: number
+          calculated_at: string
+          category: string
+          created_at: string
+          formatted_pace: string
+          id: string
+          rank_position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          activity_id: string
+          activity_source?: string
+          best_pace_value: number
+          calculated_at?: string
+          category: string
+          created_at?: string
+          formatted_pace: string
+          id?: string
+          rank_position: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_id?: string
+          activity_source?: string
+          best_pace_value?: number
+          calculated_at?: string
+          category?: string
+          created_at?: string
+          formatted_pace?: string
+          id?: string
+          rank_position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       n8n_notification_queue: {
         Row: {
           created_at: string | null
@@ -6048,6 +6093,7 @@ export type Database = {
           total_time: number
         }[]
       }
+      calculate_personal_records_for_subscribers: { Args: never; Returns: Json }
       calculate_variation_analysis: {
         Args: {
           p_activity_id: string

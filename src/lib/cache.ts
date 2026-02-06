@@ -15,6 +15,7 @@ export const CACHE_KEYS = {
   EVOLUTION_STATS: 'biopeak_evolution_stats_cache_v1',
   AVERAGE_PACE: 'biopeak_average_pace_cache_v1',
   LAST_TRAINING_ANALYSIS: 'biopeak_last_training_analysis_v1',
+  PERSONAL_RECORDS: 'biopeak_personal_records_cache_v1',
 } as const;
 
 export const CACHE_DURATIONS = {

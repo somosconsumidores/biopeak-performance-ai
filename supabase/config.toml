@@ -287,3 +287,6 @@ verify_jwt = false
 
 [functions.compute-athlete-segmentation]
 verify_jwt = false
+
+[functions.calculate-personal-records]
+verify_jwt = false

@@ -12,6 +12,7 @@ import { HeartRateEvolutionChart } from '@/components/evolution/HeartRateEvoluti
 import { WeeklyCaloriesChart } from '@/components/evolution/WeeklyCaloriesChart';
 import { ActivityDistributionChart } from '@/components/evolution/ActivityDistributionChart';
 import { CoachAnalysisCard } from '@/components/evolution/CoachAnalysisCard';
+import { PersonalRecordsCarousel } from '@/components/evolution/PersonalRecordsCarousel';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Evolution() {
@@ -107,6 +108,9 @@ export default function Evolution() {
           >
             {/* Coach Analysis Card */}
             <CoachAnalysisCard hasData={hasData} />
+
+            {/* Personal Records Carousel */}
+            <PersonalRecordsCarousel />
 
             {/* Row 1: Fitness Score and Distance */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
