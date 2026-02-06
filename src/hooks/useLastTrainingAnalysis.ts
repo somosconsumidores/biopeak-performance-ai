@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { CACHE_KEYS, CACHE_DURATIONS, getCache, setCache } from '@/lib/cache';
@@ -17,31 +17,25 @@ interface UseLastTrainingAnalysisReturn {
 
 export function useLastTrainingAnalysis(isSubscribed: boolean): UseLastTrainingAnalysisReturn {
   const { user } = useAuth();
-  const [analysis, setAnalysis] = useState<LastTrainingAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Initialize with cache for instant loading
+  const cached = getCache<LastTrainingAnalysis>(
+    CACHE_KEYS.LAST_TRAINING_ANALYSIS,
+    user?.id,
+    CACHE_DURATIONS.LAST_TRAINING
+  );
+  
+  const [analysis, setAnalysis] = useState<LastTrainingAnalysis | null>(cached);
+  const [loading, setLoading] = useState(!cached && isSubscribed !== false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalysis = useCallback(async () => {
+  const fetchAnalysis = async (showLoading = true) => {
     if (!user?.id || !isSubscribed) {
-      setLoading(false);
-      return;
-    }
-
-    // Check cache first
-    const cached = getCache<LastTrainingAnalysis>(
-      CACHE_KEYS.LAST_TRAINING_ANALYSIS,
-      user.id,
-      CACHE_DURATIONS.LAST_TRAINING
-    );
-
-    if (cached) {
-      setAnalysis(cached);
-      setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       
       const { data, error: queryError } = await supabase
         .from('ai_coach_insights_history')
@@ -77,13 +71,30 @@ export function useLastTrainingAnalysis(isSubscribed: boolean): UseLastTrainingA
       console.error('[useLastTrainingAnalysis] Error:', err);
       setError('Erro ao carregar análise do treino');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  }, [user?.id, isSubscribed]);
+  };
 
   useEffect(() => {
-    fetchAnalysis();
-  }, [fetchAnalysis]);
+    if (isSubscribed === false) {
+      setLoading(false);
+      setAnalysis(null);
+      return;
+    }
+
+    if (!user || isSubscribed === undefined) {
+      return;
+    }
+
+    // If we have cache, show it immediately and refresh in background
+    if (cached) {
+      setAnalysis(cached);
+      setLoading(false);
+      fetchAnalysis(false); // Background refresh
+    } else {
+      fetchAnalysis(true);
+    }
+  }, [user?.id, isSubscribed]);
 
   return { analysis, loading, error };
 }
