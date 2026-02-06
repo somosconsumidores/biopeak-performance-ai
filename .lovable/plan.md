@@ -1,62 +1,59 @@
 
-# Plano: Substituir Menu "Nutrição" pelo "Chat" (AI Coach)
+# Plano: Corrigir Cache do Card "Último Treino"
 
-## Resumo
-Substituir o item "Nutrição" no menu inferior dos apps nativos pelo "AI Coach" com o label "Chat", garantindo que apenas assinantes ativos tenham acesso à funcionalidade.
+## Problema Identificado
+O hook `useLastTrainingAnalysis` usa cache de 1 hora **sem background refresh**. Quando há cache válido, ele retorna imediatamente e **nunca busca dados atualizados**. Isso significa que atualizações na tabela `ai_coach_insights_history` não aparecem até o cache expirar.
 
-## Mudanças
+## Comparação com Implementação Correta
 
-### 1. MobileBottomBar.tsx
-| O que muda | Detalhes |
-|------------|----------|
-| Item "Nutrição" → "Chat" | Path: `/ai-coach`, Icon: `MessageCircle`, Label: "Chat" |
-| Importar `useSubscription` | Para verificar status de assinatura |
-| Importar `useToast` | Para feedback ao usuário |
-| Lógica de navegação | Se não-assinante, redirecionar para `/paywall2` com toast explicativo |
+| Comportamento | `useLastTrainingAnalysis` (atual) | `useCoachInsights` (correto) |
+|---------------|-----------------------------------|------------------------------|
+| Cache válido | Retorna cache e **para** | Retorna cache e **busca em background** |
+| Atualização | Só após 1 hora | Imediata (silenciosa) |
 
-### 2. AICoach.tsx
-| O que muda | Detalhes |
-|------------|----------|
-| Importar `useSubscription` | Hook já existente no projeto |
-| Remover `hasAccess = true` | Substituir pela verificação real |
-| Paywall inline | Seguir padrão do `Evolution.tsx` para não-assinantes |
+## Solução: Implementar Background Refresh
 
-## Detalhes Técnicos
+### Mudança no `useLastTrainingAnalysis.ts`
 
-### MobileBottomBar - Nova lógica de navegação
-```tsx
-// Novo import
-import { MessageCircle } from 'lucide-react';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useToast } from '@/hooks/use-toast';
-
-// Novo item no array
-{ path: '/ai-coach', icon: MessageCircle, label: 'Chat', isCenter: false, requiresSubscription: true }
-
-// Lógica no handleNavigation
-if (item.requiresSubscription && !isSubscribed) {
-  toast({ title: "Recurso Premium", description: "O Chat com Coach IA é exclusivo para assinantes." });
-  navigate('/paywall2');
-  return;
+```text
+ANTES (problemático):
+if (cached) {
+  setAnalysis(cached);
+  setLoading(false);
+  return;  // Para aqui!
 }
-navigate(item.path);
+
+DEPOIS (correto):
+if (cached) {
+  setAnalysis(cached);
+  setLoading(false);
+  fetchAnalysis(false);  // Busca em background
+} else {
+  fetchAnalysis(true);
+}
 ```
 
-### AICoach.tsx - Verificação de assinatura
-Seguir o mesmo padrão do `Evolution.tsx`:
-- Verificar `isSubscribed` do hook `useSubscription`
-- Se não-assinante, mostrar paywall inline com benefícios do Chat IA
-- Se assinante, renderizar o `AICoachChat` normalmente
+### Detalhes Técnicos
 
-## Arquivos a Modificar
+1. Modificar `fetchAnalysis` para aceitar parâmetro `showLoading = true`
+2. Quando `showLoading = false`, não alterar estado de loading (refresh silencioso)
+3. Remover o `return` que interrompe a execução quando há cache
+4. Seguir exatamente o padrão já implementado em `useCoachInsights`
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/MobileBottomBar.tsx` | Substituir item Nutrição por Chat + lógica de assinatura |
-| `src/pages/AICoach.tsx` | Adicionar verificação de assinatura + paywall inline |
+## Arquivo a Modificar
 
-## Resultado Esperado
-- Menu inferior mostra: Início, Treinos, Evolução (central), Plano, **Chat**
-- Não-assinantes que clicam em "Chat" são redirecionados para paywall com toast
-- A página `/ai-coach` exibe paywall inline para não-assinantes
-- Assinantes têm acesso normal ao chat conversacional
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/useLastTrainingAnalysis.ts` | Adicionar background refresh seguindo padrão de `useCoachInsights` |
+
+## Comportamento Esperado Após Fix
+
+1. **Carregamento inicial**: Mostra cache instantaneamente (UX rápida)
+2. **Background fetch**: Busca dados atualizados silenciosamente
+3. **Atualização automática**: Se houver novos dados, atualiza o card sem flash/reload
+4. **Cache atualizado**: Novo cache é salvo para próxima visita
+
+## Impacto
+- Usuário vê dados imediatos do cache
+- Dados novos aparecem automaticamente em segundos
+- Zero impacto na experiência (sem loading spinner adicional)
