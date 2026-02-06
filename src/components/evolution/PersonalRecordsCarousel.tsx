@@ -19,7 +19,7 @@ export function PersonalRecordsCarousel() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
-            Meus Recordes Pessoais
+            Meus Recordes Pessoais em Segmentos de 1km
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -58,7 +58,7 @@ export function PersonalRecordsCarousel() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
-            Meus Recordes Pessoais
+            Meus Recordes Pessoais em Segmentos de 1km
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
