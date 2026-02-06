@@ -12,24 +12,28 @@ interface PersonalRecordCardProps {
 
 const CATEGORY_CONFIG: Record<SportCategory, {
   label: string;
+  subtitle: string;
   icon: React.ElementType;
   iconColor: string;
   bgGradient: string;
 }> = {
   RUNNING: {
     label: 'Corrida',
+    subtitle: 'Em segmentos de 1km',
     icon: Trophy,
     iconColor: 'text-orange-500',
     bgGradient: 'from-orange-500/10 to-orange-500/5',
   },
   CYCLING: {
     label: 'Ciclismo',
+    subtitle: 'Em segmentos de 1km',
     icon: Bike,
     iconColor: 'text-blue-500',
     bgGradient: 'from-blue-500/10 to-blue-500/5',
   },
   SWIMMING: {
     label: 'Natação',
+    subtitle: 'Em segmentos de 100 metros',
     icon: Waves,
     iconColor: 'text-cyan-500',
     bgGradient: 'from-cyan-500/10 to-cyan-500/5',
@@ -61,6 +65,7 @@ export function PersonalRecordCard({ category, records }: PersonalRecordCardProp
           <Icon className={`h-5 w-5 ${config.iconColor}`} />
           {config.label}
         </CardTitle>
+        <p className="text-xs text-muted-foreground">{config.subtitle}</p>
       </CardHeader>
       <CardContent className="pt-0">
         {records.length === 0 ? (
