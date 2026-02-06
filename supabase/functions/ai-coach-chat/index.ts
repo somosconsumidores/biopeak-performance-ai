@@ -152,10 +152,60 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     return res.ok ? { success: true, message: r.message } : { success: false, error: r.error || r.message };
   }
   
-  // NEW: Create scientific workout with calculated paces
+  // NEW: Create scientific workout with calculated paces (with ad-hoc plan fallback)
   if (name === "create_scientific_workout") {
-    const { data: plan } = await sb.from('training_plans').select('id').eq('user_id', uid).eq('status', 'active').maybeSingle();
-    if (!plan) return { success: false, error: 'Sem plano ativo' };
+    // Priority 1: Find active "real" plan (not ad-hoc)
+    let { data: plan } = await sb.from('training_plans')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('status', 'active')
+      .neq('goal_type', 'fitness') // Exclude ad-hoc plans
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    // Priority 2: Find existing ad-hoc plan
+    if (!plan) {
+      const { data: adhocPlan } = await sb.from('training_plans')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('status', 'active')
+        .eq('goal_type', 'fitness')
+        .eq('plan_name', 'Treinos Avulsos')
+        .maybeSingle();
+      
+      plan = adhocPlan;
+    }
+    
+    // Priority 3: Create new ad-hoc plan
+    if (!plan) {
+      const today = new Date().toISOString().split('T')[0];
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 90); // 90 days validity
+      
+      const { data: newPlan, error: createError } = await sb
+        .from('training_plans')
+        .insert({
+          user_id: uid,
+          plan_name: 'Treinos Avulsos',
+          goal_type: 'fitness',
+          sport_type: 'running',
+          start_date: today,
+          end_date: endDate.toISOString().split('T')[0],
+          weeks: 12,
+          status: 'active'
+        })
+        .select('id')
+        .single();
+        
+      if (createError) {
+        console.error('[create_scientific_workout] Failed to create ad-hoc plan:', createError);
+        return { success: false, error: 'Falha ao criar plano para treino avulso' };
+      }
+      
+      console.log('[create_scientific_workout] Created ad-hoc plan:', newPlan.id);
+      plan = newPlan;
+    }
     
     const metrics = args.athlete_metrics || {};
     const defaultPaces = { easy: '6:30', tempo: '5:15', threshold: '5:00', interval: '4:40', repetition: '4:20' };
