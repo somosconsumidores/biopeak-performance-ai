@@ -1,96 +1,184 @@
 
+# Plano: Fila Robusta para Notificações de Novas Atividades
 
-# Plano: Fallback para VO2max Calculado (Daniels)
+## Situação Atual
 
-## Problema Identificado
+O trigger `trg_notify_n8n_new_activity` faz chamada HTTP direta via `net.http_post`, causando:
+- Erros 502/404 quando n8n está instável ou workflow inativo
+- Sem retry automático - notificações perdidas
+- Timeout de 5s do pg_net pode bloquear
 
-O AI Coach busca VO2max **apenas** da tabela `garmin_vo2max`, mas:
-- Muitos usuários têm `vo2_max_running: NULL` nessa tabela (Garmin não enviou/calculou)
-- Existe VO2max calculado pela **Fórmula de Daniels** na view `v_all_activities_with_vo2_daniels`
+## Arquitetura Proposta
 
-**Dados comprovados:**
-- Tabela `garmin_vo2max`: Muitos registros com `vo2_max_running: nil`
-- View Daniels: Vários usuários com valores calculados (ex: 32.2, 34.7, 39.1, etc.)
-
-## Solução
-
-Adicionar fallback na tool `get_athlete_metrics`:
-1. Buscar VO2max da tabela Garmin (atual)
-2. Se NULL, buscar o melhor VO2max calculado via Daniels das atividades recentes
-
-## Mudanças no Código
-
-### Arquivo: `supabase/functions/ai-coach-chat/index.ts`
-
-**Adicionar após linha 98 (após busca Garmin):**
-
-```typescript
-// Fallback: Get VO2max from Daniels formula if Garmin is null
-if (!vo2max) {
-  const { data: danielsData } = await sb
-    .from('v_all_activities_with_vo2_daniels')
-    .select('vo2_max_daniels, activity_date')
-    .eq('user_id', uid)
-    .not('vo2_max_daniels', 'is', null)
-    .order('activity_date', { ascending: false })
-    .limit(10);
-  
-  if (danielsData?.length) {
-    // Use the maximum VO2max from recent activities (best effort)
-    const maxDaniels = Math.max(...danielsData.map(d => d.vo2_max_daniels));
-    vo2max = Math.round(maxDaniels * 10) / 10; // Round to 1 decimal
-    vo2maxDate = danielsData[0]?.activity_date || null;
-  }
-}
-```
-
-**Modificar retorno (linha 139):**
-
-```typescript
-vo2max_source: vo2max ? (garminUserId && vo2maxFromGarmin ? 'Garmin' : 'Calculado (Daniels)') : null,
-```
-
-## Fluxo Completo
+Usar o mesmo padrão robusto de `n8n_notification_queue`:
 
 ```text
-get_athlete_metrics chamado
+all_activities INSERT
         ↓
-┌───────────────────────────────────┐
-│ Buscar garmin_vo2max              │
-│ (vo2_max_running ou cycling)      │
-└───────────────────────────────────┘
+┌─────────────────────────────────┐
+│ Trigger: Apenas insere na fila │
+│ (Rápido, sem HTTP)             │
+└─────────────────────────────────┘
         ↓
-   vo2max encontrado?
-   ├── SIM → Retorna com source: "Garmin"
-   └── NÃO ↓
-┌───────────────────────────────────┐
-│ Buscar v_all_activities_          │
-│ with_vo2_daniels                  │
-│ (melhor das últimas 10 atividades)│
-└───────────────────────────────────┘
+n8n_activity_notification_queue (status: pending)
         ↓
-   vo2max_daniels encontrado?
-   ├── SIM → Retorna com source: "Calculado (Daniels)"
-   └── NÃO → Retorna vo2max: null
+┌─────────────────────────────────┐
+│ Edge Function: notify-n8n-     │
+│ new-activity (invocada via     │
+│ Cron ou manualmente)           │
+└─────────────────────────────────┘
+        ↓
+   Sucesso? → status: completed
+   Erro?    → status: error + retry_count++
 ```
 
-## Resultado Esperado
+## Mudanças
 
-Quando o usuário perguntar "Qual meu VO2max?":
+### 1. Criar Tabela de Fila
 
-**Cenário 1: Garmin tem dados**
-> "Seu VO2max é **52 ml/kg/min** (Garmin, registrado em 05/02/2026)"
+```sql
+CREATE TABLE public.n8n_activity_notification_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  activity_id TEXT,
+  activity_type TEXT,
+  status TEXT DEFAULT 'pending',
+  retry_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  processed_at TIMESTAMPTZ,
+  error_message TEXT
+);
 
-**Cenário 2: Garmin NULL, mas tem atividades**
-> "Seu VO2max estimado é **39.1 ml/kg/min** (calculado via Fórmula de Daniels com base na sua melhor corrida recente)"
+ALTER TABLE public.n8n_activity_notification_queue 
+  ENABLE ROW LEVEL SECURITY;
 
-**Cenário 3: Sem dados**
-> "Não temos medições de VO2max ainda. Quando você fizer mais corridas com pace e tempo registrados, poderemos calcular."
+CREATE POLICY "Service role can manage activity queue"
+  ON public.n8n_activity_notification_queue
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE INDEX idx_activity_queue_pending 
+  ON public.n8n_activity_notification_queue(status) 
+  WHERE status = 'pending';
+```
+
+### 2. Modificar Trigger
+
+Trocar chamada HTTP direta por INSERT na fila:
+
+```sql
+CREATE OR REPLACE FUNCTION public.trg_notify_n8n_new_activity()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+BEGIN
+  -- Só adiciona na fila para assinantes ativos
+  IF EXISTS (
+    SELECT 1 FROM public.subscribers 
+    WHERE user_id = NEW.user_id AND subscribed = true
+  ) THEN
+    INSERT INTO public.n8n_activity_notification_queue 
+      (user_id, activity_id, activity_type)
+    VALUES 
+      (NEW.user_id, NEW.activity_id, NEW.activity_type);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+```
+
+### 3. Criar Edge Function
+
+Nova função `notify-n8n-new-activity`:
+
+```typescript
+// supabase/functions/notify-n8n-new-activity/index.ts
+
+Deno.serve(async (req) => {
+  // Buscar pendentes da fila
+  const { data: pending } = await supabase
+    .from('n8n_activity_notification_queue')
+    .select('*')
+    .eq('status', 'pending')
+    .lt('retry_count', 3)  // Max 3 tentativas
+    .order('created_at')
+    .limit(20);
+
+  for (const item of pending) {
+    try {
+      const response = await fetch(
+        'https://biopeak-ai.app.n8n.cloud/webhook/new-training-activity',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: item.user_id })
+        }
+      );
+
+      if (response.ok) {
+        // Sucesso - marcar como completed
+        await supabase
+          .from('n8n_activity_notification_queue')
+          .update({ status: 'completed', processed_at: new Date() })
+          .eq('id', item.id);
+      } else {
+        // Erro - incrementar retry
+        await supabase
+          .from('n8n_activity_notification_queue')
+          .update({ 
+            retry_count: item.retry_count + 1,
+            error_message: `HTTP ${response.status}`,
+            status: item.retry_count >= 2 ? 'failed' : 'pending'
+          })
+          .eq('id', item.id);
+      }
+    } catch (error) {
+      // Erro de rede - incrementar retry
+      await supabase
+        .from('n8n_activity_notification_queue')
+        .update({ 
+          retry_count: item.retry_count + 1,
+          error_message: error.message,
+          status: item.retry_count >= 2 ? 'failed' : 'pending'
+        })
+        .eq('id', item.id);
+    }
+  }
+});
+```
+
+### 4. Configurar Cron (Opcional)
+
+Executar a cada minuto via pg_cron ou scheduler externo:
+
+```sql
+SELECT cron.schedule(
+  'process-activity-notifications',
+  '* * * * *',
+  $$SELECT net.http_post(
+    'https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/notify-n8n-new-activity',
+    headers := '{"Authorization": "Bearer ..."}',
+    body := '{}'
+  )$$
+);
+```
 
 ## Benefícios
 
-- Cobertura muito maior de usuários
-- Fallback transparente com fonte identificada
-- Usa dados já existentes e calculados no sistema
-- Sem mudanças no frontend
+| Antes (Direto) | Depois (Fila) |
+|----------------|---------------|
+| Perde se n8n falhar | Retry automático até 3x |
+| Sem visibilidade | Logs em tabela consultável |
+| Bloqueia trigger | Trigger instantâneo |
+| Erro 502 = perdido | Erro 502 = retry depois |
 
+## Arquivos a Criar/Modificar
+
+1. **Migration SQL**: Criar tabela + modificar trigger
+2. **`supabase/functions/notify-n8n-new-activity/index.ts`**: Edge function processadora
+3. **`supabase/config.toml`**: Adicionar configuração da função
+
+## URL do Webhook
+
+A nova URL será: `https://biopeak-ai.app.n8n.cloud/webhook/new-training-activity`
