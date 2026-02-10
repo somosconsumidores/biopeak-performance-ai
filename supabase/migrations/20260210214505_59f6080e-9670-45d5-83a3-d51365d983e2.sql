@@ -1,0 +1,1 @@
+UPDATE public.training_plans SET status = 'cancelled', updated_at = now() WHERE id = '766cd0b7-5915-4d6a-90d6-dfb07b8b5cc6';
