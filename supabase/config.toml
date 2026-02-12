@@ -291,5 +291,3 @@ verify_jwt = false
 [functions.calculate-personal-records]
 verify_jwt = false
 
-[functions.notify-n8n-new-activity]
-verify_jwt = false
