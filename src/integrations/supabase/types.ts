@@ -2784,42 +2784,6 @@ export type Database = {
         }
         Relationships: []
       }
-      n8n_activity_notification_queue: {
-        Row: {
-          activity_id: string | null
-          activity_type: string | null
-          created_at: string | null
-          error_message: string | null
-          id: string
-          processed_at: string | null
-          retry_count: number | null
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          activity_id?: string | null
-          activity_type?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          processed_at?: string | null
-          retry_count?: number | null
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          activity_id?: string | null
-          activity_type?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          processed_at?: string | null
-          retry_count?: number | null
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       n8n_notification_queue: {
         Row: {
           created_at: string | null
