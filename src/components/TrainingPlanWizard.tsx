@@ -35,6 +35,7 @@ import { RaceDateStep } from './wizard-steps/RaceDateStep';
 import { SummaryStep } from './wizard-steps/SummaryStep';
 import { RaceGoalStep } from './wizard-steps/RaceGoalStep';
 import { HealthDeclarationStep } from './wizard-steps/HealthDeclarationStep';
+import { BiometricsStep } from './wizard-steps/BiometricsStep';
 
 // Swimming steps
 import { SwimmingGoalSelectionStep } from './wizard-steps/SwimmingGoalSelectionStep';
@@ -61,6 +62,7 @@ interface TrainingPlanWizardProps {
 const STEP_TITLES: Record<number, string> = {
   0: 'Termos e Condições',
   1: 'Escolha seu esporte',
+  50: 'Dados Biométricos',
   2: 'Número de celular',
   3: 'Qual é seu objetivo?',
   4: 'Confirme seu nível',
@@ -74,12 +76,30 @@ const STEP_TITLES: Record<number, string> = {
   12: 'Declaração de saúde',
   13: 'Meta da prova',
   14: 'Resumo e geração',
-  15: 'Declaração de saúde'
+  15: 'Declaração de saúde',
+  20: 'Objetivo de natação',
+  21: 'Nível de natação',
+  22: 'CSS (Velocidade Crítica)',
+  23: 'Comprimento da piscina',
+  24: 'Equipamentos de natação',
+  25: 'Tempo disponível',
+  26: 'Dias disponíveis',
+  27: 'Data de início',
+  28: 'Duração do plano',
+  29: 'Resumo e geração',
+  30: 'Declaração de saúde',
+  40: 'Plano principal',
+  41: 'Objetivo de força',
+  42: 'Equipamentos',
+  43: 'Frequência',
+  44: 'Resumo e geração',
+  45: 'Declaração de saúde'
 };
 
 const STEP_DESCRIPTIONS: Record<number, string> = {
   0: 'Leia e aceite os termos antes de prosseguir',
   1: 'Para o BioPeak AI Coach te acompanhar melhor',
+  50: 'Altura, peso e data de nascimento para personalizar seu plano',
   2: 'Escolha o objetivo principal do seu plano de treino',
   3: 'Validamos automaticamente seu nível baseado no histórico',
   4: 'Confirme ou atualize sua data de nascimento',
@@ -189,6 +209,8 @@ export function TrainingPlanWizard({
           return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
         case 1:
           return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 50:
+          return <BiometricsStep wizardData={wizardData} updateWizardData={updateWizardData} />;
         case 2:
           return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
         case 20:
@@ -225,6 +247,8 @@ export function TrainingPlanWizard({
           return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
         case 1:
           return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+        case 50:
+          return <BiometricsStep wizardData={wizardData} updateWizardData={updateWizardData} />;
         case 40:
           return <StrengthParentPlanStep wizardData={wizardData} updateWizardData={updateWizardData} />;
         case 41:
@@ -248,6 +272,8 @@ export function TrainingPlanWizard({
         return <DisclaimerStep onAccept={handleDisclaimerAccept} onDecline={handleDisclaimerDecline} />;
       case 1:
         return <SportSelectionStep wizardData={wizardData} updateWizardData={updateWizardData} />;
+      case 50:
+        return <BiometricsStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 2:
         return <PhoneNumberStep wizardData={wizardData} updateWizardData={updateWizardData} />;
       case 3:

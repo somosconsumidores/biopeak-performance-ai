@@ -15,6 +15,10 @@ export interface TrainingPlanWizardData {
   // Step 1: Phone number
   phone?: string;
   
+  // Biometrics (step 50)
+  heightCm?: number;
+  weightKg?: number;
+  
   // Step 2: Goal selection
   goal: string;
   goalDescription?: string;
@@ -300,7 +304,7 @@ export function useTrainingPlanWizard() {
 
   // Dynamic step calculation
   const getStepSequence = () => {
-    const baseSteps = [0, 1]; // Step 0 = Disclaimer, Step 1 = Sport Selection
+    const baseSteps = [0, 1, 50]; // Step 0 = Disclaimer, Step 1 = Sport Selection, Step 50 = Biometrics
     
     if (wizardData.sportType === 'swimming') {
       // Swimming sequence (steps 20-30)
@@ -319,7 +323,7 @@ export function useTrainingPlanWizard() {
         30   // Health Declaration
       );
     } else if (wizardData.sportType === 'strength') {
-      // Strength sequence (steps 40-45)
+      // Strength sequence (steps 40-45) - no phone step
       baseSteps.push(
         40,  // Parent Plan Selection
         41,  // Strength Goal
@@ -605,6 +609,12 @@ export function useTrainingPlanWizard() {
         return strengthQuestionsAnswered && !strengthHasPositive && wizardData.healthDeclaration.declaration_accepted === true;
       }
       
+      // Biometrics step
+      case 50:
+        return !!wizardData.birthDate && 
+               !!wizardData.weightKg && wizardData.weightKg >= 30 && wizardData.weightKg <= 300 &&
+               !!wizardData.heightCm && wizardData.heightCm >= 100 && wizardData.heightCm <= 250;
+      
       default:
         return false;
     }
@@ -699,10 +709,16 @@ export function useTrainingPlanWizard() {
 
     setLoading(true);
     try {
-      // First, update profile with any missing data
+      // First, update profile with biometric and other data
       const profileUpdates: any = {};
-      if (wizardData.birthDate && !profile?.birth_date) {
+      if (wizardData.birthDate) {
         profileUpdates.birth_date = format(wizardData.birthDate, 'yyyy-MM-dd');
+      }
+      if (wizardData.heightCm) {
+        profileUpdates.height_cm = wizardData.heightCm;
+      }
+      if (wizardData.weightKg) {
+        profileUpdates.weight_kg = wizardData.weightKg;
       }
       if (wizardData.gender) {
         profileUpdates.gender = wizardData.gender;
@@ -720,6 +736,20 @@ export function useTrainingPlanWizard() {
 
         if (profileError) {
           console.error('Error updating profile:', profileError);
+        }
+      }
+
+      // Save birth_date to user_onboarding as well
+      if (wizardData.birthDate) {
+        const { error: onboardingError } = await supabase
+          .from('user_onboarding')
+          .upsert({
+            user_id: user.id,
+            birth_date: format(wizardData.birthDate, 'yyyy-MM-dd'),
+          }, { onConflict: 'user_id' });
+
+        if (onboardingError) {
+          console.error('Error updating user_onboarding birth_date:', onboardingError);
         }
       }
 
