@@ -1,61 +1,39 @@
 
 
-# Mudanca: Trigger Direto para Webhook (Sem Fila)
+# Alterar mv_biopeak_nutritional_profile para LEFT JOIN
 
-## Objetivo
+## Problema
+A view usa `INNER JOIN` entre `user_biometrics` e `activity_burn`, excluindo usuarios que nao possuem atividades nos ultimos 30 dias. A view ja trata valores nulos com `COALESCE`, entao basta trocar o JOIN.
 
-Reverter a arquitetura de fila e fazer o trigger `trg_notify_n8n_new_activity` chamar diretamente o webhook n8n via `net.http_post` a cada novo registro de atividade de assinante.
+## Mudanca
 
-## Mudancas
+Uma unica migration SQL que faz `DROP` e recria a materialized view, trocando:
 
-### 1. Modificar o Trigger
-
-Substituir o INSERT na fila por uma chamada HTTP direta usando `net.http_post` (extensao pg_net do Supabase):
-
-```sql
-CREATE OR REPLACE FUNCTION public.trg_notify_n8n_new_activity()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO ''
-AS $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.subscribers 
-    WHERE user_id = NEW.user_id AND subscribed = true
-  ) THEN
-    PERFORM net.http_post(
-      url := 'https://biopeak-ai.app.n8n.cloud/webhook/new-training-activity',
-      body := jsonb_build_object(
-        'user_id', NEW.user_id,
-        'activity_id', NEW.activity_id,
-        'activity_type', NEW.activity_type,
-        'timestamp', now(),
-        'source', 'BioPeak Activity Trigger'
-      ),
-      headers := jsonb_build_object('Content-Type', 'application/json')
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$;
+```
+JOIN activity_burn act ON (bio.user_id = act.user_id)
 ```
 
-### 2. Limpeza (Opcional)
+por:
 
-Remover recursos que nao serao mais necessarios:
-- Tabela `n8n_activity_notification_queue`
-- Edge Function `notify-n8n-new-activity`
-- Entrada no `supabase/config.toml`
+```
+LEFT JOIN activity_burn act ON (bio.user_id = act.user_id)
+```
 
-## Riscos
+Toda a logica de `COALESCE` ja existente (`avg_daily_active_kcal` default 0, `main_sport` default 'General') continuara funcionando normalmente.
 
-- Se o n8n estiver fora do ar ou o workflow inativo, a notificacao sera perdida (sem retry)
-- Erros HTTP (502/404) nao serao tratados automaticamente
+Apos recriar a view, a migration executara `REFRESH MATERIALIZED VIEW mv_biopeak_nutritional_profile` para popular os dados imediatamente.
 
-## Arquivos Afetados
+## Resultado Esperado
 
-1. **Migration SQL**: Alterar funcao do trigger
-2. **`supabase/functions/notify-n8n-new-activity/index.ts`**: Remover
-3. **`supabase/config.toml`**: Remover entrada da funcao
+Usuarios com `weight_kg` e `height_cm` preenchidos (como o user `a9313aeb...`) passarao a aparecer na view com:
+- `avg_active_kcal = 0`
+- `sport_type = 'General'`
+- BMR e TDEE calculados normalmente (TDEE = BMR * 1.1 quando sem atividades)
+
+**Nota**: Usuarios sem `birth_date` continuarao excluidos pois a idade e necessaria para o calculo do BMR.
+
+## Detalhes Tecnicos
+
+- **Arquivo criado**: Nova migration SQL
+- **Nenhum arquivo de codigo alterado** -- a view e consumida via query, sem mudanca na interface
 
