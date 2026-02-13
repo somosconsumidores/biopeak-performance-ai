@@ -1,64 +1,59 @@
 
-# Novo Step: Dados Biometricos no Wizard de Plano de Treino
+# Trigger para Refresh da mv_biopeak_nutritional_profile
 
 ## O que sera feito
 
-Adicionar um novo step obrigatorio como o **primeiro passo apos a selecao de esporte** no wizard de criacao de plano de treino, coletando altura (cm), peso (kg) e data de nascimento. Estas informacoes sao essenciais para calcular zonas de frequencia cardiaca, taxa metabolica basal e personalizar intensidades de treino.
+Criar uma trigger na tabela `training_plans` que, a cada INSERT, dispara o refresh da materialized view `mv_biopeak_nutritional_profile`. Isso garante que o perfil nutricional esteja sempre atualizado quando um novo plano de treino for criado.
 
 ## Mudancas planejadas
 
-### 1. Novo componente: `src/components/wizard-steps/BiometricsStep.tsx`
-- Campos obrigatorios: altura (cm, input numerico, range 100-250), peso (kg, input numerico, range 30-300), data de nascimento (date picker)
-- Pre-preencher com dados do perfil do usuario caso ja existam (via `useProfile`)
-- Mensagem explicativa: "Estas informacoes sao essenciais para criarmos um plano personalizado - calculamos suas zonas de treino, taxa metabolica e intensidades ideais com base nestes dados"
-- Validacao: todos os 3 campos obrigatorios para prosseguir
+### 1. Migration SQL
+- Criar a funcao RPC `refresh_mv_biopeak_nutritional_profile()` (SECURITY DEFINER, search_path vazio) para refresh da view
+- Criar a trigger function `trg_refresh_nutritional_profile_on_plan_insert()` que chama o refresh
+- Criar a trigger `on_training_plan_insert_refresh_nutritional` na tabela `training_plans` disparada AFTER INSERT
 
-### 2. Atualizar `TrainingPlanWizardData` em `src/hooks/useTrainingPlanWizard.ts`
-- Adicionar campos `heightCm?: number` e `weightKg?: number` ao interface
-- Adicionar step numero **50** (novo step biometrico) na sequencia de **todos os fluxos** (running, cycling, swimming, strength) logo apos step 1 (sport selection)
-- Adicionar validacao no `canProceed()` para o step 50: birthDate, heightCm e weightKg devem estar preenchidos
-- Na funcao `generateTrainingPlan()`, salvar `height_cm` e `weight_kg` na tabela `profiles`, e `birth_date` na tabela `user_onboarding`
-
-### 3. Atualizar `src/components/TrainingPlanWizard.tsx`
-- Importar e renderizar `BiometricsStep` para o step 50
-- Adicionar titulo e descricao para o step 50 nos dicionarios `STEP_TITLES` e `STEP_DESCRIPTIONS`
-
-### 4. Sequencia dos fluxos (todas as modalidades)
-
-Antes:
-```text
-0 (Disclaimer) -> 1 (Sport) -> 2 (Phone) -> ...
-```
-
-Depois:
-```text
-0 (Disclaimer) -> 1 (Sport) -> 50 (Biometricos) -> 2 (Phone) -> ...
-```
-
-Para strength (que nao tem phone):
-```text
-0 (Disclaimer) -> 1 (Sport) -> 50 (Biometricos) -> 40 (Parent Plan) -> ...
-```
-
----
+### 2. Edge Function `refresh-materialized-views/index.ts`
+- Adicionar chamada a `refresh_mv_biopeak_nutritional_profile` no cron noturno, garantindo que tambem seja atualizada diariamente
 
 ## Detalhes tecnicos
 
-### BiometricsStep.tsx
-- Usa `Calendar` com `captionLayout="dropdown-buttons"` para selecao de data de nascimento (reutiliza padrao do `BirthDateStep` existente)
-- Inputs numericos para peso e altura com `min`/`max` e placeholders
-- Icone de `Ruler`/`Weight`/`Calendar` para cada campo
-- Exibe calculo de FC maxima estimada e IMC quando todos os campos estiverem preenchidos
+### Migration SQL
 
-### Persistencia no generateTrainingPlan
-- `profiles` table: atualiza `weight_kg`, `height_cm`, `birth_date`
-- `user_onboarding` table: atualiza `birth_date`
-- Ambos via upsert usando `user_id`
+```sql
+-- Funcao RPC para refresh
+CREATE OR REPLACE FUNCTION refresh_mv_biopeak_nutritional_profile()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW public.mv_biopeak_nutritional_profile;
+END;
+$$;
 
-### Validacao (canProceed para step 50)
-```typescript
-case 50:
-  return !!wizardData.birthDate && 
-         !!wizardData.weightKg && wizardData.weightKg >= 30 && wizardData.weightKg <= 300 &&
-         !!wizardData.heightCm && wizardData.heightCm >= 100 && wizardData.heightCm <= 250;
+-- Trigger function
+CREATE OR REPLACE FUNCTION trg_refresh_nutritional_profile_on_plan_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW public.mv_biopeak_nutritional_profile;
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger na tabela training_plans
+CREATE TRIGGER on_training_plan_insert_refresh_nutritional
+AFTER INSERT ON training_plans
+FOR EACH ROW
+EXECUTE FUNCTION trg_refresh_nutritional_profile_on_plan_insert();
 ```
+
+### Edge Function update
+Adicionar um quarto bloco no `refresh-materialized-views/index.ts` chamando `supabase.rpc("refresh_mv_biopeak_nutritional_profile")`.
+
+### Nota sobre performance
+O `REFRESH MATERIALIZED VIEW` executa de forma sincrona dentro da trigger. Como a view nao e excessivamente pesada e a insercao de planos de treino nao e frequente (poucos por dia), o impacto e aceitavel. Se no futuro o volume aumentar, pode-se migrar para `FOR EACH STATEMENT` em vez de `FOR EACH ROW`.
