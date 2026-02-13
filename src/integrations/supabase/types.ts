@@ -5854,6 +5854,12 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_active_training_plan_users: {
+        Row: {
+          user_id: string | null
+        }
+        Relationships: []
+      }
       mv_all_activities_30_days: {
         Row: {
           active_kilocalories: number | null
@@ -6425,6 +6431,7 @@ export type Database = {
       populate_initial_affiliate_stats: { Args: never; Returns: undefined }
       recover_stuck_strava_syncs: { Args: never; Returns: undefined }
       refresh_mv_active_subscribers: { Args: never; Returns: undefined }
+      refresh_mv_active_training_plan_users: { Args: never; Returns: undefined }
       refresh_mv_all_activities_30_days: { Args: never; Returns: undefined }
       refresh_mv_strava_orphan_tokens: { Args: never; Returns: undefined }
       reprocess_all_user_metrics_vo2max: {
