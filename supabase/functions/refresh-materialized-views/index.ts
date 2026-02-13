@@ -49,6 +49,16 @@ Deno.serve(async (req) => {
     }
     console.log("mv_active_training_plan_users refreshed successfully");
 
+    // Refresh mv_biopeak_nutritional_profile
+    console.log("Refreshing mv_biopeak_nutritional_profile...");
+    const { error: error4 } = await supabase.rpc("refresh_mv_biopeak_nutritional_profile");
+    
+    if (error4) {
+      console.error("Error refreshing mv_biopeak_nutritional_profile:", error4);
+      throw error4;
+    }
+    console.log("mv_biopeak_nutritional_profile refreshed successfully");
+
     console.log("All materialized views refreshed successfully");
 
     return new Response(
