@@ -39,6 +39,16 @@ Deno.serve(async (req) => {
     }
     console.log("mv_active_subscribers refreshed successfully");
 
+    // Refresh mv_active_training_plan_users
+    console.log("Refreshing mv_active_training_plan_users...");
+    const { error: error3 } = await supabase.rpc("refresh_mv_active_training_plan_users");
+    
+    if (error3) {
+      console.error("Error refreshing mv_active_training_plan_users:", error3);
+      throw error3;
+    }
+    console.log("mv_active_training_plan_users refreshed successfully");
+
     console.log("All materialized views refreshed successfully");
 
     return new Response(
