@@ -837,6 +837,69 @@ export type Database = {
         }
         Relationships: []
       }
+      all_activities_deduplicada_subscribers: {
+        Row: {
+          active_kilocalories: number | null
+          activity_date: string | null
+          activity_id: string | null
+          activity_source: string | null
+          activity_type: string | null
+          average_heart_rate: number | null
+          created_at: string | null
+          detected_workout_type: string | null
+          device_name: string | null
+          id: string
+          max_heart_rate: number | null
+          pace_min_per_km: number | null
+          total_distance_meters: number | null
+          total_elevation_gain_in_meters: number | null
+          total_elevation_loss_in_meters: number | null
+          total_time_minutes: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id?: string | null
+          activity_source?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string | null
+          detected_workout_type?: string | null
+          device_name?: string | null
+          id: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_kilocalories?: number | null
+          activity_date?: string | null
+          activity_id?: string | null
+          activity_source?: string | null
+          activity_type?: string | null
+          average_heart_rate?: number | null
+          created_at?: string | null
+          detected_workout_type?: string | null
+          device_name?: string | null
+          id?: string
+          max_heart_rate?: number | null
+          pace_min_per_km?: number | null
+          total_distance_meters?: number | null
+          total_elevation_gain_in_meters?: number | null
+          total_elevation_loss_in_meters?: number | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
@@ -6426,6 +6489,11 @@ export type Database = {
           webhook_payload_param?: Json
         }
         Returns: string
+      }
+      populate_deduplicada_subscribers_full: { Args: never; Returns: undefined }
+      populate_deduplicada_subscribers_incremental: {
+        Args: never
+        Returns: number
       }
       populate_garmin_user_mapping: { Args: never; Returns: undefined }
       populate_initial_affiliate_stats: { Args: never; Returns: undefined }
