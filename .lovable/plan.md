@@ -1,261 +1,216 @@
 
-# Deduplicacao de Atividades para Assinantes Ativos
+# Trigger para Notificar N8N sobre Novos Planos de Corrida
 
-## Diagnostico
+## Resumo
 
-A analise revelou dados significativos sobre duplicacao:
-- **140 usuarios** sincronizam Garmin e Strava simultaneamente
-- **~6.289 pares duplicados** Garmin+Strava
-- **~670 pares duplicados** adicionais (Polar+Strava: 270, HealthKit+Strava: 294, HealthKit+Garmin: 106)
-- Total de atividades de assinantes ativos: ~9.793
+Criar uma trigger no banco de dados que, ao inserir um novo plano de corrida na tabela `training_plans`, monta o JSON no formato especificado e envia via `pg_net` para o webhook do n8n.
 
-## Estrategia de Deduplicacao
+## Mapeamento de Dados
 
-A identificacao de duplicatas sera feita por: **mesmo user_id + mesma activity_date + duracao similar (ROUND de total_time_minutes)**. Quando houver duplicatas, a prioridade e:
+O JSON sera construido cruzando dados de 3 tabelas:
 
-1. **Garmin** (maior prioridade - dados mais completos)
-2. **Polar**
-3. **HealthKit**
-4. **Strava**
-5. **BioPeak / Zepp / Zepp GPX / Strava GPX** (menor prioridade)
+| Campo JSON | Fonte | Tabela |
+|---|---|---|
+| `atleta.nome` | `display_name` | `profiles` |
+| `atleta.sexo` | `gender` | `profiles` |
+| `atleta.data_nascimento` | `birth_date` | `profiles` |
+| `atleta.peso_kg` | `weight_kg` | `profiles` |
+| `atleta.altura_cm` | `height_cm` | `profiles` |
+| `objetivo` | `goal_type` | `training_plans` (NEW row) |
+| `nivel` | `segment_name` | `athlete_segmentation` (mais recente) |
+| `paces.pace_5k` | `formatted_pace` WHERE `best_pace_value` | `my_personal_records` (rank 1, RUNNING) |
+| `pace_alvo` | `target_pace_min_km` | `plan_summary` JSONB do plano |
+| `distancia_alvo_km` | derivado de `goal_type` | mapeamento fixo (5k=5, 10k=10, etc.) |
+| `frequencia_semanal` | `days_per_week` | `training_plan_preferences` |
+| `dia_longao` | `long_run_weekday` | `training_plan_preferences` (0=domingo, 6=sabado) |
+| `duracao_semanas` | `weeks` | `training_plans` |
 
-## Arquitetura
+### Mapeamentos fixos
 
-Sera criada uma **tabela regular** (nao materialized view) chamada `all_activities_deduplicada_subscribers`. Motivo: materialized views no PostgreSQL nao suportam refresh incremental real - sempre recomputa a query inteira. Uma tabela regular permite insercoes e delecoes cirurgicas, garantindo performance no cron job.
+**goal_type para objetivo:**
+- `5k` -> `melhorar_tempo`
+- `10k` -> `melhorar_tempo`
+- `half_marathon` -> `melhorar_tempo`
+- `marathon` -> `melhorar_tempo`
+- `improve_times` -> `melhorar_tempo`
+- `general_fitness` -> `condicionamento`
+- `weight_loss` -> `emagrecimento`
+- `return_running` -> `retorno`
+- `maintenance` -> `manter_forma`
 
-### Fluxo
+**goal_type para distancia_alvo_km:**
+- `5k` -> 5
+- `10k` -> 10
+- `half_marathon` -> 21
+- `marathon` -> 42
+- Outros -> null
 
-```text
-+---------------------------+
-|   all_activities (fonte)  |
-+---------------------------+
-            |
-   [Dedup: ROW_NUMBER por   ]
-   [user + date + round(min)]
-   [ORDER BY prioridade]     
-            |
-            v
-+---------------------------------------+
-| all_activities_deduplicada_subscribers |
-|  (tabela - apenas assinantes ativos)  |
-+---------------------------------------+
-            ^
-            |
-   [Cron midnight: incremental]
-   [Processa ultimas 24h]
-```
+**long_run_weekday para dia_longao:**
+- 0 -> `domingo`, 1 -> `segunda`, 2 -> `terca`, 3 -> `quarta`, 4 -> `quinta`, 5 -> `sexta`, 6 -> `sabado`
 
-## Mudancas Planejadas
+**segment_name para nivel:**
+- `Elite Runner`, `Rising Star` -> `avancado`
+- `Active Performer`, `Consistent Jogger` -> `intermediario`
+- `Recovery Mode`, outros -> `iniciante`
 
-### 1. Migration SQL
+### Paces
 
-**Tabela `all_activities_deduplicada_subscribers`**: mesmas colunas de `all_activities`, com indice unico para suporte a upsert.
+O campo `paces` sera preenchido a partir de `my_personal_records` (rank 1, categoria RUNNING) para o usuario. O `best_pace_value` (em min/km decimal) sera convertido para formato `M:SS`. Como a tabela nao tem distancias especificas (5K, 10K), o melhor pace geral sera usado como `pace_5k` e os demais serao null. O `pace_alvo` vira do `plan_summary->targets->target_pace_min_km` do proprio plano, convertido para formato `M:SS`.
 
-**RPC `populate_deduplicada_subscribers_full`**: Faz o rebuild completo (usado apenas na primeira vez ou em caso de necessidade).
-
-**RPC `populate_deduplicada_subscribers_incremental`**: Remove registros dos ultimos 2 dias (margem de seguranca) de usuarios que tiveram novas atividades, e reinsere de forma deduplicada. Isso garante que atividades sincronizadas com atraso tambem sejam tratadas.
-
-**Logica de deduplicacao (SQL)**:
-```sql
-ROW_NUMBER() OVER (
-  PARTITION BY user_id, activity_date, ROUND(COALESCE(total_time_minutes, 0))
-  ORDER BY 
-    CASE activity_source
-      WHEN 'garmin' THEN 1
-      WHEN 'polar' THEN 2
-      WHEN 'healthkit' THEN 3
-      WHEN 'strava' THEN 4
-      ELSE 5
-    END,
-    created_at ASC
-) = 1
-```
-
-### 2. Edge Function `refresh-deduplicada-subscribers`
-
-- Chama a RPC incremental `populate_deduplicada_subscribers_incremental`
-- Loga o numero de registros processados
-- Retorna status de sucesso/erro
-
-### 3. Populacao Inicial
-
-Apos a migration, executar a RPC `populate_deduplicada_subscribers_full` via SQL Editor para popular todo o historico.
-
-### 4. Cron Job
-
-Agendar via `pg_cron` para rodar diariamente a meia-noite (UTC), chamando a Edge Function `refresh-deduplicada-subscribers`. O job incremental processa apenas atividades dos ultimos 2 dias, mantendo o custo computacional baixo.
-
-## Detalhes Tecnicos
+## Implementacao
 
 ### Migration SQL
 
+Uma unica migration contendo:
+
+1. **Funcao `fn_notify_n8n_training_plan()`**: funcao trigger que:
+   - Filtra apenas `sport_type = 'running'`
+   - Faz JOINs com `profiles`, `training_plan_preferences`, `athlete_segmentation`, `my_personal_records`
+   - Monta o JSON no formato exato solicitado
+   - Envia via `net.http_post` para `https://biopeak-ai.app.n8n.cloud/webhook/plano-corrida`
+
+2. **Trigger `trg_notify_n8n_training_plan`**: AFTER INSERT na tabela `training_plans`
+
+### Detalhes Tecnicos
+
 ```sql
--- 1. Tabela deduplicada
-CREATE TABLE IF NOT EXISTS public.all_activities_deduplicada_subscribers (
-  id uuid PRIMARY KEY,
-  user_id uuid NOT NULL,
-  activity_id text,
-  activity_type text,
-  activity_date date,
-  total_distance_meters double precision,
-  total_time_minutes double precision,
-  device_name text,
-  active_kilocalories integer,
-  average_heart_rate integer,
-  max_heart_rate integer,
-  pace_min_per_km double precision,
-  total_elevation_gain_in_meters double precision,
-  total_elevation_loss_in_meters double precision,
-  activity_source text,
-  created_at timestamptz,
-  updated_at timestamptz,
-  detected_workout_type text
-);
-
-CREATE INDEX idx_dedup_sub_user_date 
-  ON all_activities_deduplicada_subscribers(user_id, activity_date);
-CREATE INDEX idx_dedup_sub_source 
-  ON all_activities_deduplicada_subscribers(activity_source);
-CREATE INDEX idx_dedup_sub_created 
-  ON all_activities_deduplicada_subscribers(created_at);
-
--- 2. RPC full rebuild
-CREATE OR REPLACE FUNCTION populate_deduplicada_subscribers_full()
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $$
-BEGIN
-  TRUNCATE public.all_activities_deduplicada_subscribers;
-  
-  INSERT INTO public.all_activities_deduplicada_subscribers
-  SELECT a.id, a.user_id, a.activity_id, a.activity_type, a.activity_date,
-         a.total_distance_meters, a.total_time_minutes, a.device_name,
-         a.active_kilocalories, a.average_heart_rate, a.max_heart_rate,
-         a.pace_min_per_km, a.total_elevation_gain_in_meters,
-         a.total_elevation_loss_in_meters, a.activity_source,
-         a.created_at, a.updated_at, a.detected_workout_type
-  FROM (
-    SELECT *, ROW_NUMBER() OVER (
-      PARTITION BY aa.user_id, aa.activity_date, 
-                   ROUND(COALESCE(aa.total_time_minutes, 0))
-      ORDER BY 
-        CASE aa.activity_source
-          WHEN 'garmin' THEN 1
-          WHEN 'polar' THEN 2
-          WHEN 'healthkit' THEN 3
-          WHEN 'strava' THEN 4
-          ELSE 5
-        END,
-        aa.created_at ASC
-    ) as rn
-    FROM public.all_activities aa
-    JOIN public.subscribers s ON aa.user_id = s.user_id AND s.subscribed = true
-  ) a
-  WHERE a.rn = 1;
-END;
-$$;
-
--- 3. RPC incremental (ultimos 2 dias)
-CREATE OR REPLACE FUNCTION populate_deduplicada_subscribers_incremental()
-RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $$
+CREATE OR REPLACE FUNCTION fn_notify_n8n_training_plan()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
-  affected_rows integer;
+  v_profile RECORD;
+  v_prefs RECORD;
+  v_segment TEXT;
+  v_best_pace NUMERIC;
+  v_target_pace NUMERIC;
+  v_payload JSONB;
+  v_objetivo TEXT;
+  v_nivel TEXT;
+  v_distancia NUMERIC;
+  v_dia_longao TEXT;
+  v_pace_formatted TEXT;
+  v_pace_alvo_formatted TEXT;
 BEGIN
-  -- Remove registros recentes dos usuarios afetados
-  DELETE FROM public.all_activities_deduplicada_subscribers d
-  WHERE d.user_id IN (
-    SELECT DISTINCT aa.user_id 
-    FROM public.all_activities aa
-    WHERE aa.created_at >= NOW() - INTERVAL '2 days'
-  )
-  AND d.activity_date >= (CURRENT_DATE - INTERVAL '2 days');
+  -- Apenas planos de corrida
+  IF NEW.sport_type != 'running' THEN
+    RETURN NEW;
+  END IF;
 
-  -- Reinsere de forma deduplicada
-  INSERT INTO public.all_activities_deduplicada_subscribers
-  SELECT a.id, a.user_id, a.activity_id, a.activity_type, a.activity_date,
-         a.total_distance_meters, a.total_time_minutes, a.device_name,
-         a.active_kilocalories, a.average_heart_rate, a.max_heart_rate,
-         a.pace_min_per_km, a.total_elevation_gain_in_meters,
-         a.total_elevation_loss_in_meters, a.activity_source,
-         a.created_at, a.updated_at, a.detected_workout_type
-  FROM (
-    SELECT *, ROW_NUMBER() OVER (
-      PARTITION BY aa.user_id, aa.activity_date, 
-                   ROUND(COALESCE(aa.total_time_minutes, 0))
-      ORDER BY 
-        CASE aa.activity_source
-          WHEN 'garmin' THEN 1
-          WHEN 'polar' THEN 2
-          WHEN 'healthkit' THEN 3
-          WHEN 'strava' THEN 4
-          ELSE 5
-        END,
-        aa.created_at ASC
-    ) as rn
-    FROM public.all_activities aa
-    JOIN public.subscribers s ON aa.user_id = s.user_id AND s.subscribed = true
-    WHERE aa.user_id IN (
-      SELECT DISTINCT a2.user_id 
-      FROM public.all_activities a2
-      WHERE a2.created_at >= NOW() - INTERVAL '2 days'
-    )
-    AND aa.activity_date >= (CURRENT_DATE - INTERVAL '2 days')
-  ) a
-  WHERE a.rn = 1
-  ON CONFLICT (id) DO UPDATE SET
-    activity_type = EXCLUDED.activity_type,
-    total_distance_meters = EXCLUDED.total_distance_meters,
-    total_time_minutes = EXCLUDED.total_time_minutes,
-    updated_at = EXCLUDED.updated_at;
+  -- Dados do atleta
+  SELECT display_name, gender, birth_date, weight_kg, height_cm
+  INTO v_profile
+  FROM public.profiles WHERE user_id = NEW.user_id;
 
-  GET DIAGNOSTICS affected_rows = ROW_COUNT;
-  RETURN affected_rows;
+  -- Preferencias do plano
+  SELECT days_per_week, long_run_weekday
+  INTO v_prefs
+  FROM public.training_plan_preferences WHERE plan_id = NEW.id;
+
+  -- Segmentacao mais recente
+  SELECT segment_name INTO v_segment
+  FROM public.athlete_segmentation
+  WHERE user_id = NEW.user_id
+  ORDER BY segmentation_date DESC LIMIT 1;
+
+  -- Melhor pace (RUNNING, rank 1)
+  SELECT best_pace_value INTO v_best_pace
+  FROM public.my_personal_records
+  WHERE user_id = NEW.user_id AND category = 'RUNNING' AND rank_position = 1
+  LIMIT 1;
+
+  -- Pace alvo do plan_summary
+  v_target_pace := (NEW.plan_summary->'targets'->>'target_pace_min_km')::NUMERIC;
+
+  -- Mapeamentos
+  v_objetivo := CASE NEW.goal_type
+    WHEN '5k' THEN 'melhorar_tempo'
+    WHEN '10k' THEN 'melhorar_tempo'
+    WHEN 'half_marathon' THEN 'melhorar_tempo'
+    WHEN 'marathon' THEN 'melhorar_tempo'
+    WHEN 'improve_times' THEN 'melhorar_tempo'
+    WHEN 'general_fitness' THEN 'condicionamento'
+    WHEN 'weight_loss' THEN 'emagrecimento'
+    WHEN 'return_running' THEN 'retorno'
+    WHEN 'maintenance' THEN 'manter_forma'
+    ELSE 'melhorar_tempo'
+  END;
+
+  v_distancia := CASE NEW.goal_type
+    WHEN '5k' THEN 5
+    WHEN '10k' THEN 10
+    WHEN 'half_marathon' THEN 21
+    WHEN 'marathon' THEN 42
+    ELSE NULL
+  END;
+
+  v_nivel := CASE
+    WHEN v_segment IN ('Elite Runner', 'Rising Star') THEN 'avancado'
+    WHEN v_segment IN ('Active Performer', 'Consistent Jogger') THEN 'intermediario'
+    ELSE 'iniciante'
+  END;
+
+  v_dia_longao := CASE COALESCE(v_prefs.long_run_weekday, 0)
+    WHEN 0 THEN 'domingo' WHEN 1 THEN 'segunda'
+    WHEN 2 THEN 'terca'   WHEN 3 THEN 'quarta'
+    WHEN 4 THEN 'quinta'   WHEN 5 THEN 'sexta'
+    WHEN 6 THEN 'sabado'
+  END;
+
+  -- Formatar paces (decimal min/km -> M:SS)
+  IF v_best_pace IS NOT NULL THEN
+    v_pace_formatted := FLOOR(v_best_pace)::TEXT || ':' ||
+      LPAD(FLOOR((v_best_pace - FLOOR(v_best_pace)) * 60)::TEXT, 2, '0');
+  END IF;
+
+  IF v_target_pace IS NOT NULL THEN
+    v_pace_alvo_formatted := FLOOR(v_target_pace)::TEXT || ':' ||
+      LPAD(FLOOR((v_target_pace - FLOOR(v_target_pace)) * 60)::TEXT, 2, '0');
+  END IF;
+
+  -- Montar payload
+  v_payload := jsonb_build_object(
+    'atleta', jsonb_build_object(
+      'nome', COALESCE(v_profile.display_name, 'Nao informado'),
+      'sexo', COALESCE(v_profile.gender, 'nao_informado'),
+      'data_nascimento', v_profile.birth_date,
+      'peso_kg', v_profile.weight_kg,
+      'altura_cm', v_profile.height_cm
+    ),
+    'objetivo', v_objetivo,
+    'nivel', v_nivel,
+    'paces', jsonb_build_object(
+      'pace_5k', v_pace_formatted,
+      'pace_10k', NULL,
+      'pace_21k', NULL,
+      'pace_42k', NULL
+    ),
+    'pace_alvo', v_pace_alvo_formatted,
+    'distancia_alvo_km', v_distancia,
+    'frequencia_semanal', COALESCE(v_prefs.days_per_week, 3),
+    'dia_longao', v_dia_longao,
+    'duracao_semanas', NEW.weeks
+  );
+
+  -- Enviar via pg_net
+  PERFORM net.http_post(
+    url := 'https://biopeak-ai.app.n8n.cloud/webhook/plano-corrida',
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := v_payload
+  );
+
+  RETURN NEW;
 END;
 $$;
 
--- 4. Permissoes
-REVOKE ALL ON FUNCTION populate_deduplicada_subscribers_full() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION populate_deduplicada_subscribers_full() TO service_role;
-
-REVOKE ALL ON FUNCTION populate_deduplicada_subscribers_incremental() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION populate_deduplicada_subscribers_incremental() TO service_role;
-
--- 5. RLS
-ALTER TABLE all_activities_deduplicada_subscribers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own dedup activities"
-  ON all_activities_deduplicada_subscribers FOR SELECT
-  USING (auth.uid() = user_id);
+CREATE TRIGGER trg_notify_n8n_training_plan
+  AFTER INSERT ON public.training_plans
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_notify_n8n_training_plan();
 ```
 
-### Edge Function `refresh-deduplicada-subscribers/index.ts`
+## Limitacoes Conhecidas
 
-Chama `supabase.rpc("populate_deduplicada_subscribers_incremental")` e retorna o resultado.
+1. **Paces por distancia**: A tabela `my_personal_records` nao separa por distancia (5K, 10K, etc.), apenas tem o melhor pace geral de RUNNING. Portanto, apenas `pace_5k` sera preenchido com o melhor pace do atleta; `pace_10k`, `pace_21k` e `pace_42k` serao `null`.
 
-### Cron Job (via SQL Editor apos deploy)
+2. **Timing**: As preferencias (`training_plan_preferences`) e o `plan_summary` precisam estar inseridos no banco ANTES do registro em `training_plans` para que a trigger consiga acessar esses dados. Se a insercao for feita em sequencia (prefs primeiro, plano depois), tudo funcionara normalmente.
 
-```sql
-SELECT cron.schedule(
-  'refresh-deduplicada-subscribers-midnight',
-  '0 0 * * *',
-  $$
-  SELECT net.http_post(
-    url:='https://grcwlmltlcltmwbhdpky.supabase.co/functions/v1/refresh-deduplicada-subscribers',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyY3dsbWx0bGNsdG13YmhkcGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjQ1NjksImV4cCI6MjA2Nzc0MDU2OX0.vz_wCV_SEfsvWG7cSW3oJHMs-32x_XQF5hAYBY-m8sM"}'::jsonb,
-    body:=concat('{"time": "', now(), '"}')::jsonb
-  ) as request_id;
-  $$
-);
-```
-
-### Populacao Inicial (via SQL Editor)
-
-Apos a migration ser aplicada, executar:
-```sql
-SELECT populate_deduplicada_subscribers_full();
-```
-
-## Resumo de Impacto
-
-- **~6.959 atividades duplicadas** serao eliminadas
-- **140 usuarios dual-source** terao historico limpo
-- Cron incremental processa apenas ultimas 48h, custo computacional minimo
-- Dados Garmin priorizados por terem tipagem mais granular (ex: TREADMILL_RUNNING vs Run)
+3. **Atletas sem segmentacao**: Serao classificados como "iniciante" por padrao.
