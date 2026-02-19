@@ -1,59 +1,97 @@
 
+## Correção de Políticas RLS: garmin_function_calls, garmin_health_reports e garmin_rate_limits
 
-## Plano: Trigger de replicacao HealthKit para Garmin Sleep Summaries
+### Situação Atual (Vulnerabilidade)
 
-### Contexto
-O usuario quer que dados inseridos em `healthkit_sleep_summaries` sejam automaticamente replicados para `garmin_sleep_summaries`, eliminando a necessidade de alterar dashboards e edge functions que hoje so consultam a tabela Garmin.
+As três tabelas possuem uma política única com `qual: true` para o role `public`, o que significa que **qualquer usuário autenticado pode ler e modificar dados de qualquer outro usuário**:
 
-### Abordagem
-Criar uma trigger `AFTER INSERT OR UPDATE` na tabela `healthkit_sleep_summaries` que faz um `INSERT ... ON CONFLICT DO NOTHING` na `garmin_sleep_summaries`, **somente se nao existir um registro Garmin real** para aquele usuario+data.
+| Tabela | Política Atual | Problema |
+|---|---|---|
+| `garmin_function_calls` | `System can manage function calls` — ALL para `public` | Expõe `ip_address`, `user_id`, `error_message` de todos os usuários |
+| `garmin_health_reports` | `System can manage health reports` — ALL para `public` | Expõe relatórios internos de saúde do sistema (total de usuários, suspeitos, etc.) |
+| `garmin_rate_limits` | `System can manage rate limits` — ALL para `public` | Expõe tentativas de acesso de outros usuários; a segunda policy SELECT é correta mas ineficaz porque a primeira já sobrepõe |
 
-### Logica da Trigger
+### Quem usa essas tabelas?
 
-1. Verificar se ja existe um registro na `garmin_sleep_summaries` para o mesmo `user_id` + `calendar_date` que **nao** comece com `'healthkit_'` no `summary_id` (ou seja, um registro real do Garmin)
-2. Se existir registro Garmin real: nao fazer nada (Garmin tem prioridade)
-3. Se nao existir: fazer UPSERT com os dados do HealthKit, usando `summary_id = 'healthkit_' || calendar_date`
+Verificação no código confirma que **nenhuma edge function** referencia essas tabelas diretamente por nome — elas são usadas apenas via `service_role` em operações internas (webhooks do Garmin, rate limiting, logging). O frontend também não as acessa diretamente.
 
-### Mapeamento de Campos
+### Solução Proposta
 
-```text
-healthkit.total_sleep_seconds   -> garmin.sleep_time_in_seconds
-healthkit.deep_sleep_seconds    -> garmin.deep_sleep_duration_in_seconds
-healthkit.light_sleep_seconds   -> garmin.light_sleep_duration_in_seconds
-healthkit.rem_sleep_seconds     -> garmin.rem_sleep_duration_in_seconds
-healthkit.awake_seconds         -> garmin.awake_duration_in_seconds
-healthkit.sleep_score           -> garmin.sleep_score
-healthkit.source_name           -> garmin.sleep_score_feedback (para identificacao)
-summary_id                      -> 'healthkit_' || NEW.calendar_date::TEXT
+**Padrão**: Remover as políticas permissivas (`qual: true`) e substituir por políticas restritas ao `service_role`, seguindo o mesmo padrão já adotado em outras tabelas do projeto (como `user_evolution_stats`, `marketing`, `whatsapp_buffer`).
+
+#### garmin_function_calls
+- Dropar: `System can manage function calls`
+- Criar: `Service role can manage function calls` → `TO service_role` com `USING (true)` e `WITH CHECK (true)`
+- Criar: `Users can view own function calls` → `FOR SELECT TO authenticated USING (auth.uid() = user_id)` (opcional, para auditoria do próprio usuário)
+
+#### garmin_health_reports
+- Dropar: `System can manage health reports`
+- Criar: `Service role can manage health reports` → `TO service_role` com `USING (true)` e `WITH CHECK (true)`
+- **Sem** policy para usuários autenticados — esta tabela contém dados agregados do sistema, não dados por usuário
+
+#### garmin_rate_limits
+- Dropar: `System can manage rate limits` (a problemática)
+- Manter: `Users can view their own rate limits` → `FOR SELECT TO authenticated USING (auth.uid() = user_id)` (esta já está correta)
+- Criar: `Service role can manage rate limits` → `TO service_role` com `USING (true)` e `WITH CHECK (true)`
+
+### SQL da Migração
+
+```sql
+-- ============================================================
+-- garmin_function_calls
+-- ============================================================
+DROP POLICY IF EXISTS "System can manage function calls" ON public.garmin_function_calls;
+
+CREATE POLICY "Service role can manage function calls"
+  ON public.garmin_function_calls
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Users can view own function calls"
+  ON public.garmin_function_calls
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- ============================================================
+-- garmin_health_reports (sem user_id — apenas service_role)
+-- ============================================================
+DROP POLICY IF EXISTS "System can manage health reports" ON public.garmin_health_reports;
+
+CREATE POLICY "Service role can manage health reports"
+  ON public.garmin_health_reports
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- ============================================================
+-- garmin_rate_limits
+-- ============================================================
+DROP POLICY IF EXISTS "System can manage rate limits" ON public.garmin_rate_limits;
+
+CREATE POLICY "Service role can manage rate limits"
+  ON public.garmin_rate_limits
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- A policy "Users can view their own rate limits" já existe e está correta — não será alterada
 ```
 
-Campos exclusivos do Garmin (`avg_sleep_stress`, `age_group`, `sleep_score_insight`, etc.) ficarao `NULL`.
+### Impacto e Riscos
 
-Para `sleep_start_time_in_seconds` e `sleep_end_time_in_seconds`, sera feita a conversao de timestamp para epoch (segundos desde meia-noite GMT do dia).
+- **Zero impacto no frontend**: o app React não consulta essas tabelas diretamente
+- **Zero impacto nas edge functions**: todas usam `SUPABASE_SERVICE_KEY` internamente, que ignora RLS por padrão
+- **Resultado**: um usuário autenticado (como o teste com OpenClaw) não conseguirá mais fazer SELECT em dados de outros usuários nessas tabelas
 
-### Trigger para Polar Sleep
+### O que o usuário autenticado poderá fazer após a correção
 
-A mesma logica sera aplicada para a tabela `polar_sleep`, criando uma segunda trigger que replica dados Polar para `garmin_sleep_summaries` com `summary_id = 'polar_' || calendar_date`.
-
-### Protecao contra conflitos
-
-- Se o usuario tiver Garmin **e** HealthKit, o dado do Garmin prevalece (a trigger nao sobrescreve)
-- Se o usuario so tiver HealthKit, o dado aparece na tabela Garmin normalmente
-- Se um dado Garmin chegar depois do HealthKit, o registro do HealthKit sera preservado (ON CONFLICT DO NOTHING), a menos que adicionemos logica para deletar o registro sintetico
-
-### Riscos e Consideracoes
-
-- **Dados sinteticos misturados com reais**: queries que filtram por `summary_id` podem precisar de ajuste
-- **Limpeza futura**: se o usuario conectar Garmin depois, os registros `healthkit_*` ficarao orfaos
-- **Alternativa mais limpa**: uma view unificada (`unified_sleep`) evitaria esses problemas, mas exigiria alterar edge functions e dashboard
-
-### Detalhes Tecnicos da Migracao SQL
-
-Uma unica migracao contendo:
-
-1. Funcao `fn_replicate_healthkit_to_garmin()` com logica de UPSERT condicional
-2. Trigger `trg_replicate_healthkit_to_garmin` na tabela `healthkit_sleep_summaries` (AFTER INSERT OR UPDATE)
-3. Funcao `fn_replicate_polar_to_garmin()` com logica similar
-4. Trigger `trg_replicate_polar_to_garmin` na tabela `polar_sleep` (AFTER INSERT OR UPDATE)
-5. Script de backfill para replicar dados historicos ja existentes nas tabelas HealthKit e Polar
-
+| Tabela | Antes | Depois |
+|---|---|---|
+| `garmin_function_calls` | Ver logs de TODOS os usuários | Ver apenas os seus próprios logs |
+| `garmin_health_reports` | Ver relatórios internos do sistema | Acesso negado (tabela interna) |
+| `garmin_rate_limits` | Ver tentativas de TODOS os usuários | Ver apenas as suas próprias tentativas |
