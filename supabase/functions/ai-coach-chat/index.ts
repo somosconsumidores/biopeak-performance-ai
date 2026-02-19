@@ -27,7 +27,7 @@ const coachTools = [
   { type: "function", function: { name: "get_fitness_scores", description: "CTL, ATL, TSB", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "get_athlete_metrics", description: "Busca métricas fisiológicas: VO2max (dados Garmin), paces de referência (5K, 10K), FC máxima, zonas de treino. USE SEMPRE para: perguntas sobre VO2max, capacidade aeróbica, zonas de frequência cardíaca, ou antes de criar treinos científicos.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "reschedule_workout", description: "Move treino para outra data", parameters: { type: "object", properties: { from_date: { type: "string" }, to_date: { type: "string" }, strategy: { type: "string", enum: ["swap", "replace", "push"] } }, required: ["from_date", "to_date"], additionalProperties: false } } },
-  { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
+  { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta. IMPORTANTE: sempre passe duration_minutes quando o atleta especificar duração desejada.", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, duration_minutes: { type: "number", description: "Duração desejada em minutos (ex: 20, 30, 45). Quando o atleta pede um tempo específico, passe aqui." }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
   { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } },
   { type: "function", function: { name: "cancel_training_plan", description: "Cancela plano de treino do usuário. Use quando atleta pedir para encerrar, pausar ou cancelar um plano.", parameters: { type: "object", properties: { sport_type: { type: "string", enum: ["running", "cycling", "swimming", "strength"], description: "Tipo do plano: running (corrida), cycling (ciclismo), swimming (natação), strength (força/musculação)" }, reason: { type: "string", description: "Motivo do cancelamento para registro" } }, required: ["sport_type"], additionalProperties: false } } },
   { type: "function", function: { name: "get_monthly_summary", description: "Resumo AGREGADO de performance de um mês inteiro. USE SEMPRE que o usuário perguntar sobre performance mensal, 'como foi meu mês', 'janeiro', 'fevereiro', 'meu histórico', evolução mensal, etc. NUNCA use get_activity_by_date para análise mensal — use esta tool.", parameters: { type: "object", properties: { year: { type: "number", description: "Ano (ex: 2026)" }, month: { type: "number", description: "Mês (1-12)" } }, required: ["year", "month"], additionalProperties: false } } }
@@ -297,12 +297,17 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
         description: `🏃 **Longão Aeróbico**\n\n**Objetivo:** Desenvolver resistência aeróbica\n\n**Execução:** 18km @ ${paces.easy} min/km\n- Zona de FC: Z2 (${zones.z2.min}-${zones.z2.max} bpm)\n- Primeiros 5km bem tranquilos\n- Últimos 3km pode acelerar levemente se sentir bem\n\n📊 Distância: 18km\n⏱️ Duração estimada: ~2h`,
         distance_meters: 18000
       },
-      recovery: {
-        title: 'Regenerativo 5km',
-        workout_type: 'easy',
-        description: `🏃 **Corrida Regenerativa**\n\n**Objetivo:** Recuperação ativa\n\n**Execução:** 5km muito leve\n- Pace: mais lento que ${paces.easy} min/km\n- Zona de FC: Z1-Z2 (${zones.z1.min}-${zones.z2.max} bpm)\n- Sem esforço, apenas movimento\n\n📊 Distância: 5km\n⏱️ Duração: ~35min`,
-        distance_meters: 5000
-      },
+      recovery: (() => {
+        const dur = args.duration_minutes || 35;
+        const distKm = Math.round(dur / 7 * 10) / 10; // ~7 min/km pace for recovery
+        const distM = Math.round(distKm * 1000);
+        return {
+          title: `Regenerativo ${distKm}km`,
+          workout_type: 'easy',
+          description: `🏃 **Corrida Regenerativa**\n\n**Objetivo:** Recuperação ativa\n\n**Execução:** ${distKm}km muito leve\n- Pace: mais lento que ${paces.easy} min/km\n- Zona de FC: Z1-Z2 (${zones.z1.min}-${zones.z2.max} bpm)\n- Sem esforço, apenas movimento\n\n📊 Distância: ${distKm}km\n⏱️ Duração: ~${dur}min`,
+          distance_meters: distM
+        };
+      })(),
       speed: {
         title: 'Velocidade 8x400m',
         workout_type: 'interval',
@@ -325,12 +330,12 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     
     const template = workoutTemplates[args.workout_category] || workoutTemplates.vo2max;
     
-    // Deduplicacao: verificar se ja existe treino identico
+    // Deduplicacao: verificar se ja existe treino com mesmo titulo para a data
     const { data: existing } = await sb.from('training_plan_workouts')
       .select('id, title, workout_date, description')
       .eq('user_id', uid)
       .eq('workout_date', args.date)
-      .eq('workout_type', template.workout_type)
+      .eq('title', template.title)
       .eq('status', 'planned')
       .limit(1)
       .maybeSingle();
@@ -464,7 +469,7 @@ SANIDADE DE DADOS:
 
 == 2. AÇÕES SUPORTADAS ==
 CRIAR TREINO:
-1) get_athlete_metrics → 2) create_scientific_workout → 3) Retorne briefing completo (aquecimento, séries, pace alvo, objetivo fisiológico)
+1) get_athlete_metrics → 2) create_scientific_workout (SEMPRE passe duration_minutes se o atleta pediu tempo específico, ex: "20 minutos" → duration_minutes: 20) → 3) Retorne briefing completo (aquecimento, séries, pace alvo, objetivo fisiológico)
 Tipos aceitos: vo2max / threshold / tempo / long_run / recovery / speed / fartlek / progressive
 
 REAGENDAR/CANCELAR TREINO:
