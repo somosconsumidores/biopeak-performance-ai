@@ -79,13 +79,16 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
   if (name === "get_fitness_scores") {
     const { data } = await sb.from('fitness_scores_daily').select('calendar_date, ctl_42day, atl_7day').eq('user_id', uid).order('calendar_date', { ascending: false }).limit(1).maybeSingle();
     if (!data) return { found: false, reason: "Nenhum dado de carga encontrado" };
-    const ctl = data.ctl_42day;
-    const atl = data.atl_7day;
-    // Sanity check: valores fora de 0–200 indicam escala incorreta no banco
+    let ctl = data.ctl_42day;
+    let atl = data.atl_7day;
+    // Normalizar escala: banco armazena valores ~10x maiores
+    if (ctl > 200) ctl = ctl / 10;
+    if (atl > 200) atl = atl / 10;
+    // Sanity check pos-normalizacao
     if (!ctl || !atl || ctl > 200 || atl > 200 || ctl < 0 || atl < 0) {
       return {
         found: false,
-        reason: `Valores de CTL/ATL fora do intervalo esperado (CTL: ${ctl?.toFixed(1)}, ATL: ${atl?.toFixed(1)}). Dado indisponível — verifique o cálculo no painel BioPeak.`
+        reason: `Valores de CTL/ATL fora do intervalo esperado mesmo apos normalizacao. Dado indisponivel.`
       };
     }
     const tsb = ctl - atl;
@@ -98,7 +101,7 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
       status: tsb > 25  ? 'Muito fresco — volume baixo recente'
             : tsb > 5   ? 'Fresco — pronto para treino intenso'
             : tsb > -5  ? 'Balanceado'
-            : tsb > -25 ? 'Sob carga — monitore recuperação'
+            : tsb > -25 ? 'Sob carga — monitore recuperacao'
             :             'Fadiga acumulada — priorize descanso'
     };
   }
@@ -322,6 +325,25 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     
     const template = workoutTemplates[args.workout_category] || workoutTemplates.vo2max;
     
+    // Deduplicacao: verificar se ja existe treino identico
+    const { data: existing } = await sb.from('training_plan_workouts')
+      .select('id, title, workout_date, description')
+      .eq('user_id', uid)
+      .eq('workout_date', args.date)
+      .eq('workout_type', template.workout_type)
+      .eq('status', 'planned')
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return {
+        success: true,
+        already_exists: true,
+        workout: { title: existing.title, date: existing.workout_date, description: existing.description },
+        message: `Treino "${existing.title}" ja existe para ${args.date}. Nao criei duplicata.`
+      };
+    }
+
     const { error } = await sb.from('training_plan_workouts').insert({
       plan_id: plan.id,
       user_id: uid,
