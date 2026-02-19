@@ -29,7 +29,8 @@ const coachTools = [
   { type: "function", function: { name: "reschedule_workout", description: "Move treino para outra data", parameters: { type: "object", properties: { from_date: { type: "string" }, to_date: { type: "string" }, strategy: { type: "string", enum: ["swap", "replace", "push"] } }, required: ["from_date", "to_date"], additionalProperties: false } } },
   { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
   { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } },
-  { type: "function", function: { name: "cancel_training_plan", description: "Cancela plano de treino do usuário. Use quando atleta pedir para encerrar, pausar ou cancelar um plano.", parameters: { type: "object", properties: { sport_type: { type: "string", enum: ["running", "cycling", "swimming", "strength"], description: "Tipo do plano: running (corrida), cycling (ciclismo), swimming (natação), strength (força/musculação)" }, reason: { type: "string", description: "Motivo do cancelamento para registro" } }, required: ["sport_type"], additionalProperties: false } } }
+  { type: "function", function: { name: "cancel_training_plan", description: "Cancela plano de treino do usuário. Use quando atleta pedir para encerrar, pausar ou cancelar um plano.", parameters: { type: "object", properties: { sport_type: { type: "string", enum: ["running", "cycling", "swimming", "strength"], description: "Tipo do plano: running (corrida), cycling (ciclismo), swimming (natação), strength (força/musculação)" }, reason: { type: "string", description: "Motivo do cancelamento para registro" } }, required: ["sport_type"], additionalProperties: false } } },
+  { type: "function", function: { name: "get_monthly_summary", description: "Resumo AGREGADO de performance de um mês inteiro. USE SEMPRE que o usuário perguntar sobre performance mensal, 'como foi meu mês', 'janeiro', 'fevereiro', 'meu histórico', evolução mensal, etc. NUNCA use get_activity_by_date para análise mensal — use esta tool.", parameters: { type: "object", properties: { year: { type: "number", description: "Ano (ex: 2026)" }, month: { type: "number", description: "Mês (1-12)" } }, required: ["year", "month"], additionalProperties: false } } }
 ];
 
 async function executeTool(name: string, args: any, sb: any, uid: string) {
@@ -77,9 +78,29 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
   }
   if (name === "get_fitness_scores") {
     const { data } = await sb.from('fitness_scores_daily').select('calendar_date, ctl_42day, atl_7day').eq('user_id', uid).order('calendar_date', { ascending: false }).limit(1).maybeSingle();
-    if (!data) return { found: false };
-    const tsb = data.ctl_42day && data.atl_7day ? (data.ctl_42day - data.atl_7day) : null;
-    return { found: true, ctl: data.ctl_42day?.toFixed(1), atl: data.atl_7day?.toFixed(1), tsb: tsb?.toFixed(1), status: tsb && tsb > 5 ? 'Fresh' : tsb && tsb > -5 ? 'Balanceado' : 'Fadiga' };
+    if (!data) return { found: false, reason: "Nenhum dado de carga encontrado" };
+    const ctl = data.ctl_42day;
+    const atl = data.atl_7day;
+    // Sanity check: valores fora de 0–200 indicam escala incorreta no banco
+    if (!ctl || !atl || ctl > 200 || atl > 200 || ctl < 0 || atl < 0) {
+      return {
+        found: false,
+        reason: `Valores de CTL/ATL fora do intervalo esperado (CTL: ${ctl?.toFixed(1)}, ATL: ${atl?.toFixed(1)}). Dado indisponível — verifique o cálculo no painel BioPeak.`
+      };
+    }
+    const tsb = ctl - atl;
+    return {
+      found: true,
+      ctl: ctl.toFixed(1),
+      atl: atl.toFixed(1),
+      tsb: tsb.toFixed(1),
+      date: data.calendar_date,
+      status: tsb > 25  ? 'Muito fresco — volume baixo recente'
+            : tsb > 5   ? 'Fresco — pronto para treino intenso'
+            : tsb > -5  ? 'Balanceado'
+            : tsb > -25 ? 'Sob carga — monitore recuperação'
+            :             'Fadiga acumulada — priorize descanso'
+    };
   }
   
   // NEW: Get athlete metrics for scientific workout generation
@@ -339,6 +360,59 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     return { success: true, message: `Plano de ${sportType} "${plan.plan_name || 'Sem nome'}" cancelado com sucesso`, cancelled_plan: { id: plan.id, name: plan.plan_name, sport: plan.sport_type, start_date: plan.start_date, end_date: plan.end_date }, reason: args.reason || 'Solicitado pelo atleta' };
   }
   
+  if (name === "get_monthly_summary") {
+    const year = args.year;
+    const month = args.month; // 1-12
+    // Current month dates
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    // Previous month dates
+    const prevYear = month === 1 ? year - 1 : year;
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevStart = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
+    const prevLastDay = new Date(prevYear, prevMonth, 0).getDate();
+    const prevEnd = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevLastDay).padStart(2, '0')}`;
+
+    const { data, error } = await sb.rpc('weekly_summary_stats_v2', {
+      start_date: startDate,
+      end_date: endDate,
+      previous_start_date: prevStart,
+      previous_end_date: prevEnd
+    });
+
+    if (error) return { found: false, reason: `Erro ao buscar resumo mensal: ${error.message}` };
+    if (!data?.length) return { found: false, reason: `Nenhuma atividade encontrada em ${month}/${year}` };
+
+    // Filter for the current user
+    const row = (data as any[]).find((r: any) => r.user_id === uid);
+    if (!row) return { found: false, reason: `Nenhuma atividade encontrada em ${month}/${year}` };
+
+    const monthNames = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    return {
+      found: true,
+      period: `${monthNames[month]} ${year}`,
+      total_km: row.total_km ? Number(row.total_km).toFixed(1) : null,
+      activities_count: row.activities_count || 0,
+      active_days: row.active_days || 0,
+      total_hours: row.total_hours ? Number(row.total_hours).toFixed(1) : null,
+      calories: row.calories || null,
+      avg_pace_min_km: row.avg_pace_min_km ? Number(row.avg_pace_min_km).toFixed(2) : null,
+      best_pace_min_km: row.best_pace_min_km ? Number(row.best_pace_min_km).toFixed(2) : null,
+      avg_heart_rate: row.avg_heart_rate ? Math.round(row.avg_heart_rate) : null,
+      max_heart_rate: row.max_heart_rate_week ? Math.round(row.max_heart_rate_week) : null,
+      total_elevation_gain: row.total_elevation_gain ? Math.round(row.total_elevation_gain) : null,
+      longest_distance_km: row.longest_distance_km ? Number(row.longest_distance_km).toFixed(1) : null,
+      activity_types: row.activity_types || {},
+      consistency_score: row.consistency_score || null,
+      vs_previous_month: {
+        distance_change_percent: row.distance_change_percent ? Number(row.distance_change_percent).toFixed(1) : null,
+        activities_change: row.activities_change || null,
+        prev_total_km: row.prev_total_km ? Number(row.prev_total_km).toFixed(1) : null
+      }
+    };
+  }
+
   return { error: 'Tool desconhecida' };
 }
 
@@ -380,8 +454,8 @@ Busque pelo ID exato; se não encontrar, explique e ofereça correção manual.
 
 == 3. FLUXO DE CONVERSA ==
 CHECAGEM INICIAL:
-- Intenção = análise mensal/evolução → get_fitness_scores + get_athlete_metrics
-- Intenção = estado físico (fadiga, VO2, fitness score) → get_fitness_scores + get_athlete_metrics
+- Intenção = análise mensal/evolução ("janeiro", "como foi meu mês", "performance em X") → get_monthly_summary (OBRIGATÓRIO — nunca use get_activity_by_date para períodos)
+- Intenção = estado físico (fadiga, VO2, fitness score, CTL/ATL) → get_fitness_scores + get_athlete_metrics
 - Intenção = treino específico → get_last_activity ou get_activity_by_date
 
 FORMATO DE RESPOSTA (use quando aplicável):
@@ -396,10 +470,11 @@ FOLLOW-UP AUTOMÁTICO:
 - Usuário perguntar sobre "meu mês" → ofereça: "Quer que eu crie um relatório em PDF?"
 
 == 4. TOOLS DISPONÍVEIS ==
-- get_fitness_scores → CTL, ATL, TSB (valide: 0–200; fora disso = inválido)
+- get_monthly_summary(year, month) → ÚNICA tool para análise mensal/periódica (obrigatória para "janeiro", "fevereiro", "meu mês")
+- get_fitness_scores → CTL, ATL, TSB — já sanitizados no código (valores >200 retornam "indisponível")
 - get_athlete_metrics → VO2max, paces, zonas de FC e ritmo
 - get_training_plan → planos ativos (running/cycling/swimming/strength)
-- get_last_activity / get_activity_by_date → atividades recentes
+- get_last_activity / get_activity_by_date → atividades recentes (dia específico apenas)
 - create_scientific_workout → cria treino estruturado
 - reschedule_workout → reagenda treino por ID
 - cancel_training_plan → cancela plano por ID
