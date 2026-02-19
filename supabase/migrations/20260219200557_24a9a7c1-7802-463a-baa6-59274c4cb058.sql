@@ -1,0 +1,1 @@
+DELETE FROM training_plan_workouts WHERE id = '713708c7-8fb6-44b4-8e38-00df88e4b6fa';
