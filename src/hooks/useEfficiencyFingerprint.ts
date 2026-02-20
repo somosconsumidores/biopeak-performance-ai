@@ -68,13 +68,50 @@ export function useEfficiencyFingerprint(activityId: string | null) {
         }
 
         // Call edge function to compute
-        const { data: result, error: fnError } = await supabase.functions.invoke(
-          'analyze-efficiency-fingerprint',
-          { body: { activity_id: activityId } }
-        );
+        let result: any = null;
+        let fnError: any = null;
+        
+        try {
+          const response = await supabase.functions.invoke(
+            'analyze-efficiency-fingerprint',
+            { body: { activity_id: activityId } }
+          );
+          result = response.data;
+          fnError = response.error;
+        } catch (invokeErr: any) {
+          // Catch network/parsing errors from invoke itself
+          console.warn('Efficiency fingerprint invoke error (caught):', invokeErr?.message);
+          if (!cancelled) {
+            setData(null);
+            setLoading(false);
+          }
+          return;
+        }
 
-        if (fnError) throw new Error(fnError.message);
-        if (result?.error) throw new Error(result.error);
+        // Handle edge function errors gracefully
+        if (fnError) {
+          const msg = fnError?.message || String(fnError);
+          // "Not enough data" is expected for some activities — treat as empty
+          if (msg.includes('non-2xx') || msg.includes('Not enough')) {
+            console.log('Efficiency fingerprint: not enough data, skipping');
+            if (!cancelled) setData(null);
+            if (!cancelled) setLoading(false);
+            return;
+          }
+          throw new Error(msg);
+        }
+
+        // Check for error in the response body
+        if (result?.error) {
+          const bodyMsg = String(result.error);
+          if (bodyMsg.includes('Not enough')) {
+            console.log('Efficiency fingerprint: not enough data (body), skipping');
+            if (!cancelled) setData(null);
+            if (!cancelled) setLoading(false);
+            return;
+          }
+          throw new Error(bodyMsg);
+        }
 
         if (!cancelled && result) {
           setData({
