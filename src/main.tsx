@@ -9,6 +9,8 @@ window.addEventListener('error', (e) => {
 });
 window.addEventListener('unhandledrejection', (e) => {
   console.error('UNHANDLED PROMISE REJECTION:', e.reason);
+  // Prevent unhandled rejections from crashing the app
+  e.preventDefault();
 });
 
 // Eager HealthKit initialization for native iOS
