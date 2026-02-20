@@ -30,7 +30,8 @@ const coachTools = [
   { type: "function", function: { name: "create_scientific_workout", description: "Cria treino científico com paces e estrutura detalhada baseado nas métricas do atleta. IMPORTANTE: sempre passe duration_minutes quando o atleta especificar duração desejada.", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, workout_category: { type: "string", enum: ["vo2max", "threshold", "tempo", "long_run", "recovery", "speed", "fartlek", "progressive"], description: "Tipo de treino" }, duration_minutes: { type: "number", description: "Duração desejada em minutos (ex: 20, 30, 45). Quando o atleta pede um tempo específico, passe aqui." }, athlete_metrics: { type: "object", description: "Métricas do atleta obtidas via get_athlete_metrics" } }, required: ["date", "workout_category"], additionalProperties: false } } },
   { type: "function", function: { name: "mark_workout_complete", description: "Marca treino concluído", parameters: { type: "object", properties: { workout_date: { type: "string" } }, required: ["workout_date"], additionalProperties: false } } },
   { type: "function", function: { name: "cancel_training_plan", description: "Cancela plano de treino do usuário. Use quando atleta pedir para encerrar, pausar ou cancelar um plano.", parameters: { type: "object", properties: { sport_type: { type: "string", enum: ["running", "cycling", "swimming", "strength"], description: "Tipo do plano: running (corrida), cycling (ciclismo), swimming (natação), strength (força/musculação)" }, reason: { type: "string", description: "Motivo do cancelamento para registro" } }, required: ["sport_type"], additionalProperties: false } } },
-  { type: "function", function: { name: "get_monthly_summary", description: "Resumo AGREGADO de performance de um mês inteiro. USE SEMPRE que o usuário perguntar sobre performance mensal, 'como foi meu mês', 'janeiro', 'fevereiro', 'meu histórico', evolução mensal, etc. NUNCA use get_activity_by_date para análise mensal — use esta tool.", parameters: { type: "object", properties: { year: { type: "number", description: "Ano (ex: 2026)" }, month: { type: "number", description: "Mês (1-12)" } }, required: ["year", "month"], additionalProperties: false } } }
+  { type: "function", function: { name: "get_monthly_summary", description: "Resumo AGREGADO de performance de um mês inteiro. USE SEMPRE que o usuário perguntar sobre performance mensal, 'como foi meu mês', 'janeiro', 'fevereiro', 'meu histórico', evolução mensal, etc. NUNCA use get_activity_by_date para análise mensal — use esta tool.", parameters: { type: "object", properties: { year: { type: "number", description: "Ano (ex: 2026)" }, month: { type: "number", description: "Mês (1-12)" } }, required: ["year", "month"], additionalProperties: false } } },
+  { type: "function", function: { name: "get_efficiency_fingerprint", description: "Análise de eficiência por segmento de ~250m de uma atividade. Retorna score geral (0-100), alertas por trecho e recomendações de treino. USE quando o atleta perguntar sobre eficiência, economia de corrida, onde perdeu ritmo, ou quando quiser análise detalhada de uma atividade específica.", parameters: { type: "object", properties: { activity_id: { type: "string", description: "ID da atividade (ex: 21929844707)" } }, required: ["activity_id"], additionalProperties: false } } }
 ];
 
 async function executeTool(name: string, args: any, sb: any, uid: string) {
@@ -440,6 +441,60 @@ async function executeTool(name: string, args: any, sb: any, uid: string) {
     };
   }
 
+  // Efficiency Fingerprint
+  if (name === "get_efficiency_fingerprint") {
+    const activityId = args.activity_id;
+    // Check cache
+    const { data: cached } = await sb.from('efficiency_fingerprint').select('overall_score, segments, alerts, recommendations').eq('activity_id', activityId).maybeSingle();
+    
+    if (cached) {
+      const segs = (cached.segments as any[]) || [];
+      const topAlerts = ((cached.alerts as any[]) || []).slice(0, 3);
+      return {
+        found: true,
+        source: 'cache',
+        overall_score: cached.overall_score,
+        total_segments: segs.length,
+        segment_summary: segs.map((s: any) => ({ km: (s.end_distance_m / 1000).toFixed(1), score: s.efficiency_score, label: s.label, pace: s.avg_pace_min_km, hr: s.avg_hr, power: s.avg_power })),
+        alerts: topAlerts,
+        recommendations: cached.recommendations
+      };
+    }
+
+    // Invoke edge function
+    try {
+      const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-efficiency-fingerprint`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        },
+        body: JSON.stringify({ activity_id: activityId })
+      });
+      
+      if (!res.ok) {
+        const errBody = await res.text();
+        return { found: false, error: `Falha ao calcular fingerprint: ${errBody}` };
+      }
+      
+      const result = await res.json();
+      if (result.error) return { found: false, error: result.error };
+      
+      const segs = (result.segments as any[]) || [];
+      return {
+        found: true,
+        source: 'computed',
+        overall_score: result.overall_score,
+        total_segments: segs.length,
+        segment_summary: segs.map((s: any) => ({ km: (s.end_distance_m / 1000).toFixed(1), score: s.efficiency_score, label: s.label, pace: s.avg_pace_min_km, hr: s.avg_hr, power: s.avg_power })),
+        alerts: (result.alerts || []).slice(0, 3),
+        recommendations: result.recommendations
+      };
+    } catch (e: any) {
+      return { found: false, error: `Erro: ${e.message}` };
+    }
+  }
+
   return { error: 'Tool desconhecida' };
 }
 
@@ -506,6 +561,7 @@ FOLLOW-UP AUTOMÁTICO:
 - reschedule_workout → reagenda treino por ID
 - cancel_training_plan → cancela plano por ID
 - get_sleep_data → dados de sono (use proativamente se relevante)
+- get_efficiency_fingerprint(activity_id) → Fingerprint de Eficiência: análise exclusiva BioPeak com score 0-100, alertas por trecho e recomendações. Use quando o atleta pedir análise de eficiência, economia de corrida, ou "onde perdi ritmo". Cite SEMPRE como "Fingerprint de Eficiência" e referencie trechos por distância (ex: "no km 5.2 sua eficiência caiu 18%").
 
 == 5. RESTRIÇÕES E TOM DE VOZ ==
 - Português do Brasil sempre. Termos técnicos: pace, TSB, CTL, ATL, VO2max, limiar.
@@ -513,7 +569,8 @@ FOLLOW-UP AUTOMÁTICO:
 - PROIBIDO: clichês motivacionais vazios ("Você consegue!", "Acredite em você!").
 - Use dados para embasar cada recomendação.
 - Nunca invente treinos sem consultar get_athlete_metrics primeiro.
-- Nunca pergunte o que você pode descobrir via tool ("Qual distância você correu?" é errado).`;
+- Nunca pergunte o que você pode descobrir via tool ("Qual distância você correu?" é errado).
+- Ao usar Fingerprint de Eficiência: cite explicitamente os trechos críticos com distância, descreva o que aconteceu (FC drift, queda de potência) e sugira treino técnico correspondente (cadência, força excêntrica, tempo runs).`;
 }
 
 serve(async (req) => {

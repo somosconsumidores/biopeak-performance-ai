@@ -61,6 +61,7 @@ import { HeartRateZonesCard } from '@/components/HeartRateZonesCard';
 import { EffortDistributionChart } from '@/components/EffortDistributionChart';
 import { useSessionEffortDistribution } from '@/hooks/useSessionEffortDistribution';
 import { useActivityDetailsChart } from '@/hooks/useActivityDetailsChart';
+import { EfficiencyFingerprintSection } from '@/components/EfficiencyFingerprintSection';
 
 
 export const WorkoutSession = () => {
@@ -410,9 +411,14 @@ export const WorkoutSession = () => {
             </div>
           </ScrollReveal>
 
+          {/* Efficiency Fingerprint */}
+          <ScrollReveal delay={174}>
+            <EfficiencyFingerprintSection activityId={currentActivity?.activity_id || null} />
+          </ScrollReveal>
+
           {/* Heart Rate Zones Card */}
           <ScrollReveal delay={175}>
-            <HeartRateZonesCard 
+            <HeartRateZonesCard
               zones={heartRateZones}
               loading={zonesLoading}
             />
