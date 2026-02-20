@@ -1,37 +1,54 @@
 
-# Fix: App Crash from Efficiency Fingerprint Error
 
-## Problem
-The edge function `analyze-efficiency-fingerprint` returns a 400 error ("Not enough valid data points for analysis") when an activity doesn't have enough data. This error propagates as an unhandled promise rejection, crashing the entire app and showing the RootErrorBoundary "app encountered an error" screen.
+# Fix: Campo `distance_m` / `hr` nao reconhecido pela Edge Function
 
-## Root Cause
-When `supabase.functions.invoke` receives a non-2xx response, it can surface the error in a way that escapes the try/catch in the hook -- specifically, the response body parsing may trigger an unhandled rejection. Additionally, there is no global safety net for unhandled promise rejections.
+## Problema
+A edge function `analyze-efficiency-fingerprint` filtra pontos usando nomes de campo incorretos:
+- Usa `p.distance_meters` mas os dados armazenam como `distance_m`
+- Usa `p.heart_rate` mas dados HealthKit armazenam como `hr`
 
-## Plan
+Isso faz com que TODOS os pontos sejam filtrados, resultando em 0 pontos validos e resposta `insufficient_data: true` (ou 400 na versao antiga).
 
-### 1. Harden the `useEfficiencyFingerprint` hook
-- Wrap the `supabase.functions.invoke` call more defensively
-- Treat "not enough data" as a valid empty result (return null) instead of an error
-- Ensure the hook never throws -- all errors are captured in state
+## Evidencia
+Query no banco para activity_id `21929844707`:
+```text
+first_point: {
+  distance_m: 1.39,      // <-- NAO "distance_meters"
+  heart_rate: 73,         // <-- OK para Garmin
+  speed_ms: 0,
+  power_watts: 0,
+  elevation_m: 15.2
+}
+```
 
-### 2. Add global `unhandledrejection` handler in `App.tsx`
-- Add a `useEffect` with a `window.addEventListener('unhandledrejection', ...)` as a safety net
-- This prevents any uncaught async error from crashing the entire app
-- Show a toast instead of a white screen
+## Solucao
+Atualizar a edge function para aceitar ambos os nomes de campo:
 
-### 3. Make `EfficiencyFingerprintSection` show a friendly message on error
-- Instead of returning `null` on error, show a subtle message or simply hide the section gracefully
-- Ensure component rendering never crashes even with unexpected data shapes
+### Arquivo: `supabase/functions/analyze-efficiency-fingerprint/index.ts`
 
-## Technical Details
+Alterar o filtro e mapeamento (linhas 299-307) para:
 
-**File: `src/hooks/useEfficiencyFingerprint.ts`**
-- Add a check: if `result?.error` contains "Not enough valid data" or similar, set data to null and return without throwing
-- Double-wrap the entire function invoke in try/catch to handle any unexpected rejection
+```typescript
+const validPoints: DataPoint[] = seriesData
+  .filter((p: any) => {
+    const speed = p.speed_ms || 0;
+    const hr = p.heart_rate || p.hr || 0;
+    const dist = p.distance_meters || p.distance_m || 0;
+    return speed > 0.5 && hr > 30 && dist > 0;
+  })
+  .map((p: any) => ({
+    distance_meters: p.distance_meters || p.distance_m || 0,
+    speed_ms: p.speed_ms || 0,
+    heart_rate: p.heart_rate || p.hr || 0,
+    power_watts: p.power_watts || null,
+    elevation: p.elevation || p.elevation_m || null,
+  }));
+```
 
-**File: `src/App.tsx`**
-- Add `unhandledrejection` event listener in a useEffect inside the app component
-- Call `event.preventDefault()` to prevent the default browser crash behavior
+Isso resolve a compatibilidade com ambas as fontes (Garmin e HealthKit) sem alterar nenhuma outra parte do codigo.
 
-**File: `src/components/EfficiencyFingerprintSection.tsx`**
-- Keep returning null on error (the section just won't appear for activities without enough data)
+## Impacto
+- Atividades Garmin e HealthKit passarao a ser analisadas corretamente
+- Nenhuma mudanca no frontend necessaria
+- A edge function sera redeployada automaticamente
+
