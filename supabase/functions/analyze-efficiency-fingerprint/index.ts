@@ -297,13 +297,18 @@ serve(async (req) => {
 
     // Filter valid points
     const validPoints: DataPoint[] = seriesData
-      .filter((p: any) => p.speed_ms > 0.5 && p.heart_rate > 30 && p.distance_meters > 0)
+      .filter((p: any) => {
+        const speed = p.speed_ms || 0;
+        const hr = p.heart_rate || p.hr || 0;
+        const dist = p.distance_meters || p.distance_m || 0;
+        return speed > 0.5 && hr > 30 && dist > 0;
+      })
       .map((p: any) => ({
-        distance_meters: p.distance_meters,
-        speed_ms: p.speed_ms,
-        heart_rate: p.heart_rate,
+        distance_meters: p.distance_meters || p.distance_m || 0,
+        speed_ms: p.speed_ms || 0,
+        heart_rate: p.heart_rate || p.hr || 0,
         power_watts: p.power_watts || null,
-        elevation: p.elevation || null,
+        elevation: p.elevation || p.elevation_m || null,
       }));
 
     if (validPoints.length < 10) {
