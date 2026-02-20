@@ -307,13 +307,17 @@ serve(async (req) => {
       }));
 
     if (validPoints.length < 10) {
-      throw new Error('Not enough valid data points for analysis');
+      return new Response(JSON.stringify({ segments: [], alerts: [], recommendations: [], overall_score: 0, insufficient_data: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Compute segments
     const segments = computeSegments(validPoints);
     if (segments.length < 2) {
-      throw new Error('Not enough segments for meaningful analysis');
+      return new Response(JSON.stringify({ segments: [], alerts: [], recommendations: [], overall_score: 0, insufficient_data: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Generate alerts and recommendations
