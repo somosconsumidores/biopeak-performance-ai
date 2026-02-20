@@ -294,3 +294,6 @@ verify_jwt = false
 [functions.refresh-deduplicada-subscribers]
 verify_jwt = false
 
+[functions.analyze-efficiency-fingerprint]
+verify_jwt = true
+

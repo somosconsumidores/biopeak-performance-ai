@@ -1324,6 +1324,42 @@ export type Database = {
           },
         ]
       }
+      efficiency_fingerprint: {
+        Row: {
+          activity_id: string
+          alerts: Json | null
+          computed_at: string | null
+          created_at: string | null
+          id: string
+          overall_score: number | null
+          recommendations: Json | null
+          segments: Json
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          alerts?: Json | null
+          computed_at?: string | null
+          created_at?: string | null
+          id?: string
+          overall_score?: number | null
+          recommendations?: Json | null
+          segments?: Json
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          alerts?: Json | null
+          computed_at?: string | null
+          created_at?: string | null
+          id?: string
+          overall_score?: number | null
+          recommendations?: Json | null
+          segments?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       faturamento: {
         Row: {
           created_at: string
