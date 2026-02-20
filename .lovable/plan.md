@@ -1,123 +1,146 @@
 
 
-## Duas Correções Finais: CTL/ATL Normalizado + Deduplicação de Treinos
+## Fingerprint de Eficiencia -- Plano de Implementacao
 
-### Problema 1 — CTL/ATL com escala 10x
+### Visao Geral
 
-Os valores no banco estao multiplicados por ~10:
-- CTL 879.03 no banco = **87.9** real
-- ATL 266.72 no banco = **26.7** real
-
-O codigo atual (linha 85) rejeita valores > 200, mas nao tenta normalizar. A correcao e dividir por 10 **antes** de validar.
-
-**Correcao** (linhas 79-103):
-
-```typescript
-if (name === "get_fitness_scores") {
-  const { data } = await sb.from('fitness_scores_daily')
-    .select('calendar_date, ctl_42day, atl_7day')
-    .eq('user_id', uid)
-    .order('calendar_date', { ascending: false })
-    .limit(1).maybeSingle();
-  
-  if (!data) return { found: false, reason: "Nenhum dado de carga encontrado" };
-  
-  let ctl = data.ctl_42day;
-  let atl = data.atl_7day;
-  
-  // Normalizar escala: banco armazena valores ~10x maiores
-  if (ctl > 200) ctl = ctl / 10;
-  if (atl > 200) atl = atl / 10;
-  
-  // Sanity check pos-normalizacao
-  if (!ctl || !atl || ctl > 200 || atl > 200 || ctl < 0 || atl < 0) {
-    return {
-      found: false,
-      reason: `Valores de CTL/ATL fora do intervalo esperado mesmo apos normalizacao. Dado indisponivel.`
-    };
-  }
-  
-  const tsb = ctl - atl;
-  return {
-    found: true,
-    ctl: ctl.toFixed(1),
-    atl: atl.toFixed(1),
-    tsb: tsb.toFixed(1),
-    date: data.calendar_date,
-    status: tsb > 25 ? 'Muito fresco — volume baixo recente'
-           : tsb > 5  ? 'Fresco — pronto para treino intenso'
-           : tsb > -5 ? 'Balanceado'
-           : tsb > -25? 'Sob carga — monitore recuperacao'
-           :            'Fadiga acumulada — priorize descanso'
-  };
-}
-```
-
-Resultado para o usuario do banco (CTL=879, ATL=267):
-- CTL: **87.9**, ATL: **26.7**, TSB: **+61.2** → "Muito fresco"
+Criar uma analise exclusiva ("Fingerprint de Eficiencia") que segmenta atividades em trechos de ~250m, calcula um score de eficiencia por trecho (pace vs potencia vs FC), gera alertas e recomendacoes. Isso sera exposto via Edge Function, visualizado na pagina /workouts e integrado ao Coach IA.
 
 ---
 
-### Problema 2 — Treinos duplicados
+### 1. Tabela de Cache: `efficiency_fingerprint`
 
-Ja existem 4 "Regenerativo 5km" para 20/02/2026. O `create_scientific_workout` (linha 325) faz INSERT direto sem verificar duplicatas.
-
-**Correcao** (antes do INSERT na linha 325):
-
-Adicionar uma query de verificacao que busca treinos com mesmo `user_id`, `workout_date` e `workout_type` no status `planned`. Se existir, retorna o treino existente em vez de criar outro.
-
-```typescript
-// Deduplicacao: verificar se ja existe treino identico
-const { data: existing } = await sb.from('training_plan_workouts')
-  .select('id, title, workout_date, description')
-  .eq('user_id', uid)
-  .eq('workout_date', args.date)
-  .eq('workout_type', template.workout_type)
-  .eq('status', 'planned')
-  .limit(1)
-  .maybeSingle();
-
-if (existing) {
-  return {
-    success: true,
-    already_exists: true,
-    workout: { title: existing.title, date: existing.workout_date, description: existing.description },
-    message: `Treino "${existing.title}" ja existe para ${args.date}. Nao criei duplicata.`
-  };
-}
-```
-
----
-
-### Limpeza dos duplicados existentes
-
-Alem das correcoes no codigo, sera necessario remover os 3 treinos duplicados ja criados para 20/02/2026 (manter apenas o mais recente). Isso sera feito via migracao SQL:
+Nova tabela para armazenar resultados calculados por atividade:
 
 ```sql
-DELETE FROM training_plan_workouts
-WHERE id IN (
-  SELECT id FROM training_plan_workouts
-  WHERE workout_date = '2026-02-20'
-    AND title = 'Regenerativo 5km'
-    AND status = 'planned'
-  ORDER BY created_at DESC
-  OFFSET 1
+CREATE TABLE efficiency_fingerprint (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  activity_id text NOT NULL UNIQUE,
+  segments jsonb NOT NULL,        -- array de segmentos com metricas
+  alerts jsonb DEFAULT '[]',      -- alertas textuais
+  recommendations jsonb DEFAULT '[]', -- sugestoes para o coach
+  overall_score numeric,          -- score geral 0-100
+  computed_at timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now()
 );
+
+-- RLS
+ALTER TABLE efficiency_fingerprint ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users read own" ON efficiency_fingerprint FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Service insert" ON efficiency_fingerprint FOR INSERT WITH CHECK (true);
+CREATE POLICY "Service update" ON efficiency_fingerprint FOR UPDATE USING (true);
 ```
 
----
+### 2. Edge Function: `analyze-efficiency-fingerprint`
 
-### Resumo das mudancas
+**Arquivo**: `supabase/functions/analyze-efficiency-fingerprint/index.ts`
 
-| Arquivo | Alteracao |
+**Input**: `{ activity_id, user_id }`
+
+**Logica**:
+
+1. Buscar `activity_chart_data.series_data` para o `activity_id`
+2. Filtrar pontos com `speed_ms > 0` e `heart_rate > 0`
+3. Segmentar a cada ~250m (acumular distancia ate threshold)
+4. Para cada segmento calcular:
+   - `avg_pace`, `avg_hr`, `avg_power` (se disponivel)
+   - `efficiency_score`: se tem potencia, usa `speed / power * 1000` normalizado; senao usa `speed / hr * 1000` (fallback pace vs FC)
+   - `hr_efficiency_delta`: variacao de FC vs velocidade relativa ao segmento anterior
+   - Label: verde (score >= 70), amarelo (40-70), vermelho (< 40)
+5. Gerar `alerts` detectando:
+   - Queda de eficiencia > 15% em relacao a media movel
+   - FC subindo > 8% sem ganho de velocidade
+   - Queda abrupta de potencia
+6. Gerar `recommendations` com 2-3 sugestoes baseadas nos padroes detectados
+7. Calcular `overall_score` (media ponderada dos segmentos, com peso maior para segmentos finais)
+8. Upsert na tabela `efficiency_fingerprint`
+
+**Fallback sem potencia**: usar `speed_ms / heart_rate` como proxy de eficiencia.
+
+### 3. UI na pagina /workouts (WorkoutSession.tsx)
+
+Criar componente `EfficiencyFingerprintSection` inserido apos o card de "Distribuicao de Esforco" (linha ~411). Contera:
+
+#### 3a. Hook `useEfficiencyFingerprint(activityId)`
+- Busca cache na tabela `efficiency_fingerprint`
+- Se nao existir, chama a Edge Function para calcular
+- Retorna `{ segments, alerts, recommendations, overallScore, loading }`
+
+#### 3b. Componente `EfficiencyFingerprintSection`
+
+4 sub-secoes:
+
+1. **Score Geral + Heatmap Grid**
+   - Score circular tipo gauge (0-100)
+   - Grid horizontal: eixo X = segmentos por distancia, cor de fundo = verde/amarelo/vermelho baseado no `efficiency_score`
+   - Recharts AreaChart com gradiente de cores
+
+2. **Grafico Sincronizado FC x Potencia x Pace**
+   - Recharts ComposedChart com 3 linhas sobrepostas
+   - Eixo Y esquerdo: FC (bpm) e Potencia (W)
+   - Eixo Y direito: Pace (min/km)
+   - Tooltip sincronizado mostrando os 3 valores + eficiencia do segmento
+
+3. **Cards de Alertas**
+   - Lista de alertas com icone de alerta, distancia do trecho e descricao
+   - Badge vermelho/amarelo conforme severidade
+
+4. **Bloco "Coach IA Recomenda"**
+   - 2-3 cards com icone, titulo e descricao da recomendacao
+   - Estilo consistente com glass-card e dark mode
+
+#### 3c. Loading State
+- Skeleton animado com texto "Calculando fingerprint de eficiencia..."
+- Premium gate: so assinantes veem (consistente com DeepAnalysisSection)
+
+### 4. Integracao com o Coach IA
+
+Adicionar nova tool ao `ai-coach-chat`:
+
+```typescript
+{
+  type: "function",
+  function: {
+    name: "get_efficiency_fingerprint",
+    description: "Analise de eficiencia por segmento de uma atividade. Retorna score, alertas e recomendacoes.",
+    parameters: {
+      type: "object",
+      properties: {
+        activity_id: { type: "string", description: "ID da atividade" }
+      },
+      required: ["activity_id"]
+    }
+  }
+}
+```
+
+**Implementacao no `executeTool`**:
+- Buscar da tabela `efficiency_fingerprint` primeiro (cache)
+- Se nao existir, invocar a Edge Function e buscar novamente
+- Retornar resumo: score geral, top 3 alertas, recomendacoes
+- Prompt atualizado para instruir o coach a citar "Fingerprint de Eficiencia", referenciar trechos especificos por distancia e sugerir treinos tecnicos correspondentes
+
+### 5. Resumo dos Arquivos
+
+| Arquivo | Acao |
 |---|---|
-| `supabase/functions/ai-coach-chat/index.ts` linhas 79-103 | Dividir CTL/ATL por 10 quando > 200, depois validar |
-| `supabase/functions/ai-coach-chat/index.ts` antes da linha 325 | Check de duplicata antes do INSERT |
-| Migracao SQL | Remover 3 treinos duplicados existentes |
+| Migracao SQL | Criar tabela `efficiency_fingerprint` com RLS |
+| `supabase/functions/analyze-efficiency-fingerprint/index.ts` | Nova Edge Function com logica de segmentacao e scoring |
+| `supabase/config.toml` | Adicionar config da nova funcao |
+| `src/hooks/useEfficiencyFingerprint.ts` | Hook para buscar/triggar analise |
+| `src/components/EfficiencyFingerprintSection.tsx` | Componente principal com 4 sub-secoes |
+| `src/components/EfficiencyHeatmapGrid.tsx` | Heatmap grid de eficiencia por segmento |
+| `src/components/EfficiencySyncChart.tsx` | Grafico sincronizado FC x Power x Pace |
+| `src/pages/WorkoutSession.tsx` | Inserir novo bloco apos EffortDistributionChart |
+| `supabase/functions/ai-coach-chat/index.ts` | Nova tool `get_efficiency_fingerprint` + prompt update |
 
-### Resultado esperado
+### 6. Criterios de Aceite
 
-| Cenario | Antes | Depois |
-|---|---|---|
-| "Qual meu CTL/ATL?" | "Dados fora do intervalo (879/267)" | CTL: 87.9, ATL: 26.7, TSB: +61.2 - "Muito fresco" |
-| "Crie treino leve para amanha" (repetido) | Cria duplicata cada vez | "Treino ja existe para essa data. Nao criei duplicata." |
+- Atividade 21929844707 (2475 pontos, com potencia) gera ~40 segmentos de 250m
+- Atividades sem potencia usam fallback pace/FC sem erro
+- Cache na tabela evita recalculo a cada visita
+- Coach IA cita numeros reais do fingerprint (score, km do alerta)
+- Dark mode e responsivo em mobile
+- Loading skeleton enquanto calcula
+
